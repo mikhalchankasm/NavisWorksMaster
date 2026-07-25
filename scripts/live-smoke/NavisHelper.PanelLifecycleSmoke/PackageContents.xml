@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0"
+                    ProductType="Application"
+                    Name="NavisHelper Panel Lifecycle Smoke"
+                    AppVersion="1.0.0.0"
+                    FriendlyVersion="1.0.0.0"
+                    Description="Temporary local NavisHelper panel lifecycle smoke harness"
+                    SupportedLocales="Enu"
+                    Author="Codex"
+                    AutodeskProduct="Naviswork"
+                    AppNameSpace="navishelper.panel.lifecycle.smoke"
+                    ProductCode="{B48F17D3-8B64-4D24-A56C-793AD69DF515}"
+                    UpgradeCode="{193869B1-4ABC-478B-842F-6B0F1A20EDAE}">
+  <CompanyDetails Name="Codex" Email="" Url="" Phone="" />
+  <Components Description="Navisworks Manage 2027 local smoke">
+    <RuntimeRequirements OS="Win64" Platform="NAVMAN" SeriesMin="Nw24" SeriesMax="Nw24" />
+    <ComponentEntry AppName="NavisHelperPanelLifecycleSmoke"
+                    AppType="ManagedPlugin"
+                    Version="1.0.0.0"
+                    ModuleName="./Contents/2027/NavisHelper.PanelLifecycleSmoke.dll"
+                    AppDescription="Temporary local NavisHelper panel lifecycle smoke harness" />
+  </Components>
+</ApplicationPackage>

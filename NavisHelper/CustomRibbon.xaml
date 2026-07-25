@@ -1,0 +1,15 @@
+<RibbonControl
+ xmlns="clr-namespace:Autodesk.Windows;assembly=AdWindows"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <RibbonTab Id="ID_NavisHelper_Tab" Title="NavisHelper" KeyTip="NH">
+        <RibbonPanel>
+            <RibbonPanelSource Title="NavisHelper" KeyTip="P">
+                <RibbonButton Id="NavisHelper.Button.ShowPanel"
+                              Size="Large"
+                              KeyTip="N"
+                              ShowText="True"
+                              Orientation="Vertical"/>
+            </RibbonPanelSource>
+        </RibbonPanel>
+    </RibbonTab>
+</RibbonControl>

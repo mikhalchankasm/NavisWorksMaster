@@ -1,0 +1,4 @@
+# Reviewed maximum number of compiled files contributing to compatibility partial types.
+# Do not raise a limit merely to add a feature. New feature families use their own type.
+DocumentCommandService=32
+NavisHelperPanel=18

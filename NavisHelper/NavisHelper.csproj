@@ -1,0 +1,768 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{C5BD6924-DE03-434E-80A9-D5E96791EE50}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>NavisHelper</RootNamespace>
+    <AssemblyName>NavisHelper</AssemblyName>
+    <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug2024|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug2024\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release2024|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release2024\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug2025|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug2025\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release2025|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release2025\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug2026|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug2026\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release2026|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release2026\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug2027|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug2027\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release2027|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release2027\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug2024|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug2024\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release2024|x64'">
+    <OutputPath>bin\x64\Release2024\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug2025|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug2025\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release2025|x64'">
+    <OutputPath>bin\x64\Release2025\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug2026|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug2026\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release2026|x64'">
+    <OutputPath>bin\x64\Release2026\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug2027|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug2027\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release2027|x64'">
+    <OutputPath>bin\x64\Release2027\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(Configuration)' != 'Debug2024' And '$(Configuration)' != 'Release2024' And '$(Configuration)' != 'Debug2025' And '$(Configuration)' != 'Release2025' And '$(Configuration)' != 'Debug2026' And '$(Configuration)' != 'Release2026' And '$(Configuration)' != 'Debug2027' And '$(Configuration)' != 'Release2027' ">
+    <Reference Include="AdWindows">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\AdWindows.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Api">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Api.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Automation">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Automation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Clash">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Clash.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.ComApi, Version=21.0.0.0, Culture=neutral, PublicKeyToken=d85e58fa5af9b484, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.ComApi.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Controls">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Controls.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Interop.ComApi">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Interop.ComApi.dll</HintPath>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="Navisworks.Clash.Plugin">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Navisworks.Clash.Plugin.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="Microsoft.VisualBasic" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(Configuration)' == 'Debug2024' Or '$(Configuration)' == 'Release2024' ">
+    <Reference Include="AdWindows">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2024\AdWindows.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Api">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2024\Autodesk.Navisworks.Api.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Automation">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2024\Autodesk.Navisworks.Automation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Clash">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2024\Autodesk.Navisworks.Clash.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.ComApi">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2024\Autodesk.Navisworks.ComApi.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Controls">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2024\Autodesk.Navisworks.Controls.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Interop.ComApi">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2024\Autodesk.Navisworks.Interop.ComApi.dll</HintPath>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="Navisworks.Clash.Plugin">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2024\Navisworks.Clash.Plugin.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="Microsoft.VisualBasic" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(Configuration)' == 'Debug2025' Or '$(Configuration)' == 'Release2025' ">
+    <Reference Include="AdWindows">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2025\AdWindows.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Api">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2025\Autodesk.Navisworks.Api.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Automation">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2025\Autodesk.Navisworks.Automation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Clash">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2025\Autodesk.Navisworks.Clash.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.ComApi">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2025\Autodesk.Navisworks.ComApi.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Controls">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2025\Autodesk.Navisworks.Controls.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Interop.ComApi">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2025\Autodesk.Navisworks.Interop.ComApi.dll</HintPath>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="Navisworks.Clash.Plugin">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2025\Navisworks.Clash.Plugin.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="Microsoft.VisualBasic" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(Configuration)' == 'Debug2026' Or '$(Configuration)' == 'Release2026' ">
+    <Reference Include="AdWindows">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\AdWindows.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Api">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Api.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Automation">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Automation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Clash">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Clash.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.ComApi">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.ComApi.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Controls">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Controls.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Interop.ComApi">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Interop.ComApi.dll</HintPath>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="Navisworks.Clash.Plugin">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Navisworks.Clash.Plugin.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="Microsoft.VisualBasic" />
+    <!-- DevExpress 25.1 WPF -->
+    <Reference Include="DevExpress.Data.v25.1">
+      <HintPath>C:\Program Files\DevExpress 25.1\Components\Bin\Framework\DevExpress.Data.v25.1.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DevExpress.Mvvm.v25.1">
+      <HintPath>C:\Program Files\DevExpress 25.1\Components\Bin\Framework\DevExpress.Mvvm.v25.1.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DevExpress.Xpf.Core.v25.1">
+      <HintPath>C:\Program Files\DevExpress 25.1\Components\Bin\Framework\DevExpress.Xpf.Core.v25.1.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DevExpress.Xpf.Grid.v25.1.Core">
+      <HintPath>C:\Program Files\DevExpress 25.1\Components\Bin\Framework\DevExpress.Xpf.Grid.v25.1.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DevExpress.Xpf.Grid.v25.1">
+      <HintPath>C:\Program Files\DevExpress 25.1\Components\Bin\Framework\DevExpress.Xpf.Grid.v25.1.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup Condition=" '$(Configuration)' == 'Debug2027' Or '$(Configuration)' == 'Release2027' ">
+    <Reference Include="AdWindows">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2027\AdWindows.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Api">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2027\Autodesk.Navisworks.Api.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Automation">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2027\Autodesk.Navisworks.Automation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Clash">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2027\Autodesk.Navisworks.Clash.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.ComApi">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2027\Autodesk.Navisworks.ComApi.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Controls">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2027\Autodesk.Navisworks.Controls.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Navisworks.Interop.ComApi">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2027\Autodesk.Navisworks.Interop.ComApi.dll</HintPath>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="Navisworks.Clash.Plugin">
+      <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2027\Navisworks.Clash.Plugin.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="Microsoft.VisualBasic" />
+    <!-- DevExpress 25.1 WPF -->
+    <Reference Include="DevExpress.Data.v25.1">
+      <HintPath>C:\Program Files\DevExpress 25.1\Components\Bin\Framework\DevExpress.Data.v25.1.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DevExpress.Mvvm.v25.1">
+      <HintPath>C:\Program Files\DevExpress 25.1\Components\Bin\Framework\DevExpress.Mvvm.v25.1.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DevExpress.Xpf.Core.v25.1">
+      <HintPath>C:\Program Files\DevExpress 25.1\Components\Bin\Framework\DevExpress.Xpf.Core.v25.1.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DevExpress.Xpf.Grid.v25.1.Core">
+      <HintPath>C:\Program Files\DevExpress 25.1\Components\Bin\Framework\DevExpress.Xpf.Grid.v25.1.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DevExpress.Xpf.Grid.v25.1">
+      <HintPath>C:\Program Files\DevExpress 25.1\Components\Bin\Framework\DevExpress.Xpf.Grid.v25.1.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Agent\AgentRuntime.cs" />
+    <Compile Include="Agent\Host\AgentHostService.cs" />
+    <Compile Include="Agent\Host\AgentHostService.Lifecycle.cs" />
+    <Compile Include="Agent\Host\AgentHostService.Transport.cs" />
+    <Compile Include="Agent\Host\AgentHostService.Dispatch.cs" />
+    <Compile Include="Agent\Host\AgentHostService.Document.cs" />
+    <Compile Include="Agent\Host\AgentHostService.Discovery.cs" />
+    <Compile Include="Agent\Host\AgentHostService.Response.cs" />
+    <Compile Include="Agent\Host\AgentHostService.OperationHistory.cs" />
+    <Compile Include="Agent\Host\AgentHostService.CommandRouter.cs" />
+    <Compile Include="Agent\Host\AgentHostService.ClashSets.cs" />
+    <Compile Include="Agent\Host\CommandRouter.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.Grouping.cs" />
+    <Compile Include="Agent\Services\ClashRootMatrixService.cs" />
+    <Compile Include="Agent\Services\ClashNativeIgnoreRuleService.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.Matrix.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.Report.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.ExecutionSupport.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.BboxSupport.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.GroupSupport.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.ReportSupport.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.ReportDataSupport.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.ReportOutputSupport.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.Listing.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.Workflow.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Clash.Planning.cs" />
+    <Compile Include="Agent\Services\ClashDocumentStateService.cs" />
+    <Compile Include="Agent\Services\ClashClusterConstructionService.cs" />
+    <Compile Include="Agent\Services\ClashGroupMutationService.cs" />
+    <Compile Include="Agent\Services\ClashWorkflowService.cs" />
+    <Compile Include="Agent\Services\ClashRunPreservationService.cs" />
+    <Compile Include="Agent\Services\ClashIgnoreRuleStore.cs" />
+    <Compile Include="Agent\Services\ClashPointExportWriter.cs" />
+    <Compile Include="Agent\Services\ClashMatrixMutationService.cs" />
+    <Compile Include="Agent\Services\ClashRenumberMutationService.cs" />
+    <Compile Include="Agent\Services\ClashTestMutationService.cs" />
+    <Compile Include="Agent\Services\ClashReportOperationTracker.cs" />
+    <Compile Include="Agent\Services\SelectionSetReferenceResolver.cs" />
+    <Compile Include="Agent\Services\ClashTestsFromSetsService.cs" />
+    <Compile Include="Agent\Services\ClashBatchRunService.cs" />
+    <Compile Include="Agent\Services\ClashReportArtifactWriter.cs" />
+    <Compile Include="Agent\Services\ClashReportItemProcessingService.cs" />
+    <Compile Include="Agent\Services\ClashReportClusterProcessingService.cs" />
+    <Compile Include="Agent\Services\ClashReportResponseFactory.cs" />
+    <Compile Include="Agent\Services\ClashReportMarkerViewService.cs" />
+    <Compile Include="Agent\Services\ClashReportScopePageService.cs" />
+    <Compile Include="Agent\Services\ClashReportScreenshotCaptureService.cs" />
+    <Compile Include="Agent\Services\ClashReportScreenshotSetService.cs" />
+    <Compile Include="Agent\Services\ClashIsolationService.cs" />
+    <Compile Include="Agent\Services\ClashIsolationDocumentIdentity.cs" />
+    <Compile Include="Agent\Services\ClashItemNameService.cs" />
+    <Compile Include="Agent\Services\ModelColorSchemeService.cs" />
+    <Compile Include="Agent\Services\CurrentViewScreenshotService.cs" />
+    <Compile Include="Agent\Services\ClashSavedViewpointCreationService.cs" />
+    <Compile Include="Agent\Services\ElevationMarkerService.cs" />
+    <Compile Include="Agent\Services\NavisworksApplicationCloseService.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Markup.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.DocumentSave.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.MtrBatch.cs" />
+    <Compile Include="Agent\Services\SelectionMarkupViewpointService.cs" />
+    <Compile Include="Agent\Services\SelectionViewpointClusterService.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Color.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.PropertyReport.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.SelectionSets.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.SelectionSetManagement.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.SelectionSetReorder.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.SelectionSetTree.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.SelectionQueries.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.SelectionSetQueries.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.ViewportCommands.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Visibility.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.SubtreeDump.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Viewpoints.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Viewpoints.Export.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Viewpoints.Import.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.Viewpoints.Management.cs" />
+    <Compile Include="Agent\Services\DocumentCommandService.cs" />
+    <Compile Include="Agent\Services\SearchService.cs" />
+    <Compile Include="Agent\Services\SearchService.Commands.cs" />
+    <Compile Include="Agent\Services\SearchService.Execution.cs" />
+    <Compile Include="Agent\Services\SearchService.Spatial.cs" />
+    <Compile Include="Agent\Services\SearchService.Index.cs" />
+    <Compile Include="Agent\Services\SearchService.Rules.cs" />
+    <Compile Include="Agent\Services\SearchService.Scoped.cs" />
+    <Compile Include="Agent\Services\SelectionSetSearchBuilder.cs" />
+    <Compile Include="Agent\Session\MatchSessionStore.cs" />
+    <Compile Include="AboutDialog.cs" />
+    <Compile Include="AIColorObjects.cs" />
+    <Compile Include="AIColorSchemeSelector.cs" />
+    <Compile Include="AIColorService.cs" />
+    <Compile Include="AIColorUtils.cs" />
+    <Compile Include="AIConfig.cs" />
+    <Compile Include="ColorSchemes.cs" />
+    <Compile Include="ColorsByNameHandler.cs" />
+    <Compile Include="Core\ColorParser.cs" />
+    <Compile Include="Core\RalColors.cs" />
+    <Compile Include="CsvAttributeLoader.cs" />
+    <Compile Include="FilterNavisModels.cs" />
+    <Compile Include="HideItems.cs" />
+    <Compile Include="ColorsByName.cs" />
+    <Compile Include="MarkupViewpoint.cs" />
+    <Compile Include="ShortestDistanceMarker.cs" />
+    <Compile Include="TopViewSection.cs" />
+    <Compile Include="TopViewBoundingRect.cs" />
+    <Compile Include="TopViewBoundingHatch.cs" />
+    <Compile Include="SelectionCenterDotMarker.cs" />
+    <Compile Include="SelectionHatchMarker.cs" />
+    <Compile Include="SelectionHatchBoundsMarker.cs" />
+    <Compile Include="ImportPslists.cs" />
+    <Compile Include="Core\Logger.cs" />
+    <Compile Include="NavisSaveUtils.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RibbonLoader.cs" />
+    <Compile Include="RunSaveClashReport.cs" />
+    <Compile Include="SaveAsNavis2018.cs" />
+    <Compile Include="SaveHierarhy.cs" />
+    <Compile Include="SaveViewpiontList.cs" />
+    <Compile Include="SortViewpoints.cs" />
+    <!-- <Compile Include="WPF\FilterModelsPanel.xaml.cs">
+      <DependentUpon>FilterModelsPanel.xaml</DependentUpon>
+    </Compile> -->
+    <!-- <Compile Include="WPF\FilterModelsPanelPlugin.cs" /> -->
+    <Compile Include="NavisHelperDockPanePlugin.cs" />
+    <Compile Include="PluginCommandExecutor.cs" />
+    <Compile Include="ShowNavisHelperPanel.cs" />
+    <Compile Include="ExportImportColors.cs" />
+    <Compile Include="WPF\NavisHelperPanel.cs" />
+    <Compile Include="WPF\NavisHelperPanel.ShellTabs.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Colors.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Selection.cs" />
+    <Compile Include="WPF\SelectionGatingController.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Viewpoints.cs" />
+    <Compile Include="WPF\NavisHelperPanel.HeightMarks.cs" />
+    <Compile Include="WPF\HeightMarkSessionGroup.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Clash.cs" />
+    <Compile Include="WPF\ClashVirtualGroupStateStore.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Clash.Lifecycle.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Clash.Shell.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Clash.GroupingEngine.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Clash.SelectionGrid.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Clash.Operations.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Clash.PreviewState.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Clash.Settings.cs" />
+    <Compile Include="WPF\NavisHelperPanel.ClashDiagnostics.cs" />
+    <Compile Include="WPF\NavisHelperPanel.ClashExport.cs" />
+    <Compile Include="WPF\NavisHelperPanel.ClashOrbitExport.cs" />
+    <Compile Include="WPF\NavisHelperPanel.Resources.cs" />
+    <Compile Include="WPF\UiTheme.cs" />
+    <Compile Include="WPF\NavisHelperSettingsTabBuilder.cs" />
+    <Compile Include="CopySelectedNames.cs" />
+    <Compile Include="ParentChildSelector.cs" />
+    <Compile Include="ClashPreviewManager.cs" />
+    <Compile Include="ClashMarkerTool.cs" />
+    <Compile Include="ElevationGraphicsMarkerTool.cs" />
+    <Compile Include="SelectionPlaneTool.cs" />
+    <Compile Include="DevScriptLoader.cs" />
+    <Compile Include="Interfaces\IDevScript.cs" />
+    <Compile Include="Core\KeyboardHook.cs" />
+    <Compile Include="Core\FolderPickerDialog.cs" />
+    <Compile Include="Core\SectionBoxHelper.cs" />
+    <Compile Include="Core\ClashApiCompat.cs" />
+    <Compile Include="Core\ClashSettings.cs" />
+    <Compile Include="Core\PanelUiSettings.cs" />
+    <Compile Include="Core\NaturalStringComparer.cs" />
+    <Compile Include="Core\RedlineJsonSanitizer.cs" />
+    <Compile Include="Core\ScreenUpdateSuppressor.cs" />
+    <Compile Include="Core\SavedViewpointAppearanceHelper.cs" />
+    <Compile Include="Core\SelectionBoxSettings.cs" />
+    <Compile Include="Core\ViewpointCameraHelper.cs" />
+    <Compile Include="SelectionPreviewManager.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="ColorsByName.addin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="PackageContents.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- <Page Include="WPF\FilterModelsPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page> -->
+    <Folder Include="Ribbon\" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.0" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.0" />
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.Runtime.WindowsRuntime" Version="4.6.0" />
+    <PackageReference Include="System.Runtime.WindowsRuntime.UI.Xaml" Version="4.6.0" />
+    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="CustomRibbon.xaml" />
+    <EmbeddedResource Include="Resources\ColorsByName.ico" />
+    <EmbeddedResource Include="Resources\ColorsByName_16.png" />
+    <EmbeddedResource Include="Resources\ColorsByName_32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\NavisHelper.Contracts\NavisHelper.Contracts.csproj">
+      <Project>{C76D2B02-2088-4C22-8F63-8C0509E11310}</Project>
+      <Name>NavisHelper.Contracts</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <BundleVersion Condition="'$(Configuration)' == 'Debug2024' Or '$(Configuration)' == 'Release2024'">2024</BundleVersion>
+    <BundleVersion Condition="'$(Configuration)' == 'Debug2025' Or '$(Configuration)' == 'Release2025'">2025</BundleVersion>
+    <BundleVersion Condition="'$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release' Or '$(Configuration)' == 'Debug2026' Or '$(Configuration)' == 'Release2026'">2026</BundleVersion>
+    <BundleVersion Condition="'$(Configuration)' == 'Debug2027' Or '$(Configuration)' == 'Release2027'">2027</BundleVersion>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'Debug2024' Or '$(Configuration)' == 'Release2024' Or '$(Configuration)' == 'Debug2025' Or '$(Configuration)' == 'Release2025' Or '$(Configuration)' == 'Debug2027' Or '$(Configuration)' == 'Release2027'">
+    <BundleIconFiles Include="..\NavisHelper.bundle\Contents\2026\icons\**\*" />
+  </ItemGroup>
+  <Target Name="CopyBundleArtifacts" AfterTargets="Build" Condition="'$(BundleVersion)' != ''">
+    <PropertyGroup>
+      <BundleTargetDir>$(MSBuildProjectDirectory)\..\NavisHelper.bundle\Contents\$(BundleVersion)</BundleTargetDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <BundleDependencyFiles Include="@(ReferenceCopyLocalPaths)" />
+      <BundleDependencyFiles Include="$(TargetDir)$(TargetFileName).config" Condition="Exists('$(TargetDir)$(TargetFileName).config')" />
+    </ItemGroup>
+    <MakeDir Directories="$(BundleTargetDir)" />
+    <Copy SourceFiles="$(TargetPath)"
+          DestinationFiles="$(BundleTargetDir)\NavisHelper.dll"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(BundleDependencyFiles)"
+          DestinationFolder="$(BundleTargetDir)"
+          SkipUnchangedFiles="true"
+          Condition="'@(BundleDependencyFiles)' != ''" />
+    <MakeDir Directories="$(BundleTargetDir)\icons" Condition="'$(BundleVersion)' == '2024' Or '$(BundleVersion)' == '2025' Or '$(BundleVersion)' == '2027'" />
+    <Copy SourceFiles="@(BundleIconFiles)"
+          DestinationFolder="$(BundleTargetDir)\icons\%(RecursiveDir)"
+          SkipUnchangedFiles="true"
+          Condition="('$(BundleVersion)' == '2024' Or '$(BundleVersion)' == '2025' Or '$(BundleVersion)' == '2027') And '@(BundleIconFiles)' != ''" />
+  </Target>
+</Project>

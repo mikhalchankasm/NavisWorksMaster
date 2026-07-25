@@ -1,0 +1,6 @@
+# Explicitly tracked C# files that are intentionally outside NavisHelper.csproj Compile.
+# Keep this list short and remove entries as part of the dedicated stale-code stage.
+
+# Legacy WPF files intentionally disabled in the non-SDK project. Decision required.
+NavisHelper/WPF/FilterModelsPanel.xaml.cs
+NavisHelper/WPF/FilterModelsPanelPlugin.cs

@@ -1,0 +1,54 @@
+# Build output
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+
+# Bundle binaries are build/release artifacts, not source.
+NavisHelper.bundle/Contents/**/*.dll
+NavisHelper.bundle/Contents/**/*.pdb
+!NavisHelper.bundle/Contents/**/*.dll.config
+
+# NuGet
+packages/
+*.nupkg
+
+# VS
+.vs/
+.vscode/
+*.rsuser
+*.userprefs
+
+# Temp
+*.tmp
+*.log
+__pycache__/
+*.pyc
+artifacts/
+tmp_*.il
+tmp_reflect/
+tmp_reflect_*.cs
+temp/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+ai_config.json
+
+# Local research notes
+habr_articles/
+
+# Navisworks API docs/examples (large, not our code)
+api/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+docs/INVENTORY.md
+docs/PRERELEASE-AUDIT.md

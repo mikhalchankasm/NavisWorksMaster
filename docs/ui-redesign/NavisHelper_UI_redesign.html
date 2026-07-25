@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NavisHelper — редизайн UI (превью)</title>
+<style>
+  :root{
+    --panel-bg:#f4f4f4; --border:#cccccc; --border-soft:#dddddd;
+    --btn-bg:#fdfdfd; --btn-bg-hover:#e8f1fb; --btn-border:#bcbcbc;
+    --accent:#0a66c2; --accent-soft:#e8f1fb; --text:#1f1f1f; --muted:#6b6b6b;
+    --group:#34506b; --tab-active:#ffffff; --tab-bg:#e7e7e7;
+  }
+  *{box-sizing:border-box;font-family:"Segoe UI",Tahoma,Arial,sans-serif;}
+  body{margin:0;background:#dadde2;color:var(--text);padding:24px;display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;}
+  h1.page{width:100%;font-size:18px;font-weight:600;margin:0 0 4px;}
+  p.page{width:100%;margin:0 0 12px;color:#444;font-size:13px;max-width:900px;line-height:1.5;}
+
+  /* ---- Dock panel ---- */
+  .panel{width:344px;background:var(--panel-bg);border:1px solid var(--border);
+    border-radius:3px;box-shadow:0 6px 22px rgba(0,0,0,.18);display:flex;flex-direction:column;
+    height:760px;overflow:hidden;}
+  .topbar{height:30px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 4px 0 8px;border-bottom:1px solid var(--border-soft);background:#efefef;}
+  .topbar .title{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.2px;}
+  .overflow{width:26px;height:22px;border:1px solid var(--btn-border);background:var(--btn-bg);
+    border-radius:3px;cursor:pointer;font-weight:700;line-height:1;}
+
+  /* ---- Tabs ---- */
+  .tabs{display:flex;background:var(--tab-bg);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .tab{flex:1 1 auto;text-align:center;font-size:11px;padding:7px 4px;cursor:pointer;
+    border-right:1px solid var(--border-soft);color:#333;white-space:nowrap;user-select:none;}
+  .tab:last-child{border-right:none;}
+  .tab.active{background:var(--tab-active);font-weight:600;color:#000;
+    box-shadow:inset 0 2px 0 var(--accent);}
+  .tab.locked{color:#9a9a9a;}
+
+  /* ---- Tab body ---- */
+  .body{flex:1;overflow-y:auto;padding:10px;}
+  .body::-webkit-scrollbar{width:10px;}
+  .body::-webkit-scrollbar-thumb{background:#c4c4c4;border-radius:5px;}
+
+  .group{font-size:11px;font-weight:700;color:var(--group);text-transform:uppercase;
+    letter-spacing:.4px;margin:14px 0 6px;border-bottom:1px solid var(--border-soft);padding-bottom:3px;}
+  .group:first-child{margin-top:2px;}
+
+  .row{display:flex;gap:5px;margin-bottom:5px;flex-wrap:wrap;}
+  .btn{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:5px;
+    background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:3px;
+    padding:6px 8px;font-size:11.5px;cursor:pointer;color:var(--text);min-height:28px;white-space:nowrap;}
+  .btn:hover{background:var(--btn-bg-hover);border-color:var(--accent);}
+  .btn .ic{font-size:13px;}
+  .btn.wide{flex-basis:100%;}
+  .btn.primary{background:var(--accent);color:#fff;border-color:#084e95;font-weight:600;min-height:34px;}
+  .btn.primary:hover{background:#0a5bad;}
+  .btn.ghost{background:#f6f6f6;color:#444;}
+  .btn.sm{font-size:10.5px;min-height:24px;padding:3px 6px;}
+
+  .hint{font-size:10.5px;color:var(--muted);line-height:1.55;margin:6px 0 2px;
+    background:#fafafa;border:1px dashed var(--border);border-radius:3px;padding:7px 9px;}
+  .hint b{color:#444;}
+  kbd{background:#fff;border:1px solid #c2c2c2;border-bottom-width:2px;border-radius:3px;
+    padding:0 4px;font-size:10px;font-family:Consolas,monospace;color:#333;}
+
+  /* slot widget */
+  .slot{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+  .slot .dot{width:9px;height:9px;border-radius:50%;background:#bdbdbd;flex:none;}
+  .slot.filled .dot{background:#37a04a;}
+  .slot .name{font-size:11px;width:70px;color:#333;flex:none;}
+  .slot .save,.slot .recall{flex:1;}
+  .slot .recall{background:#eef4fb;}
+
+  /* misc inputs */
+  .lbl{font-size:11px;color:#333;margin:8px 0 4px;}
+  .inputrow{display:flex;gap:5px;margin-bottom:6px;}
+  .input{flex:1;border:1px solid var(--btn-border);border-radius:3px;padding:5px 7px;font-size:11px;background:#fff;}
+  .check{display:flex;align-items:center;gap:6px;font-size:11px;color:#333;margin:5px 0;}
+  .check input{accent-color:var(--accent);}
+  .swatch{width:34px;height:22px;border:1px solid #999;border-radius:2px;background:linear-gradient(135deg,#e23,#b11);flex:none;}
+  .listbox{border:1px solid var(--btn-border);background:#fff;border-radius:3px;font-size:11px;padding:4px;margin-bottom:6px;}
+  .listbox .li{padding:5px 6px;border-radius:2px;display:flex;align-items:center;gap:8px;}
+  .listbox .li.sel{background:var(--accent-soft);}
+  .listbox .li.empty{color:#999;font-style:italic;}
+  .dots{display:flex;gap:3px;margin-left:auto;}
+  .dots i{width:11px;height:11px;border-radius:50%;display:inline-block;}
+  .slider{height:4px;background:#cfcfcf;border-radius:2px;position:relative;flex:1;}
+  .slider::after{content:"";position:absolute;left:30%;top:-4px;width:12px;height:12px;border-radius:50%;background:var(--accent);}
+  .sliderrow{display:flex;align-items:center;gap:8px;font-size:11px;color:#333;margin-bottom:7px;}
+  .sliderrow .cap{width:84px;flex:none;}
+  .sliderrow .val{width:42px;text-align:right;flex:none;color:#555;}
+  .log{border:1px solid var(--btn-border);background:#f5f5f5;border-radius:3px;
+    font-family:Consolas,monospace;font-size:10.5px;color:#555;padding:7px;min-height:90px;}
+  .lockbox{margin-top:10px;text-align:center;color:#8a8a8a;font-size:12px;
+    border:1px dashed var(--border);border-radius:4px;padding:30px 14px;background:#fafafa;}
+
+  /* ---- Clash tab ---- */
+  .cbar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;}
+  .cbar .btn{flex:none;padding:4px 8px;min-height:24px;font-size:10.5px;}
+  .csep{width:1px;align-self:stretch;background:var(--border-soft);margin:2px 4px;}
+  .cfilter{width:100%;border:1px solid var(--btn-border);border-radius:3px;padding:4px 7px;
+    font-size:10.5px;color:#999;background:#fff;margin-bottom:4px;}
+  .tbl{border:1px solid var(--btn-border);border-radius:3px;background:#fff;overflow:hidden;font-size:10.5px;}
+  .tbl .th,.tbl .tr{display:flex;}
+  .tbl .th{background:#eef1f5;font-weight:700;color:#33506b;border-bottom:1px solid #d7dee8;}
+  .tbl .tr{border-bottom:1px solid #eef1f5;}
+  .tbl .tr.sel{background:var(--accent-soft);}
+  .tbl .tr:nth-child(even){background:#f8fafc;}
+  .tbl .tr.sel:nth-child(even){background:var(--accent-soft);}
+  .tbl .c{padding:3px 6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+  .tbl .grow{flex:1;}
+  .tbl .st{width:30px;text-align:center;}
+  .tbl .num{width:38px;text-align:right;color:#555;}
+  .badge{display:inline-block;width:9px;height:9px;border-radius:50%;}
+  .b-new{background:#e23;}.b-act{background:#ec9c00;}.b-ok{background:#37a04a;}
+  .gsplit{height:8px;margin:5px 0;border-radius:4px;background:#dfe3e8;display:flex;
+    align-items:center;justify-content:center;cursor:ns-resize;}
+  .gsplit:hover{background:#c7d4e4;}
+  .gsplit .grip{width:34px;height:3px;border-radius:2px;background:#9aa6b4;
+    box-shadow:0 3px 0 #9aa6b4,0 -3px 0 #9aa6b4;}
+  .vsplit{width:7px;align-self:stretch;border-radius:4px;background:#dfe3e8;cursor:ew-resize;flex:none;
+    display:flex;align-items:center;justify-content:center;margin:0 3px;}
+  .vsplit .grip{width:3px;height:34px;border-radius:2px;background:#9aa6b4;
+    box-shadow:3px 0 0 #9aa6b4,-3px 0 0 #9aa6b4;}
+  .clashbody{display:flex;}
+  .navcol{display:flex;flex-direction:column;gap:4px;justify-content:center;padding:0 4px;}
+  .navcol button{width:28px;border:1px solid var(--btn-border);background:var(--btn-bg);border-radius:3px;cursor:pointer;}
+  .navcol .big{height:34px;font-size:14px;}.navcol .sm2{height:22px;}
+  .subtabs{display:flex;border-bottom:1px solid #d7dee8;font-size:10.5px;}
+  .subtabs span{padding:4px 8px;cursor:pointer;color:#555;}
+  .subtabs span.on{background:#eef4fb;color:#000;font-weight:600;border-bottom:2px solid var(--accent);}
+  .tree{font-size:10.5px;padding:4px 6px;color:#444;line-height:1.7;}
+  .tree .ind{padding-left:14px;}.tree .ind2{padding-left:28px;color:#666;}
+  .expander{border:1px solid var(--border-soft);border-radius:3px;margin-top:6px;background:#fafbfc;}
+  .expander>summary{cursor:pointer;font-size:11px;font-weight:600;color:#33506b;
+    padding:6px 8px;list-style:none;user-select:none;display:flex;align-items:center;gap:6px;}
+  .expander>summary::-webkit-details-marker{display:none;}
+  .expander>summary::before{content:"▸";font-size:10px;transition:.15s;}
+  .expander[open]>summary::before{transform:rotate(90deg);}
+  .expander .inner{padding:4px 8px 8px;border-top:1px solid var(--border-soft);}
+  .minirow{display:flex;align-items:center;gap:6px;font-size:10.5px;color:#444;margin:5px 0;flex-wrap:wrap;}
+  .pill{border:1px solid var(--btn-border);border-radius:3px;padding:2px 8px;font-size:10.5px;background:#fff;cursor:pointer;}
+  .pill.on{background:var(--accent-soft);border-color:var(--accent);}
+
+  .status{height:24px;border-top:1px solid var(--border-soft);background:#efefef;display:flex;
+    align-items:center;padding:0 8px;font-size:10.5px;color:var(--muted);gap:8px;}
+  .status .ok{color:#37a04a;font-weight:700;}
+
+  /* change-note column */
+  .notes{width:330px;font-size:13px;line-height:1.6;}
+  .notes h2{font-size:15px;margin:0 0 8px;}
+  .notes .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:3px;padding:1px 7px;margin-right:6px;}
+  .tag.keep{background:#e6f4ea;color:#1e7a34;}
+  .tag.move{background:#fdf0d5;color:#9a6a00;}
+  .tag.cut{background:#fbe3e3;color:#b22;}
+  .notes li{margin-bottom:9px;list-style:none;}
+  .notes ul{padding-left:0;}
+  .legend{font-size:12px;color:#555;margin:4px 0 16px;}
+</style>
+</head>
+<body>
+  <h1 class="page">NavisHelper — редизайн панели (вариант 1, превью)</h1>
+  <p class="page">Слева — интерактивный макет (кликай по вкладкам). Это пиксельно близко к реальной WPF‑панели Navisworks: те же группы‑заголовки, кнопки полной ширины, статус‑строка снизу. Вкладка <b>⚠ Коллизии</b> теперь тоже включена в редизайн (регулируемые по высоте таблицы + свёрнутые настройки). Справа — что переехало и что сокращено.</p>
+
+  <!-- ================= PANEL ================= -->
+  <div class="panel">
+    <div class="topbar">
+      <span class="title">NavisHelper</span>
+      <button class="overflow" title="Командная палитра / доп. действия (Ctrl+Shift+P)">⋯</button>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-t="sel">🌳 Выделение</div>
+      <div class="tab" data-t="col">🎨 Цвета</div>
+      <div class="tab" data-t="ai">🤖 AI</div>
+      <div class="tab" data-t="view">📷 Виды</div>
+      <div class="tab" data-t="clash">⚠ Коллизии</div>
+      <div class="tab" data-t="data">📦 Данные</div>
+    </div>
+
+    <div class="body">
+
+      <!-- ===== ВЫДЕЛЕНИЕ ===== -->
+      <section data-p="sel">
+        <div class="group">Навигация по дереву</div>
+        <div class="row">
+          <button class="btn"><span class="ic">⬆</span>Parent</button>
+          <button class="btn"><span class="ic">⬇</span>Child</button>
+          <button class="btn"><span class="ic">↔</span>Sibling</button>
+        </div>
+        <div class="row">
+          <button class="btn"><span class="ic">🍃</span>Leaf</button>
+          <button class="btn"><span class="ic">📂</span>All Under</button>
+        </div>
+
+        <div class="group">Операции с выборкой</div>
+        <div class="row">
+          <button class="btn"><span class="ic">↕</span>Invert</button>
+          <button class="btn"><span class="ic">🗑</span>Isolate</button>
+          <button class="btn"><span class="ic">🔓</span>Unhide All</button>
+        </div>
+        <div class="row">
+          <button class="btn"><span class="ic">🔍</span>Select by Property</button>
+        </div>
+        <div class="row">
+          <button class="btn"><span class="ic">📋</span>Копировать имена</button>
+          <button class="btn"><span class="ic">🔎</span>Filter by list</button>
+        </div>
+
+        <div class="group">Запомнить выборку</div>
+        <div class="row">
+          <button class="btn"><span class="ic">💾</span>Запомнить</button>
+          <button class="btn recall"><span class="ic">↩</span>Вернуть</button>
+        </div>
+        <div class="slot filled" style="margin-top:4px;"><span class="dot"></span>
+          <span style="font-size:11px;color:#555;">в памяти: 124 объекта</span></div>
+        <div class="hint">Было 5×Save + 5×Recall (10 кнопок). Стало <b>одна</b> ячейка памяти: «Запомнить» перезаписывает её, «Вернуть» — восстанавливает. Индикатор показывает, что сейчас в памяти.</div>
+
+        <div class="hint"><b>Горячие клавиши</b><br>
+          <kbd>Ctrl+Q</kbd> Parent · <kbd>Ctrl+W</kbd> Child · <kbd>Ctrl+E</kbd> Sibling<br>
+          <kbd>Ctrl+1</kbd> Вернуть · <kbd>Ctrl+Shift+1</kbd> Запомнить<br>
+          <kbd>Ctrl+Shift+P</kbd> Командная палитра
+        </div>
+      </section>
+
+      <!-- ===== ЦВЕТА ===== -->
+      <section data-p="col" hidden>
+        <div class="group">Окраска</div>
+        <div class="row"><button class="btn wide"><span class="ic">🎨</span>Colors By Name</button></div>
+        <div class="row">
+          <button class="btn"><span class="ic">🧮</span>Color by Property</button>
+          <button class="btn"><span class="ic">🔧</span>Override PDMS</button>
+        </div>
+        <div class="row"><button class="btn ghost wide"><span class="ic">🔄</span>Сбросить все overrides</button></div>
+
+        <div class="group">Match Color</div>
+        <div class="lbl">Цвет вручную (HEX / RGB / RAL):</div>
+        <div class="inputrow">
+          <span class="input">#B11A1A · 177,26,26 · RAL 3000</span>
+          <button class="btn" style="flex:none;width:78px;"><span class="ic">🎨</span>Считать</button>
+        </div>
+        <div class="row" style="margin-top:2px;">
+          <button class="btn"><span class="ic">💉</span>С объекта</button>
+          <button class="btn"><span class="ic">▶</span>Применить</button>
+        </div>
+        <div class="row" style="align-items:center;gap:8px;margin-top:2px;">
+          <span class="swatch"></span><span style="font-size:11px;color:#555;">#B11A1A · 70%</span>
+        </div>
+        <label class="check"><input type="checkbox" checked>Применить прозрачность</label>
+        <div class="hint">Ввод любого формата → <b>Считать</b> разбирает значение в текущий цвет (превью‑образец), но <u>не применяет</u>. «С объекта» — пипетка с первого выделенного. Применяет к выборке только <b>Применить</b>.</div>
+
+        <div class="group">Перенос цветов</div>
+        <div class="lbl">Папка с файлами цветов:</div>
+        <div class="inputrow"><span class="input">D:\colors\…</span><button class="btn" style="flex:none;width:38px;">📁</button></div>
+        <label class="check"><input type="checkbox" checked>Перезаписывать существующие файлы</label>
+        <div class="row">
+          <button class="btn"><span class="ic">⬆</span>Выгрузить</button>
+          <button class="btn"><span class="ic">⬇</span>Загрузить</button>
+        </div>
+
+        <div class="group">История покрасок</div>
+        <div class="listbox">
+          <div class="li sel">Система ВК · 124 объекта</div>
+          <div class="li">Спец АР · 56 объектов</div>
+          <div class="li">Отметка +3.000 · 12 объектов</div>
+        </div>
+        <div class="row">
+          <button class="btn"><span class="ic">🔍</span>Выделить</button>
+          <button class="btn"><span class="ic">💪</span>Применить</button>
+        </div>
+      </section>
+
+      <!-- ===== AI ===== -->
+      <section data-p="ai" hidden>
+        <div class="group">Модель</div>
+        <div class="inputrow">
+          <span class="input">⌄ Claude Sonnet 4.6</span>
+          <label class="check" style="flex:none;"><input type="checkbox">Thinking</label>
+        </div>
+        <div class="hint">Ключ из переменной окружения <b>OPEN_ROUTER_NW_KEY</b></div>
+
+        <div class="group">Цветовая схема</div>
+        <div class="listbox" style="max-height:150px;overflow:auto;">
+          <div class="li sel">1. Контраст<span class="dots"><i style="background:#e23"></i><i style="background:#2a2"></i><i style="background:#36c"></i><i style="background:#ec0"></i><i style="background:#a3c"></i></span></div>
+          <div class="li">2. Пастель<span class="dots"><i style="background:#f9a"></i><i style="background:#9d9"></i><i style="background:#9bd"></i><i style="background:#fd9"></i><i style="background:#c9e"></i></span></div>
+          <div class="li">3. Тёплая<span class="dots"><i style="background:#e52"></i><i style="background:#f80"></i><i style="background:#fb0"></i><i style="background:#d40"></i><i style="background:#fa3"></i></span></div>
+          <div class="li">4. Холодная<span class="dots"><i style="background:#08a"></i><i style="background:#0ad"></i><i style="background:#36c"></i><i style="background:#0c9"></i><i style="background:#69d"></i></span></div>
+        </div>
+        <div class="lbl">Превью палитры:</div>
+        <div class="dots" style="margin:0 0 8px 0;gap:4px;">
+          <i style="width:20px;height:20px;background:#e23"></i><i style="width:20px;height:20px;background:#2a2"></i>
+          <i style="width:20px;height:20px;background:#36c"></i><i style="width:20px;height:20px;background:#ec0"></i>
+          <i style="width:20px;height:20px;background:#a3c"></i>
+        </div>
+
+        <button class="btn primary wide"><span class="ic">🎨</span>Применить AI‑окраску</button>
+
+        <div class="group">Ответ модели</div>
+        <div class="row" style="justify-content:flex-end;">
+          <button class="btn sm" style="flex:none;">Копировать</button>
+          <button class="btn sm" style="flex:none;">Сохранить</button>
+        </div>
+        <div class="log">// ожидание запроса…<br>// сюда выводится ответ AI и сопоставление цветов</div>
+      </section>
+
+      <!-- ===== ВИДЫ ===== -->
+      <section data-p="view" hidden>
+        <div class="group">Разметка вида</div>
+        <div class="row"><button class="btn wide"><span class="ic">🖼</span>Пометить выделенное (эллипсы)</button></div>
+        <div class="row">
+          <button class="btn"><span class="ic">📆</span>Вид сверху + секция</button>
+          <button class="btn"><span class="ic">◼</span>Габаритный прямоуг.</button>
+        </div>
+
+        <div class="group">Точки обзора</div>
+        <div class="row">
+          <button class="btn"><span class="ic">🔁</span>Сортировать VP</button>
+          <button class="btn"><span class="ic">💾</span>Сохранить список</button>
+        </div>
+
+        <div class="group">Section Box по выделению</div>
+        <div class="row">
+          <button class="btn"><span class="ic">📍</span>Показать Section Box</button>
+          <button class="btn ghost" style="flex:none;width:80px;"><span class="ic">🔄</span>Сброс</button>
+        </div>
+        <div class="sliderrow"><span class="cap">Отступ, мм</span><span class="slider"></span><span class="val">1000</span></div>
+        <div class="sliderrow"><span class="cap">Прозрачность</span><span class="slider"></span><span class="val">70%</span></div>
+        <label class="check"><input type="checkbox">Прозрачность авто по выделению</label>
+        <label class="check"><input type="checkbox" checked>Добавлять Section Box к выборке</label>
+      </section>
+
+      <!-- ===== КОЛЛИЗИИ (редизайн) ===== -->
+      <section data-p="clash" hidden>
+        <div class="cbar">
+          <button class="btn"><span class="ic">🔄</span>Загрузить</button>
+          <button class="btn"><span class="ic">▶</span>Выбранные</button>
+          <button class="btn"><span class="ic">⚠</span>Запуск всех</button>
+          <span class="csep"></span>
+          <button class="btn"><span class="ic">✓</span>Проверка всех</button>
+        </div>
+
+        <div class="group" style="margin-top:4px;">Тесты</div>
+        <div class="cfilter">🔎 Фильтр тестов…</div>
+        <div class="tbl" id="testtbl" style="height:96px;overflow:auto;">
+          <div class="th"><span class="c grow">Тест</span><span class="c num">Всего</span><span class="c num">New</span><span class="c num">Act</span></div>
+          <div class="tr sel"><span class="c grow">ВК × АР</span><span class="c num">42</span><span class="c num">7</span><span class="c num">35</span></div>
+          <div class="tr"><span class="c grow">ОВ × КР</span><span class="c num">18</span><span class="c num">2</span><span class="c num">16</span></div>
+          <div class="tr"><span class="c grow">ЭОМ × АР</span><span class="c num">9</span><span class="c num">0</span><span class="c num">9</span></div>
+          <div class="tr"><span class="c grow">ВК × КР</span><span class="c num">5</span><span class="c num">1</span><span class="c num">4</span></div>
+        </div>
+
+        <div class="gsplit" title="Тяните, чтобы изменить высоту таблиц (позиция запоминается)"><span class="grip"></span></div>
+
+        <div class="group" style="margin:0 0 4px;">Коллизии</div>
+        <div class="clashbody">
+          <div class="tbl" id="clashtbl" style="flex:1;height:150px;overflow:auto;">
+            <div class="th"><span class="c st">Ст.</span><span class="c grow">Коллизия</span><span class="c" style="width:80px;">Группа</span></div>
+            <div class="tr sel"><span class="c st"><i class="badge b-new"></i></span><span class="c grow">Clash1</span><span class="c" style="width:80px;color:#999;">—</span></div>
+            <div class="tr"><span class="c st"><i class="badge b-act"></i></span><span class="c grow">Clash2</span><span class="c" style="width:80px;">Узел-3</span></div>
+            <div class="tr"><span class="c st"><i class="badge b-ok"></i></span><span class="c grow">Clash3</span><span class="c" style="width:80px;color:#999;">—</span></div>
+            <div class="tr"><span class="c st"><i class="badge b-act"></i></span><span class="c grow">Clash4</span><span class="c" style="width:80px;">Узел-3</span></div>
+          </div>
+          <div class="navcol">
+            <button class="sm2" title="Предыдущая">↑</button>
+            <button class="big" title="Показать выбранную">◉</button>
+            <button class="sm2" title="Следующая">↓</button>
+          </div>
+          <div class="vsplit" title="Тяните, чтобы изменить ширину панели групп"><span class="grip"></span></div>
+          <div class="tbl" style="width:118px;height:150px;display:flex;flex-direction:column;">
+            <div class="subtabs"><span class="on">A</span><span>B</span><span>Состав</span></div>
+            <div class="tree" style="overflow:auto;">
+              📦 Труба ⌀100<div class="ind">↳ Фланец</div><div class="ind2">материал: сталь</div>
+              <div class="ind">↳ Болт M12</div>
+            </div>
+          </div>
+        </div>
+
+        <details class="expander" open>
+          <summary>⚙ Настройки и действия</summary>
+          <div class="inner">
+            <div class="minirow"><b>Подсветка:</b> A <span class="pill on" style="background:#fde;border-color:#e88;">красный ▾</span> B <span class="pill on" style="background:#fea;border-color:#dba;">оранж. ▾</span></div>
+            <div class="minirow"><b>Section Box:</b> <label class="check" style="margin:0;"><input type="checkbox" checked>при навигации</label>
+              <span class="pill on">От точки</span><span class="pill">По объектам</span></div>
+            <div class="sliderrow"><span class="cap">Отступ, мм</span><span class="slider"></span><span class="val">1000</span></div>
+            <div class="minirow"><b>Контекст:</b> <label class="check" style="margin:0;"><input type="checkbox">Авто</label>
+              <label class="check" style="margin:0;"><input type="checkbox">Всё в box</label>
+              <label class="check" style="margin:0;"><input type="checkbox" checked>VP-метки</label></div>
+            <div class="sliderrow"><span class="cap">Прозрачн.</span><span class="slider"></span><span class="val">70%</span></div>
+            <div class="group" style="margin:8px 0 4px;font-size:10px;">Вид</div>
+            <div class="row">
+              <button class="btn sm">Section</button><button class="btn sm">Сброс</button>
+              <button class="btn sm">Плоскость</button><button class="btn sm">Метки</button><button class="btn sm">GIF</button>
+            </div>
+            <div class="group" style="margin:8px 0 4px;font-size:10px;">Коллизия / Прозрачность</div>
+            <div class="row">
+              <button class="btn sm">Assigned to</button><button class="btn sm">BCF</button>
+              <button class="btn sm">Прозр. бокса</button><button class="btn sm">Прозр. выдел.</button>
+            </div>
+          </div>
+        </details>
+        <div class="hint">Свёрнутая панель «Настройки и действия» возвращает обеим таблицам всю высоту. Развёрнутая — даёт доступ к настройкам, но не зажимает таблицы намертво.</div>
+      </section>
+
+      <!-- ===== ДАННЫЕ ===== -->
+      <section data-p="data" hidden>
+        <div class="group">Импорт</div>
+        <div class="row">
+          <button class="btn"><span class="ic">📊</span>CSV → атрибуты</button>
+          <button class="btn"><span class="ic">📄</span>Импорт PS‑листов</button>
+        </div>
+
+        <div class="group">Экспорт</div>
+        <div class="row"><button class="btn wide"><span class="ic">💾</span>Экспорт свойств в Excel</button></div>
+        <div class="row"><button class="btn wide"><span class="ic">💾</span>Сохранить иерархию модели</button></div>
+        <div class="row"><button class="btn wide"><span class="ic">💾</span>Сохранить как NWD 2018</button></div>
+      </section>
+
+    </div>
+
+    <div class="status"><span class="ok">●</span> Готово</div>
+  </div>
+
+  <!-- ================= NOTES ================= -->
+  <div class="notes">
+    <h2>Что изменилось</h2>
+    <div class="legend">
+      <span class="tag keep">оставлено</span> состав не тронут ·
+      <span class="tag move">перегруппировано</span> ·
+      <span class="tag cut">сокращено</span>
+    </div>
+    <ul>
+      <li><span class="tag cut">сокращено</span><b>Память выборки.</b> Было 10 кнопок (Save S1–S5 + Recall 1–5). Стало <b>одна ячейка</b>: «Запомнить» / «Вернуть» + индикатор. По твоему замечанию: за сессию почти всегда нужна одна быстрая выборка.</li>
+      <li><span class="tag move">перегруппировано</span><b>«Выделение».</b> Свободные кнопки «Копировать имена» и «Filter by list» собраны в группу <b>Операции с выборкой</b> вместе с Invert / Isolate / Unhide / Select by Property. Дерево разнесено на «вверх/вниз/вбок» (Parent/Child/Sibling) и «вглубь» (Leaf/All Under).</li>
+      <li><span class="tag move">перегруппировано</span><b>«Цвета».</b> Ровные группы: Окраска → Match Color → Перенос цветов → История. «Reset all overrides» вынесен как нейтральная (серая) кнопка под окраской.</li>
+      <li><span class="tag keep">оставлено</span><b>«AI».</b> Остаётся отдельной вкладкой. Состав тот же, упорядочены секции: Модель → Схема → Применить → Ответ.</li>
+      <li><span class="tag move">перегруппировано</span><b>«Виды».</b> Разделено на «Разметка вида», «Точки обзора», «Section Box». Длинные подписи укорочены.</li>
+      <li><span class="tag keep">оставлено</span><b>«Данные».</b> Импорт / Экспорт — без изменений по составу.</li>
+      <li><span class="tag move">перегруппировано</span><b>«Коллизии».</b> Две таблицы регулируются по высоте видимым сплиттером с грипом (позиция запоминается). Панель групп A/B/Состав получает вертикальный сплиттер (ширина). Весь нижний блок настроек+действий свёрнут в <b>Expander</b> «⚙ Настройки и действия» — свёрнутый отдаёт таблицам всю высоту.</li>
+      <li><span class="tag move">перегруппировано</span><b>Горячие клавиши</b> ушли в компактный блок‑подсказку внизу вкладки (раньше — крупный серый текст).</li>
+    </ul>
+    <p style="font-size:12px;color:#555;">Кнопка <b>⋯</b> в шапке — командная палитра / overflow (как сейчас, <kbd>Ctrl+Shift+P</kbd>).</p>
+  </div>
+
+<script>
+  const tabs=document.querySelectorAll('.tab');
+  const secs=document.querySelectorAll('section[data-p]');
+  tabs.forEach(t=>t.addEventListener('click',()=>{
+    tabs.forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const id=t.dataset.t;
+    secs.forEach(s=>s.hidden = s.dataset.p!==id);
+  }));
+</script>
+</body>
+</html>

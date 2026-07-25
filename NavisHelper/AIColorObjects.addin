@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PluginConfiguration xmlns="http://www.autodesk.com/navisworks/plugins/schema/2013/1">
+  <Plugin name="AIColorObjects" guid="AIColorObjects" assemblyName="NavisHelper.dll" className="NavisHelper.AIColorObjects" />
+</PluginConfiguration>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<AddIn>
+  <Name>NavisHelper</Name>
+  <Ribbon>
+    <Tab Name="NavisHelper">
+      <Panel Name="Цвета">
+        <Button Name="Цвет по имени" Plugin="ColorsByName.CBC" LargeIcon="ColorsByName_32.png" SmallIcon="ColorsByName_16.png" />
+      </Panel>
+    </Tab>
+  </Ribbon>
+</AddIn> 

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  mcp:
+    name: MCP build and tests
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Check NavisHelper Compile entries and plugin IDs
+        run: python scripts/check_navishelper_compile.py
+
+      - name: Check MCP command catalog
+        run: python scripts/check_mcp_command_catalog.py
+
+      - name: Check typed host command router
+        run: python scripts/check_host_command_router.py
+
+      - name: Build contracts
+        run: dotnet build NavisHelper.Contracts/NavisHelper.Contracts.csproj -c Release
+
+      - name: Build MCP server
+        run: dotnet build NavisHelper.McpServer/NavisHelper.McpServer.csproj -c Release
+
+      - name: Build MCP configurator
+        run: dotnet build NavisHelper.McpConfigurator/NavisHelper.McpConfigurator.csproj -c Release
+
+      - name: Smoke test scenario-library MCP lifecycle
+        run: python scripts/navishelper_scenario_library_smoke.py
+
+      - name: Run MCP helper tests
+        run: dotnet test NavisHelper.McpServer.Tests/NavisHelper.McpServer.Tests.csproj -c Release --no-restore
+
+      - name: Smoke test final distribution ZIP installer
+        shell: powershell
+        run: |
+          $bundleRoot = "NavisHelper.bundle\Contents"
+          foreach ($year in @("2024", "2025", "2026", "2027")) {
+            $destination = Join-Path $bundleRoot $year
+            New-Item -ItemType Directory -Force -Path $destination | Out-Null
+            New-Item -ItemType File -Force -Path (Join-Path $destination "NavisHelper.dll") | Out-Null
+            New-Item -ItemType File -Force -Path (Join-Path $destination "NavisHelper.Contracts.dll") | Out-Null
+          }
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\package_distribution.ps1 -SkipBuild -Runtime win-x64 -OutputRoot "$env:RUNNER_TEMP\navishelper-package-smoke" -PackageName ci-package-smoke
+
+      # The Navisworks plugin build matrix is intentionally not run in GitHub Actions:
+      # it requires the Autodesk Navisworks Manage SDK installed under Program Files.

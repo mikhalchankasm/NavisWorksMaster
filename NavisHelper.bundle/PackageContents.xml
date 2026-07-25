@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0"
+                    ProductType="Application"
+                    Name="NavisHelper"
+                    AppVersion="2.8.9.0"
+                    FriendlyVersion="2.8.9.0"
+                    Description="NavisHelper tools for Navisworks"
+                    SupportedLocales="Enu"
+                    Author="CBC"
+                    AutodeskProduct="Naviswork"
+                    AppNameSpace="navishelper.local"
+                    ProductCode="{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
+                    UpgradeCode="{F0E1D2C3-B4A5-9687-FEDC-BA0987654321}">
+  <CompanyDetails Name="CBC" Email="" Url="" Phone="" />
+  <Components Description="Navisworks Manage 2024">
+    <RuntimeRequirements OS="Win64" Platform="NAVMAN" SeriesMin="Nw21" SeriesMax="Nw21" />
+    <ComponentEntry AppName="NavisHelper"
+                    AppType="ManagedPlugin"
+                    Version="2.8.9.0"
+                    ModuleName="./Contents/2024/NavisHelper.dll"
+                    AppDescription="NavisHelper tools" />
+  </Components>
+  <Components Description="Navisworks Manage 2025">
+    <RuntimeRequirements OS="Win64" Platform="NAVMAN" SeriesMin="Nw22" SeriesMax="Nw22" />
+    <ComponentEntry AppName="NavisHelper"
+                    AppType="ManagedPlugin"
+                    Version="2.8.9.0"
+                    ModuleName="./Contents/2025/NavisHelper.dll"
+                    AppDescription="NavisHelper tools" />
+  </Components>
+  <Components Description="Navisworks Manage 2026">
+    <RuntimeRequirements OS="Win64" Platform="NAVMAN" SeriesMin="Nw23" SeriesMax="Nw23" />
+    <ComponentEntry AppName="NavisHelper"
+                    AppType="ManagedPlugin"
+                    Version="2.8.9.0"
+                    ModuleName="./Contents/2026/NavisHelper.dll"
+                    AppDescription="NavisHelper tools" />
+  </Components>
+  <Components Description="Navisworks Manage 2027">
+    <RuntimeRequirements OS="Win64" Platform="NAVMAN" SeriesMin="Nw24" SeriesMax="Nw24" />
+    <ComponentEntry AppName="NavisHelper"
+                    AppType="ManagedPlugin"
+                    Version="2.8.9.0"
+                    ModuleName="./Contents/2027/NavisHelper.dll"
+                    AppDescription="NavisHelper tools" />
+  </Components>
+</ApplicationPackage>
