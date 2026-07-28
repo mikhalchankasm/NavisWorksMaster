@@ -1,142 +1,79 @@
-# Итоговое описание созданного функционала
+# AI Color Objects: implementation summary
 
-## Созданные файлы
+## Components
 
-### 1. Основные компоненты
+- `AIColorObjects.cs` — Navisworks plugin entry point.
+- `AIColorUtils.cs` — selection filtering, object-name extraction, and color
+  application.
+- `AIColorObjects.cs` / `LocalColorBridge` — temporary-file IPC and local color
+  fallback.
+- `ColorService/Program.cs` — external OpenRouter request process.
+- `AIColorService.cs` — legacy direct OpenRouter client; the current
+  `AIColorObjects` command path does not call it.
+- `AIConfig.cs` and `AIModels` — non-secret configuration, model mapping, and
+  defaults.
+- `ColorSchemes.cs` — deterministic local palettes used when the external path
+  is unavailable.
 
-- **`AIColorObjects.cs`** - Основной плагин NavisWorks для автоматического окрашивания
-- **`AIColorService.cs`** - Сервис для работы с ИИ-API (DeepSeek)
-- **`AIConfig.cs`** - Конфигурационный класс с настройками
-- **`AIColorUtils.cs`** - Утилиты для работы с цветами объектов
+## Current behavior
 
-### 2. Текущая граница реализации
+`AIColorObjects` reads display names from the selected colorable objects. It
+attempts to run `ColorService.exe` beside the plugin and exchanges request and
+response JSON through unique files under `%TEMP%`.
 
-- **`AIColorObjects.cs`** - содержит текущий plugin entry point и используемые локальные реализации bridge/service
-- Два legacy AI interface/example source files не входили в Compile и удалены как stale source в Этапе 1
+The distribution and installer built by `tools/build_installer.ps1` do not
+include `ColorService.exe`. An installation from those artifacts therefore
+uses the local fallback unless the executable is supplied separately beside
+the plugin.
 
-### 3. Конфигурация
+`ColorService.exe` uses the OpenRouter chat-completions endpoint:
 
-- **`AIColorObjects.addin`** - Файл конфигурации плагина
-- **`AI_COLOR_README.md`** - Подробная документация
-- **`AI_COLOR_SUMMARY.md`** - Данный файл с описанием
-
-## Функциональность
-
-### ✅ Реализовано
-
-1. **Автоматическое получение цветов от ИИ-сервиса**
-   - Интеграция с DeepSeek API
-   - Интеллектуальный подбор цветов на основе имен объектов
-   - Настраиваемые промпты для ИИ
-
-2. **Безопасная обработка ошибок**
-   - Повторные попытки с экспоненциальной задержкой
-   - Fallback парсинг для некорректных ответов
-   - Детальное логирование всех операций
-
-3. **Конфигурируемость**
-   - Настройка через файл конфигурации
-   - Поддержка переменных окружения
-   - Настраиваемые таймауты и количество попыток
-
-4. **Интеграция с NavisWorks**
-   - Безопасная работа с NavisWorks API
-   - Фильтрация объектов, поддерживающих изменение цвета
-   - Автоматическое применение полученных цветов
-
-5. **Расширяемость**
-   - Возможность кастомизации промптов
-   - Явная точка для будущего provider seam после добавления contract/unit tests
-
-### 🔧 Технические особенности
-
-- **Асинхронная работа** с HTTP API
-- **Потокобезопасность** для конфигурации
-- **Graceful degradation** при критических ошибках
-- **Валидация** RGB цветов
-- **Кэширование** конфигурации
-
-## Архитектура
-
-```
-AIColorObjects (Plugin)
-    ↓
-AIColorService (ИИ-сервис)
-    ↓
-AIConfig (Конфигурация)
-    ↓
-AIColorUtils (Утилиты)
-    ↓
-NavisWorks API
+```text
+https://openrouter.ai/api/v1/chat/completions
 ```
 
-## Использование
+The API key is bring-your-own-key and is read only from:
 
-### 1. Настройка API ключа
-
-```cmd
-setx DEEPSEEK_API_KEY "your_api_key_here"
+```text
+OPEN_ROUTER_NW_KEY
 ```
 
-### 2. Запуск плагина
+The key is not written to `%APPDATA%\NavisHelper\ai_config.json`. That file
+stores the endpoint, timeout, retry count, selected model, temperature, token
+limit, color scheme, and thinking-mode setting.
 
-1. Откройте модель в NavisWorks
-2. Выделите объекты для окрашивания
-3. Запустите плагин `AI Color Objects`
+## Models and defaults
 
-### 3. Программное использование
+`AIModels.Available` currently contains:
 
-```csharp
-var aiService = new AIColorService();
-var colors = await aiService.GetColorsForObjectsAsync(objectNames);
-var appliedCount = AIColorUtils.ApplyColorsToObjects(selection, colors);
-```
+- `claude-sonnet-4.6` → `anthropic/claude-sonnet-4.6`
+- `claude-opus-4.6` → `anthropic/claude-opus-4.6`
+- `glm-5-turbo` → `z-ai/glm-5-turbo`
+- `gpt-5.4` → `openai/gpt-5.4`
+- `gemini-3-flash` → `google/gemini-3-flash-preview`
 
-## Преимущества
+Defaults from `AIConfig.cs`:
 
-1. **Автоматизация** - Не требует ручного подбора цветов
-2. **Интеллектуальность** - ИИ подбирает логичные цвета
-3. **Надежность** - Обработка ошибок и повторные попытки
-4. **Гибкость** - Настраиваемые параметры и расширяемость
-5. **Интеграция** - Полная интеграция с NavisWorks
+- model: `claude-sonnet-4.6`;
+- request timeout: 60000 ms;
+- maximum attempts: 2;
+- maximum response tokens: 2000;
+- temperature: 0.3;
+- color scheme: 8, Architectural;
+- thinking mode: enabled.
 
-## Возможности расширения
+## Fallback
 
-1. **Новые ИИ-сервисы** - Добавление поддержки других API
-2. **Кастомные правила** - Изменение логики подбора цветов
-3. **Дополнительные форматы** - Поддержка других цветовых схем
-4. **Пакетная обработка** - Обработка больших объемов объектов
-5. **UI интерфейс** - Графический интерфейс для настройки
+If `ColorService.exe` is absent, cannot start, or has no
+`OPEN_ROUTER_NW_KEY`, the implementation generates colors locally from the
+selected `ColorSchemes` palette. No external API call is made on this path.
 
-## Совместимость
+## Data egress
 
-- **NavisWorks** - Полная совместимость
-- **.NET Framework** - 4.8+
-- **Windows** - 10/11
-- **API** - DeepSeek (возможность добавления других)
+When `ColorService.exe` has been supplied separately and
+`OPEN_ROUTER_NW_KEY` is available, the OpenRouter request contains the
+selected object names and the selected color-scheme name. It does not contain
+model geometry. OpenRouter routes the request to the selected model provider
+under the user's key.
 
-## Логирование
-
-Все операции логируются в:
-```
-%TEMP%\navishelper_log.txt
-```
-
-## Конфигурация
-
-Автоматически создается в:
-```
-%APPDATA%\NavisHelper\ai_config.json
-```
-
-## Заключение
-
-Создан полнофункциональный модуль автоматического окрашивания объектов через ИИ-сервис, который:
-
-- Автоматически подбирает подходящие цвета для объектов
-- Обеспечивает надежную работу с обработкой ошибок
-- Предоставляет расширяемую архитектуру
-- Полностью интегрирован с NavisWorks
-- Включает подробную документацию и примеры
-
-Модуль готов к использованию и может быть легко расширен для поддержки других ИИ-сервисов или дополнительного функционала.
+The MCP server does not use this AI request path.

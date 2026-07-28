@@ -1,0 +1,2 @@
+# Preserve verbatim upstream license and notice files byte-for-byte.
+licenses/** -text -diff

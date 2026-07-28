@@ -1,176 +1,106 @@
-# AI Color Objects - Автоматическое окрашивание объектов через ИИ
+# AI Color Objects
 
-## Описание
+`AI Color Objects` assigns colors to selected Navisworks objects from their
+display names. When the external AI path is available, color grouping is
+requested through OpenRouter. Otherwise the command uses the selected local
+color scheme.
 
-Модуль `AI Color Objects` автоматически окрашивает выделенные объекты в NavisWorks, используя ИИ-сервис для подбора подходящих цветов. Модуль анализирует имена объектов и запрашивает у ИИ-сервиса логичные цвета для каждого типа объекта.
+## Execution path
 
-## Возможности
+1. The plugin filters the current selection to colorable objects.
+2. `AIColorUtils.GetObjectNamesFromSelection` extracts object names.
+3. `LocalColorBridge` writes the names and selected scheme to temporary JSON.
+4. If `ColorService.exe` is present next to `NavisHelper.dll`, it is started
+   with the temporary request and response paths.
+5. `ColorService.exe` calls OpenRouter only when `OPEN_ROUTER_NW_KEY` is set.
+6. If the service executable or key is unavailable, local colors are generated
+   from `ColorSchemes`.
 
-- ✅ Автоматическое получение цветов от ИИ-сервиса
-- ✅ Интеллектуальный подбор цветов на основе имен объектов
-- ✅ Безопасная обработка ошибок и повторные попытки
-- ✅ Конфигурируемые параметры API
-- ✅ Подробное логирование операций
-- ✅ Фильтрация объектов, поддерживающих изменение цвета
+The distribution and installer built by `tools/build_installer.ps1` do not
+include `ColorService.exe`. An installation from those artifacts therefore
+uses the local fallback unless the executable is supplied separately beside
+the plugin.
 
-## Установка и настройка
+## OpenRouter configuration
 
-### 1. Переменные окружения
-
-Установите переменную окружения с API ключом:
+The integration is bring-your-own-key. Create a personal OpenRouter key and
+set it for the current Windows user:
 
 ```cmd
-setx DEEPSEEK_API_KEY "your_api_key_here"
+setx OPEN_ROUTER_NW_KEY "your_openrouter_key"
 ```
 
-### 2. Конфигурация
+Restart Navisworks after changing the environment variable.
 
-Модуль автоматически создает файл конфигурации в:
-```
-%APPDATA%\NavisHelper\ai_config.json
-```
+The key is read from `OPEN_ROUTER_NW_KEY`. It is not serialized to
+`%APPDATA%\NavisHelper\ai_config.json`.
 
-### 3. Настройка API
-
-Отредактируйте файл конфигурации или используйте переменные окружения:
+The configuration file contains non-secret settings:
 
 ```json
 {
-  "ApiKey": "your_api_key_here",
-  "ApiUrl": "https://api.deepseek.com/v1/chat/completions",
-  "RequestTimeout": 30000,
-  "MaxRetries": 3,
+  "ApiUrl": "https://openrouter.ai/api/v1/chat/completions",
+  "RequestTimeout": 60000,
+  "MaxRetries": 2,
   "EnableLogging": true,
-  "ModelName": "deepseek-chat",
+  "ModelName": "claude-sonnet-4.6",
   "Temperature": 0.3,
-  "MaxTokens": 1000
+  "MaxTokens": 2000,
+  "ColorScheme": 8,
+  "EnableThinking": true
 }
 ```
 
-## Использование
+The settings tab writes the selected model and thinking mode to this file.
+The endpoint and other non-secret values can also be edited there directly.
 
-### Базовое использование
+## Available models
 
-1. Откройте модель в NavisWorks
-2. Выделите объекты, которые хотите окрасить
-3. Запустите плагин `AI Color Objects`
-4. Модуль автоматически:
-   - Извлечет имена выделенных объектов
-   - Отправит запрос к ИИ-сервису
-   - Получит подходящие цвета
-   - Применит цвета к объектам
+The selectable models are defined by `AIModels.Available`:
 
-### Программное использование
+| Display name | OpenRouter model ID | Thinking mode |
+|---|---|---|
+| `claude-sonnet-4.6` | `anthropic/claude-sonnet-4.6` | Supported |
+| `claude-opus-4.6` | `anthropic/claude-opus-4.6` | Supported |
+| `glm-5-turbo` | `z-ai/glm-5-turbo` | Not enabled |
+| `gpt-5.4` | `openai/gpt-5.4` | Not enabled |
+| `gemini-3-flash` | `google/gemini-3-flash-preview` | Supported |
 
-```csharp
-// Создание сервиса
-var aiService = new AIColorService();
+Unknown model names fall back to the first entry,
+`claude-sonnet-4.6`.
 
-// Получение цветов для объектов
-var objectNames = new List<string> { "Стена_001", "Труба_002", "Кабель_003" };
-var colors = await aiService.GetColorsForObjectsAsync(objectNames);
+## Use
 
-// Применение цветов
-var selection = GetSelectedItems();
-var appliedCount = AIColorUtils.ApplyColorsToObjects(selection, colors);
-```
+1. Open a model in Navisworks.
+2. Select the objects to color.
+3. Select the model, thinking mode, and color scheme in the NavisHelper panel.
+4. Run `AI Color Objects`.
 
-## Архитектура
+The command applies the returned or locally generated RGB values as permanent
+color overrides.
 
-### Основные компоненты
+## Data egress
 
-1. **AIColorObjects** - Основной плагин NavisWorks
-2. **AIColorService** - Сервис для работы с ИИ-API
-3. **AIConfig** - Конфигурация и настройки
-4. **AIColorUtils** - Утилиты для работы с цветами
+When `ColorService.exe` has been supplied separately and
+`OPEN_ROUTER_NW_KEY` is available, selected object names and the selected
+color-scheme name are sent to
+`https://openrouter.ai/api/v1/chat/completions`. OpenRouter then routes the
+request to the selected model provider under the user's key. Account for this
+when working with NDA-controlled models.
 
-### Поток данных
+The MCP server does not use this OpenRouter path. The local color fallback does
+not send model data to an external API.
 
-```
-Выделение объектов → Извлечение имен → Запрос к ИИ → Парсинг ответа → Применение цветов
-```
+## Defaults and failure handling
 
-## Обработка ошибок
+- HTTP timeout: 60 seconds.
+- Maximum attempts: 2.
+- Response token limit: 2000, adjusted when supported thinking mode is used.
+- Default model: `claude-sonnet-4.6`.
+- Default color scheme: 8, Architectural.
+- Default thinking mode: enabled.
+- Invalid or unavailable AI responses fall back to local color generation or
+  return no color changes, depending on where the failure occurs.
 
-### Типы ошибок
-
-- **API ошибки** - Проблемы с ИИ-сервисом
-- **COM ошибки** - Проблемы с NavisWorks API
-- **Ошибки парсинга** - Некорректные ответы от ИИ
-- **Ошибки применения** - Проблемы с изменением цветов
-
-### Стратегии восстановления
-
-- Автоматические повторные попытки с экспоненциальной задержкой
-- Fallback парсинг для некорректных JSON ответов
-- Детальное логирование всех операций
-- Graceful degradation при критических ошибках
-
-## Логирование
-
-Логи сохраняются в:
-```
-%TEMP%\navishelper_log.txt
-```
-
-### Уровни логирования
-
-- **INFO** - Успешные операции
-- **ERROR** - Ошибки и исключения
-
-## Производительность
-
-### Оптимизации
-
-- Фильтрация объектов перед обработкой
-- Кэширование конфигурации
-- Асинхронные HTTP запросы
-- Батчевая обработка объектов
-
-### Ограничения
-
-- Таймаут запроса: 30 секунд (настраивается)
-- Максимум попыток: 3 (настраивается)
-- Размер промпта: до 1000 токенов
-
-## Расширение функционала
-
-### Добавление новых ИИ-сервисов
-
-1. Текущая реализация использует конкретный `AIColorService`; для добавления нового provider сначала выделите отдельный проверенный interface/contract seam
-2. Обновите конфигурацию для поддержки нового сервиса
-3. Добавьте специфичную логику парсинга ответов
-
-### Кастомизация промптов
-
-Отредактируйте метод `CreatePrompt` в `AIColorService` для изменения логики подбора цветов.
-
-## Устранение неполадок
-
-### Частые проблемы
-
-1. **API ключ не найден**
-   - Проверьте переменную окружения `DEEPSEEK_API_KEY`
-   - Убедитесь в правильности ключа
-
-2. **Таймаут запросов**
-   - Увеличьте `RequestTimeout` в конфигурации
-   - Проверьте сетевое соединение
-
-3. **Пустые ответы от ИИ**
-   - Проверьте формат промпта
-   - Увеличьте `MaxTokens`
-
-### Диагностика
-
-- Проверьте логи в `%TEMP%\navishelper_log.txt`
-- Убедитесь в доступности ИИ-сервиса
-- Проверьте конфигурацию в `%APPDATA%\NavisHelper\ai_config.json`
-
-## Лицензия
-
-Модуль распространяется в рамках проекта NavisHelper.
-
-## Поддержка
-
-Для получения поддержки обратитесь к разработчикам проекта или создайте issue в репозитории.
+Operations are written through the NavisHelper logger. The usual fallback log
+path is `%TEMP%\navishelper_log.txt`.

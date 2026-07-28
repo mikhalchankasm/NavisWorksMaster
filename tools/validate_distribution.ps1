@@ -63,6 +63,24 @@ if (-not (Test-Path -LiteralPath $packageRoot -PathType Container)) {
 
 $requiredFiles = @(
     "Install-NavisHelperBundle.ps1",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md",
+    "licenses/WindowsCommunityToolkit-7.1.3-LICENSE.md",
+    "licenses/Newtonsoft.Json-13.0.3-LICENSE.md",
+    "licenses/System.ValueTuple-4.5.0-LICENSE.TXT",
+    "licenses/System.ValueTuple-4.5.0-THIRD-PARTY-NOTICES.TXT",
+    "licenses/ModelContextProtocol-1.2.0-LICENSE",
+    "licenses/ModelContextProtocol-1.2.0-THIRD-PARTY-NOTICES.txt",
+    "licenses/dotnet-extensions-10.4.1-LICENSE",
+    "licenses/dotnet-extensions-10.4.1-THIRD-PARTY-NOTICES.TXT",
+    "licenses/dotnet-runtime-8.0.x-LICENSE.TXT",
+    "licenses/dotnet-runtime-8.0.0-THIRD-PARTY-NOTICES.TXT",
+    "licenses/dotnet-runtime-8.0.1-8.0.2-THIRD-PARTY-NOTICES.TXT",
+    "licenses/dotnet-dotnet-10.0.4-10.0.5-LICENSE.TXT",
+    "licenses/dotnet-dotnet-10.0.4-10.0.5-THIRD-PARTY-NOTICES.TXT",
+    "licenses/dotnet-runtime-9.0.18-LICENSE.TXT",
+    "licenses/dotnet-runtime-9.0.18-THIRD-PARTY-NOTICES.TXT",
+    "licenses/Microsoft-DotNet-Library-License.html",
     "manifest.json",
     "mcp-client-config.example.json",
     "NavisHelper.bundle/PackageContents.xml",
@@ -94,6 +112,11 @@ if ($unexpectedSymbols.Count -gt 0) {
 $leakedDevArtifacts = @(Get-ChildItem -LiteralPath $packageRoot -Recurse -File -Filter "NavisHelper.Dev.*")
 if ($leakedDevArtifacts.Count -gt 0) {
     throw "Distribution package contains NavisHelper.Dev artifacts: $($leakedDevArtifacts.FullName -join ', ')"
+}
+
+$leakedAutodeskInterop = @(Get-ChildItem -LiteralPath (Join-Path $packageRoot "NavisHelper.bundle\Contents") -Recurse -File -Filter "Autodesk.Navisworks.Interop.ComApi.dll")
+if ($leakedAutodeskInterop.Count -gt 0) {
+    throw "Distribution package contains a non-redistributable Autodesk Interop assembly: $($leakedAutodeskInterop.FullName -join ', ')"
 }
 
 [xml]$packageXml = Get-Content -LiteralPath (Join-Path $packageRoot "NavisHelper.bundle\PackageContents.xml") -Raw
