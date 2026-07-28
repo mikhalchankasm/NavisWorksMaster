@@ -1,50 +1,51 @@
-# AI Color Objects: implementation summary
+# AI Color Objects: краткое описание реализации
 
-## Components
+## Компоненты
 
-- `AIColorObjects.cs` — Navisworks plugin entry point.
-- `AIColorUtils.cs` — selection filtering, object-name extraction, and color
-  application.
-- `AIColorObjects.cs` / `LocalColorBridge` — temporary-file IPC and local color
-  fallback.
-- `ColorService/Program.cs` — external OpenRouter request process.
-- `AIColorService.cs` — legacy direct OpenRouter client; the current
-  `AIColorObjects` command path does not call it.
-- `AIConfig.cs` and `AIModels` — non-secret configuration, model mapping, and
-  defaults.
-- `ColorSchemes.cs` — deterministic local palettes used when the external path
-  is unavailable.
+- `AIColorObjects.cs` — entry point плагина Navisworks.
+- `AIColorUtils.cs` — фильтрация выбора, извлечение имён объектов и применение
+  цветов.
+- `AIColorObjects.cs` / `LocalColorBridge` — IPC через временные файлы и
+  локальный fallback цветов.
+- `ColorService/Program.cs` — внешний процесс запросов к OpenRouter.
+- `AIColorService.cs` — legacy-клиент прямых запросов к OpenRouter; текущий
+  путь команды `AIColorObjects` его не вызывает.
+- `AIConfig.cs` и `AIModels` — несекретная конфигурация, сопоставление моделей
+  и значения по умолчанию.
+- `ColorSchemes.cs` — детерминированные локальные палитры, используемые при
+  недоступности внешнего пути.
 
-## Current behavior
+## Текущее поведение
 
-`AIColorObjects` reads display names from the selected colorable objects. It
-attempts to run `ColorService.exe` beside the plugin and exchanges request and
-response JSON through unique files under `%TEMP%`.
+`AIColorObjects` читает отображаемые имена выбранных объектов, для которых
+можно изменить цвет. Команда пытается запустить `ColorService.exe` рядом с
+плагином и обменивается JSON-запросом и ответом через уникальные файлы в
+`%TEMP%`.
 
-The distribution and installer built by `tools/build_installer.ps1` do not
-include `ColorService.exe`. An installation from those artifacts therefore
-uses the local fallback unless the executable is supplied separately beside
-the plugin.
+Distribution и installer, собираемые `tools/build_installer.ps1`, не содержат
+`ColorService.exe`. Поэтому установка из этих артефактов использует локальный
+fallback, если исполняемый файл не предоставлен отдельно рядом с плагином.
 
-`ColorService.exe` uses the OpenRouter chat-completions endpoint:
+`ColorService.exe` использует endpoint chat completions OpenRouter:
 
 ```text
 https://openrouter.ai/api/v1/chat/completions
 ```
 
-The API key is bring-your-own-key and is read only from:
+API-ключ предоставляется пользователем по схеме bring-your-own-key и читается
+только из:
 
 ```text
 OPEN_ROUTER_NW_KEY
 ```
 
-The key is not written to `%APPDATA%\NavisHelper\ai_config.json`. That file
-stores the endpoint, timeout, retry count, selected model, temperature, token
-limit, color scheme, and thinking-mode setting.
+Ключ не записывается в `%APPDATA%\NavisHelper\ai_config.json`. Этот файл хранит
+endpoint, timeout, количество попыток, выбранную модель, temperature, лимит
+токенов, цветовую схему и настройку режима thinking.
 
-## Models and defaults
+## Модели и значения по умолчанию
 
-`AIModels.Available` currently contains:
+Текущий состав `AIModels.Available`:
 
 - `claude-sonnet-4.6` → `anthropic/claude-sonnet-4.6`
 - `claude-opus-4.6` → `anthropic/claude-opus-4.6`
@@ -52,28 +53,28 @@ limit, color scheme, and thinking-mode setting.
 - `gpt-5.4` → `openai/gpt-5.4`
 - `gemini-3-flash` → `google/gemini-3-flash-preview`
 
-Defaults from `AIConfig.cs`:
+Значения по умолчанию из `AIConfig.cs`:
 
-- model: `claude-sonnet-4.6`;
+- модель: `claude-sonnet-4.6`;
 - request timeout: 60000 ms;
-- maximum attempts: 2;
-- maximum response tokens: 2000;
+- максимальное количество попыток: 2;
+- максимальное количество токенов ответа: 2000;
 - temperature: 0.3;
-- color scheme: 8, Architectural;
-- thinking mode: enabled.
+- цветовая схема: 8, Architectural;
+- режим thinking: включён.
 
-## Fallback
+## Локальный fallback
 
-If `ColorService.exe` is absent, cannot start, or has no
-`OPEN_ROUTER_NW_KEY`, the implementation generates colors locally from the
-selected `ColorSchemes` palette. No external API call is made on this path.
+Если `ColorService.exe` отсутствует, не запускается или не получает
+`OPEN_ROUTER_NW_KEY`, реализация генерирует цвета локально из выбранной палитры
+`ColorSchemes`. На этом пути внешний API не вызывается.
 
-## Data egress
+## Передача данных во внешний API
 
-When `ColorService.exe` has been supplied separately and
-`OPEN_ROUTER_NW_KEY` is available, the OpenRouter request contains the
-selected object names and the selected color-scheme name. It does not contain
-model geometry. OpenRouter routes the request to the selected model provider
-under the user's key.
+Если `ColorService.exe` предоставлен отдельно и доступен
+`OPEN_ROUTER_NW_KEY`, запрос OpenRouter содержит имена выбранных объектов и имя
+выбранной цветовой схемы. Геометрия модели в запрос не входит. OpenRouter
+направляет запрос выбранному провайдеру модели с использованием ключа
+пользователя.
 
-The MCP server does not use this AI request path.
+MCP-сервер не использует этот внешний AI-путь.

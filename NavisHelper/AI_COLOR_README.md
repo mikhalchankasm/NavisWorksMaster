@@ -1,41 +1,42 @@
 # AI Color Objects
 
-`AI Color Objects` assigns colors to selected Navisworks objects from their
-display names. When the external AI path is available, color grouping is
-requested through OpenRouter. Otherwise the command uses the selected local
-color scheme.
+`AI Color Objects` назначает цвета выбранным объектам Navisworks на основе их
+отображаемых имён. Если доступен внешний AI-путь, группировка цветов
+запрашивается через OpenRouter. В остальных случаях команда использует
+выбранную локальную цветовую схему.
 
-## Execution path
+## Порядок выполнения
 
-1. The plugin filters the current selection to colorable objects.
-2. `AIColorUtils.GetObjectNamesFromSelection` extracts object names.
-3. `LocalColorBridge` writes the names and selected scheme to temporary JSON.
-4. If `ColorService.exe` is present next to `NavisHelper.dll`, it is started
-   with the temporary request and response paths.
-5. `ColorService.exe` calls OpenRouter only when `OPEN_ROUTER_NW_KEY` is set.
-6. If the service executable or key is unavailable, local colors are generated
-   from `ColorSchemes`.
+1. Плагин отфильтровывает в текущем выборе объекты, для которых можно изменить
+   цвет.
+2. `AIColorUtils.GetObjectNamesFromSelection` извлекает имена объектов.
+3. `LocalColorBridge` записывает имена и выбранную схему во временный JSON.
+4. Если рядом с `NavisHelper.dll` находится `ColorService.exe`, процесс
+   запускается с путями к временным файлам запроса и ответа.
+5. `ColorService.exe` обращается к OpenRouter только при наличии
+   `OPEN_ROUTER_NW_KEY`.
+6. Если исполняемый файл сервиса или ключ недоступны, цвета генерируются
+   локально через `ColorSchemes`.
 
-The distribution and installer built by `tools/build_installer.ps1` do not
-include `ColorService.exe`. An installation from those artifacts therefore
-uses the local fallback unless the executable is supplied separately beside
-the plugin.
+Distribution и installer, собираемые `tools/build_installer.ps1`, не содержат
+`ColorService.exe`. Поэтому установка из этих артефактов использует локальный
+fallback, если этот исполняемый файл не предоставлен отдельно рядом с плагином.
 
-## OpenRouter configuration
+## Настройка OpenRouter
 
-The integration is bring-your-own-key. Create a personal OpenRouter key and
-set it for the current Windows user:
+Интеграция работает по схеме bring-your-own-key. Создайте личный ключ
+OpenRouter и задайте его для текущего пользователя Windows:
 
 ```cmd
 setx OPEN_ROUTER_NW_KEY "your_openrouter_key"
 ```
 
-Restart Navisworks after changing the environment variable.
+После изменения переменной окружения перезапустите Navisworks.
 
-The key is read from `OPEN_ROUTER_NW_KEY`. It is not serialized to
+Ключ читается из `OPEN_ROUTER_NW_KEY` и не сериализуется в
 `%APPDATA%\NavisHelper\ai_config.json`.
 
-The configuration file contains non-secret settings:
+Файл конфигурации содержит только несекретные настройки:
 
 ```json
 {
@@ -51,56 +52,57 @@ The configuration file contains non-secret settings:
 }
 ```
 
-The settings tab writes the selected model and thinking mode to this file.
-The endpoint and other non-secret values can also be edited there directly.
+Вкладка настроек записывает в этот файл выбранную модель и режим thinking.
+Endpoint и другие несекретные значения также можно изменить непосредственно
+в файле.
 
-## Available models
+## Доступные модели
 
-The selectable models are defined by `AIModels.Available`:
+Доступные для выбора модели определены в `AIModels.Available`:
 
-| Display name | OpenRouter model ID | Thinking mode |
+| Отображаемое имя | OpenRouter model ID | Режим thinking |
 |---|---|---|
-| `claude-sonnet-4.6` | `anthropic/claude-sonnet-4.6` | Supported |
-| `claude-opus-4.6` | `anthropic/claude-opus-4.6` | Supported |
-| `glm-5-turbo` | `z-ai/glm-5-turbo` | Not enabled |
-| `gpt-5.4` | `openai/gpt-5.4` | Not enabled |
-| `gemini-3-flash` | `google/gemini-3-flash-preview` | Supported |
+| `claude-sonnet-4.6` | `anthropic/claude-sonnet-4.6` | Поддерживается |
+| `claude-opus-4.6` | `anthropic/claude-opus-4.6` | Поддерживается |
+| `glm-5-turbo` | `z-ai/glm-5-turbo` | Не включается |
+| `gpt-5.4` | `openai/gpt-5.4` | Не включается |
+| `gemini-3-flash` | `google/gemini-3-flash-preview` | Поддерживается |
 
-Unknown model names fall back to the first entry,
+При неизвестном имени модели используется первая запись:
 `claude-sonnet-4.6`.
 
-## Use
+## Использование
 
-1. Open a model in Navisworks.
-2. Select the objects to color.
-3. Select the model, thinking mode, and color scheme in the NavisHelper panel.
-4. Run `AI Color Objects`.
+1. Откройте модель в Navisworks.
+2. Выберите объекты для раскраски.
+3. Выберите модель, режим thinking и цветовую схему на панели NavisHelper.
+4. Запустите `AI Color Objects`.
 
-The command applies the returned or locally generated RGB values as permanent
-color overrides.
+Команда применяет полученные или локально сгенерированные значения RGB как
+постоянные переопределения цвета.
 
-## Data egress
+## Передача данных во внешний API
 
-When `ColorService.exe` has been supplied separately and
-`OPEN_ROUTER_NW_KEY` is available, selected object names and the selected
-color-scheme name are sent to
-`https://openrouter.ai/api/v1/chat/completions`. OpenRouter then routes the
-request to the selected model provider under the user's key. Account for this
-when working with NDA-controlled models.
+Если `ColorService.exe` предоставлен отдельно и доступен
+`OPEN_ROUTER_NW_KEY`, имена выбранных объектов и имя выбранной цветовой схемы
+отправляются на `https://openrouter.ai/api/v1/chat/completions`. Затем
+OpenRouter направляет запрос выбранному провайдеру модели с использованием
+ключа пользователя. Учитывайте это при работе с моделями, подпадающими под NDA.
 
-The MCP server does not use this OpenRouter path. The local color fallback does
-not send model data to an external API.
+MCP-сервер не использует этот путь OpenRouter. Локальный fallback не отправляет
+данные модели во внешний API.
 
-## Defaults and failure handling
+## Значения по умолчанию и обработка ошибок
 
-- HTTP timeout: 60 seconds.
-- Maximum attempts: 2.
-- Response token limit: 2000, adjusted when supported thinking mode is used.
-- Default model: `claude-sonnet-4.6`.
-- Default color scheme: 8, Architectural.
-- Default thinking mode: enabled.
-- Invalid or unavailable AI responses fall back to local color generation or
-  return no color changes, depending on where the failure occurs.
+- HTTP timeout: 60 секунд.
+- Максимальное количество попыток: 2.
+- Лимит токенов ответа: 2000; корректируется при использовании
+  поддерживаемого режима thinking.
+- Модель по умолчанию: `claude-sonnet-4.6`.
+- Цветовая схема по умолчанию: 8, Architectural.
+- Режим thinking по умолчанию: включён.
+- При некорректном или недоступном AI-ответе используется локальная генерация
+  цветов либо изменения цвета не применяются — в зависимости от места сбоя.
 
-Operations are written through the NavisHelper logger. The usual fallback log
-path is `%TEMP%\navishelper_log.txt`.
+Операции записываются через logger NavisHelper. Обычный резервный путь журнала:
+`%TEMP%\navishelper_log.txt`.
