@@ -97,4 +97,19 @@ if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup compiler failed with exit code $LASTEXITCODE."
 }
 
+$installerUpgradeSmoke = Join-Path $repoRoot "scripts\test_installer_upgrade.ps1"
+if (-not (Test-Path -LiteralPath $installerUpgradeSmoke -PathType Leaf)) {
+    throw "Installer upgrade smoke test was not found: $installerUpgradeSmoke"
+}
+$installerUpgradeSmokeArgs = @{
+    IsccPath = $iscc
+    InstallerScript = $script
+    SourceDir = $sourceDir
+    AppVersion = $AppVersion
+}
+if ($SelfContained) {
+    $installerUpgradeSmokeArgs.SelfContained = $true
+}
+& $installerUpgradeSmoke @installerUpgradeSmokeArgs
+
 Write-Host "Installer output: $OutputRoot"
