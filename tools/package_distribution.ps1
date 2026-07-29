@@ -126,8 +126,26 @@ $bundleContracts2024 = Join-Path $bundleSource "Contents\2024\NavisHelper.Contra
 $bundleContracts2025 = Join-Path $bundleSource "Contents\2025\NavisHelper.Contracts.dll"
 $bundleContracts2026 = Join-Path $bundleSource "Contents\2026\NavisHelper.Contracts.dll"
 $bundleContracts2027 = Join-Path $bundleSource "Contents\2027\NavisHelper.Contracts.dll"
+$bundleRussian2024 = Join-Path $bundleSource "Contents\2024\ru\NavisHelper.resources.dll"
+$bundleRussian2025 = Join-Path $bundleSource "Contents\2025\ru\NavisHelper.resources.dll"
+$bundleRussian2026 = Join-Path $bundleSource "Contents\2026\ru\NavisHelper.resources.dll"
+$bundleRussian2027 = Join-Path $bundleSource "Contents\2027\ru\NavisHelper.resources.dll"
 $packageContents = Join-Path $bundleSource "PackageContents.xml"
-foreach ($required in @($bundle2024, $bundle2025, $bundle2026, $bundle2027, $bundleContracts2024, $bundleContracts2025, $bundleContracts2026, $bundleContracts2027, $packageContents)) {
+foreach ($required in @(
+    $bundle2024,
+    $bundle2025,
+    $bundle2026,
+    $bundle2027,
+    $bundleContracts2024,
+    $bundleContracts2025,
+    $bundleContracts2026,
+    $bundleContracts2027,
+    $bundleRussian2024,
+    $bundleRussian2025,
+    $bundleRussian2026,
+    $bundleRussian2027,
+    $packageContents
+)) {
     if (-not (Test-Path -LiteralPath $required)) {
         throw "Required bundle artifact is missing: $required. Run the full NavisHelper build matrix (Release2024, Release2025, Release2026, Release2027 with Platform=x64) before packaging, or rerun this script without -SkipBuild."
     }
@@ -597,6 +615,26 @@ $manifest = [ordered]@{
             path = "NavisHelper.bundle\Contents\2027\NavisHelper.dll"
             size = (Get-Item -LiteralPath $bundle2027).Length
             last_write_time = (Get-Item -LiteralPath $bundle2027).LastWriteTimeUtc.ToString("o")
+        }
+        russian_satellite_2024 = [ordered]@{
+            path = "NavisHelper.bundle\Contents\2024\ru\NavisHelper.resources.dll"
+            size = (Get-Item -LiteralPath $bundleRussian2024).Length
+            last_write_time = (Get-Item -LiteralPath $bundleRussian2024).LastWriteTimeUtc.ToString("o")
+        }
+        russian_satellite_2025 = [ordered]@{
+            path = "NavisHelper.bundle\Contents\2025\ru\NavisHelper.resources.dll"
+            size = (Get-Item -LiteralPath $bundleRussian2025).Length
+            last_write_time = (Get-Item -LiteralPath $bundleRussian2025).LastWriteTimeUtc.ToString("o")
+        }
+        russian_satellite_2026 = [ordered]@{
+            path = "NavisHelper.bundle\Contents\2026\ru\NavisHelper.resources.dll"
+            size = (Get-Item -LiteralPath $bundleRussian2026).Length
+            last_write_time = (Get-Item -LiteralPath $bundleRussian2026).LastWriteTimeUtc.ToString("o")
+        }
+        russian_satellite_2027 = [ordered]@{
+            path = "NavisHelper.bundle\Contents\2027\ru\NavisHelper.resources.dll"
+            size = (Get-Item -LiteralPath $bundleRussian2027).Length
+            last_write_time = (Get-Item -LiteralPath $bundleRussian2027).LastWriteTimeUtc.ToString("o")
         }
     }
     mcp_server = [ordered]@{

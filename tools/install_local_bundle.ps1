@@ -63,7 +63,12 @@ function Copy-DirectoryFresh([string]$Source, [string]$Destination) {
 
 function Assert-BundleHashesMatch([string]$Source, [string]$Destination) {
     $sourceFiles = @(Get-ChildItem -LiteralPath $Source -Recurse -File | Where-Object {
-        $_.Name -in @("PackageContents.xml", "NavisHelper.dll", "NavisHelper.Contracts.dll")
+        $_.Name -in @(
+            "PackageContents.xml",
+            "NavisHelper.dll",
+            "NavisHelper.Contracts.dll",
+            "NavisHelper.resources.dll"
+        )
     })
 
     foreach ($sourceFile in $sourceFiles) {
@@ -92,6 +97,12 @@ $destinationBundle = Join-Path $destinationRoot "NavisHelper.bundle"
 
 Assert-UnderAllowedRoot $destinationBundle @($userRoot)
 Assert-NavisworksClosed
+foreach ($year in @("2024", "2025", "2026", "2027")) {
+    $satellitePath = Join-Path $SourceBundle "Contents\$year\ru\NavisHelper.resources.dll"
+    if (-not (Test-Path -LiteralPath $satellitePath -PathType Leaf)) {
+        throw "Source bundle is missing the Russian $year satellite assembly: $satellitePath"
+    }
+}
 Copy-DirectoryFresh $SourceBundle $destinationBundle
 
 if (-not $SkipHashCheck) {

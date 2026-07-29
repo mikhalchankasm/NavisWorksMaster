@@ -11,6 +11,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.ComApi;
 using Autodesk.Navisworks.Api.Interop;
@@ -25,21 +26,21 @@ namespace NavisHelper.WPF
             var doc = NwApplication.ActiveDocument;
             if (doc == null || doc.IsClear || doc.CurrentViewpoint == null)
             {
-                SetGlobalStatus("Нет активного документа", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Common_NoActiveDocument", Brushes.Orange);
                 return;
             }
 
             var row = _clashGrid?.SelectedItem;
             if (row == null)
             {
-                SetGlobalStatus("Выберите коллизию", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_SelectResult", Brushes.Orange);
                 return;
             }
 
             var results = GetClashResultsFromRow(row);
             if (results.Count == 0)
             {
-                SetGlobalStatus("Неверная запись коллизии", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_InvalidResult", Brushes.Orange);
                 return;
             }
 
@@ -48,7 +49,7 @@ namespace NavisHelper.WPF
             var center = _clashMgr.LastClashCenter ?? results.First().Center;
             if (center == null)
             {
-                SetGlobalStatus("Нет точки clash для GIF", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_Gif_NoPoint", Brushes.Orange);
                 return;
             }
 
@@ -62,11 +63,13 @@ namespace NavisHelper.WPF
             {
             }
 
-            var defaultGifName = NormalizeSavedItemName(rowName ?? results.First().DisplayName, "Clash Orbit") + ".gif";
+            var defaultGifName = NormalizeSavedItemName(
+                rowName ?? results.First().DisplayName,
+                PanelUi("Panel_Clash_Gif_DefaultName")) + ".gif";
             var saveDialog = new Microsoft.Win32.SaveFileDialog
             {
-                Title = "Сохранить GIF коллизии",
-                Filter = "GIF animation (*.gif)|*.gif",
+                Title = PanelUi("Panel_Clash_Gif_SaveTitle"),
+                Filter = PanelUi("Panel_Clash_Gif_FileFilter"),
                 FileName = defaultGifName,
                 AddExtension = true,
                 DefaultExt = ".gif",
@@ -75,7 +78,7 @@ namespace NavisHelper.WPF
 
             if (saveDialog.ShowDialog() != true)
             {
-                SetGlobalStatus("GIF отменён", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_Gif_Cancelled", Brushes.Orange);
                 return;
             }
 
@@ -92,7 +95,7 @@ namespace NavisHelper.WPF
 
             try
             {
-                progress = NwApplication.BeginProgress("Создание GIF коллизии");
+                progress = NwApplication.BeginProgress(PanelUi("Panel_Clash_Gif_Progress"));
                 var basePosition = baseViewpoint.Position;
                 var relative = new[] { basePosition.X - center.X, basePosition.Y - center.Y, basePosition.Z - center.Z };
                 var horizontalRadius = Math.Sqrt(relative[0] * relative[0] + relative[1] * relative[1]);
@@ -127,7 +130,11 @@ namespace NavisHelper.WPF
                     var framePath = Path.Combine(framesDir, "frame_" + i.ToString("000", CultureInfo.InvariantCulture) + ".bmp");
                     string warning;
                     if (!TryCaptureCurrentViewImage(framePath, out warning))
-                        throw new InvalidOperationException("Кадр " + (i + 1).ToString(CultureInfo.InvariantCulture) + ": " + warning);
+                        throw new InvalidOperationException(
+                            UiLocalizationService.Current.Format(
+                                "Panel_Clash_Gif_FrameFailed_Format",
+                                i + 1,
+                                warning));
 
                     framePaths.Add(framePath);
                     progress.Update((double)(i + 1) / frameCount);
@@ -135,14 +142,14 @@ namespace NavisHelper.WPF
 
                 if (framePaths.Count == 0)
                 {
-                    SetGlobalStatus("GIF отменён", Brushes.Orange);
+                    SetGlobalStatusResource("Panel_Clash_Gif_Cancelled", Brushes.Orange);
                     return;
                 }
 
                 WriteAnimatedGif(framePaths, gifPath, 8);
                 gifCreated = true;
                 doc.CurrentViewpoint.CopyFrom(baseViewpoint);
-                SetGlobalStatus($"GIF создан: {gifPath}", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Clash_Gif_Created_Format", Brushes.DarkGreen, gifPath);
                 try { Process.Start("explorer.exe", "/select,\"" + gifPath + "\""); } catch { }
             }
             finally

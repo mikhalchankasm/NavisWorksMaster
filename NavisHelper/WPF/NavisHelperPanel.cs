@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using Microsoft.VisualBasic;
 using Path = System.IO.Path;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NavisHelper.Interfaces;
 using NavisHelper.Agent.Services;
 using Autodesk.Navisworks.Api;
@@ -34,7 +35,7 @@ using NwColor = Autodesk.Navisworks.Api.Color;
 
 namespace NavisHelper.WPF
 {
-    public partial class NavisHelperPanel : UserControl
+    public partial class NavisHelperPanel : UserControl, IDisposable
     {
         private TextBox _folderPathBox;
 
@@ -70,6 +71,10 @@ namespace NavisHelper.WPF
 
         private TextBlock _globalStatusBar;
 
+        private string _globalStatusResourceKey;
+
+        private object[] _globalStatusArguments;
+
         private ProgressBar _globalBusyBar;
 
         private TabControl _mainTabControl;
@@ -79,6 +84,8 @@ namespace NavisHelper.WPF
         private TabItem _viewsTab;
         private TabItem _settingsTab;
         private readonly SelectionGatingController _selectionGating;
+        private readonly PanelLocalizationBindings _panelLocalizationBindings;
+        private bool _isDisposed;
 
         private Action<int> _selectColorsSegment;
         private Action<int> _selectViewsSegment;
@@ -103,7 +110,8 @@ namespace NavisHelper.WPF
 
         private class ColorHistoryEntry
         {
-            public string Label { get; set; }
+            public int ObjectCount { get; set; }
+            public int ColorGroupCount { get; set; }
             public List<string> ObjectNames { get; set; }
             public Dictionary<string, string> Colors { get; set; }
             public DateTime Time { get; set; }
@@ -115,8 +123,7 @@ namespace NavisHelper.WPF
 
         private class QuickPaletteCommand
         {
-            public string Title { get; set; }
-            public string Description { get; set; }
+            public string ResourceId { get; set; }
             public Action Execute { get; set; }
             public DateTime? LastUsed { get; set; }
         }
@@ -286,25 +293,25 @@ namespace NavisHelper.WPF
 
         private const string SearchSetItemNameInternalProperty = "LcOaSceneBaseUserName";
 
-        // null RGB = "без подсветки"
+        // Null RGB means no highlight.
 
         private static readonly (string Name, byte? R, byte? G, byte? B)[] ClashColors = new[]
         {
-            ("Без подсветки", (byte?)null, (byte?)null, (byte?)null),
-            ("Красный",       (byte?)255, (byte?)50,   (byte?)50),
-            ("Синий",         (byte?)50,  (byte?)100,  (byte?)255),
-            ("Зелёный",       (byte?)50,  (byte?)200,  (byte?)50),
-            ("Оранжевый",     (byte?)255, (byte?)165,  (byte?)0),
-            ("Жёлтый",        (byte?)255, (byte?)255,  (byte?)50),
-            ("Фиолетовый",    (byte?)180, (byte?)50,   (byte?)255),
-            ("Голубой",       (byte?)50,  (byte?)200,  (byte?)255),
-            ("Розовый",       (byte?)255, (byte?)100,  (byte?)180),
-            ("Белый",         (byte?)255, (byte?)255,  (byte?)255),
-            ("Тёмно-красный", (byte?)180, (byte?)0,    (byte?)0),
-            ("Тёмно-синий",   (byte?)0,   (byte?)50,   (byte?)180),
-            ("Бирюзовый",     (byte?)0,   (byte?)200,  (byte?)200),
-            ("Лайм",          (byte?)150, (byte?)255,  (byte?)0),
-            ("Коричневый",    (byte?)160, (byte?)100,  (byte?)50),
+            ("None",     (byte?)null, (byte?)null, (byte?)null),
+            ("Red",      (byte?)255, (byte?)50,   (byte?)50),
+            ("Blue",     (byte?)50,  (byte?)100,  (byte?)255),
+            ("Green",    (byte?)50,  (byte?)200,  (byte?)50),
+            ("Orange",   (byte?)255, (byte?)165,  (byte?)0),
+            ("Yellow",   (byte?)255, (byte?)255,  (byte?)50),
+            ("Purple",   (byte?)180, (byte?)50,   (byte?)255),
+            ("Cyan",     (byte?)50,  (byte?)200,  (byte?)255),
+            ("Pink",     (byte?)255, (byte?)100,  (byte?)180),
+            ("White",    (byte?)255, (byte?)255,  (byte?)255),
+            ("DarkRed",  (byte?)180, (byte?)0,    (byte?)0),
+            ("DarkBlue", (byte?)0,   (byte?)50,   (byte?)180),
+            ("Teal",     (byte?)0,   (byte?)200,  (byte?)200),
+            ("Lime",     (byte?)150, (byte?)255,  (byte?)0),
+            ("Brown",    (byte?)160, (byte?)100,  (byte?)50),
         };
 
         private static readonly object GlobalHotkeySync = new object();
@@ -336,7 +343,8 @@ namespace NavisHelper.WPF
             stack.Children.Add(CreateSeparator());
             stack.Children.Add(CreateImportExportContent());
 
-            _modelTab = new TabItem { Header = "🌳 Модель", Content = WrapInScroll(stack) };
+            _modelTab = new TabItem { Content = WrapInScroll(stack) };
+            _panelLocalizationBindings.BindHeader(_modelTab, "Panel_Tab_Model");
             return _modelTab;
         }
 
@@ -345,18 +353,23 @@ namespace NavisHelper.WPF
             var manual = WrapInScroll(CreateToolsContent());
             var ai = CreateAIColorsContent();
 
+            RadioButton[] segmentButtons;
             var content = UiTheme.Segmented(
-                new[] { "Ручная", "AI" },
+                new[] { PanelUi("Panel_Colors_Segment_Manual"), "AI" },
                 new UIElement[] { manual, ai },
                 _panelUiSettings.ColorsSegment,
                 idx => { _panelUiSettings.ColorsSegment = idx; _panelUiSettings.Save(); },
-                out _selectColorsSegment);
+                out _selectColorsSegment,
+                out segmentButtons);
+            _panelLocalizationBindings.BindContent(
+                segmentButtons[0],
+                "Panel_Colors_Segment_Manual");
 
             _colorsTab = new TabItem
             {
-                Header = "🎨 Цвета",
                 Content = WithTabPadding(content)
             };
+            _panelLocalizationBindings.BindHeader(_colorsTab, "Panel_Tab_Colors");
             return _colorsTab;
         }
 
@@ -367,30 +380,44 @@ namespace NavisHelper.WPF
             var heightMarks = (UIElement)hmTab.Content;
             hmTab.Content = null;
 
+            RadioButton[] segmentButtons;
             var content = UiTheme.Segmented(
-                new[] { "Разметка", "Отметки" },
+                new[]
+                {
+                    PanelUi("Panel_Views_Segment_Markup"),
+                    PanelUi("Panel_Views_Segment_Elevations")
+                },
                 new UIElement[] { markup, heightMarks },
                 _panelUiSettings.ViewsSegment,
                 idx => { _panelUiSettings.ViewsSegment = idx; _panelUiSettings.Save(); },
-                out _selectViewsSegment);
+                out _selectViewsSegment,
+                out segmentButtons);
+            _panelLocalizationBindings.BindContent(
+                segmentButtons[0],
+                "Panel_Views_Segment_Markup");
+            _panelLocalizationBindings.BindContent(
+                segmentButtons[1],
+                "Panel_Views_Segment_Elevations");
 
             _viewsTab = new TabItem
             {
-                Header = "📷 Виды",
                 Content = WithTabPadding(content)
             };
+            _panelLocalizationBindings.BindHeader(_viewsTab, "Panel_Tab_Views");
             return _viewsTab;
         }
 
         private TabItem CreateSettingsTab()
         {
             var builder = new NavisHelperSettingsTabBuilder(
-                (text, color) => SetGlobalStatus(text, color),
+                (resourceKey, color, arguments) =>
+                    SetGlobalStatusResource(resourceKey, color, arguments),
                 OpenFileInShell,
                 GetModelLogPath,
                 OpenDevScriptsMenu,
                 ExecutePlugin,
-                Dispatcher);
+                Dispatcher,
+                _panelLocalizationBindings);
             _settingsTab = builder.Build();
             _modelCombo = builder.ModelCombo;
             _thinkingCheck = builder.ThinkingCheck;
@@ -409,6 +436,9 @@ namespace NavisHelper.WPF
         public NavisHelperPanel()
         {
             _selectionGating = new SelectionGatingController(Dispatcher);
+            _panelLocalizationBindings = new PanelLocalizationBindings(
+                UiLocalizationService.Current,
+                Dispatcher);
             Background = Brushes.Transparent;
             UiTheme.InstallImplicitControlStyles(this);
             Loaded += OnPanelLoaded;
@@ -420,7 +450,6 @@ namespace NavisHelper.WPF
 
             _globalStatusBar = new TextBlock
             {
-                Text = "Готово",
                 FontSize = 10,
                 Foreground = Brushes.Gray,
                 Padding = new Thickness(6, 0, 6, 0),
@@ -429,6 +458,10 @@ namespace NavisHelper.WPF
                 TextWrapping = TextWrapping.NoWrap,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
+            _panelLocalizationBindings.BindAction(
+                _globalStatusBar,
+                "Panel.GlobalStatus",
+                ApplyGlobalStatusResource);
             _globalBusyBar = new ProgressBar
             {
                 Width = 84,
@@ -473,6 +506,10 @@ namespace NavisHelper.WPF
             root.Children.Add(_mainTabControl);
             Grid.SetRow(_mainTabControl, 0);
 
+            _panelLocalizationBindings.BindAction(
+                this,
+                "Panel.ColorSchemes",
+                RefreshSchemeListItemTexts);
             Content = root;
 
             RegisterPaletteCommands();
@@ -481,6 +518,7 @@ namespace NavisHelper.WPF
         private void OnPanelLoaded(object sender, RoutedEventArgs e)
         {
             Current = this;
+            _panelLocalizationBindings.Attach();
             try
             {
                 Logger.Info("NavisHelperPanel loaded.", "AgentHost");
@@ -513,6 +551,7 @@ namespace NavisHelper.WPF
 
         private void OnPanelUnloaded(object sender, RoutedEventArgs e)
         {
+            _panelLocalizationBindings.Detach();
             try
             {
                 _selectionGating.Detach();
@@ -547,6 +586,19 @@ namespace NavisHelper.WPF
                     }
                 }
             }
+        }
+
+        public void Dispose()
+        {
+            if (_isDisposed)
+                return;
+
+            Loaded -= OnPanelLoaded;
+            Unloaded -= OnPanelUnloaded;
+            _panelLocalizationBindings.Dispose();
+            if (ReferenceEquals(Current, this))
+                Current = null;
+            _isDisposed = true;
         }
 
         private void StopPanelDebounceTimers()
@@ -691,97 +743,179 @@ namespace NavisHelper.WPF
             _isPaletteHookPaused = false;
         }
 
-        private void RegisterPaletteCommand(string title, string description, Action action)
+        private void RegisterPaletteCommand(string resourceId, Action action)
         {
-            if (string.IsNullOrWhiteSpace(title) || action == null) return;
-            _commandPalette.RemoveAll(c => string.Equals(c.Title, title, StringComparison.OrdinalIgnoreCase));
-            _commandPalette.Add(new QuickPaletteCommand { Title = title, Description = description, Execute = action });
+            if (string.IsNullOrWhiteSpace(resourceId) || action == null) return;
+            _commandPalette.RemoveAll(c =>
+                string.Equals(c.ResourceId, resourceId, StringComparison.Ordinal));
+            _commandPalette.Add(new QuickPaletteCommand
+            {
+                ResourceId = resourceId,
+                Execute = action
+            });
         }
 
         private void RegisterPaletteCommands()
         {
             _commandPalette.Clear();
 
-            RegisterPaletteCommand("Colors By Name", "Окрашивание по списку name;R,G,B[;transparency]", () => ExecutePlugin("ColorsByName.CBC"));
-            RegisterPaletteCommand("Override PDMS", "Отключить/скрыть элементы, соответствующие PDMS-списку", () => ExecutePlugin("HideItems.CBC"));
-            RegisterPaletteCommand("Match Color", "Считать цвет первого выбранного объекта и применить к выделению", OnPickAndApplyColor);
-            RegisterPaletteCommand("Match Color: Считать", "Считать цвет с выбранного объекта", () => OnPickColor(null, null));
-            RegisterPaletteCommand("Match Color: Применить", "Применить считанный цвет к текущему выделению", () => OnPasteColor(null, null));
-            RegisterPaletteCommand("Color by Property", "Авто-окраска выделения по значениям свойства", OnColorByProperty);
-            RegisterPaletteCommand("Reset all overrides", "Сбросить все цветовые/прозрачностные overrides", ResetAllOverrides);
-            RegisterPaletteCommand("Export colors", "Экспортировать цвета и прозрачность выделения в отдельные файлы", () => ExecutePlugin("ExportColors.CBC"));
-            RegisterPaletteCommand("Import colors", "Загрузить цвета из файлов и применить к текущему выделению", () => ExecutePlugin("ImportColors.CBC"));
-            RegisterPaletteCommand("AI-окраска", "Применить AI-цвета по схеме и модели", () => OnApplyColorScheme(null, null));
-            RegisterPaletteCommand("Copy names", "Скопировать DisplayName выделенных элементов", () => ExecutePlugin("CopySelectedNames.CBC"));
-            RegisterPaletteCommand("Filter by list", "Отфильтровать модель списком имён из файла", () => ExecutePlugin("FilterModels.COMPANY"));
-            RegisterPaletteCommand("Select by Property Value", "Выбрать по значению свойства из выделения", OnSelectByPropertyValue);
-            RegisterPaletteCommand("Сохранить поисковый набор", "Создать папку и сохранить динамический Search Set", OnCreateSearchSelectionSet);
+            RegisterPaletteCommand("ColorsByName", () => ExecutePlugin("ColorsByName.CBC"));
+            RegisterPaletteCommand("OverridePdms", () => ExecutePlugin("HideItems.CBC"));
+            RegisterPaletteCommand("MatchColor", OnPickAndApplyColor);
+            RegisterPaletteCommand("MatchColorRead", () => OnPickColor(null, null));
+            RegisterPaletteCommand("MatchColorApply", () => OnPasteColor(null, null));
+            RegisterPaletteCommand("ColorByProperty", OnColorByProperty);
+            RegisterPaletteCommand("ResetOverrides", ResetAllOverrides);
+            RegisterPaletteCommand("ExportColors", () => ExecutePlugin("ExportColors.CBC"));
+            RegisterPaletteCommand("ImportColors", () => ExecutePlugin("ImportColors.CBC"));
+            RegisterPaletteCommand("AiColoring", () => OnApplyColorScheme(null, null));
+            RegisterPaletteCommand("CopyNames", () => ExecutePlugin("CopySelectedNames.CBC"));
+            RegisterPaletteCommand("FilterByList", () => ExecutePlugin("FilterModels.COMPANY"));
+            RegisterPaletteCommand("SelectByProperty", OnSelectByPropertyValue);
+            RegisterPaletteCommand("SaveSearchSet", OnCreateSearchSelectionSet);
 
-            RegisterPaletteCommand("Parent", "Выбрать родительские элементы для текущего выделения", () => TreeNavigation.SafeExecute(TreeNavigation.SelectParents));
-            RegisterPaletteCommand("Child", "Выбрать дочерние элементы", () => TreeNavigation.SafeExecute(TreeNavigation.SelectChildren));
-            RegisterPaletteCommand("Sibling", "Выбрать соседние элементы (один уровень с выделенными)", () => TreeNavigation.SafeExecute(TreeNavigation.SelectSiblings));
-            RegisterPaletteCommand("Leaf", "Выбрать концевые узлы (leaf)", () => TreeNavigation.SafeExecute(TreeNavigation.SelectLeafNodes));
-            RegisterPaletteCommand("All Under", "Выбрать все потомки выделенных элементов", () => TreeNavigation.SafeExecute(TreeNavigation.SelectAllUnder));
-            RegisterPaletteCommand("Invert Selection", "Инвертировать текущую выборку", InvertSelection);
-            RegisterPaletteCommand("Isolate", "Скрыть все, кроме текущей выборки", IsolateSelection);
-            RegisterPaletteCommand("Unhide All", "Показать все элементы", UnhideAll);
-            RegisterPaletteCommand("Запомнить выборку", "Сохранить текущую выборку в ячейку памяти", () => SaveSelectionSetSlot(0));
-            RegisterPaletteCommand("Вернуть выборку", "Восстановить выборку из ячейки памяти", () => RecallSelectionSetSlot(0));
+            RegisterPaletteCommand("Parent", () => TreeNavigation.SafeExecute(TreeNavigation.SelectParents));
+            RegisterPaletteCommand("Child", () => TreeNavigation.SafeExecute(TreeNavigation.SelectChildren));
+            RegisterPaletteCommand("Sibling", () => TreeNavigation.SafeExecute(TreeNavigation.SelectSiblings));
+            RegisterPaletteCommand("Leaf", () => TreeNavigation.SafeExecute(TreeNavigation.SelectLeafNodes));
+            RegisterPaletteCommand("AllUnder", () => TreeNavigation.SafeExecute(TreeNavigation.SelectAllUnder));
+            RegisterPaletteCommand("InvertSelection", InvertSelection);
+            RegisterPaletteCommand("Isolate", IsolateSelection);
+            RegisterPaletteCommand("UnhideAll", UnhideAll);
+            RegisterPaletteCommand("RememberSelection", () => SaveSelectionSetSlot(0));
+            RegisterPaletteCommand("RestoreSelection", () => RecallSelectionSetSlot(0));
 
-            RegisterPaletteCommand("Markup Viewpoint", "Пометить выделенные элементы эллипсами на текущем виде", () => ExecutePlugin("MarkupViewpoint.CBC"));
-            RegisterPaletteCommand("Height Marks", "Открыть таблицу отметок Max Z и размерных линий до уровня Z", () => ShowHeightMarksTab());
-            RegisterPaletteCommand("Height Marks: Graphics", "Показать временные Graphics.Text2D-метки по текущему выделению", ShowHeightGraphicsMarkers);
-            RegisterPaletteCommand("Height Marks: Screenshot", "Сохранить изображение текущего вида", SaveHeightScreenshot);
-            RegisterPaletteCommand("Top View + Section", "Переключить на вид сверху, приблизиться к выделению и включить секцию", () => ExecutePlugin("TopViewSection.CBC"));
-            RegisterPaletteCommand("Top View Bounding Rect", "Нарисовать габаритный прямоугольник вокруг выделения", () => ExecutePlugin("TopViewBoundingRect.CBC"));
-            RegisterPaletteCommand("Top View Bounding Hatch", "Заштриховать экранный габарит выделения на текущем ракурсе", () => ExecutePlugin("TopViewBoundingHatch.CBC"));
-            RegisterPaletteCommand("Selection Hatch Marker", "Показать временный многоугольный маркер выделения через clash overlay", () => ExecutePlugin("SelectionHatchMarker.CBC"));
-            RegisterPaletteCommand("Selection Bounds Hatch Marker", "Показать временный многоугольный маркер по габаритам объектов через clash overlay", () => ExecutePlugin("SelectionHatchBoundsMarker.CBC"));
-            RegisterPaletteCommand("Sort Viewpoints", "Сортировка точек обзора", () => ExecutePlugin("SortViewpoints.COMPANY"));
-            RegisterPaletteCommand("Save Viewpoints", "Сохранить список точек обзора", () => ExecutePlugin("SaveViewpiontList.COMPANY"));
-            RegisterPaletteCommand("Section Box по выделению", "Установить section box и отобразить контекст", () => ShowSelectionSectionBox());
-            RegisterPaletteCommand("Сброс секции", "Сбросить section box и прозрачность контекста", ResetSelectionSectionBox);
-            RegisterPaletteCommand("Габариты выделения", "Показать габариты выделения и скопировать значения в буфер обмена", ShowAndCopySelectionBounds);
+            RegisterPaletteCommand("MarkupViewpoint", () => ExecutePlugin("MarkupViewpoint.CBC"));
+            RegisterPaletteCommand("HeightMarks", () => ShowHeightMarksTab());
+            RegisterPaletteCommand("HeightGraphics", ShowHeightGraphicsMarkers);
+            RegisterPaletteCommand("HeightScreenshot", SaveHeightScreenshot);
+            RegisterPaletteCommand("TopViewSection", () => ExecutePlugin("TopViewSection.CBC"));
+            RegisterPaletteCommand("TopViewBounds", () => ExecutePlugin("TopViewBoundingRect.CBC"));
+            RegisterPaletteCommand("TopViewHatch", () => ExecutePlugin("TopViewBoundingHatch.CBC"));
+            RegisterPaletteCommand("SelectionHatch", () => ExecutePlugin("SelectionHatchMarker.CBC"));
+            RegisterPaletteCommand("SelectionBoundsHatch", () => ExecutePlugin("SelectionHatchBoundsMarker.CBC"));
+            RegisterPaletteCommand("SortViewpoints", () => ExecutePlugin("SortViewpoints.COMPANY"));
+            RegisterPaletteCommand("SaveViewpoints", () => ExecutePlugin("SaveViewpiontList.COMPANY"));
+            RegisterPaletteCommand("SelectionSectionBox", () => ShowSelectionSectionBox());
+            RegisterPaletteCommand("ResetSectionBox", ResetSelectionSectionBox);
+            RegisterPaletteCommand("SelectionBounds", ShowAndCopySelectionBounds);
 
-            RegisterPaletteCommand("CSV → атрибуты", "Загрузить атрибуты из CSV", () => ExecutePlugin("CsvAttributeLoader.CSVL"));
-            RegisterPaletteCommand("Import PS-листы", "Импортировать PS-листы", () => ExecutePlugin("ImportPslists.CBC"));
-            RegisterPaletteCommand("Save hierarchy", "Сохранить дерево модели", () => ExecutePlugin("SaveHierarhy.COMPANY"));
-            RegisterPaletteCommand("Save NWD 2018", "Экспортировать как Navisworks 2018", () => ExecutePlugin("SaveAsNavis2018.MS"));
-            RegisterPaletteCommand("Export properties to Excel", "Экспортировать свойства выделенных элементов", ExportSelectedPropertiesToExcelLikeFile);
+            RegisterPaletteCommand("CsvAttributes", () => ExecutePlugin("CsvAttributeLoader.CSVL"));
+            RegisterPaletteCommand("ImportPsLists", () => ExecutePlugin("ImportPslists.CBC"));
+            RegisterPaletteCommand("SaveHierarchy", () => ExecutePlugin("SaveHierarhy.COMPANY"));
+            RegisterPaletteCommand("SaveNwd2018", () => ExecutePlugin("SaveAsNavis2018.MS"));
+            RegisterPaletteCommand("ExportProperties", ExportSelectedPropertiesToExcelLikeFile);
 
-            RegisterPaletteCommand("Clashes: Load tests", "Загрузить все тесты коллизий", LoadClashTests);
-            RegisterPaletteCommand("Clashes: Run all tests", "Запустить все Clash Test без сохранения отчёта или модели", RunAllClashTests);
-            RegisterPaletteCommand("Clashes: Preview selected", "Показать выбранную коллизию", PreviewSelectedClash);
-            RegisterPaletteCommand("Clashes: Clash viewpoint", "Сохранить вид с выбранной коллизией", SaveClashViewpoint);
-            RegisterPaletteCommand("Clashes: Assign to", "Присвоить ответственного выбранной коллизии", () => SetClashAssignedToPrompt());
-            RegisterPaletteCommand("Clashes: Section Box (коллизии)", "Включить/выключить Section Box для режима просмотра коллизий", SectionBoxHelper.Toggle);
-            RegisterPaletteCommand("Clashes: Marker", "Показать/скрыть маркер коллизии", ToggleClashMarker);
-            RegisterPaletteCommand("Clashes: Plane", "Показать/скрыть плоскость по выделению", ToggleSelectionPlane);
-            RegisterPaletteCommand("Clashes: Export BCF", "Экспортировать выбранную коллизию в BCF-подобный файл", ExportSelectedClashesToBcf);
+            RegisterPaletteCommand("ClashLoadTests", LoadClashTests);
+            RegisterPaletteCommand("ClashRunAll", RunAllClashTests);
+            RegisterPaletteCommand("ClashPreview", PreviewSelectedClash);
+            RegisterPaletteCommand("ClashViewpoint", SaveClashViewpoint);
+            RegisterPaletteCommand("ClashAssignTo", () => SetClashAssignedToPrompt());
+            RegisterPaletteCommand("ClashSectionBox", SectionBoxHelper.Toggle);
+            RegisterPaletteCommand("ClashMarker", ToggleClashMarker);
+            RegisterPaletteCommand("ClashPlane", ToggleSelectionPlane);
+            RegisterPaletteCommand("ClashExportBcf", ExportSelectedClashesToBcf);
 
-            RegisterPaletteCommand("Настройки", "Открыть вкладку «⚙ Настройки»", () =>
+            RegisterPaletteCommand("Settings", () =>
             {
                 if (_mainTabControl != null && _settingsTab != null)
                     _mainTabControl.SelectedItem = _settingsTab;
             });
-            RegisterPaletteCommand("Открыть лог", "Открыть файл NavisHelper-логов", () => OpenFileInShell(GetModelLogPath()));
-            RegisterPaletteCommand("Dev: загрузить DLL", "Загрузить DLL с IDevScript", OpenDevScriptsMenu);
-            RegisterPaletteCommand("О программе", "Открыть диалог «О программе»", () => ExecutePlugin("AboutNavisHelper.CBC"));
-            RegisterPaletteCommand("Command Palette", "Открыть командную палитру", OpenCommandPalette);
+            RegisterPaletteCommand("OpenLog", () => OpenFileInShell(GetModelLogPath()));
+            RegisterPaletteCommand("DevScripts", OpenDevScriptsMenu);
+            RegisterPaletteCommand("About", () => ExecutePlugin("AboutNavisHelper.CBC"));
+            RegisterPaletteCommand("CommandPalette", OpenCommandPalette);
         }
 
-        private void SetGlobalStatus(string text, Brush color = null)
+        private string PaletteCommandTitle(QuickPaletteCommand command)
         {
-            if (_globalStatusBar == null) return;
-            _globalStatusBar.Text = (text ?? string.Empty).Replace("\r\n", " | ").Replace("\n", " | ");
-            _globalStatusBar.Foreground = color ?? Brushes.Gray;
+            return command == null
+                ? string.Empty
+                : PanelUi("Panel_CommandPalette_" + command.ResourceId + "_Title");
         }
 
-        private void SetGlobalBusy(bool isBusy, string text = null)
+        private string PaletteCommandDescription(QuickPaletteCommand command)
         {
-            if (!string.IsNullOrWhiteSpace(text))
-                SetGlobalStatus(text, isBusy ? Brushes.DarkOrange : Brushes.Gray);
+            return command == null
+                ? string.Empty
+                : PanelUi("Panel_CommandPalette_" + command.ResourceId + "_Description");
+        }
 
+        private static UiLocalizedArgument PaletteCommandTitleStatusArgument(
+            QuickPaletteCommand command)
+        {
+            if (command == null)
+                throw new ArgumentNullException(nameof(command));
+
+            return UiLocalizedArgument.FromResource(
+                "Panel_CommandPalette_" + command.ResourceId + "_Title");
+        }
+
+        private void SetGlobalStatusResource(
+            string resourceKey,
+            Brush color = null,
+            params object[] arguments)
+        {
+            _globalStatusResourceKey = resourceKey;
+            _globalStatusArguments = arguments ?? new object[0];
+            ApplyGlobalStatusResource();
+            if (_globalStatusBar != null)
+                _globalStatusBar.Foreground = color ?? Brushes.Gray;
+        }
+
+        private void SetGlobalStatusResource(
+            UiStatusResourceDescriptor descriptor,
+            Brush color = null)
+        {
+            if (descriptor == null)
+                throw new ArgumentNullException(nameof(descriptor));
+
+            SetGlobalStatusResource(
+                descriptor.ResourceKey,
+                color,
+                descriptor.Arguments);
+        }
+
+        private static string FormatStatusForLog(
+            UiStatusResourceDescriptor descriptor)
+        {
+            if (descriptor == null)
+                return string.Empty;
+
+            object[] resolvedArguments = UiLocalizedArgument.Resolve(
+                descriptor.Arguments,
+                (resourceKey, arguments) =>
+                    UiLocalizationService.Current.Format(resourceKey, arguments));
+            return UiLocalizationService.Current.Format(
+                descriptor.ResourceKey,
+                resolvedArguments);
+        }
+
+        private void ApplyGlobalStatusResource()
+        {
+            if (_globalStatusBar == null)
+                return;
+
+            object[] resolvedArguments = UiLocalizedArgument.Resolve(
+                _globalStatusArguments,
+                (resourceKey, arguments) =>
+                    UiLocalizationService.Current.Format(resourceKey, arguments));
+            string text = string.IsNullOrWhiteSpace(_globalStatusResourceKey)
+                ? PanelUi("Panel_Status_Ready")
+                : UiLocalizationService.Current.Format(
+                    _globalStatusResourceKey,
+                    resolvedArguments);
+            _globalStatusBar.Text =
+                (text ?? string.Empty).Replace("\r\n", " | ").Replace("\n", " | ");
+        }
+
+        private static object LocalizedStatusArgument(string resourceKey)
+        {
+            return UiLocalizedArgument.FromResource(resourceKey);
+        }
+
+        private void SetGlobalBusy(bool isBusy)
+        {
             if (_globalBusyBar != null)
                 _globalBusyBar.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
 
@@ -807,13 +941,17 @@ namespace NavisHelper.WPF
             }
         }
 
-        private static void OpenFileInShell(string filePath)
+        private void OpenFileInShell(string filePath)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
                 {
-                    MessageBox.Show("Файл не найден.", "NavisHelper", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show(
+                        PanelUi("Panel_Common_FileNotFound"),
+                        "NavisHelper",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
                     return;
                 }
 
@@ -821,7 +959,13 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Не удалось открыть файл: " + ex.Message, "NavisHelper", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format(
+                        "Panel_Common_OpenFileFailed_Format",
+                        ex.Message),
+                    "NavisHelper",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
         }
 
@@ -831,23 +975,30 @@ namespace NavisHelper.WPF
             {
                 var dlg = new Microsoft.Win32.OpenFileDialog
                 {
-                    Filter = "DLL (*.dll)|*.dll",
-                    Title = "Выберите DLL с Dev-скриптами"
+                    Filter = PanelUi("Panel_DevScripts_DllFilter"),
+                    Title = PanelUi("Panel_DevScripts_SelectDll_Title")
                 };
                 if (dlg.ShowDialog() != true) return;
 
                 var scripts = DevScriptLoader.LoadScripts(dlg.FileName);
                 if (scripts == null || scripts.Count == 0)
                 {
-                    MessageBox.Show("Скрипты в DLL не найдены.", "NavisHelper", MessageBoxButton.OK, MessageBoxImage.Information);
-                    SetGlobalStatus($"DLL загружена: {Path.GetFileName(dlg.FileName)} — скрипты не найдены", Brushes.Orange);
+                    MessageBox.Show(
+                        PanelUi("Panel_DevScripts_NoneFound"),
+                        "NavisHelper",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    SetGlobalStatusResource(
+                        "Panel_DevScripts_NoneFound_Format",
+                        Brushes.Orange,
+                        Path.GetFileName(dlg.FileName));
                     return;
                 }
 
                 var owner = Window.GetWindow(this);
                 var wnd = new Window
                 {
-                    Title = "Dev скрипты",
+                    Title = PanelUi("Panel_DevScripts_WindowTitle"),
                     Width = 360,
                     Height = 300,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -858,7 +1009,9 @@ namespace NavisHelper.WPF
                 var panel = new StackPanel { Margin = new Thickness(8) };
                 panel.Children.Add(new TextBlock
                 {
-                    Text = $"DLL: {Path.GetFileName(dlg.FileName)}",
+                    Text = UiLocalizationService.Current.Format(
+                        "Panel_DevScripts_DllLabel_Format",
+                        Path.GetFileName(dlg.FileName)),
                     FontWeight = FontWeights.SemiBold,
                     Margin = new Thickness(0, 0, 0, 8)
                 });
@@ -866,11 +1019,25 @@ namespace NavisHelper.WPF
                 foreach (var script in scripts)
                 {
                     var scriptRef = script;
-                    panel.Children.Add(ActionBtn("dev_run", "\U000025B6", script.Name, $"Запустить скрипт {script.Name}", () =>
+                    var scriptButton = new Button
+                    {
+                        Content = script.Name,
+                        ToolTip = UiLocalizationService.Current.Format(
+                            "Panel_DevScripts_Run_ToolTip_Format",
+                            script.Name),
+                        Margin = new Thickness(0, 2, 4, 2),
+                        Padding = new Thickness(8, 4, 8, 4),
+                        Cursor = Cursors.Hand
+                    };
+                    scriptButton.Click += (sender, args) =>
                     {
                         scriptRef.Run();
-                        SetGlobalStatus($"Dev скрипт запущен: {scriptRef.Name}", Brushes.DarkGreen);
-                    }));
+                        SetGlobalStatusResource(
+                            "Panel_DevScripts_Started_Format",
+                            Brushes.DarkGreen,
+                            scriptRef.Name);
+                    };
+                    panel.Children.Add(scriptButton);
                 }
 
                 wnd.Content = new ScrollViewer { Content = panel };
@@ -878,8 +1045,16 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки DLL: " + ex.Message, "NavisHelper", MessageBoxButton.OK, MessageBoxImage.Error);
-                SetGlobalStatus("Ошибка загрузки DLL", Brushes.Red);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format(
+                        "Panel_DevScripts_LoadFailed_Format",
+                        ex.Message),
+                    "NavisHelper",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                SetGlobalStatusResource(
+                    "Panel_DevScripts_LoadFailed",
+                    Brushes.Red);
             }
         }
 
@@ -887,7 +1062,11 @@ namespace NavisHelper.WPF
         {
             if (_commandPalette.Count == 0)
             {
-                MessageBox.Show("Команды не загружены.", "Командная палитра", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(
+                    PanelUi("Panel_CommandPalette_NoCommands"),
+                    PanelUi("Panel_CommandPalette_Title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
                 return;
             }
 
@@ -905,7 +1084,7 @@ namespace NavisHelper.WPF
 
             var window = new Window
             {
-                Title = "Командная палитра",
+                Title = PanelUi("Panel_CommandPalette_Title"),
                 Width = 520,
                 Height = 360,
                 WindowStartupLocation = WindowStartupLocation.Manual,
@@ -930,6 +1109,9 @@ namespace NavisHelper.WPF
             {
                 if (ReferenceEquals(_commandPaletteWindow, window))
                 {
+                    _panelLocalizationBindings.UnbindAction(
+                        window,
+                        "CommandPalette.Localization");
                     _commandPaletteWindow = null;
                     _commandPaletteQuery = null;
                     ResumeGlobalHotkeysForPalette();
@@ -989,7 +1171,8 @@ namespace NavisHelper.WPF
                     results.Items.Add(new ListBoxItem
                     {
                         Tag = command,
-                        Content = $"{command.Title} — {command.Description}",
+                        Content = PaletteCommandTitle(command) + " — " +
+                                  PaletteCommandDescription(command),
                         FontSize = 12,
                         Padding = new Thickness(4)
                     });
@@ -999,8 +1182,8 @@ namespace NavisHelper.WPF
                     .Where(c =>
                     {
                         if (c == null) return false;
-                        var title = (c.Title ?? string.Empty).ToLowerInvariant();
-                        var desc = (c.Description ?? string.Empty).ToLowerInvariant();
+                        var title = PaletteCommandTitle(c).ToLowerInvariant();
+                        var desc = PaletteCommandDescription(c).ToLowerInvariant();
                         return string.IsNullOrWhiteSpace(q) || title.Contains(q) || desc.Contains(q);
                     })
                     .ToList();
@@ -1014,7 +1197,7 @@ namespace NavisHelper.WPF
                 var recentSet = new HashSet<QuickPaletteCommand>(recent);
                 var regular = candidates
                     .Where(c => !recentSet.Contains(c))
-                    .OrderBy(c => c.Title)
+                    .OrderBy(PaletteCommandTitle)
                     .ToList();
 
                 foreach (var c in recent)
@@ -1041,6 +1224,15 @@ namespace NavisHelper.WPF
                 }
             }
 
+            _panelLocalizationBindings.BindAction(
+                window,
+                "CommandPalette.Localization",
+                () =>
+                {
+                    window.Title = PanelUi("Panel_CommandPalette_Title");
+                    UpdateList(query.Text);
+                });
+
             void ExecuteSelection()
             {
                 var item = results.SelectedItem as ListBoxItem;
@@ -1054,11 +1246,14 @@ namespace NavisHelper.WPF
                     {
                         command.Execute();
                         command.LastUsed = DateTime.Now;
-                        SetGlobalStatus($"Выполнена команда: {command.Title}", Brushes.DarkGreen);
+                        SetGlobalStatusResource(
+                            "Panel_CommandPalette_Executed_Format",
+                            Brushes.DarkGreen,
+                            PaletteCommandTitleStatusArgument(command));
                     }
                     catch (Exception ex)
                     {
-                        SetGlobalStatus($"Ошибка: {ex.Message}", Brushes.Red);
+                        SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
                     }
                 }));
             }
@@ -1188,6 +1383,9 @@ namespace NavisHelper.WPF
             }
             catch
             {
+                _panelLocalizationBindings.UnbindAction(
+                    window,
+                    "CommandPalette.Localization");
                 if (ReferenceEquals(_commandPaletteWindow, window))
                 {
                     _commandPaletteWindow = null;

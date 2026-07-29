@@ -1,0 +1,2512 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="CommonBrowse" xml:space="preserve">
+    <value>Обзор...</value>
+  </data>
+  <data name="CommonCancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="CommonErrorMessageFormat" xml:space="preserve">
+    <value>Ошибка: {0}</value>
+  </data>
+  <data name="CommonErrorTitle" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+  <data name="CommonFileFilterCsvTextAll" xml:space="preserve">
+    <value>CSV файлы|*.csv|Текстовый файл|*.txt|Все файлы|*.*</value>
+  </data>
+  <data name="CommonFileFilterTextAll" xml:space="preserve">
+    <value>Текстовый файл|*.txt|Все файлы|*.*</value>
+  </data>
+  <data name="CommonFileFilterTextOnly" xml:space="preserve">
+    <value>Текстовые файлы (*.txt)|*.txt</value>
+  </data>
+  <data name="CommonFileFilterXmlAll" xml:space="preserve">
+    <value>XML файлы|*.xml|Все файлы|*.*</value>
+  </data>
+  <data name="CommonNoSelection" xml:space="preserve">
+    <value>Нет выделенных элементов.</value>
+  </data>
+  <data name="CommonOk" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="CommonViewpointNameLabel" xml:space="preserve">
+    <value>Имя точки обзора:</value>
+  </data>
+  <data name="CommonViewpointNameTitle" xml:space="preserve">
+    <value>Имя точки обзора</value>
+  </data>
+  <data name="RibbonTabTitle" xml:space="preserve">
+    <value>NavisHelper</value>
+  </data>
+  <data name="RibbonPanelTitle" xml:space="preserve">
+    <value>NavisHelper</value>
+  </data>
+  <data name="RibbonOpenPanelText" xml:space="preserve">
+    <value>NavisHelper</value>
+  </data>
+  <data name="RibbonOpenPanelToolTip" xml:space="preserve">
+    <value>NavisHelper</value>
+  </data>
+  <data name="SettingsLanguageSectionTitle" xml:space="preserve">
+    <value>Язык интерфейса / Interface language</value>
+  </data>
+  <data name="SettingsLanguageFieldLabel" xml:space="preserve">
+    <value>Язык / Language:</value>
+  </data>
+  <data name="SettingsLanguageEnglishName" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="SettingsLanguageRussianName" xml:space="preserve">
+    <value>Русский</value>
+  </data>
+  <data name="SettingsLanguageAppliedStatusFormat" xml:space="preserve">
+    <value>Язык интерфейса изменён: {0}.</value>
+  </data>
+  <data name="SettingsLanguagePersistenceWarningFormat" xml:space="preserve">
+    <value>Язык интерфейса изменён: {0}, но сохранить выбор не удалось. Он остаётся активным в текущем сеансе.</value>
+  </data>
+  <data name="SettingsLanguageChangeFailed" xml:space="preserve">
+    <value>Не удалось изменить язык интерфейса. Подробности записаны в журнал.</value>
+  </data>
+  <data name="Panel_Section_CurrentValue_Format" xml:space="preserve">
+    <value>{0}
+Текущее значение: {1}%.</value>
+  </data>
+  <data name="Panel_Section_CurrentValue_FormatMmStep100Mm" xml:space="preserve">
+    <value>{0}
+Текущее значение: {1} мм. Шаг: 100 мм.</value>
+  </data>
+  <data name="Settings_Ai_KeyHelp" xml:space="preserve">
+    <value>1. Получите API-ключ на openrouter.ai (раздел Keys).
+2. Выполните в командной строке Windows:
+    setx OPEN_ROUTER_NW_KEY sk-or-...
+3. Перезапустите Navisworks — ключ подхватится автоматически.
+Ключ хранится только в переменной окружения и не записывается в файлы.</value>
+  </data>
+  <data name="Panel_Clash_DualViewpoints_Label" xml:space="preserve">
+    <value>2 ракурса</value>
+  </data>
+  <data name="Panel_AddGroup" xml:space="preserve">
+    <value>Добавить группу</value>
+  </data>
+  <data name="Settings_Ai_Model_Label" xml:space="preserve">
+    <value>AI модель:</value>
+  </data>
+  <data name="Panel_All" xml:space="preserve">
+    <value>Все</value>
+  </data>
+  <data name="Panel_Apply" xml:space="preserve">
+    <value>Применить</value>
+  </data>
+  <data name="Panel_Colors_AiApply_Action" xml:space="preserve">
+    <value>Применить AI-окраску</value>
+  </data>
+  <data name="Panel_Colors_Match_Apply_ToolTip" xml:space="preserve">
+    <value>Применить считанный цвет к выделению</value>
+  </data>
+  <data name="Panel_ApplyTransparency" xml:space="preserve">
+    <value>Применить прозрачность</value>
+  </data>
+  <data name="Panel_Colors_Property_Action_ToolTip" xml:space="preserve">
+    <value>Авто-окраска по уникальному значению свойства (Система/Спец/Отметка)</value>
+  </data>
+  <data name="Panel_BoundingRectangle" xml:space="preserve">
+    <value>Габаритный прямоугольник</value>
+  </data>
+  <data name="Panel_Bounds" xml:space="preserve">
+    <value>Габариты</value>
+  </data>
+  <data name="Panel_BoundsMarker" xml:space="preserve">
+    <value>Маркер габаритов</value>
+  </data>
+  <data name="Panel_Section_Shift_GroupLabel" xml:space="preserve">
+    <value>Смещение бокса по осям · шаг 100 мм</value>
+  </data>
+  <data name="Panel_ByObjects" xml:space="preserve">
+    <value>По объектам</value>
+  </data>
+  <data name="Panel_Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Panel_CenterMarker" xml:space="preserve">
+    <value>Маркер центров</value>
+  </data>
+  <data name="Panel_CenterMarks" xml:space="preserve">
+    <value>Метки центров</value>
+  </data>
+  <data name="Panel_CenterPoints" xml:space="preserve">
+    <value>Точки центров</value>
+  </data>
+  <data name="Panel_Check" xml:space="preserve">
+    <value>Проверить</value>
+  </data>
+  <data name="Panel_Checking" xml:space="preserve">
+    <value>Проверка…</value>
+  </data>
+  <data name="Settings_Ai_Test_ToolTip" xml:space="preserve">
+    <value>Проверить доступность OpenRouter API с текущим ключом</value>
+  </data>
+  <data name="Panel_ChooseFolder" xml:space="preserve">
+    <value>Выбрать папку</value>
+  </data>
+  <data name="Panel_Colors_FolderSelect_Modern" xml:space="preserve">
+    <value>Выбрать папку (современный диалог)</value>
+  </data>
+  <data name="Panel_Model_Parent_ToolTip" xml:space="preserve">
+    <value>Выбрать родительский элемент для каждого выделенного объекта.
+Поднимается на 1 уровень вверх по дереву модели.</value>
+  </data>
+  <data name="Panel_Clash_Column_Name" xml:space="preserve">
+    <value>Коллизия</value>
+  </data>
+  <data name="Panel_Clash_Filter_Name_Label" xml:space="preserve">
+    <value>Коллизия:</value>
+  </data>
+  <data name="Panel_ClashSettings" xml:space="preserve">
+    <value>Настройки коллизий</value>
+  </data>
+  <data name="Panel_Clash_Settings_Description" xml:space="preserve">
+    <value>Настройки коллизий: подсветка, Section Box, прозрачность, точки обзора</value>
+  </data>
+  <data name="Panel_Clear" xml:space="preserve">
+    <value>Очистить</value>
+  </data>
+  <data name="Panel_HeightMarks_ClearGroups_ToolTip" xml:space="preserve">
+    <value>Очистить все сессионные группы.</value>
+  </data>
+  <data name="Panel_CloseSettings" xml:space="preserve">
+    <value>Закрыть настройки</value>
+  </data>
+  <data name="Panel_CloseTree" xml:space="preserve">
+    <value>Закрыть дерево</value>
+  </data>
+  <data name="Panel_Colors_Property_Action" xml:space="preserve">
+    <value>Цвет по свойству</value>
+  </data>
+  <data name="Panel_Colors_Folder_Label" xml:space="preserve">
+    <value>Папка с файлами цветов:</value>
+  </data>
+  <data name="Panel_ColoringHistory" xml:space="preserve">
+    <value>История покрасок</value>
+  </data>
+  <data name="Panel_Colors_Group_Coloring" xml:space="preserve">
+    <value>Окраска</value>
+  </data>
+  <data name="Panel_Colors_Segment_Manual" xml:space="preserve">
+    <value>Ручная</value>
+  </data>
+  <data name="Panel_Colors_ByName_Action" xml:space="preserve">
+    <value>Цвета по имени</value>
+  </data>
+  <data name="Panel_ColorScheme" xml:space="preserve">
+    <value>Цветовая схема:</value>
+  </data>
+  <data name="Panel_Colors_ByName_ToolTip" xml:space="preserve">
+    <value>Окраска элементов по имени из текстового файла (name;R,G,B;transparency)</value>
+  </data>
+  <data name="Panel_ColorTransfer" xml:space="preserve">
+    <value>Перенос цветов</value>
+  </data>
+  <data name="Panel_Contents" xml:space="preserve">
+    <value>Состав</value>
+  </data>
+  <data name="Panel_Clash_GroupContents_Format" xml:space="preserve">
+    <value>Состав: {0} | коллизий: {1} | A: {2} | B: {3}</value>
+  </data>
+  <data name="Panel_Context" xml:space="preserve">
+    <value>Контекст</value>
+  </data>
+  <data name="Panel_Section_ContextTransparency_ToolTip" xml:space="preserve">
+    <value>Прозрачность контекстных элементов вне выделения. Применяется автоматически, когда предпросмотр уже показан.</value>
+  </data>
+  <data name="Panel_ContextTransparency" xml:space="preserve">
+    <value>Прозрачность контекста</value>
+  </data>
+  <data name="Panel_Copy" xml:space="preserve">
+    <value>Копировать</value>
+  </data>
+  <data name="Panel_CopyCommand" xml:space="preserve">
+    <value>Копировать команду</value>
+  </data>
+  <data name="Panel_CopyNames" xml:space="preserve">
+    <value>Копировать имена</value>
+  </data>
+  <data name="Panel_Model_CopyNames_ToolTip" xml:space="preserve">
+    <value>Копировать DisplayName выделенных объектов в буфер обмена (Ctrl+M)</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_Action" xml:space="preserve">
+    <value>Скопировать выборку по значению свойства</value>
+  </data>
+  <data name="Panel_Colors_Ai_CopyResponse_ToolTip" xml:space="preserve">
+    <value>Копировать ответ в буфер обмена</value>
+  </data>
+  <data name="Panel_Create" xml:space="preserve">
+    <value>Создать</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Action_ToolTip" xml:space="preserve">
+    <value>Создать папку и сохранить динамический поисковый набор</value>
+  </data>
+  <data name="Panel_HeightMarks_Dimension_ToolTip" xml:space="preserve">
+    <value>Создать сохранённую точку обзора с размерными линиями для текущего выделения.</value>
+  </data>
+  <data name="Panel_HeightMarks_Elevation_ToolTip" xml:space="preserve">
+    <value>Создать сохранённую точку обзора с redline-подписями для текущего выделения.</value>
+  </data>
+  <data name="Panel_Model_ImportCsv_Action" xml:space="preserve">
+    <value>CSV → атрибуты</value>
+  </data>
+  <data name="Panel_HeightMarks_Grid_ToolTip" xml:space="preserve">
+    <value>Ctrl/Shift — выбрать несколько групп. Их объекты будут выделены в модели.</value>
+  </data>
+  <data name="Panel_Clash_Grid_SelectionHint" xml:space="preserve">
+    <value>Ctrl/Shift — выбрать несколько объектов в модели. Двойной щелчок — применить Section Box.</value>
+  </data>
+  <data name="Panel_DeleteGroups" xml:space="preserve">
+    <value>Удалить группы</value>
+  </data>
+  <data name="Panel_HeightMarks_DeleteGroups_ToolTip" xml:space="preserve">
+    <value>Удалить выбранные группы из списка текущей сессии.</value>
+  </data>
+  <data name="Panel_DevScripts_Load_Action" xml:space="preserve">
+    <value>Dev: загрузить DLL</value>
+  </data>
+  <data name="Panel_HeightMarks_DimensionToZ_Action" xml:space="preserve">
+    <value>Размерная линия до Z</value>
+  </data>
+  <data name="Panel_Dist" xml:space="preserve">
+    <value>Расст.</value>
+  </data>
+  <data name="Panel_Clash_TableSplitter_ToolTip" xml:space="preserve">
+    <value>Перетащите, чтобы изменить высоту таблиц</value>
+  </data>
+  <data name="Panel_Views_BoundsHatch_ToolTip" xml:space="preserve">
+    <value>Построить контур и диагональную штриховку габарита выделения</value>
+  </data>
+  <data name="Panel_Views_BoundsRectangle_ToolTip" xml:space="preserve">
+    <value>Построить прямоугольник габарита выделения</value>
+  </data>
+  <data name="Panel_Section_Enable_ToolTip" xml:space="preserve">
+    <value>Включать section box вокруг текущего выделения.</value>
+  </data>
+  <data name="Settings_Ai_Thinking_ToolTip" xml:space="preserve">
+    <value>Включить режим расширенного мышления (для поддерживающих моделей)</value>
+  </data>
+  <data name="Panel_Clash_EnableDuringNavigation" xml:space="preserve">
+    <value>Включать
+при навигации</value>
+  </data>
+  <data name="Panel_Error0" xml:space="preserve">
+    <value>Ошибка: {0}</value>
+  </data>
+  <data name="Panel_Section_Expansion_GroupLabel" xml:space="preserve">
+    <value>Расширение: общее + по осям · шаг 100 мм</value>
+  </data>
+  <data name="Panel_ExportColors" xml:space="preserve">
+    <value>Выгрузить</value>
+  </data>
+  <data name="Panel_Model_ExportProperties_Action" xml:space="preserve">
+    <value>Экспорт свойств в Excel</value>
+  </data>
+  <data name="Panel_Model_ExportTree_ToolTip" xml:space="preserve">
+    <value>Экспортировать дерево модели в текстовый файл</value>
+  </data>
+  <data name="Panel_Colors_Export_ToolTip" xml:space="preserve">
+    <value>Выгрузить RGB-цвета и прозрачность всех потомков выделенных объектов в .txt файлы (по одному на объект)</value>
+  </data>
+  <data name="Panel_Filter0" xml:space="preserve">
+    <value>Фильтр: {0}</value>
+  </data>
+  <data name="Panel_Section_FitSelection_Action" xml:space="preserve">
+    <value>В выделенные элементы</value>
+  </data>
+  <data name="Panel_FromObject" xml:space="preserve">
+    <value>С объекта</value>
+  </data>
+  <data name="Panel_FromPoint" xml:space="preserve">
+    <value>От точки</value>
+  </data>
+  <data name="Panel_HeightMarks_TargetZ_ToolTip" xml:space="preserve">
+    <value>Глобальная Z документа; используется размерной линией.</value>
+  </data>
+  <data name="Panel_GraphicsMarker" xml:space="preserve">
+    <value>Graphics-метка</value>
+  </data>
+  <data name="Panel_Group" xml:space="preserve">
+    <value>Группа</value>
+  </data>
+  <data name="Panel_Grouping01" xml:space="preserve">
+    <value>Группировка {0}: {1}</value>
+  </data>
+  <data name="Panel_GroupingNone" xml:space="preserve">
+    <value>Группировка: нет</value>
+  </data>
+  <data name="Panel_GroupName" xml:space="preserve">
+    <value>Имя группы</value>
+  </data>
+  <data name="Panel_Clash_GroupCount_Format" xml:space="preserve">
+    <value>Групп: {0}, коллизий в группах: {1}</value>
+  </data>
+  <data name="Panel_HatchBounds" xml:space="preserve">
+    <value>Заштриховать габарит</value>
+  </data>
+  <data name="Panel_HeightMarks_Group_SessionObjects" xml:space="preserve">
+    <value>Сессионные группы объектов</value>
+  </data>
+  <data name="Panel_Model_Isolate_ToolTip" xml:space="preserve">
+    <value>Скрыть всё, кроме выделенного</value>
+  </data>
+  <data name="Panel_HideGraphics" xml:space="preserve">
+    <value>Скрыть Graphics</value>
+  </data>
+  <data name="Panel_Model_FilterList_ToolTip" xml:space="preserve">
+    <value>Скрыть/показать элементы модели по списку имён из текстового файла</value>
+  </data>
+  <data name="Panel_Highlight" xml:space="preserve">
+    <value>Подсветка</value>
+  </data>
+  <data name="Panel_Model_TreeHotkeys_Help" xml:space="preserve">
+    <value>Горячие клавиши:
+  Ctrl+Q  Parent (вверх по дереву)
+  Ctrl+W  Child (вниз по дереву)
+  Ctrl+E  Sibling (соседи)
+  Ctrl+M  Копировать имена
+  Ctrl+Shift+P  Командная палитра
+  Ctrl+Shift+H  Сохранить скрин текущего вида
+  Ctrl+1  Вернуть выборку
+  Ctrl+Shift+1  Запомнить выборку</value>
+  </data>
+  <data name="Settings_Ai_KeyHelp_Title" xml:space="preserve">
+    <value>Как настроить ключ</value>
+  </data>
+  <data name="Panel_Colors_ExportOverwrite_ToolTip" xml:space="preserve">
+    <value>Если включено — существующие .txt файлы будут перезаписаны при экспорте</value>
+  </data>
+  <data name="Panel_ImportColors" xml:space="preserve">
+    <value>Загрузить</value>
+  </data>
+  <data name="Panel_Model_ImportPsLists_Action" xml:space="preserve">
+    <value>Импорт PS-листов</value>
+  </data>
+  <data name="Panel_Model_ImportPsLists_ToolTip" xml:space="preserve">
+    <value>Импортировать PS-листы (PipeSpec) в текущий документ</value>
+  </data>
+  <data name="Panel_Section_AxisExpansion_Description" xml:space="preserve">
+    <value>Независимо расширяет или сужает Section Box по каждой оси.</value>
+  </data>
+  <data name="Panel_Selection_MemoryCount_Format" xml:space="preserve">
+    <value>в памяти: {0} объектов</value>
+  </data>
+  <data name="Panel_Invert" xml:space="preserve">
+    <value>Инвертировать</value>
+  </data>
+  <data name="Panel_Selection_Invert_ToolTip" xml:space="preserve">
+    <value>Инвертировать текущую выборку</value>
+  </data>
+  <data name="Panel_Isolate" xml:space="preserve">
+    <value>Изолировать</value>
+  </data>
+  <data name="Panel_Level" xml:space="preserve">
+    <value>Уровень</value>
+  </data>
+  <data name="Panel_Level01Found2" xml:space="preserve">
+    <value>Уровень {0}: {1} | найдено: {2}</value>
+  </data>
+  <data name="Panel_DevScripts_Load_ToolTip" xml:space="preserve">
+    <value>Загрузить DLL с IDevScript и запустить скрипты</value>
+  </data>
+  <data name="Panel_Colors_Import_ToolTip" xml:space="preserve">
+    <value>Загрузить цвета из .txt файлов и применить к потомкам выделенных объектов по совпадению имён</value>
+  </data>
+  <data name="Panel_Model_ImportCsv_ToolTip" xml:space="preserve">
+    <value>Загрузить пользовательские атрибуты из CSV файла (разделитель — точка с запятой) и записать в свойства элементов</value>
+  </data>
+  <data name="Panel_Section_ApplyTransparency_ToolTip" xml:space="preserve">
+    <value>Делать элементы вне выделения полупрозрачными с выбранным процентом прозрачности.</value>
+  </data>
+  <data name="Panel_Colors_ManualInput_Label" xml:space="preserve">
+    <value>Цвет вручную (HEX / RGB / RAL):</value>
+  </data>
+  <data name="Panel_Clash_MarkerRadius_ToolTip" xml:space="preserve">
+    <value>Радиус маркера (5-30, как в Autodesk ClashMarkers)</value>
+  </data>
+  <data name="Panel_Views_MarkSelection_ToolTip" xml:space="preserve">
+    <value>Пометить выделенные элементы эллипсами текущего вида</value>
+  </data>
+  <data name="Panel_MarkSelection" xml:space="preserve">
+    <value>Пометить выделенное</value>
+  </data>
+  <data name="Panel_Selection_MemoryEmpty" xml:space="preserve">
+    <value>память пуста</value>
+  </data>
+  <data name="Panel_Clash_MergeLevel_Label" xml:space="preserve">
+    <value>Объединить по уровню</value>
+  </data>
+  <data name="Panel_Clash_MergeInside_Format" xml:space="preserve">
+    <value>Объединить коллизии внутри: {0}</value>
+  </data>
+  <data name="Panel_Model_Group_Export" xml:space="preserve">
+    <value>Экспорт</value>
+  </data>
+  <data name="Panel_Model_Group_Import" xml:space="preserve">
+    <value>Импорт</value>
+  </data>
+  <data name="Panel_Model_Group_SearchSets" xml:space="preserve">
+    <value>Поисковые наборы</value>
+  </data>
+  <data name="Panel_Model_Group_SelectionMemory" xml:space="preserve">
+    <value>Запомнить выборку</value>
+  </data>
+  <data name="Panel_Model_Group_SelectionOperations" xml:space="preserve">
+    <value>Операции с выборкой</value>
+  </data>
+  <data name="Panel_Model_Group_TreeNavigation" xml:space="preserve">
+    <value>Навигация по дереву</value>
+  </data>
+  <data name="Panel_ModelResponse" xml:space="preserve">
+    <value>Ответ модели:</value>
+  </data>
+  <data name="Panel_More" xml:space="preserve">
+    <value>Подробнее…</value>
+  </data>
+  <data name="Panel_Section_Shift_Description" xml:space="preserve">
+    <value>Перемещает Section Box целиком, не меняя его размер.</value>
+  </data>
+  <data name="Settings_Ai_NoApiKey" xml:space="preserve">
+    <value>Ключ не задан</value>
+  </data>
+  <data name="Panel_NoData" xml:space="preserve">
+    <value>нет данных</value>
+  </data>
+  <data name="Panel_NoEntries" xml:space="preserve">
+    <value>Нет записей</value>
+  </data>
+  <data name="Panel_NotSelected" xml:space="preserve">
+    <value>не выбран</value>
+  </data>
+  <data name="Panel_Object" xml:space="preserve">
+    <value>Объект</value>
+  </data>
+  <data name="Panel_ObjectA" xml:space="preserve">
+    <value>Объект A</value>
+  </data>
+  <data name="Panel_ObjectB" xml:space="preserve">
+    <value>Объект B</value>
+  </data>
+  <data name="Panel_Objects" xml:space="preserve">
+    <value>Объектов</value>
+  </data>
+  <data name="Panel_Clash_ObjectTree_Header" xml:space="preserve">
+    <value>Дерево объектов A/B</value>
+  </data>
+  <data name="Panel_Offset" xml:space="preserve">
+    <value>Отступ</value>
+  </data>
+  <data name="Settings_Ai_ApiAvailable" xml:space="preserve">
+    <value>OK — API доступен</value>
+  </data>
+  <data name="Settings_Ai_OpenConfig_Action" xml:space="preserve">
+    <value>Открыть ai_config.json</value>
+  </data>
+  <data name="Panel_OpenLog" xml:space="preserve">
+    <value>Открыть лог</value>
+  </data>
+  <data name="Settings_Ai_KeyFound" xml:space="preserve">
+    <value>✅ Ключ OPEN_ROUTER_NW_KEY найден</value>
+  </data>
+  <data name="Settings_Ai_KeyMissing" xml:space="preserve">
+    <value>❌ Ключ OPEN_ROUTER_NW_KEY не найден</value>
+  </data>
+  <data name="Panel_Clash_GroupTree_ToolTip" xml:space="preserve">
+    <value>Открыть дерево группировки A/B поверх таблицы коллизий</value>
+  </data>
+  <data name="Settings_About_Open_ToolTip" xml:space="preserve">
+    <value>Открыть диалог «О программе»</value>
+  </data>
+  <data name="Settings_Ai_OpenConfig_ToolTip" xml:space="preserve">
+    <value>Открыть файл конфигурации AI (модель, температура, таймауты)</value>
+  </data>
+  <data name="Settings_Ai_OpenLog_ToolTip" xml:space="preserve">
+    <value>Открыть файл NavisHelper-логов для текущей модели</value>
+  </data>
+  <data name="Panel_Operator" xml:space="preserve">
+    <value>Оператор</value>
+  </data>
+  <data name="Panel_Colors_OverridePdms_Action" xml:space="preserve">
+    <value>Переопределить PDMS</value>
+  </data>
+  <data name="Panel_Colors_OverridePdms_ActionObjectColors" xml:space="preserve">
+    <value>Переопределить цвета объектов PDMS</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Overwrite_ToolTip" xml:space="preserve">
+    <value>Перезаписать набор с таким именем в этой папке</value>
+  </data>
+  <data name="Panel_Colors_Overwrite_Label" xml:space="preserve">
+    <value>Перезаписывать существующие файлы</value>
+  </data>
+  <data name="Panel_PalettePreview" xml:space="preserve">
+    <value>Превью палитры:</value>
+  </data>
+  <data name="Panel_Colors_FolderPath_ToolTip" xml:space="preserve">
+    <value>Путь к папке с .txt файлами цветов
+Можно вставить путь через Ctrl+V</value>
+  </data>
+  <data name="Panel_Read" xml:space="preserve">
+    <value>Считать</value>
+  </data>
+  <data name="Panel_Colors_ManualRead_ToolTip" xml:space="preserve">
+    <value>Разобрать введённый цвет в текущий Match Color без применения</value>
+  </data>
+  <data name="Panel_Colors_Match_Read_ToolTip" xml:space="preserve">
+    <value>Считать цвет с первого выделенного объекта</value>
+  </data>
+  <data name="Panel_Colors_HistoryApply_ToolTip" xml:space="preserve">
+    <value>Повторно применить последний сценарий покраски</value>
+  </data>
+  <data name="Panel_RecentObjects" xml:space="preserve">
+    <value>Последние объекты</value>
+  </data>
+  <data name="Panel_Refresh" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Settings_Ai_RefreshKey_ToolTip" xml:space="preserve">
+    <value>Перечитать переменную окружения OPEN_ROUTER_NW_KEY.
+После setx нужен перезапуск Navisworks.</value>
+  </data>
+  <data name="Panel_Remember" xml:space="preserve">
+    <value>Запомнить</value>
+  </data>
+  <data name="Panel_HeightMarks_HideGraphics_ToolTip" xml:space="preserve">
+    <value>Убрать временные Graphics-метки.</value>
+  </data>
+  <data name="Panel_Model_Save2018_ToolTip" xml:space="preserve">
+    <value>Пересохранить текущий файл в формате Navisworks 2018 (совместимость со старыми версиями)</value>
+  </data>
+  <data name="Panel_Reset" xml:space="preserve">
+    <value>Сброс</value>
+  </data>
+  <data name="Panel_Colors_ResetOverrides_ToolTip" xml:space="preserve">
+    <value>Сбросить все overrides цвета/прозрачности модели</value>
+  </data>
+  <data name="Panel_ResetGrouping" xml:space="preserve">
+    <value>Сброс группировки</value>
+  </data>
+  <data name="Panel_ResetOverrides" xml:space="preserve">
+    <value>Сбросить overrides</value>
+  </data>
+  <data name="Panel_Section_Reset_ToolTip" xml:space="preserve">
+    <value>Сбросить Section Box и прозрачность контекста</value>
+  </data>
+  <data name="Panel_Restore" xml:space="preserve">
+    <value>Вернуть</value>
+  </data>
+  <data name="Panel_Model_MemoryRestore_ToolTip" xml:space="preserve">
+    <value>Вернуть выборку из памяти (Ctrl+1)</value>
+  </data>
+  <data name="Panel_ResultActions" xml:space="preserve">
+    <value>Действия с результатами</value>
+  </data>
+  <data name="Panel_Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Panel_Model_Save2018_Action" xml:space="preserve">
+    <value>Сохранить как NWD 2018</value>
+  </data>
+  <data name="Panel_SaveHierarchy" xml:space="preserve">
+    <value>Сохранить иерархию</value>
+  </data>
+  <data name="Panel_SaveScreenshot" xml:space="preserve">
+    <value>Сохранить скрин</value>
+  </data>
+  <data name="Panel_SaveSearch" xml:space="preserve">
+    <value>Сохранить поиск</value>
+  </data>
+  <data name="Panel_Model_ExportProperties_ToolTip" xml:space="preserve">
+    <value>Сохранить свойства выделения в CSV файл (для открытия в Excel)</value>
+  </data>
+  <data name="Panel_Clash_DualViewpoints_ToolTip" xml:space="preserve">
+    <value>Сохраняет две точки обзора для каждой коллизии: (1) текущий диагональный ISO и (2) противоположный диагональный ISO.</value>
+  </data>
+  <data name="Panel_HeightMarks_AddGroup_ToolTip" xml:space="preserve">
+    <value>Сохранить текущее выделение модели как одну именованную группу.</value>
+  </data>
+  <data name="Panel_Model_MemorySave_ToolTip" xml:space="preserve">
+    <value>Сохранить текущую выборку в память (Ctrl+Shift+1)</value>
+  </data>
+  <data name="Panel_HeightMarks_Screenshot_ToolTip" xml:space="preserve">
+    <value>Сохранить текущий вид в изображение (Ctrl+Shift+H).</value>
+  </data>
+  <data name="Panel_Views_SaveList_ToolTip" xml:space="preserve">
+    <value>Сохранить список точек обзора</value>
+  </data>
+  <data name="Panel_Colors_Ai_SaveResponse_ToolTip" xml:space="preserve">
+    <value>Сохранить ответ в .txt файл</value>
+  </data>
+  <data name="Panel_Colors_Ai_Apply_ToolTip" xml:space="preserve">
+    <value>Сохранить выбранную схему и отправить выделенные объекты в AI для подбора цветов</value>
+  </data>
+  <data name="Panel_Views_SaveList_Action" xml:space="preserve">
+    <value>Сохранить список VP</value>
+  </data>
+  <data name="Panel_SectionBox" xml:space="preserve">
+    <value>Section Box</value>
+  </data>
+  <data name="Panel_Select" xml:space="preserve">
+    <value>Выделить</value>
+  </data>
+  <data name="Panel_Clash_SelectResultOrGroup_Hint" xml:space="preserve">
+    <value>Выберите коллизию или группу</value>
+  </data>
+  <data name="Panel_Model_Child_ToolTip" xml:space="preserve">
+    <value>Выбрать все дочерние элементы (1 уровень вниз).
+Раскрывает следующий уровень дерева.</value>
+  </data>
+  <data name="Panel_Model_AllDescendants_ToolTip" xml:space="preserve">
+    <value>Выбрать ВСЕ потомки на всех уровнях вниз.
+Полный раскрыв ветки дерева.</value>
+  </data>
+  <data name="Panel_Model_Siblings_ToolTip" xml:space="preserve">
+    <value>Выбрать всех соседей — элементы с тем же родителем.
+Полезно для выделения всех объектов на одном уровне.</value>
+  </data>
+  <data name="Panel_Clash_GroupTree_Instruction" xml:space="preserve">
+    <value>Выберите уровень дерева, чтобы сгруппировать коллизии по этому объекту</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_Label" xml:space="preserve">
+    <value>Выбрать по свойству</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_SelectAfterCreate_ToolTip" xml:space="preserve">
+    <value>Выделить найденные элементы после создания</value>
+  </data>
+  <data name="Panel_Clash_SelectInModel_Action" xml:space="preserve">
+    <value>Выделить в модели</value>
+  </data>
+  <data name="Panel_Model_Leaves_ToolTip" xml:space="preserve">
+    <value>Выбрать конечные узлы (листья) — элементы без потомков.
+Фильтрует только геометрические объекты на самом нижнем уровне.</value>
+  </data>
+  <data name="Panel_Colors_HistorySelect_ToolTip" xml:space="preserve">
+    <value>Выделить объекты из записи истории</value>
+  </data>
+  <data name="Panel_Clash_GroupTree_SelectLevel_ToolTip" xml:space="preserve">
+    <value>Сначала выберите уровень дерева A или B</value>
+  </data>
+  <data name="Panel_Section_Show_ToolTip" xml:space="preserve">
+    <value>Установить Section Box по текущему выделению</value>
+  </data>
+  <data name="Panel_Selection_UnhideAll_ToolTip" xml:space="preserve">
+    <value>Показать все элементы</value>
+  </data>
+  <data name="Panel_HeightMarks_Graphics_ToolTip" xml:space="preserve">
+    <value>Показать временные Graphics.Text2D-метки для текущего выделения, не меняя камеру.</value>
+  </data>
+  <data name="Panel_Model_BoundsInfo_ToolTip" xml:space="preserve">
+    <value>Показать габариты текущего выделения и скопировать значения в буфер обмена</value>
+  </data>
+  <data name="Panel_Views_Sort_ToolTip" xml:space="preserve">
+    <value>Сортировать все сохранённые точки обзора по имени (алфавитный порядок)</value>
+  </data>
+  <data name="Panel_Views_Sort_Action" xml:space="preserve">
+    <value>Сортировать VP</value>
+  </data>
+  <data name="Panel_St" xml:space="preserve">
+    <value>Ст.</value>
+  </data>
+  <data name="Panel_Status_Ready" xml:space="preserve">
+    <value>Готово</value>
+  </data>
+  <data name="Panel_Statuses" xml:space="preserve">
+    <value>Статусы:</value>
+  </data>
+  <data name="Panel_Views_TopSection_ToolTip" xml:space="preserve">
+    <value>Переключить в вид сверху, сфокусироваться на выделении и включить секцию</value>
+  </data>
+  <data name="Panel_Tab_Clashes" xml:space="preserve">
+    <value>⚠ Коллизии</value>
+  </data>
+  <data name="Panel_Tab_Colors" xml:space="preserve">
+    <value>🎨 Цвета</value>
+  </data>
+  <data name="Panel_Tab_Model" xml:space="preserve">
+    <value>🌳 Модель</value>
+  </data>
+  <data name="Panel_Tab_Settings" xml:space="preserve">
+    <value>⚙ Настройки</value>
+  </data>
+  <data name="Panel_Tab_Views" xml:space="preserve">
+    <value>📷 Виды</value>
+  </data>
+  <data name="Panel_HeightMarks_TargetZ_Label" xml:space="preserve">
+    <value>Целевой уровень Z, мм:</value>
+  </data>
+  <data name="Panel_Views_CenterPoints_ToolTip" xml:space="preserve">
+    <value>Временные кружки в центре каждого выделенного объекта</value>
+  </data>
+  <data name="Panel_Views_BoundsMarker_ToolTip" xml:space="preserve">
+    <value>Временный многоугольный маркер по углам bbox выделенных объектов</value>
+  </data>
+  <data name="Panel_Views_CenterMarker_ToolTip" xml:space="preserve">
+    <value>Временный многоугольный маркер через центры выделенных объектов</value>
+  </data>
+  <data name="Panel_Test" xml:space="preserve">
+    <value>Тест</value>
+  </data>
+  <data name="Panel_TestFilter" xml:space="preserve">
+    <value>Фильтр тестов...</value>
+  </data>
+  <data name="Panel_Section_History_Description" xml:space="preserve">
+    <value>Последние 10 объектов, для которых Section Box применялся явно. Ctrl/Shift — выбрать несколько; двойной щелчок — применить Section Box.</value>
+  </data>
+  <data name="Panel_HeightMarks_Introduction" xml:space="preserve">
+    <value>Метки создаются по текущему выделению модели. Таблица хранит именованные группы только в текущей сессии: выберите группу, чтобы восстановить её объекты в модели.</value>
+  </data>
+  <data name="Panel_Colors_Ai_ReadyHint" xml:space="preserve">
+    <value>Модель и API-ключ — на вкладке «⚙ Настройки»</value>
+  </data>
+  <data name="Panel_Thinking" xml:space="preserve">
+    <value>Thinking</value>
+  </data>
+  <data name="Panel_Time" xml:space="preserve">
+    <value>Время</value>
+  </data>
+  <data name="Settings_Ai_Timeout" xml:space="preserve">
+    <value>Таймаут (10 с) — нет ответа от API</value>
+  </data>
+  <data name="Panel_Views_TopSection_Action" xml:space="preserve">
+    <value>Вид сверху + секция</value>
+  </data>
+  <data name="Panel_Total" xml:space="preserve">
+    <value>Всего</value>
+  </data>
+  <data name="Panel_TransparentContext" xml:space="preserve">
+    <value>Прозрачный контекст</value>
+  </data>
+  <data name="Panel_UnhideAll" xml:space="preserve">
+    <value>Показать всё</value>
+  </data>
+  <data name="Panel_Clash_Transparency_Description" xml:space="preserve">
+    <value>Используется только для визуального просмотра выбранной коллизии в форме. Saved Viewpoints сохраняются без прозрачности.</value>
+  </data>
+  <data name="Panel_ViewingTransparency" xml:space="preserve">
+    <value>Просмотр: прозрачность</value>
+  </data>
+  <data name="Panel_Clash_Transparency_ToolTip" xml:space="preserve">
+    <value>Уровень прозрачности только для просмотра. При сохранении VP не применяется.</value>
+  </data>
+  <data name="Panel_ViewpointName" xml:space="preserve">
+    <value>Имя точки обзора:</value>
+  </data>
+  <data name="Panel_Views_Group_Markup" xml:space="preserve">
+    <value>Разметка вида</value>
+  </data>
+  <data name="Panel_Views_Group_SelectionMarkers" xml:space="preserve">
+    <value>Маркеры выделения</value>
+  </data>
+  <data name="Panel_Views_Group_SelectionSectionBox" xml:space="preserve">
+    <value>Section Box по выделению</value>
+  </data>
+  <data name="Panel_Views_Group_Viewpoints" xml:space="preserve">
+    <value>Точки обзора</value>
+  </data>
+  <data name="Panel_Views_Segment_Elevations" xml:space="preserve">
+    <value>Отметки</value>
+  </data>
+  <data name="Panel_Views_Segment_Markup" xml:space="preserve">
+    <value>Разметка</value>
+  </data>
+  <data name="Panel_Clash_MarkersForViewpoint_ToolTip" xml:space="preserve">
+    <value>При сохранении viewpoint добавляет redline-кружки в центрах выбранной коллизии или всех коллизий строки-группы.</value>
+  </data>
+  <data name="Panel_ZElevation" xml:space="preserve">
+    <value>Отметка Z</value>
+  </data>
+  <data name="Panel_ZElevations" xml:space="preserve">
+    <value>↕ Высоты Z</value>
+  </data>
+  <data name="Settings_About_Section" xml:space="preserve">
+    <value>О программе</value>
+  </data>
+  <data name="Settings_Service_Section" xml:space="preserve">
+    <value>Сервис</value>
+  </data>
+  <data name="RibbonPluginMissingMessageFormat" xml:space="preserve">
+    <value>Плагин {0} не найден в реестре плагинов Navisworks.</value>
+  </data>
+  <data name="RibbonDockPaneLoadFailedFormat" xml:space="preserve">
+    <value>Не удалось загрузить DockPane. LoadedPlugin = {0}</value>
+  </data>
+  <data name="AboutWindowTitle" xml:space="preserve">
+    <value>О программе NavisHelper</value>
+  </data>
+  <data name="AboutVersionFormat" xml:space="preserve">
+    <value>Версия {0}</value>
+  </data>
+  <data name="AboutDescription" xml:space="preserve">
+    <value>Инструменты Navisworks для проверки моделей и автоматизации.</value>
+  </data>
+  <data name="AboutFeatures" xml:space="preserve">
+    <value>Возможности:
+• Автоматическое окрашивание объектов (14 цветовых схем)
+• Работа с Clash Detective
+• Импорт и экспорт данных
+• Управление точками обзора
+• И многое другое...</value>
+  </data>
+  <data name="ColorSchemeWindowTitle" xml:space="preserve">
+    <value>Выбор цветовой схемы</value>
+  </data>
+  <data name="ColorSchemePrompt" xml:space="preserve">
+    <value>Выберите цветовую схему для автоматического окрашивания:</value>
+  </data>
+  <data name="ColorSchemePreviewLabel" xml:space="preserve">
+    <value>Превью цветов:</value>
+  </data>
+  <data name="ColorSchemeChangedTitle" xml:space="preserve">
+    <value>Цветовая схема</value>
+  </data>
+  <data name="ColorSchemeChangedMessageFormat" xml:space="preserve">
+    <value>Цветовая схема изменена на:
+{0}. {1}</value>
+  </data>
+  <data name="ColorSchemeUnknownName" xml:space="preserve">
+    <value>Неизвестная схема</value>
+  </data>
+  <data name="ColorSchemeGrayscaleName" xml:space="preserve">
+    <value>Оттенки серого</value>
+  </data>
+  <data name="ColorSchemeGrayscaleDescription" xml:space="preserve">
+    <value>Классические оттенки серого.
+Идеально для технических чертежей и нейтральной визуализации.</value>
+  </data>
+  <data name="ColorSchemeGrayPastelName" xml:space="preserve">
+    <value>Серый + пастельные</value>
+  </data>
+  <data name="ColorSchemeGrayPastelDescription" xml:space="preserve">
+    <value>Серые тона с мягкими пастельными акцентами.
+Баланс между техничностью и визуальной привлекательностью.</value>
+  </data>
+  <data name="ColorSchemeWarmName" xml:space="preserve">
+    <value>Тёплые тона</value>
+  </data>
+  <data name="ColorSchemeWarmDescription" xml:space="preserve">
+    <value>Тёплые тона: оранжевый, персиковый, медовый.
+Подходит для уютной визуализации интерьеров.</value>
+  </data>
+  <data name="ColorSchemeCoolName" xml:space="preserve">
+    <value>Холодные тона</value>
+  </data>
+  <data name="ColorSchemeCoolDescription" xml:space="preserve">
+    <value>Холодные тона: голубой, стальной, лавандовый.
+Создаёт ощущение прохлады и современности.</value>
+  </data>
+  <data name="ColorSchemeEarthName" xml:space="preserve">
+    <value>Земляные тона</value>
+  </data>
+  <data name="ColorSchemeEarthDescription" xml:space="preserve">
+    <value>Земляные тона: коричневый, бежевый, песочный.
+Натуральная палитра для ландшафтных проектов.</value>
+  </data>
+  <data name="ColorSchemeOceanName" xml:space="preserve">
+    <value>Морская тема</value>
+  </data>
+  <data name="ColorSchemeOceanDescription" xml:space="preserve">
+    <value>Морская палитра: бирюзовый, аквамарин, морская пена.
+Освежающие цвета для водных объектов.</value>
+  </data>
+  <data name="ColorSchemeForestName" xml:space="preserve">
+    <value>Лесная тема</value>
+  </data>
+  <data name="ColorSchemeForestDescription" xml:space="preserve">
+    <value>Лесная тема: зелёный, оливковый, хаки.
+Природная палитра для экстерьеров и парков.</value>
+  </data>
+  <data name="ColorSchemeArchitecturalName" xml:space="preserve">
+    <value>Архитектурная</value>
+  </data>
+  <data name="ColorSchemeArchitecturalDescription" xml:space="preserve">
+    <value>Архитектурные нейтральные тона: камень, бетон, мрамор.
+Профессиональная палитра для BIM-моделей.</value>
+  </data>
+  <data name="ColorSchemeHighContrastName" xml:space="preserve">
+    <value>Контрастная</value>
+  </data>
+  <data name="ColorSchemeHighContrastDescription" xml:space="preserve">
+    <value>Яркие контрастные цвета для максимальной различимости.
+Подходит для презентаций и выделения категорий.</value>
+  </data>
+  <data name="ColorSchemeRandomName" xml:space="preserve">
+    <value>Случайные цвета</value>
+  </data>
+  <data name="ColorSchemeRandomDescription" xml:space="preserve">
+    <value>Случайная генерация цветов.
+Максимальное разнообразие без общей темы.</value>
+  </data>
+  <data name="ColorSchemeIndustrialName" xml:space="preserve">
+    <value>Промышленная</value>
+  </data>
+  <data name="ColorSchemeIndustrialDescription" xml:space="preserve">
+    <value>Выразительные промышленные цвета для оборудования и технологических моделей.
+Упрощает практическое визуальное разделение.</value>
+  </data>
+  <data name="ColorSchemeInfrastructureName" xml:space="preserve">
+    <value>Инфраструктурная</value>
+  </data>
+  <data name="ColorSchemeInfrastructureDescription" xml:space="preserve">
+    <value>Сбалансированные цвета для дорог, сетей и гражданских объектов.
+Предназначена для крупных инфраструктурных моделей.</value>
+  </data>
+  <data name="ColorSchemeOilGasName" xml:space="preserve">
+    <value>Нефтегаз</value>
+  </data>
+  <data name="ColorSchemeOilGasDescription" xml:space="preserve">
+    <value>Технологические цвета для нефтегазовых объектов.
+Подходит для визуализации трубопроводов и оборудования.</value>
+  </data>
+  <data name="ColorSchemePastelRainbowName" xml:space="preserve">
+    <value>Пастельная радуга</value>
+  </data>
+  <data name="ColorSchemePastelRainbowDescription" xml:space="preserve">
+    <value>Широкая пастельная палитра цветов радуги.
+Даёт разнообразие, сохраняя мягкий внешний вид.</value>
+  </data>
+  <data name="ColorsByNameProgressCaption" xml:space="preserve">
+    <value>Окрашивание по имени</value>
+  </data>
+  <data name="CsvAttributeProgressCaption" xml:space="preserve">
+    <value>Загрузка атрибутов</value>
+  </data>
+  <data name="CsvAttributeDialogTitle" xml:space="preserve">
+    <value>Выберите CSV-файл с атрибутами</value>
+  </data>
+  <data name="FilterSearchPrompt" xml:space="preserve">
+    <value>Использовать точное совпадение? Другой вариант включает частичное совпадение.</value>
+  </data>
+  <data name="FilterSearchTitle" xml:space="preserve">
+    <value>Тип поиска</value>
+  </data>
+  <data name="FilterFileDialogTitle" xml:space="preserve">
+    <value>Выберите текстовый файл</value>
+  </data>
+  <data name="FolderPickerPathLabel" xml:space="preserve">
+    <value>Путь к папке (можно вставить Ctrl+V):</value>
+  </data>
+  <data name="FolderPickerMissingPromptFormat" xml:space="preserve">
+    <value>Папка не существует. Создать?
+{0}</value>
+  </data>
+  <data name="ExportColorsTitle" xml:space="preserve">
+    <value>Выгрузить цвета</value>
+  </data>
+  <data name="ExportColorsSelectObjects" xml:space="preserve">
+    <value>Выделите объекты в дереве модели.</value>
+  </data>
+  <data name="ExportColorsChooseFolder" xml:space="preserve">
+    <value>Выберите папку для сохранения файлов цветов</value>
+  </data>
+  <data name="ExportColorsOverwritePromptFormat" xml:space="preserve">
+    <value>В папке уже есть {0} .txt файлов.
+
+Перезаписывать существующие файлы?</value>
+  </data>
+  <data name="ExportColorsProgressTitle" xml:space="preserve">
+    <value>Выгрузка цветов</value>
+  </data>
+  <data name="ExportColorsRetryProgressFormat" xml:space="preserve">
+    <value>[{0}/{1}] Повтор ({2} ур.): {3}</value>
+  </data>
+  <data name="ExportColorsEmptyNameErrorFormat" xml:space="preserve">
+    <value>#{0}: пустое имя, пропущен</value>
+  </data>
+  <data name="ExportColorsCollectTimeoutErrorFormat" xml:space="preserve">
+    <value>{0} — таймаут на сборе ({1} ур.), пропущен</value>
+  </data>
+  <data name="ExportColorsApplyTimeoutErrorFormat" xml:space="preserve">
+    <value>{0} — таймаут на выгрузке ({1} ур. &gt; {2} сек), пропущен</value>
+  </data>
+  <data name="ExportColorsLimitedDepthWarningFormat" xml:space="preserve">
+    <value>{0} — выгружено {1} ур. (полная &gt; {2} сек)</value>
+  </data>
+  <data name="ExportColorsCompleteFormat" xml:space="preserve">
+    <value>Готово!
+Создано файлов: {0}
+Пропущено (уже есть): {1}
+Всего строк цветов: {2}
+Папка: {3}</value>
+  </data>
+  <data name="ExportColorsWarningsFormat" xml:space="preserve">
+    <value>
+
+Предупреждения ({0}):
+{1}
+
+Лог: {2}</value>
+  </data>
+  <data name="ImportColorsTitle" xml:space="preserve">
+    <value>Загрузить цвета</value>
+  </data>
+  <data name="ImportColorsSelectObjects" xml:space="preserve">
+    <value>Выделите объекты в дереве модели, куда применить цвета.</value>
+  </data>
+  <data name="ImportColorsChooseFolder" xml:space="preserve">
+    <value>Выберите папку с файлами цветов</value>
+  </data>
+  <data name="ImportColorsNoTextFiles" xml:space="preserve">
+    <value>В папке нет .txt файлов.</value>
+  </data>
+  <data name="ImportColorsProgressTitle" xml:space="preserve">
+    <value>Загрузка цветов</value>
+  </data>
+  <data name="ImportColorsCompleteFormat" xml:space="preserve">
+    <value>Готово!
+Совпало файлов: {0} из {1}
+Применено к объектам: {2}
+Не найдено файлов: {3}
+
+Лог: {4}</value>
+  </data>
+  <data name="ProgressPreparing" xml:space="preserve">
+    <value>Подготовка...</value>
+  </data>
+  <data name="OperationErrorDetailsFormat" xml:space="preserve">
+    <value>Ошибка: {0}
+{1}</value>
+  </data>
+  <data name="MarkupTitle" xml:space="preserve">
+    <value>Пометить выделенное</value>
+  </data>
+  <data name="MarkupDefaultNamePrefix" xml:space="preserve">
+    <value>Рецензирование</value>
+  </data>
+  <data name="MarkupViewpointNameConflict" xml:space="preserve">
+    <value>Точка обзора с таким именем уже существует. Укажите другое имя и повторите команду.</value>
+  </data>
+  <data name="MarkupSavedViewpointsUnavailable" xml:space="preserve">
+    <value>В активном документе недоступна коллекция сохранённых точек обзора.</value>
+  </data>
+  <data name="MarkupCreateFailed" xml:space="preserve">
+    <value>Не удалось создать точку обзора с разметкой. Подробности записаны в журнал.</value>
+  </data>
+  <data name="HierarchyTitle" xml:space="preserve">
+    <value>Сохранить иерархию</value>
+  </data>
+  <data name="HierarchyNoDocument" xml:space="preserve">
+    <value>Нет активного документа Navisworks.</value>
+  </data>
+  <data name="HierarchySaveDocumentFirst" xml:space="preserve">
+    <value>Сначала сохраните документ Navisworks, чтобы определить папку экспорта.</value>
+  </data>
+  <data name="HierarchyCanceled" xml:space="preserve">
+    <value>Экспорт иерархии отменён. Исходный файл не изменён.</value>
+  </data>
+  <data name="HierarchyCompletedFormat" xml:space="preserve">
+    <value>Иерархия модели сохранена.
+
+Элементов: {0}
+Файл: {1}</value>
+  </data>
+  <data name="HierarchyFailedFormat" xml:space="preserve">
+    <value>Не удалось сохранить иерархию.
+
+{0}</value>
+  </data>
+  <data name="HierarchySaveDialogTitle" xml:space="preserve">
+    <value>Сохранить иерархию модели</value>
+  </data>
+  <data name="HierarchyProgressCaption" xml:space="preserve">
+    <value>Экспорт иерархии модели</value>
+  </data>
+  <data name="SelectionCenterDotsTitle" xml:space="preserve">
+    <value>Точки центров</value>
+  </data>
+  <data name="SelectionCentersUnavailable" xml:space="preserve">
+    <value>Не удалось определить центры выделенных элементов.</value>
+  </data>
+  <data name="SelectionMarkersEnableFailedFormat" xml:space="preserve">
+    <value>Не удалось включить маркеры: {0}</value>
+  </data>
+  <data name="SelectionMarkerTitle" xml:space="preserve">
+    <value>Маркер выделения</value>
+  </data>
+  <data name="SelectionBoundsMarkerTitle" xml:space="preserve">
+    <value>Маркер габаритов</value>
+  </data>
+  <data name="SelectionBoundsUnavailable" xml:space="preserve">
+    <value>Не удалось определить габарит выделения.</value>
+  </data>
+  <data name="SelectionMarkerEnableFailedFormat" xml:space="preserve">
+    <value>Не удалось включить маркер: {0}</value>
+  </data>
+  <data name="HeightMarksTitle" xml:space="preserve">
+    <value>Метки высот Z</value>
+  </data>
+  <data name="HeightMarksOpenFailed" xml:space="preserve">
+    <value>Не удалось открыть вкладку «Высоты Z» в панели NavisHelper.</value>
+  </data>
+  <data name="HeightMarksOpenFailedLogged" xml:space="preserve">
+    <value>Не удалось открыть вкладку «Высоты Z». Подробности записаны в журнал.</value>
+  </data>
+  <data name="BoundingRectTitle" xml:space="preserve">
+    <value>Габаритный прямоугольник</value>
+  </data>
+  <data name="BoundingRectViewpointPrefix" xml:space="preserve">
+    <value>Габарит</value>
+  </data>
+  <data name="BoundingHatchTitle" xml:space="preserve">
+    <value>Заштриховать габарит</value>
+  </data>
+  <data name="BoundingHatchViewpointPrefix" xml:space="preserve">
+    <value>Штриховка</value>
+  </data>
+  <data name="BoundingRegionUnavailable" xml:space="preserve">
+    <value>Не удалось определить область выделенных элементов.</value>
+  </data>
+  <data name="BoundingOutsideCamera" xml:space="preserve">
+    <value>Выделенные элементы за пределами видимости камеры.</value>
+  </data>
+  <data name="PanelGroupTools" xml:space="preserve">
+    <value>Инструменты</value>
+  </data>
+  <data name="PanelGroupSelectionMarkers" xml:space="preserve">
+    <value>Маркеры выделения</value>
+  </data>
+  <data name="PanelGroupColorTransfer" xml:space="preserve">
+    <value>Перенос цветов</value>
+  </data>
+  <data name="PanelGroupAiColors" xml:space="preserve">
+    <value>AI Цвета</value>
+  </data>
+  <data name="PanelGroupFiltering" xml:space="preserve">
+    <value>Фильтрация</value>
+  </data>
+  <data name="PanelGroupImportExport" xml:space="preserve">
+    <value>Импорт / Экспорт</value>
+  </data>
+  <data name="PanelGroupViewpoints" xml:space="preserve">
+    <value>Точки обзора</value>
+  </data>
+  <data name="PanelGroupClashes" xml:space="preserve">
+    <value>Коллизии</value>
+  </data>
+  <data name="PanelGroupHelp" xml:space="preserve">
+    <value>Справка</value>
+  </data>
+  <data name="PanelButtonColorsByName" xml:space="preserve">
+    <value>Цвета по имени</value>
+  </data>
+  <data name="PanelButtonOverridePdmsColors" xml:space="preserve">
+    <value>Переопределить цвета PDMS</value>
+  </data>
+  <data name="PanelButtonMarkupSelection" xml:space="preserve">
+    <value>Пометить выделенное</value>
+  </data>
+  <data name="PanelButtonHeightMarks" xml:space="preserve">
+    <value>Метки высот Z</value>
+  </data>
+  <data name="PanelButtonTopSection" xml:space="preserve">
+    <value>Вид сверху + сечение</value>
+  </data>
+  <data name="PanelButtonBoundingRect" xml:space="preserve">
+    <value>Габаритный прямоугольник</value>
+  </data>
+  <data name="PanelButtonBoundingHatch" xml:space="preserve">
+    <value>Заштриховать габарит</value>
+  </data>
+  <data name="PanelButtonCenterPoints" xml:space="preserve">
+    <value>Точки центров</value>
+  </data>
+  <data name="PanelButtonCenterMarker" xml:space="preserve">
+    <value>Маркер центров</value>
+  </data>
+  <data name="PanelButtonBoundsMarker" xml:space="preserve">
+    <value>Маркер габаритов</value>
+  </data>
+  <data name="PanelButtonCopyNames" xml:space="preserve">
+    <value>Копировать имена</value>
+  </data>
+  <data name="PanelButtonExportColors" xml:space="preserve">
+    <value>Выгрузить цвета</value>
+  </data>
+  <data name="PanelButtonImportColors" xml:space="preserve">
+    <value>Загрузить цвета</value>
+  </data>
+  <data name="PanelButtonAiColoring" xml:space="preserve">
+    <value>AI Окраска</value>
+  </data>
+  <data name="PanelButtonColorScheme" xml:space="preserve">
+    <value>Цветовая схема</value>
+  </data>
+  <data name="PanelButtonFilterList" xml:space="preserve">
+    <value>Фильтр по списку из файла</value>
+  </data>
+  <data name="PanelButtonLoadCsv" xml:space="preserve">
+    <value>Загрузка атрибутов из CSV</value>
+  </data>
+  <data name="PanelButtonImportPsLists" xml:space="preserve">
+    <value>Импорт PS-листов</value>
+  </data>
+  <data name="PanelButtonSaveHierarchy" xml:space="preserve">
+    <value>Сохранить иерархию</value>
+  </data>
+  <data name="PanelButtonSaveViewpoints" xml:space="preserve">
+    <value>Сохранить точки обзора</value>
+  </data>
+  <data name="PanelButtonSaveNwc2018" xml:space="preserve">
+    <value>Сохранить как NWC 2018</value>
+  </data>
+  <data name="PanelButtonSortViewpoints" xml:space="preserve">
+    <value>Сортировка точек обзора</value>
+  </data>
+  <data name="PanelButtonRunClashes" xml:space="preserve">
+    <value>Проверка всех коллизий</value>
+  </data>
+  <data name="PanelButtonAbout" xml:space="preserve">
+    <value>О программе</value>
+  </data>
+  <data name="Settings_Ai_CopyCommand_ToolTip" xml:space="preserve">
+    <value>Скопировать команду setx в буфер обмена (останется подставить ключ)</value>
+  </data>
+  <data name="Settings_Ai_CommandCopied_Status" xml:space="preserve">
+    <value>Команда скопирована — подставьте свой ключ</value>
+  </data>
+  <data name="Panel_Parent" xml:space="preserve">
+    <value>Parent</value>
+  </data>
+  <data name="Panel_Child" xml:space="preserve">
+    <value>Child</value>
+  </data>
+  <data name="Panel_Sibling" xml:space="preserve">
+    <value>Sibling</value>
+  </data>
+  <data name="Panel_Leaf" xml:space="preserve">
+    <value>Leaf</value>
+  </data>
+  <data name="Panel_AllUnder" xml:space="preserve">
+    <value>All Under</value>
+  </data>
+  <data name="Panel_Model_FilterList_Action" xml:space="preserve">
+    <value>Фильтр по списку</value>
+  </data>
+  <data name="Panel_Section_ExpansionAll_ToolTip" xml:space="preserve">
+    <value>Общее расширение Section Box одновременно по X, Y и Z. Индивидуальные значения ниже добавляются к общему.</value>
+  </data>
+  <data name="Panel_Section_ExpansionX_ToolTip" xml:space="preserve">
+    <value>Дополнительное расширение Section Box по оси X сверх общего значения: добавляется с каждой стороны.</value>
+  </data>
+  <data name="Panel_Section_ExpansionY_ToolTip" xml:space="preserve">
+    <value>Дополнительное расширение Section Box по оси Y сверх общего значения: добавляется с каждой стороны.</value>
+  </data>
+  <data name="Panel_Section_ExpansionZ_ToolTip" xml:space="preserve">
+    <value>Дополнительное расширение Section Box по оси Z сверх общего значения: добавляется с каждой стороны.</value>
+  </data>
+  <data name="Panel_Section_ShiftX_ToolTip" xml:space="preserve">
+    <value>Смещение всего Section Box по оси X.</value>
+  </data>
+  <data name="Panel_Section_ShiftY_ToolTip" xml:space="preserve">
+    <value>Смещение всего Section Box по оси Y.</value>
+  </data>
+  <data name="Panel_Section_ShiftZ_ToolTip" xml:space="preserve">
+    <value>Смещение всего Section Box по оси Z.</value>
+  </data>
+  <data name="Panel_Clash_Group_TreeAB" xml:space="preserve">
+    <value>Дерево A/B</value>
+  </data>
+  <data name="Panel_Clash_Caption_Tests" xml:space="preserve">
+    <value>Тесты</value>
+  </data>
+  <data name="Panel_Clash_Caption_Clashes" xml:space="preserve">
+    <value>Коллизии</value>
+  </data>
+  <data name="Panel_Clash_Top_LoadTests" xml:space="preserve">
+    <value>🔄 Тесты</value>
+  </data>
+  <data name="Panel_Clash_Top_LoadTests_ToolTip" xml:space="preserve">
+    <value>Загрузить Clash Test</value>
+  </data>
+  <data name="Panel_Clash_Top_RunSelected" xml:space="preserve">
+    <value>▶ Выбр.</value>
+  </data>
+  <data name="Panel_Clash_Top_RunSelected_ToolTip" xml:space="preserve">
+    <value>Запустить выбранные Clash Test</value>
+  </data>
+  <data name="Panel_Clash_Top_RunAll" xml:space="preserve">
+    <value>⚠ Все</value>
+  </data>
+  <data name="Panel_Clash_Top_RunAll_ToolTip" xml:space="preserve">
+    <value>Запустить все Clash Test без сохранения отчёта или модели</value>
+  </data>
+  <data name="Panel_Clash_Top_DeleteZero" xml:space="preserve">
+    <value>🗑 0</value>
+  </data>
+  <data name="Panel_Clash_Top_DeleteZero_ToolTip" xml:space="preserve">
+    <value>Удалить Clash Test, у которых в результатах проверки 0 коллизий</value>
+  </data>
+  <data name="Panel_Clash_Top_ExternalCheck" xml:space="preserve">
+    <value>✓ Проверка</value>
+  </data>
+  <data name="Panel_Clash_Top_ExternalCheck_ToolTip" xml:space="preserve">
+    <value>Выполнить внешнюю команду проверки всех коллизий</value>
+  </data>
+  <data name="Panel_Clash_Action_OnlyPair" xml:space="preserve">
+    <value>Только пара</value>
+  </data>
+  <data name="Panel_Clash_Action_OnlyPair_ToolTip" xml:space="preserve">
+    <value>Нажато: временно скрывать всё, кроме объектов A/B выбранной коллизии. При переходе к другой коллизии изоляция обновляется автоматически.</value>
+  </data>
+  <data name="Panel_Clash_Action_ShowAll" xml:space="preserve">
+    <value>Показать всё</value>
+  </data>
+  <data name="Panel_Clash_Action_ShowAll_ToolTip" xml:space="preserve">
+    <value>Вернуть ветви модели, временно скрытые режимом «Только пара»</value>
+  </data>
+  <data name="Panel_Clash_Action_Section" xml:space="preserve">
+    <value>Section</value>
+  </data>
+  <data name="Panel_Clash_Action_Section_ToolTip" xml:space="preserve">
+    <value>Включить/выключить Section Box</value>
+  </data>
+  <data name="Panel_Clash_Action_ResetView_ToolTip" xml:space="preserve">
+    <value>Сбросить вид</value>
+  </data>
+  <data name="Panel_Clash_Action_Marker" xml:space="preserve">
+    <value>Маркер</value>
+  </data>
+  <data name="Panel_Clash_Action_Marker_ToolTip" xml:space="preserve">
+    <value>Показать/скрыть 2D маркер в точке пересечения коллизии</value>
+  </data>
+  <data name="Panel_Clash_Action_Plane" xml:space="preserve">
+    <value>Плоскость</value>
+  </data>
+  <data name="Panel_Clash_Action_Plane_ToolTip" xml:space="preserve">
+    <value>Показать/скрыть плоскость по текущему выделению</value>
+  </data>
+  <data name="Panel_Clash_Action_Marks" xml:space="preserve">
+    <value>Метки</value>
+  </data>
+  <data name="Panel_Clash_Action_Marks_ToolTip" xml:space="preserve">
+    <value>Нарисовать redline-кружки в центрах выбранной коллизии или группы</value>
+  </data>
+  <data name="Panel_Clash_Action_SaveViewpoint" xml:space="preserve">
+    <value>Сохр. VP</value>
+  </data>
+  <data name="Panel_Clash_Action_SaveViewpoint_ToolTip" xml:space="preserve">
+    <value>Сохранить текущий вид вручную: камера, section box, цвета и redlines. Preview-прозрачность перед сохранением сбрасывается.</value>
+  </data>
+  <data name="Panel_Clash_Action_Gif" xml:space="preserve">
+    <value>GIF</value>
+  </data>
+  <data name="Panel_Clash_Action_Gif_ToolTip" xml:space="preserve">
+    <value>Создать GIF-облёт выбранной коллизии
+24 кадра, шаг 15°</value>
+  </data>
+  <data name="Panel_Clash_Action_AssignedTo" xml:space="preserve">
+    <value>Assigned to</value>
+  </data>
+  <data name="Panel_Clash_Action_AssignedTo_ToolTip" xml:space="preserve">
+    <value>Задать ответственного для выбранной коллизии</value>
+  </data>
+  <data name="Panel_Clash_Action_Bcf" xml:space="preserve">
+    <value>BCF</value>
+  </data>
+  <data name="Panel_Clash_Action_Bcf_ToolTip" xml:space="preserve">
+    <value>Экспортировать выбранную коллизию в BCF</value>
+  </data>
+  <data name="Panel_Clash_Action_Context_ToolTip" xml:space="preserve">
+    <value>Безопасная прозрачность: только ближайшие владельцы текущей коллизии или текущего выделения</value>
+  </data>
+  <data name="Panel_Clash_Filter_Name_Hint" xml:space="preserve">
+    <value>имя</value>
+  </data>
+  <data name="Panel_Clash_SingleClash" xml:space="preserve">
+    <value>Одиночная коллизия</value>
+  </data>
+  <data name="Panel_Automatic" xml:space="preserve">
+    <value>авто</value>
+  </data>
+  <data name="Panel_Clash_TreeToggle" xml:space="preserve">
+    <value>🌲 Дерево</value>
+  </data>
+  <data name="Panel_MatchColor" xml:space="preserve">
+    <value>Match Color</value>
+  </data>
+  <data name="Panel_Colors_FolderSelect_Prompt" xml:space="preserve">
+    <value>Выберите папку с файлами цветов</value>
+  </data>
+  <data name="Panel_Colors_AiResponse_Save_Title" xml:space="preserve">
+    <value>Сохранить ответ AI</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Save_Title" xml:space="preserve">
+    <value>Сохранить поисковый набор</value>
+  </data>
+  <data name="Panel_Folder" xml:space="preserve">
+    <value>Папка</value>
+  </data>
+  <data name="Panel_SetName" xml:space="preserve">
+    <value>Имя набора</value>
+  </data>
+  <data name="Panel_Category" xml:space="preserve">
+    <value>Категория</value>
+  </data>
+  <data name="Panel_Property" xml:space="preserve">
+    <value>Свойство</value>
+  </data>
+  <data name="Panel_Value" xml:space="preserve">
+    <value>Значение</value>
+  </data>
+  <data name="Panel_Contains" xml:space="preserve">
+    <value>Содержит</value>
+  </data>
+  <data name="Panel_ExactlyEquals" xml:space="preserve">
+    <value>Точно равно</value>
+  </data>
+  <data name="Panel_PropertyExists" xml:space="preserve">
+    <value>Свойство задано</value>
+  </data>
+  <data name="Panel_Common_Error_Format" xml:space="preserve">
+    <value>Ошибка: {0}</value>
+  </data>
+  <data name="Panel_Common_UnknownError" xml:space="preserve">
+    <value>Неизвестная ошибка</value>
+  </data>
+  <data name="Panel_Common_NoActiveDocument" xml:space="preserve">
+    <value>Нет активного документа</value>
+  </data>
+  <data name="Panel_Common_NoActiveView" xml:space="preserve">
+    <value>Нет активного окна вида</value>
+  </data>
+  <data name="Panel_Clash_SelectResult" xml:space="preserve">
+    <value>Выберите коллизию</value>
+  </data>
+  <data name="Panel_Clash_SelectResultOrGroup" xml:space="preserve">
+    <value>Выберите коллизию или группу</value>
+  </data>
+  <data name="Panel_Clash_EngineUnavailable" xml:space="preserve">
+    <value>Clash Detective недоступен</value>
+  </data>
+  <data name="Panel_HeightMarks_SelectItemsForGroup" xml:space="preserve">
+    <value>Выберите объекты для новой группы</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupLimit_Format" xml:space="preserve">
+    <value>В одной группе допускается не более {0} объектов</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupName_Prompt" xml:space="preserve">
+    <value>Имя группы выделенных объектов:</value>
+  </data>
+  <data name="Panel_HeightMarks_AddGroup_Title" xml:space="preserve">
+    <value>Добавить группу высот</value>
+  </data>
+  <data name="Panel_HeightMarks_AddGroupCancelled" xml:space="preserve">
+    <value>Добавление группы отменено</value>
+  </data>
+  <data name="Panel_HeightMarks_DuplicateGroup" xml:space="preserve">
+    <value>Группа с таким именем уже существует</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupAdded_Format" xml:space="preserve">
+    <value>Добавлена группа «{0}»: {1} объектов</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupsDeleted_Format" xml:space="preserve">
+    <value>Удалено групп: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupsCleared" xml:space="preserve">
+    <value>Сессионные группы высот очищены</value>
+  </data>
+  <data name="Panel_HeightMarks_DocumentChanged" xml:space="preserve">
+    <value>Документ изменился. Сессионные группы очищены.</value>
+  </data>
+  <data name="Panel_HeightMarks_NoGroupsSelected" xml:space="preserve">
+    <value>Группы не выбраны</value>
+  </data>
+  <data name="Panel_HeightMarks_ModelSelection_Format" xml:space="preserve">
+    <value>В модели выделено объектов из групп: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_ModelSelectionOverLimit_Format" xml:space="preserve">
+    <value>В модели выделено объектов из групп: {0}; для одной операции меток оставьте не более {1}</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupSelectionFailed_Format" xml:space="preserve">
+    <value>Не удалось выбрать объекты группы: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_ViewpointNameRequired" xml:space="preserve">
+    <value>Укажите имя точки обзора</value>
+  </data>
+  <data name="Panel_HeightMarks_CreatingDimensions" xml:space="preserve">
+    <value>Создание размерных линий до Z…</value>
+  </data>
+  <data name="Panel_HeightMarks_CreatingElevations" xml:space="preserve">
+    <value>Создание отметок Z…</value>
+  </data>
+  <data name="Panel_HeightMarks_DimensionsCreated_Format" xml:space="preserve">
+    <value>Создано размерных линий: {0}; папка «{1}»; точка обзора «{2}»</value>
+  </data>
+  <data name="Panel_HeightMarks_ElevationsCreated_Format" xml:space="preserve">
+    <value>Создано отметок Z: {0}; папка «{1}»; точка обзора «{2}»</value>
+  </data>
+  <data name="Panel_HeightMarks_Failed_Format" xml:space="preserve">
+    <value>Высотные метки Z: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_GraphicsShown_Format" xml:space="preserve">
+    <value>Показано Graphics-меток: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_GraphicsFailed_Format" xml:space="preserve">
+    <value>Не удалось показать Graphics-метки: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_GraphicsHidden" xml:space="preserve">
+    <value>Graphics-метки скрыты</value>
+  </data>
+  <data name="Panel_HeightMarks_SaveScreenshot_Title" xml:space="preserve">
+    <value>Сохранить скрин текущего вида</value>
+  </data>
+  <data name="Panel_HeightMarks_ScreenshotSaved_Format" xml:space="preserve">
+    <value>Скрин сохранён: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_ScreenshotFailed_Format" xml:space="preserve">
+    <value>Не удалось сохранить скрин: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_SelectItems" xml:space="preserve">
+    <value>Выберите объекты для высотных меток</value>
+  </data>
+  <data name="Panel_HeightMarks_SelectionLimit_Format" xml:space="preserve">
+    <value>Выбрано больше {0} объектов</value>
+  </data>
+  <data name="Panel_HeightMarks_InvalidTargetZ" xml:space="preserve">
+    <value>Целевой уровень Z должен быть числом в миллиметрах</value>
+  </data>
+  <data name="Panel_HeightMarks_ScreenshotFilePrefix" xml:space="preserve">
+    <value>Высоты Z</value>
+  </data>
+  <data name="Panel_HeightMarks_ScreenshotFileFilter" xml:space="preserve">
+    <value>PNG (*.png)|*.png|JPEG (*.jpg)|*.jpg|Bitmap (*.bmp)|*.bmp</value>
+  </data>
+  <data name="Panel_Selection_MemorySaved_Format" xml:space="preserve">
+    <value>Слот {0}: сохранено {1} элементов</value>
+  </data>
+  <data name="Panel_Selection_MemoryEmpty_Format" xml:space="preserve">
+    <value>Слот {0} пуст</value>
+  </data>
+  <data name="Panel_Selection_MemoryRestored_Format" xml:space="preserve">
+    <value>Слот {0}: восстановлено {1} эл.</value>
+  </data>
+  <data name="Panel_Selection_Invert_SelectItems" xml:space="preserve">
+    <value>Выделите хотя бы один элемент для инверсии.</value>
+  </data>
+  <data name="Panel_Selection_Invert_Result_Format" xml:space="preserve">
+    <value>Инвертировано: выбрано {0} эл.</value>
+  </data>
+  <data name="Panel_Selection_Isolate_SelectItems" xml:space="preserve">
+    <value>Выделите элементы для Isolate.</value>
+  </data>
+  <data name="Panel_Selection_Isolate_Result_Format" xml:space="preserve">
+    <value>Isolate: скрыто {0} эл.</value>
+  </data>
+  <data name="Panel_Selection_Unhide_Result" xml:space="preserve">
+    <value>Все элементы показаны</value>
+  </data>
+  <data name="Panel_Selection_Bounds_Title" xml:space="preserve">
+    <value>Габариты выделения</value>
+  </data>
+  <data name="Panel_Selection_Bounds_SelectItems" xml:space="preserve">
+    <value>Выберите хотя бы один элемент.</value>
+  </data>
+  <data name="Panel_Selection_BoundsUnavailable" xml:space="preserve">
+    <value>Не удалось определить габариты выделения.</value>
+  </data>
+  <data name="Panel_Selection_BoundsReport_Format" xml:space="preserve">
+    <value>Габариты выделения
+Объектов: {0}
+Размер X: {1:0.###} мм
+Размер Y: {2:0.###} мм
+Размер Z: {3:0.###} мм
+Единицы координат: {4}
+Min: {5:0.######}; {6:0.######}; {7:0.######}
+Max: {8:0.######}; {9:0.######}; {10:0.######}
+Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
+  </data>
+  <data name="Panel_Selection_BoundsCopied_Format" xml:space="preserve">
+    <value>Габариты скопированы: {0:0.###} × {1:0.###} × {2:0.###} мм</value>
+  </data>
+  <data name="Panel_Selection_BoundsCopiedToClipboard" xml:space="preserve">
+    <value>Значения скопированы в буфер обмена.</value>
+  </data>
+  <data name="Panel_Selection_BoundsFailed_Format" xml:space="preserve">
+    <value>Не удалось получить или скопировать габариты: {0}</value>
+  </data>
+  <data name="Panel_Selection_HistoryDocumentChanged" xml:space="preserve">
+    <value>История Section Box относится к другому документу и очищена</value>
+  </data>
+  <data name="Panel_Selection_HistoryApplied_Format" xml:space="preserve">
+    <value>Section Box применён к объектам из истории: {0}</value>
+  </data>
+  <data name="Panel_Selection_HistoryNavigateFailed_Format" xml:space="preserve">
+    <value>Не удалось перейти к объекту из истории:
+{0}</value>
+  </data>
+  <data name="Panel_Selection_HistoryItemsUnavailable" xml:space="preserve">
+    <value>Выбранные объекты истории больше недоступны</value>
+  </data>
+  <data name="Panel_Selection_HistorySelected_Format" xml:space="preserve">
+    <value>В модели выделено объектов из истории: {0}</value>
+  </data>
+  <data name="Panel_Selection_HistorySelectionCleared" xml:space="preserve">
+    <value>Выделение объектов из истории снято</value>
+  </data>
+  <data name="Panel_Selection_HistorySelectionFailed_Format" xml:space="preserve">
+    <value>Не удалось выделить объекты из истории: {0}</value>
+  </data>
+  <data name="Panel_Selection_SectionBoxReset" xml:space="preserve">
+    <value>Section box по выделению сброшен</value>
+  </data>
+  <data name="Panel_Selection_ExportProperties_SelectItems" xml:space="preserve">
+    <value>Выделите объекты для экспорта.</value>
+  </data>
+  <data name="Panel_Selection_ExportProperties_Title" xml:space="preserve">
+    <value>Экспорт свойств</value>
+  </data>
+  <data name="Panel_Selection_ExportProperties_FileFilter" xml:space="preserve">
+    <value>CSV (Excel-совместимый)|*.csv|Все файлы|*.*</value>
+  </data>
+  <data name="Panel_Selection_ExportProperties_Saved_Format" xml:space="preserve">
+    <value>Сохранено свойств: {0}</value>
+  </data>
+  <data name="Panel_Selection_HistoryObjectUnavailable" xml:space="preserve">
+    <value>(объект недоступен)</value>
+  </data>
+  <data name="Panel_Selection_HistoryObjectUnnamed" xml:space="preserve">
+    <value>(без имени)</value>
+  </data>
+  <data name="Panel_Colors_SelectScheme" xml:space="preserve">
+    <value>Выберите схему из списка.</value>
+  </data>
+  <data name="Panel_Colors_Ai_Title" xml:space="preserve">
+    <value>AI Цвета</value>
+  </data>
+  <data name="Panel_Common_Enabled" xml:space="preserve">
+    <value>вкл</value>
+  </data>
+  <data name="Panel_Common_Disabled" xml:space="preserve">
+    <value>выкл</value>
+  </data>
+  <data name="Panel_Colors_Ai_Starting_Format" xml:space="preserve">
+    <value>Запуск…
+Модель: {0} (thinking: {1})
+Схема: {2}
+Ожидание ответа…
+</value>
+  </data>
+  <data name="Panel_Colors_Ai_NoColors" xml:space="preserve">
+    <value>Цвета не получены. Проверьте ключ OPEN_ROUTER_NW_KEY и подключение.</value>
+  </data>
+  <data name="Panel_Colors_Ai_ResultSummary_Format" xml:space="preserve">
+    <value>Результат: {0} объектов, {1} групп</value>
+  </data>
+  <data name="Panel_Colors_Ai_GroupColumn" xml:space="preserve">
+    <value>Группа</value>
+  </data>
+  <data name="Panel_Colors_Ai_RgbColumn" xml:space="preserve">
+    <value>Цвет RGB</value>
+  </data>
+  <data name="Panel_Colors_Ai_CountColumn" xml:space="preserve">
+    <value>Кол-во</value>
+  </data>
+  <data name="Panel_Colors_Ai_ObjectCount_Format" xml:space="preserve">
+    <value>{0} объектов</value>
+  </data>
+  <data name="Panel_Colors_Ai_GroupDetails" xml:space="preserve">
+    <value>Детали по группам:</value>
+  </data>
+  <data name="Panel_Colors_Ai_GroupDetail_Format" xml:space="preserve">
+    <value>Группа {0} — RGB({1}):</value>
+  </data>
+  <data name="Panel_Colors_Ai_GroupLabel_Format" xml:space="preserve">
+    <value>{0} ({1} шт.)</value>
+  </data>
+  <data name="Panel_Colors_Ai_NoDataToSave" xml:space="preserve">
+    <value>Нет данных для сохранения.</value>
+  </data>
+  <data name="Panel_Common_Saved_Format" xml:space="preserve">
+    <value>Сохранено: {0}</value>
+  </data>
+  <data name="Panel_Common_SaveFailed_Format" xml:space="preserve">
+    <value>Ошибка сохранения: {0}</value>
+  </data>
+  <data name="Panel_Colors_Match_SelectSource" xml:space="preserve">
+    <value>Выделите объект для считывания цвета.</value>
+  </data>
+  <data name="Panel_Colors_Match_ReadFailed" xml:space="preserve">
+    <value>Не удалось считать цвет объекта.</value>
+  </data>
+  <data name="Panel_Colors_Match_Applied_Format" xml:space="preserve">
+    <value>Match Color: применён цвет {0}</value>
+  </data>
+  <data name="Panel_Colors_Match_Read_Format" xml:space="preserve">
+    <value>Match Color: считан цвет {0}</value>
+  </data>
+  <data name="Panel_Colors_Match_ParseFailed_Format" xml:space="preserve">
+    <value>Не удалось разобрать цвет: {0}</value>
+  </data>
+  <data name="Panel_Colors_Match_ReadFirst" xml:space="preserve">
+    <value>Сначала считайте цвет с объекта.</value>
+  </data>
+  <data name="Panel_Colors_Match_SelectTargets" xml:space="preserve">
+    <value>Выделите объекты для применения цвета.</value>
+  </data>
+  <data name="Panel_Colors_Property_SelectItems" xml:space="preserve">
+    <value>Выделите элементы для авто-окраски.</value>
+  </data>
+  <data name="Panel_Colors_Property_Result_Format" xml:space="preserve">
+    <value>Color by Property: {0} групп, {1} элементов</value>
+  </data>
+  <data name="Panel_Colors_OverridesReset" xml:space="preserve">
+    <value>Overrides NavisHelper сброшены</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_SelectItems" xml:space="preserve">
+    <value>Выделите один или несколько элементов.</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_Prompt_Format" xml:space="preserve">
+    <value>Введите точное значение свойства (Система / Спец / Отметка):
+Доступные из выделения: {0}</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_NoMatches" xml:space="preserve">
+    <value>По этому значению ничего не найдено.</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_Result_Format" xml:space="preserve">
+    <value>Выделено по значению: {0} эл.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Title" xml:space="preserve">
+    <value>Поисковый набор</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_NoActiveModel" xml:space="preserve">
+    <value>Нет активной модели.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Unavailable" xml:space="preserve">
+    <value>В активной модели недоступны Selection Sets.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_NameConflict" xml:space="preserve">
+    <value>В целевой папке уже есть папка или другой сохранённый элемент с таким именем. Укажите другое имя набора.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Existing" xml:space="preserve">
+    <value>В целевой папке уже есть поисковый/выборочный набор с таким именем.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Replace_Format" xml:space="preserve">
+    <value>Заменить существующий набор «{0}» в этой папке?</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_ExistingNotFound" xml:space="preserve">
+    <value>Не удалось найти существующий набор в целевой папке.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Root" xml:space="preserve">
+    <value>корень Selection Sets</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Created_Format" xml:space="preserve">
+    <value>Search Set создан: {0}/{1}, найдено {2} эл.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Updated_Format" xml:space="preserve">
+    <value>Search Set обновлён: {0}/{1}, найдено {2} эл.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_RequiredFields" xml:space="preserve">
+    <value>Заполните имя набора, категорию и свойство.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_ValueRequired" xml:space="preserve">
+    <value>Для выбранного оператора нужно значение.</value>
+  </data>
+  <data name="Panel_Colors_HistoryEntry_Format" xml:space="preserve">
+    <value>[{0:HH:mm:ss}] {1} объектов, {2} групп</value>
+  </data>
+  <data name="Panel_Colors_HistorySelectEntry" xml:space="preserve">
+    <value>Выберите запись из истории.</value>
+  </data>
+  <data name="Panel_Colors_Property_NoValue" xml:space="preserve">
+    <value>— без значения —</value>
+  </data>
+  <data name="Panel_Colors_Property_Unnamed_Format" xml:space="preserve">
+    <value>&lt;без имени #{0}&gt;</value>
+  </data>
+  <data name="Panel_CommandPalette_ColorsByName_Title" xml:space="preserve">
+    <value>Colors By Name</value>
+  </data>
+  <data name="Panel_CommandPalette_ColorsByName_Description" xml:space="preserve">
+    <value>Окрашивание по списку name;R,G,B[;transparency]</value>
+  </data>
+  <data name="Panel_CommandPalette_OverridePdms_Title" xml:space="preserve">
+    <value>Override PDMS</value>
+  </data>
+  <data name="Panel_CommandPalette_OverridePdms_Description" xml:space="preserve">
+    <value>Отключить/скрыть элементы, соответствующие PDMS-списку</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColor_Title" xml:space="preserve">
+    <value>Match Color</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColor_Description" xml:space="preserve">
+    <value>Считать цвет первого выбранного объекта и применить к выделению</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColorRead_Title" xml:space="preserve">
+    <value>Match Color: Считать</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColorRead_Description" xml:space="preserve">
+    <value>Считать цвет с выбранного объекта</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColorApply_Title" xml:space="preserve">
+    <value>Match Color: Применить</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColorApply_Description" xml:space="preserve">
+    <value>Применить считанный цвет к текущему выделению</value>
+  </data>
+  <data name="Panel_CommandPalette_ColorByProperty_Title" xml:space="preserve">
+    <value>Color by Property</value>
+  </data>
+  <data name="Panel_CommandPalette_ColorByProperty_Description" xml:space="preserve">
+    <value>Авто-окраска выделения по значениям свойства</value>
+  </data>
+  <data name="Panel_CommandPalette_ResetOverrides_Title" xml:space="preserve">
+    <value>Reset all overrides</value>
+  </data>
+  <data name="Panel_CommandPalette_ResetOverrides_Description" xml:space="preserve">
+    <value>Сбросить все цветовые/прозрачностные overrides</value>
+  </data>
+  <data name="Panel_CommandPalette_ExportColors_Title" xml:space="preserve">
+    <value>Export colors</value>
+  </data>
+  <data name="Panel_CommandPalette_ExportColors_Description" xml:space="preserve">
+    <value>Экспортировать цвета и прозрачность выделения в отдельные файлы</value>
+  </data>
+  <data name="Panel_CommandPalette_ImportColors_Title" xml:space="preserve">
+    <value>Import colors</value>
+  </data>
+  <data name="Panel_CommandPalette_ImportColors_Description" xml:space="preserve">
+    <value>Загрузить цвета из файлов и применить к текущему выделению</value>
+  </data>
+  <data name="Panel_CommandPalette_AiColoring_Title" xml:space="preserve">
+    <value>AI-окраска</value>
+  </data>
+  <data name="Panel_CommandPalette_AiColoring_Description" xml:space="preserve">
+    <value>Применить AI-цвета по схеме и модели</value>
+  </data>
+  <data name="Panel_CommandPalette_CopyNames_Title" xml:space="preserve">
+    <value>Copy names</value>
+  </data>
+  <data name="Panel_CommandPalette_CopyNames_Description" xml:space="preserve">
+    <value>Скопировать DisplayName выделенных элементов</value>
+  </data>
+  <data name="Panel_CommandPalette_FilterByList_Title" xml:space="preserve">
+    <value>Filter by list</value>
+  </data>
+  <data name="Panel_CommandPalette_FilterByList_Description" xml:space="preserve">
+    <value>Отфильтровать модель списком имён из файла</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectByProperty_Title" xml:space="preserve">
+    <value>Select by Property Value</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectByProperty_Description" xml:space="preserve">
+    <value>Выбрать по значению свойства из выделения</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveSearchSet_Title" xml:space="preserve">
+    <value>Сохранить поисковый набор</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveSearchSet_Description" xml:space="preserve">
+    <value>Создать папку и сохранить динамический Search Set</value>
+  </data>
+  <data name="Panel_CommandPalette_Parent_Title" xml:space="preserve">
+    <value>Parent</value>
+  </data>
+  <data name="Panel_CommandPalette_Parent_Description" xml:space="preserve">
+    <value>Выбрать родительские элементы для текущего выделения</value>
+  </data>
+  <data name="Panel_CommandPalette_Child_Title" xml:space="preserve">
+    <value>Child</value>
+  </data>
+  <data name="Panel_CommandPalette_Child_Description" xml:space="preserve">
+    <value>Выбрать дочерние элементы</value>
+  </data>
+  <data name="Panel_CommandPalette_Sibling_Title" xml:space="preserve">
+    <value>Sibling</value>
+  </data>
+  <data name="Panel_CommandPalette_Sibling_Description" xml:space="preserve">
+    <value>Выбрать соседние элементы (один уровень с выделенными)</value>
+  </data>
+  <data name="Panel_CommandPalette_Leaf_Title" xml:space="preserve">
+    <value>Leaf</value>
+  </data>
+  <data name="Panel_CommandPalette_Leaf_Description" xml:space="preserve">
+    <value>Выбрать концевые узлы (leaf)</value>
+  </data>
+  <data name="Panel_CommandPalette_AllUnder_Title" xml:space="preserve">
+    <value>All Under</value>
+  </data>
+  <data name="Panel_CommandPalette_AllUnder_Description" xml:space="preserve">
+    <value>Выбрать все потомки выделенных элементов</value>
+  </data>
+  <data name="Panel_CommandPalette_InvertSelection_Title" xml:space="preserve">
+    <value>Invert Selection</value>
+  </data>
+  <data name="Panel_CommandPalette_InvertSelection_Description" xml:space="preserve">
+    <value>Инвертировать текущую выборку</value>
+  </data>
+  <data name="Panel_CommandPalette_Isolate_Title" xml:space="preserve">
+    <value>Isolate</value>
+  </data>
+  <data name="Panel_CommandPalette_Isolate_Description" xml:space="preserve">
+    <value>Скрыть все, кроме текущей выборки</value>
+  </data>
+  <data name="Panel_CommandPalette_UnhideAll_Title" xml:space="preserve">
+    <value>Unhide All</value>
+  </data>
+  <data name="Panel_CommandPalette_UnhideAll_Description" xml:space="preserve">
+    <value>Показать все элементы</value>
+  </data>
+  <data name="Panel_CommandPalette_RememberSelection_Title" xml:space="preserve">
+    <value>Запомнить выборку</value>
+  </data>
+  <data name="Panel_CommandPalette_RememberSelection_Description" xml:space="preserve">
+    <value>Сохранить текущую выборку в ячейку памяти</value>
+  </data>
+  <data name="Panel_CommandPalette_RestoreSelection_Title" xml:space="preserve">
+    <value>Вернуть выборку</value>
+  </data>
+  <data name="Panel_CommandPalette_RestoreSelection_Description" xml:space="preserve">
+    <value>Восстановить выборку из ячейки памяти</value>
+  </data>
+  <data name="Panel_CommandPalette_MarkupViewpoint_Title" xml:space="preserve">
+    <value>Markup Viewpoint</value>
+  </data>
+  <data name="Panel_CommandPalette_MarkupViewpoint_Description" xml:space="preserve">
+    <value>Пометить выделенные элементы эллипсами на текущем виде</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightMarks_Title" xml:space="preserve">
+    <value>Height Marks</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightMarks_Description" xml:space="preserve">
+    <value>Открыть таблицу отметок Max Z и размерных линий до уровня Z</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightGraphics_Title" xml:space="preserve">
+    <value>Height Marks: Graphics</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightGraphics_Description" xml:space="preserve">
+    <value>Показать временные Graphics.Text2D-метки по текущему выделению</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightScreenshot_Title" xml:space="preserve">
+    <value>Height Marks: Screenshot</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightScreenshot_Description" xml:space="preserve">
+    <value>Сохранить изображение текущего вида</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewSection_Title" xml:space="preserve">
+    <value>Top View + Section</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewSection_Description" xml:space="preserve">
+    <value>Переключить на вид сверху, приблизиться к выделению и включить секцию</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewBounds_Title" xml:space="preserve">
+    <value>Top View Bounding Rect</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewBounds_Description" xml:space="preserve">
+    <value>Нарисовать габаритный прямоугольник вокруг выделения</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewHatch_Title" xml:space="preserve">
+    <value>Top View Bounding Hatch</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewHatch_Description" xml:space="preserve">
+    <value>Заштриховать экранный габарит выделения на текущем ракурсе</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionHatch_Title" xml:space="preserve">
+    <value>Selection Hatch Marker</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionHatch_Description" xml:space="preserve">
+    <value>Показать временный многоугольный маркер выделения через clash overlay</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionBoundsHatch_Title" xml:space="preserve">
+    <value>Selection Bounds Hatch Marker</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionBoundsHatch_Description" xml:space="preserve">
+    <value>Показать временный многоугольный маркер по габаритам объектов через clash overlay</value>
+  </data>
+  <data name="Panel_CommandPalette_SortViewpoints_Title" xml:space="preserve">
+    <value>Sort Viewpoints</value>
+  </data>
+  <data name="Panel_CommandPalette_SortViewpoints_Description" xml:space="preserve">
+    <value>Сортировка точек обзора</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveViewpoints_Title" xml:space="preserve">
+    <value>Save Viewpoints</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveViewpoints_Description" xml:space="preserve">
+    <value>Сохранить список точек обзора</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionSectionBox_Title" xml:space="preserve">
+    <value>Section Box по выделению</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionSectionBox_Description" xml:space="preserve">
+    <value>Установить section box и отобразить контекст</value>
+  </data>
+  <data name="Panel_CommandPalette_ResetSectionBox_Title" xml:space="preserve">
+    <value>Сброс секции</value>
+  </data>
+  <data name="Panel_CommandPalette_ResetSectionBox_Description" xml:space="preserve">
+    <value>Сбросить section box и прозрачность контекста</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionBounds_Title" xml:space="preserve">
+    <value>Габариты выделения</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionBounds_Description" xml:space="preserve">
+    <value>Показать габариты выделения и скопировать значения в буфер обмена</value>
+  </data>
+  <data name="Panel_CommandPalette_CsvAttributes_Title" xml:space="preserve">
+    <value>CSV → атрибуты</value>
+  </data>
+  <data name="Panel_CommandPalette_CsvAttributes_Description" xml:space="preserve">
+    <value>Загрузить атрибуты из CSV</value>
+  </data>
+  <data name="Panel_CommandPalette_ImportPsLists_Title" xml:space="preserve">
+    <value>Import PS-листы</value>
+  </data>
+  <data name="Panel_CommandPalette_ImportPsLists_Description" xml:space="preserve">
+    <value>Импортировать PS-листы</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveHierarchy_Title" xml:space="preserve">
+    <value>Save hierarchy</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveHierarchy_Description" xml:space="preserve">
+    <value>Сохранить дерево модели</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveNwd2018_Title" xml:space="preserve">
+    <value>Save NWD 2018</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveNwd2018_Description" xml:space="preserve">
+    <value>Экспортировать как Navisworks 2018</value>
+  </data>
+  <data name="Panel_CommandPalette_ExportProperties_Title" xml:space="preserve">
+    <value>Export properties to Excel</value>
+  </data>
+  <data name="Panel_CommandPalette_ExportProperties_Description" xml:space="preserve">
+    <value>Экспортировать свойства выделенных элементов</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashLoadTests_Title" xml:space="preserve">
+    <value>Clashes: Load tests</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashLoadTests_Description" xml:space="preserve">
+    <value>Загрузить все тесты коллизий</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashRunAll_Title" xml:space="preserve">
+    <value>Clashes: Run all tests</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashRunAll_Description" xml:space="preserve">
+    <value>Запустить все Clash Test без сохранения отчёта или модели</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashPreview_Title" xml:space="preserve">
+    <value>Clashes: Preview selected</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashPreview_Description" xml:space="preserve">
+    <value>Показать выбранную коллизию</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashViewpoint_Title" xml:space="preserve">
+    <value>Clashes: Clash viewpoint</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashViewpoint_Description" xml:space="preserve">
+    <value>Сохранить вид с выбранной коллизией</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashAssignTo_Title" xml:space="preserve">
+    <value>Clashes: Assign to</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashAssignTo_Description" xml:space="preserve">
+    <value>Присвоить ответственного выбранной коллизии</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashSectionBox_Title" xml:space="preserve">
+    <value>Clashes: Section Box (коллизии)</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashSectionBox_Description" xml:space="preserve">
+    <value>Включить/выключить Section Box для режима просмотра коллизий</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashMarker_Title" xml:space="preserve">
+    <value>Clashes: Marker</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashMarker_Description" xml:space="preserve">
+    <value>Показать/скрыть маркер коллизии</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashPlane_Title" xml:space="preserve">
+    <value>Clashes: Plane</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashPlane_Description" xml:space="preserve">
+    <value>Показать/скрыть плоскость по выделению</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashExportBcf_Title" xml:space="preserve">
+    <value>Clashes: Export BCF</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashExportBcf_Description" xml:space="preserve">
+    <value>Экспортировать выбранную коллизию в BCF-подобный файл</value>
+  </data>
+  <data name="Panel_CommandPalette_Settings_Title" xml:space="preserve">
+    <value>Настройки</value>
+  </data>
+  <data name="Panel_CommandPalette_Settings_Description" xml:space="preserve">
+    <value>Открыть вкладку «⚙ Настройки»</value>
+  </data>
+  <data name="Panel_CommandPalette_OpenLog_Title" xml:space="preserve">
+    <value>Открыть лог</value>
+  </data>
+  <data name="Panel_CommandPalette_OpenLog_Description" xml:space="preserve">
+    <value>Открыть файл NavisHelper-логов</value>
+  </data>
+  <data name="Panel_CommandPalette_DevScripts_Title" xml:space="preserve">
+    <value>Dev: загрузить DLL</value>
+  </data>
+  <data name="Panel_CommandPalette_DevScripts_Description" xml:space="preserve">
+    <value>Загрузить DLL с IDevScript</value>
+  </data>
+  <data name="Panel_CommandPalette_About_Title" xml:space="preserve">
+    <value>О программе</value>
+  </data>
+  <data name="Panel_CommandPalette_About_Description" xml:space="preserve">
+    <value>Открыть диалог «О программе»</value>
+  </data>
+  <data name="Panel_CommandPalette_CommandPalette_Title" xml:space="preserve">
+    <value>Command Palette</value>
+  </data>
+  <data name="Panel_CommandPalette_CommandPalette_Description" xml:space="preserve">
+    <value>Открыть командную палитру</value>
+  </data>
+  <data name="Panel_CommandPalette_Title" xml:space="preserve">
+    <value>Командная палитра</value>
+  </data>
+  <data name="Panel_CommandPalette_NoCommands" xml:space="preserve">
+    <value>Команды не загружены.</value>
+  </data>
+  <data name="Panel_CommandPalette_Executed_Format" xml:space="preserve">
+    <value>Выполнена команда: {0}</value>
+  </data>
+  <data name="Panel_Common_FileNotFound" xml:space="preserve"><value>Файл не найден.</value></data>
+  <data name="Panel_Common_OpenFileFailed_Format" xml:space="preserve"><value>Не удалось открыть файл: {0}</value></data>
+  <data name="Panel_DevScripts_SelectDll_Title" xml:space="preserve"><value>Выберите DLL с Dev-скриптами</value></data>
+  <data name="Panel_DevScripts_NoneFound" xml:space="preserve"><value>Скрипты в DLL не найдены.</value></data>
+  <data name="Panel_DevScripts_NoneFound_Format" xml:space="preserve"><value>DLL загружена: {0} — скрипты не найдены</value></data>
+  <data name="Panel_DevScripts_WindowTitle" xml:space="preserve"><value>Dev скрипты</value></data>
+  <data name="Panel_DevScripts_Run_ToolTip_Format" xml:space="preserve"><value>Запустить скрипт {0}</value></data>
+  <data name="Panel_DevScripts_Started_Format" xml:space="preserve"><value>Dev скрипт запущен: {0}</value></data>
+  <data name="Panel_DevScripts_LoadFailed_Format" xml:space="preserve"><value>Ошибка загрузки DLL: {0}</value></data>
+  <data name="Panel_DevScripts_LoadFailed" xml:space="preserve"><value>Ошибка загрузки DLL</value></data>
+  <data name="Panel_Common_CopyFailed_Format" xml:space="preserve"><value>Не удалось скопировать: {0}</value></data>
+  <data name="Panel_Common_Millimetres_Format" xml:space="preserve"><value>{0} мм</value></data>
+  <data name="Panel_Clash_LoadTestsFirst" xml:space="preserve"><value>Загрузите тесты</value></data>
+  <data name="Panel_Clash_ViewReset" xml:space="preserve"><value>Вид сброшен</value></data>
+  <data name="Panel_Clash_OnlyPairEnabled" xml:space="preserve"><value>Режим «Только пара» включён. Дважды щёлкните по коллизии.</value></data>
+  <data name="Panel_Clash_OnlyPairRestored" xml:space="preserve"><value>Показаны все ветви, временно скрытые режимом «Только пара»</value></data>
+  <data name="Panel_Clash_GroupRenameManualOnly" xml:space="preserve"><value>Переименование доступно только для ручных групп</value></data>
+  <data name="Panel_Clash_GroupNameRequired" xml:space="preserve"><value>Имя группы не может быть пустым</value></data>
+  <data name="Panel_Clash_SavedGroupNotFound" xml:space="preserve"><value>Сохранённая группа не найдена</value></data>
+  <data name="Panel_Clash_GroupNameDuplicate" xml:space="preserve"><value>Группа с таким именем уже есть</value></data>
+  <data name="Panel_Clash_GroupRenamed_Format" xml:space="preserve"><value>Группа переименована: {0}</value></data>
+  <data name="Panel_Clash_GroupRenameFailed_Format" xml:space="preserve"><value>Группа не переименована: {0}</value></data>
+  <data name="Panel_Clash_TreeNode_RightClickHint_Format" xml:space="preserve"><value>{0}&#xA;ПКМ: выделить этот объект в модели</value></data>
+  <data name="Panel_Clash_TreeItemUnavailable" xml:space="preserve"><value>Объект дерева больше недоступен в активной модели</value></data>
+  <data name="Panel_Clash_TreeItemSelected_Format" xml:space="preserve"><value>Выделен объект {0}: {1}</value></data>
+  <data name="Panel_Clash_TreeItemSelectFailed_Format" xml:space="preserve"><value>Не удалось выделить объект: {0}</value></data>
+  <data name="Panel_Clash_SelectTreeLevel" xml:space="preserve"><value>Выберите уровень дерева A или B</value></data>
+  <data name="Panel_Clash_GroupCreating_Format" xml:space="preserve"><value>Создание группы {0}: {1}</value></data>
+  <data name="Panel_Clash_GroupSearching_Format" xml:space="preserve"><value>Группа {0}: поиск коллизий...</value></data>
+  <data name="Panel_Clash_GroupAdded_Format" xml:space="preserve"><value>Группа добавлена {0}: {1}</value></data>
+  <data name="Panel_Clash_GroupNoResults" xml:space="preserve"><value>Для выбранного уровня коллизии не найдены</value></data>
+  <data name="Panel_Clash_GroupExists_Message_Format" xml:space="preserve"><value>Группа "{0}" уже есть.&#xA;Обновить её состав по текущим результатам?</value></data>
+  <data name="Panel_Clash_GroupExists_Title" xml:space="preserve"><value>Группа уже существует</value></data>
+  <data name="Panel_Clash_GroupOverlap_Message_Format" xml:space="preserve"><value>Уже в других группах: {0} из {1} коллизий.&#xA;&#xA;Да — перенести их в новую группу.&#xA;Нет — оставить их в старых группах и добавить только свободные.&#xA;Отмена — не создавать группу.</value></data>
+  <data name="Panel_Clash_GroupOverlap_Title" xml:space="preserve"><value>Коллизии уже сгруппированы</value></data>
+  <data name="Panel_Clash_GroupNoMove" xml:space="preserve"><value>Новая группа не создана: все коллизии остались в старых группах</value></data>
+  <data name="Panel_Clash_SelectTestForGroup" xml:space="preserve"><value>Выберите Clash Test для сохранения группы</value></data>
+  <data name="Panel_Clash_GroupMoveInvariantFailed" xml:space="preserve"><value>ClashResultGroup создана, но результаты не были перенесены внутрь группы.</value></data>
+  <data name="Panel_Clash_GroupSaved_Format" xml:space="preserve"><value>Группа сохранена: {0}, перенесено {1}</value></data>
+  <data name="Panel_Clash_GroupSaveFailed_Format" xml:space="preserve"><value>Группа не сохранена: {0}</value></data>
+  <data name="Panel_Clash_GroupingNone" xml:space="preserve"><value>Группировка: нет</value></data>
+  <data name="Panel_Clash_DocumentChanged" xml:space="preserve"><value>Документ изменён — данные коллизий сброшены</value></data>
+  <data name="Panel_Clash_AssignedTo_Title" xml:space="preserve"><value>Ответственный</value></data>
+  <data name="Panel_Clash_AssignedTo_Prompt" xml:space="preserve"><value>Ответственный за выбранные коллизии:</value></data>
+  <data name="Panel_Clash_AssignedTo_Saved_Format" xml:space="preserve"><value>Ответственный: {0} ({1})</value></data>
+  <data name="Panel_Clash_NoSelectedResults" xml:space="preserve"><value>Нет выбранных коллизий</value></data>
+  <data name="Panel_Clash_BulkStatus_Message_Format" xml:space="preserve"><value>Изменить статус {0} коллизий на {1}?</value></data>
+  <data name="Panel_Clash_BulkStatus_Title" xml:space="preserve"><value>Массовое изменение статуса</value></data>
+  <data name="Panel_Clash_StatusUpdated_Format" xml:space="preserve"><value>Статус {0}: {1}</value></data>
+  <data name="Panel_Clash_SelectResultsForComment" xml:space="preserve"><value>Выберите коллизии для комментария</value></data>
+  <data name="Panel_Clash_Comment_Prompt" xml:space="preserve"><value>Комментарий для выбранных коллизий:</value></data>
+  <data name="Panel_Clash_Comment_Title" xml:space="preserve"><value>Добавить комментарий</value></data>
+  <data name="Panel_Clash_CommentAdded_Format" xml:space="preserve"><value>Комментарий добавлен: {0}</value></data>
+  <data name="Panel_Clash_WaitForRefresh" xml:space="preserve"><value>Дождитесь завершения обновления Clash UI</value></data>
+  <data name="Panel_Clash_SelectOneTestAndResults" xml:space="preserve"><value>Выберите один Clash Test и коллизии</value></data>
+  <data name="Panel_Clash_GroupSelected_Prompt" xml:space="preserve"><value>Имя новой группы:</value></data>
+  <data name="Panel_Clash_GroupSelected_Title" xml:space="preserve"><value>Сгруппировать выделенные</value></data>
+  <data name="Panel_Clash_GroupSelected_Existing_Message" xml:space="preserve"><value>Группа уже существует. Пересобрать её из выделенных коллизий?</value></data>
+  <data name="Panel_Clash_GroupSelected_TestChanged" xml:space="preserve"><value>Выбранный Clash Test изменился перед группировкой.</value></data>
+  <data name="Panel_Clash_GroupSelected_Busy" xml:space="preserve"><value>Группировка выбранных коллизий</value></data>
+  <data name="Panel_Clash_GroupSelected_SelectionChanged" xml:space="preserve"><value>Выбор Clash Test или коллизий изменился перед группировкой.</value></data>
+  <data name="Panel_Clash_GroupSelected_CountMismatch_Format" xml:space="preserve"><value>Группа содержит {0} из {1} выбранных коллизий.</value></data>
+  <data name="Panel_Clash_GroupSelected_Failed_Format" xml:space="preserve"><value>Группа не создана: {0}</value></data>
+  <data name="Panel_Clash_GroupSelected_Created_Format" xml:space="preserve"><value>Создана группа: {0}, коллизий: {1}</value></data>
+  <data name="Panel_Clash_SelectGroupsInOneTest" xml:space="preserve"><value>Выберите группы в одном Clash Test</value></data>
+  <data name="Panel_Clash_Ungroup_Title" xml:space="preserve"><value>Разгруппировать</value></data>
+  <data name="Panel_Clash_Ungroup_GroupsOnly" xml:space="preserve"><value>Разгруппировка отменена: выделение должно содержать только группы.</value></data>
+  <data name="Panel_Clash_Ungroup_PersistedOnly" xml:space="preserve"><value>Разгруппировка доступна только для сохранённых Clash-групп, а не для группировки предпросмотра.</value></data>
+  <data name="Panel_Clash_Ungroup_Busy_Format" xml:space="preserve"><value>Разгруппировка: {0}</value></data>
+  <data name="Panel_Clash_Ungroup_TestChanged" xml:space="preserve"><value>Выбранный Clash Test изменился перед разгруппировкой.</value></data>
+  <data name="Panel_Clash_Ungroup_CountMismatch" xml:space="preserve"><value>Количество освобождённых коллизий не совпало с планом разгруппировки.</value></data>
+  <data name="Panel_Clash_Ungroup_Incomplete" xml:space="preserve"><value>Не удалось полностью расформировать группу.</value></data>
+  <data name="Panel_Clash_Ungroup_Failed_Format" xml:space="preserve"><value>Группы не расформированы: {0}</value></data>
+  <data name="Panel_Clash_Ungroup_Completed_Format" xml:space="preserve"><value>Расформировано групп: {0}, освобождено коллизий: {1}</value></data>
+  <data name="Panel_Clash_RefreshFailedAfterMutation_Format" xml:space="preserve"><value>Операция выполнена, но Clash UI не обновлён: {0}</value></data>
+  <data name="Panel_Clash_RefreshScheduleFailed_Format" xml:space="preserve"><value>Операция выполнена, но обновление Clash UI не запланировано: {0}</value></data>
+  <data name="Panel_Clash_Ungroup_RowNotPersisted" xml:space="preserve"><value>Одна из выбранных строк не связана с сохранённой ClashResultGroup.</value></data>
+  <data name="Panel_Clash_Ungroup_GroupOutsideTest" xml:space="preserve"><value>Одна из выбранных групп не принадлежит выбранному Clash Test.</value></data>
+  <data name="Panel_Clash_Marker_ShowResultFirst" xml:space="preserve"><value>Сначала покажите коллизию</value></data>
+  <data name="Panel_Clash_Marker_Hidden" xml:space="preserve"><value>Маркер скрыт</value></data>
+  <data name="Panel_Clash_Marker_Error_Format" xml:space="preserve"><value>Ошибка маркера: {0}</value></data>
+  <data name="Panel_Clash_Marker_Enabled_Format" xml:space="preserve"><value>Маркер ON: {0:F3}, {1:F3}, {2:F3} | r={3}</value></data>
+  <data name="Panel_Clash_Marker_Title" xml:space="preserve"><value>Маркер коллизии</value></data>
+  <data name="Panel_Clash_Plane_Hidden" xml:space="preserve"><value>Плоскость скрыта</value></data>
+  <data name="Panel_Clash_Plane_Error_Format" xml:space="preserve"><value>Ошибка плоскости: {0}</value></data>
+  <data name="Panel_Clash_Plane_Enabled_Format" xml:space="preserve"><value>Плоскость: {0}</value></data>
+  <data name="Panel_Clash_Plane_Title" xml:space="preserve"><value>Плоскость</value></data>
+  <data name="Panel_Clash_RunAll_None" xml:space="preserve"><value>Clash Test: нет тестов для запуска</value></data>
+  <data name="Panel_Clash_RunAll_Progress" xml:space="preserve"><value>Clash Test: запуск всех</value></data>
+  <data name="Panel_Clash_RunAll_Failed_Format" xml:space="preserve"><value>Ошибка запуска всех тестов: {0}</value></data>
+  <data name="Panel_Clash_RunAll_Completed_Format" xml:space="preserve"><value>Clash Test: выполнено ({0}/{1})</value></data>
+  <data name="Panel_Clash_DeleteZero_None" xml:space="preserve"><value>Нулевых Clash Test не найдено</value></data>
+  <data name="Panel_Clash_DeleteZero_Unrun_Message_Format" xml:space="preserve"><value>Ничего не удалено.&#xA;&#xA;Найдено нулевых тестов: {0}, но они похожи на незапущенные: у них нет LastRun.{1}&#xA;&#xA;Сначала запустите проверки, затем повторите удаление нулевых тестов.</value></data>
+  <data name="Panel_Clash_DeleteZero_Unrun_Title" xml:space="preserve"><value>Нулевые тесты не удалены</value></data>
+  <data name="Panel_Clash_DeleteZero_Unrun_Status" xml:space="preserve"><value>Нулевые тесты не удалены: все найденные тесты не запускались</value></data>
+  <data name="Panel_Clash_DeleteZero_Skipped_Format" xml:space="preserve"><value>&#xA;&#xA;Пропущено незапущенных нулевых тестов: {0}. Они не будут удалены.</value></data>
+  <data name="Panel_Clash_DeleteZero_Confirm_Format" xml:space="preserve"><value>Удалить только запущенные Clash Test с 0 результатами: {0}?{1}{2}</value></data>
+  <data name="Panel_Clash_DeleteZero_Title" xml:space="preserve"><value>Удалить нулевые Clash Test</value></data>
+  <data name="Panel_Clash_Delete_None" xml:space="preserve"><value>Нет Clash Test для удаления</value></data>
+  <data name="Panel_Clash_Delete_Progress" xml:space="preserve"><value>Clash Test: удаление</value></data>
+  <data name="Panel_Clash_Delete_Completed_Format" xml:space="preserve"><value>Clash Test: удалено ({0})</value></data>
+  <data name="Panel_Clash_SelectTest" xml:space="preserve"><value>Выберите Clash Test</value></data>
+  <data name="Panel_Clash_DeleteSelected_Message_Format" xml:space="preserve"><value>Удалить выбранные Clash Test: {0}?</value></data>
+  <data name="Panel_Clash_DeleteSelected_Title" xml:space="preserve"><value>Удалить Clash Test</value></data>
+  <data name="Panel_Clash_UnknownOperation_Format" xml:space="preserve"><value>Неизвестная операция: {0}</value></data>
+  <data name="Panel_Clash_TestsRootUnavailable" xml:space="preserve"><value>Clash Detective tests root недоступен.</value></data>
+  <data name="Panel_Clash_SelectedTestsNotFound" xml:space="preserve"><value>Не удалось найти выбранные Clash Test в дереве.</value></data>
+  <data name="Panel_Clash_Rename_OneTestOnly" xml:space="preserve"><value>Переименование доступно для одного Clash Test</value></data>
+  <data name="Panel_Clash_Rename_Prompt" xml:space="preserve"><value>Новое имя проверки:</value></data>
+  <data name="Panel_Clash_Rename_Title" xml:space="preserve"><value>Переименовать Clash Test</value></data>
+  <data name="Panel_Clash_Rename_Completed" xml:space="preserve"><value>Clash Test переименован</value></data>
+  <data name="Panel_Clash_SelectResults" xml:space="preserve"><value>Выберите коллизии</value></data>
+  <data name="Panel_Clash_Viewpoints_AlreadyRunning" xml:space="preserve"><value>Создание VP уже выполняется</value></data>
+  <data name="Panel_Clash_Viewpoints_NoResults" xml:space="preserve"><value>Нет коллизий для создания VP</value></data>
+  <data name="Panel_Clash_Viewpoints_Progress_Format" xml:space="preserve"><value>Создание VP: {0} / {1}</value></data>
+  <data name="Panel_Clash_Viewpoints_ProgressTitle" xml:space="preserve"><value>Создание Clash viewpoints</value></data>
+  <data name="Panel_Clash_Viewpoints_Reset_Format" xml:space="preserve"><value>Создание VP reset: {0}</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemPreview_Format" xml:space="preserve"><value>VP {0} / {1}: превью</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemMarkers_Format" xml:space="preserve"><value>VP {0} / {1}: метки</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemSave_Format" xml:space="preserve"><value>VP {0} / {1}: сохранение</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemMarkersSecond_Format" xml:space="preserve"><value>VP {0} / {1}: метки 2</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemSaveSecond_Format" xml:space="preserve"><value>VP {0} / {1}: сохранение 2</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemError_Format" xml:space="preserve"><value>VP ошибка: {0}</value></data>
+  <data name="Panel_Clash_Viewpoints_ErrorRecord_Format" xml:space="preserve"><value>#{0}/{1} {2}: {3}</value></data>
+  <data name="Panel_Clash_Viewpoints_FirstErrors_Format" xml:space="preserve"><value> | первые ошибки: {0}</value></data>
+  <data name="Panel_Clash_Viewpoints_Completed_Format" xml:space="preserve"><value>Создано VP: {0}, ошибок: {1}, reset: {2}, прошло: {3:0.0} сек | reset {4:0.0} сек, превью {5:0.0} сек, метки {6:0.0} сек, save {7:0.0} сек, restore {8:0.0} сек{9}</value></data>
+  <data name="Panel_Common_Seconds_Format" xml:space="preserve"><value>{0:0.0} сек</value></data>
+  <data name="Panel_Common_MinutesSeconds_Format" xml:space="preserve"><value>{0} мин {1} сек</value></data>
+  <data name="Panel_Common_HoursMinutesSeconds_Format" xml:space="preserve"><value>{0} ч {1} мин {2} сек</value></data>
+  <data name="Panel_Common_LabelHotkey_Format" xml:space="preserve"><value>{0}  ({1})</value></data>
+  <data name="Panel_Clash_Status_New" xml:space="preserve"><value>Новая</value></data>
+  <data name="Panel_Clash_Status_Active" xml:space="preserve"><value>Активная</value></data>
+  <data name="Panel_Clash_Status_Reviewed" xml:space="preserve"><value>Проверена</value></data>
+  <data name="Panel_Clash_Status_Approved" xml:space="preserve"><value>Утверждена</value></data>
+  <data name="Panel_Clash_Status_Resolved" xml:space="preserve"><value>Решена</value></data>
+  <data name="Panel_Clash_SelectionNotFound_Format" xml:space="preserve"><value>Selection: {0} не найден в дереве модели</value></data>
+  <data name="Panel_Clash_SelectionCompleted_Format" xml:space="preserve"><value>Selection: {0} ({1})</value></data>
+  <data name="Panel_Clash_SelectionLabel_ItemA" xml:space="preserve"><value>объект A</value></data>
+  <data name="Panel_Clash_SelectionLabel_ItemB" xml:space="preserve"><value>объект B</value></data>
+  <data name="Panel_Clash_SelectionLabel_Both" xml:space="preserve"><value>объекты A+B</value></data>
+  <data name="Panel_Clash_SelectionLabel_Items" xml:space="preserve"><value>объекты</value></data>
+  <data name="Panel_Clash_GroupingDisabled" xml:space="preserve"><value>выключена</value></data>
+  <data name="Panel_Clash_GroupingChanged_Format" xml:space="preserve"><value>Группировка: {0}</value></data>
+  <data name="Panel_Clash_GroupingReset_SelectGroup" xml:space="preserve"><value>Выберите строку-группу для сброса</value></data>
+  <data name="Panel_Clash_GroupingReset_Completed_Format" xml:space="preserve"><value>Группа предпросмотра сброшена: {0}</value></data>
+  <data name="Panel_Clash_GridSummaryGrouped_Format" xml:space="preserve"><value>Коллизий: {0}, групп: {1}, строк: {2}</value></data>
+  <data name="Panel_Clash_GridSummary_Format" xml:space="preserve"><value>Коллизий: {0} / {1}</value></data>
+  <data name="Panel_Clash_GroupAbbreviation" xml:space="preserve"><value>Гр.</value></data>
+  <data name="Panel_Clash_ResultCountShort_Format" xml:space="preserve"><value>{0} шт.</value></data>
+  <data name="Panel_Clash_GroupRowName_Format" xml:space="preserve"><value>{0}: {1} ({2})</value></data>
+  <data name="Panel_Clash_GroupRowNameWithoutSide_Format" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Panel_Clash_DefaultGroupA" xml:space="preserve"><value>Группа A</value></data>
+  <data name="Panel_Clash_DefaultGroupB" xml:space="preserve"><value>Группа B</value></data>
+  <data name="Panel_Clash_SavedViewpointsUnavailable" xml:space="preserve"><value>Saved Viewpoints недоступны.</value></data>
+  <data name="Panel_Clash_SavedViewpointFolderFailed_Format" xml:space="preserve"><value>Не удалось создать папку Saved Viewpoints: {0}</value></data>
+  <data name="Panel_Clash_Operation_Run" xml:space="preserve"><value>выполнено</value></data>
+  <data name="Panel_Clash_Operation_Reset" xml:space="preserve"><value>сброшено</value></data>
+  <data name="Panel_Clash_Operation_Compact" xml:space="preserve"><value>сжато</value></data>
+  <data name="Panel_Clash_Operation_Delete" xml:space="preserve"><value>удалено</value></data>
+  <data name="Panel_Clash_RefreshCompleted_Format" xml:space="preserve"><value>Clash Detective обновлён: {0} тестов</value></data>
+  <data name="Panel_Clash_RefreshFailed_Format" xml:space="preserve"><value>Ошибка обновления Clash UI: {0}</value></data>
+  <data name="Panel_Clash_TestsLoaded_Format" xml:space="preserve"><value>Загружено тестов: {0}</value></data>
+  <data name="Panel_Clash_ResultsLoadFailed_Format" xml:space="preserve"><value>Ошибка загрузки коллизий: {0}</value></data>
+  <data name="Panel_Clash_Preview_GroupShown_Format" xml:space="preserve"><value>Группа показана: {0} ({1})</value></data>
+  <data name="Panel_Clash_Preview_ResultShown_Format" xml:space="preserve"><value>Коллизия показана: {0}</value></data>
+  <data name="Panel_Clash_Preview_Failed_Format" xml:space="preserve"><value>Не удалось показать коллизию: {0}</value></data>
+  <data name="Panel_Clash_Preview_HiddenBranches_Format" xml:space="preserve"><value>скрыто ветвей: {0}</value></data>
+  <data name="Panel_Clash_Preview_OnlyPair_Format" xml:space="preserve"><value>{0} | только пара: {1} за {2} мс</value></data>
+  <data name="Panel_Clash_Markers_NoPoints" xml:space="preserve"><value>Нет точек clash для меток</value></data>
+  <data name="Panel_Clash_Markers_Completed_Format" xml:space="preserve"><value>Метки: {0}/{1}{2}</value></data>
+  <data name="Panel_Clash_Markers_ProjectPointNull_Detail" xml:space="preserve"><value> | ProjectPoint=null</value></data>
+  <data name="Panel_Clash_Markers_Debug_Detail_Format" xml:space="preserve"><value> | метки {0}/{1}</value></data>
+  <data name="Panel_Clash_Markers_Failed_Format" xml:space="preserve"><value>Ошибка меток: {0}</value></data>
+  <data name="Panel_Clash_Viewpoint_NoActiveView" xml:space="preserve"><value>Нет активного вида для сохранения VP</value></data>
+  <data name="Panel_Clash_Viewpoint_Saved_Format" xml:space="preserve"><value>VP сохранён: {0}/{1}</value></data>
+  <data name="Panel_Clash_Viewpoint_Failed_Format" xml:space="preserve"><value>Ошибка VP: {0}</value></data>
+  <data name="Panel_Clash_Operation_Progress_Format" xml:space="preserve"><value>Clash Test: {0}</value></data>
+  <data name="Panel_Clash_Operation_Run_Completed_Format" xml:space="preserve"><value>Clash Test: выполнено ({0})</value></data>
+  <data name="Panel_Clash_Operation_Reset_Completed_Format" xml:space="preserve"><value>Clash Test: сброшено ({0})</value></data>
+  <data name="Panel_Clash_Operation_Compact_Completed_Format" xml:space="preserve"><value>Clash Test: сжато ({0})</value></data>
+  <data name="Panel_Clash_Operation_Unknown_Completed_Format" xml:space="preserve"><value>Clash Test: операция выполнена ({0})</value></data>
+  <data name="Panel_Clash_Viewpoint_NoSelectedResult" xml:space="preserve"><value>Нет выбранной коллизии для VP</value></data>
+  <data name="Panel_Clash_Viewpoint_NoCenterSuffix" xml:space="preserve"><value> | нет центра коллизии</value></data>
+  <data name="Panel_Clash_Viewpoint_SavedNameEntry_Format" xml:space="preserve"><value>{0}{1}</value></data>
+  <data name="Panel_Clash_Viewpoint_SavedNames_Format" xml:space="preserve"><value>VP: {0}</value></data>
+  <data name="Panel_Clash_Camera_NoActiveDocument" xml:space="preserve"><value>Нет активного документа для CAM</value></data>
+  <data name="Panel_Clash_Camera_Saved_Format" xml:space="preserve"><value>CAM {0}: {1}</value></data>
+  <data name="Panel_Clash_Camera_Failed_Format" xml:space="preserve"><value>Ошибка CAM: {0}</value></data>
+  <data name="Panel_Clash_Bcf_SelectResult" xml:space="preserve"><value>Выберите коллизию для экспорта.</value></data>
+  <data name="Panel_Clash_Bcf_Title" xml:space="preserve"><value>Экспорт BCF</value></data>
+  <data name="Panel_Clash_InvalidResult" xml:space="preserve"><value>Неверная запись коллизии.</value></data>
+  <data name="Panel_Clash_Bcf_SaveTitle" xml:space="preserve"><value>Экспорт в BCF</value></data>
+  <data name="Panel_Clash_Bcf_FileFilter" xml:space="preserve"><value>BCF (*.bcf)|*.bcf|ZIP (*.zip)|*.zip|Все файлы|*.*</value></data>
+  <data name="Panel_Clash_Bcf_Exported_Format" xml:space="preserve"><value>BCF экспортирован: {0}</value></data>
+  <data name="Panel_Clash_Gif_NoPoint" xml:space="preserve"><value>Нет точки clash для GIF</value></data>
+  <data name="Panel_Clash_Gif_SaveTitle" xml:space="preserve"><value>Сохранить GIF коллизии</value></data>
+  <data name="Panel_Clash_Gif_FileFilter" xml:space="preserve"><value>GIF-анимация (*.gif)|*.gif</value></data>
+  <data name="Panel_Clash_Gif_Cancelled" xml:space="preserve"><value>GIF отменён</value></data>
+  <data name="Panel_Clash_Gif_Progress" xml:space="preserve"><value>Создание GIF коллизии</value></data>
+  <data name="Panel_Clash_Gif_FrameFailed_Format" xml:space="preserve"><value>Кадр {0}: {1}</value></data>
+  <data name="Panel_Clash_Gif_Created_Format" xml:space="preserve"><value>GIF создан: {0}</value></data>
+  <data name="Panel_Clash_InteractiveBusy" xml:space="preserve"><value>Navisworks занят интерактивной операцией</value></data>
+  <data name="Panel_Clash_InteractiveBusy_Format" xml:space="preserve"><value>Navisworks занят: {0}</value></data>
+  <data name="Panel_Clash_Transparency_Selection_Format" xml:space="preserve"><value>Прозрачность: {0} владельцев по выделению{1}</value></data>
+  <data name="Panel_Clash_Transparency_Pair_Format" xml:space="preserve"><value>Прозрачность: {0} владельцев A/B{1}</value></data>
+  <data name="Panel_Color_None" xml:space="preserve"><value>Без подсветки</value></data>
+  <data name="Panel_Color_Red" xml:space="preserve"><value>Красный</value></data>
+  <data name="Panel_Color_Blue" xml:space="preserve"><value>Синий</value></data>
+  <data name="Panel_Color_Green" xml:space="preserve"><value>Зелёный</value></data>
+  <data name="Panel_Color_Orange" xml:space="preserve"><value>Оранжевый</value></data>
+  <data name="Panel_Color_Yellow" xml:space="preserve"><value>Жёлтый</value></data>
+  <data name="Panel_Color_Purple" xml:space="preserve"><value>Фиолетовый</value></data>
+  <data name="Panel_Color_Cyan" xml:space="preserve"><value>Голубой</value></data>
+  <data name="Panel_Color_Pink" xml:space="preserve"><value>Розовый</value></data>
+  <data name="Panel_Color_White" xml:space="preserve"><value>Белый</value></data>
+  <data name="Panel_Color_DarkRed" xml:space="preserve"><value>Тёмно-красный</value></data>
+  <data name="Panel_Color_DarkBlue" xml:space="preserve"><value>Тёмно-синий</value></data>
+  <data name="Panel_Color_Teal" xml:space="preserve"><value>Бирюзовый</value></data>
+  <data name="Panel_Color_Lime" xml:space="preserve"><value>Лайм</value></data>
+  <data name="Panel_Color_Brown" xml:space="preserve"><value>Коричневый</value></data>
+  <data name="Panel_Clash_Menu_Run" xml:space="preserve"><value>Выполнить</value></data>
+  <data name="Panel_Clash_Menu_Reset" xml:space="preserve"><value>Сброс</value></data>
+  <data name="Panel_Clash_Menu_Compact" xml:space="preserve"><value>Сжать</value></data>
+  <data name="Panel_Clash_Menu_CreateViewpoints" xml:space="preserve"><value>Сформировать точки обзора</value></data>
+  <data name="Panel_Clash_Menu_AllStatuses" xml:space="preserve"><value>Статус всех коллизий</value></data>
+  <data name="Panel_Clash_Menu_Rename" xml:space="preserve"><value>Переименовать</value></data>
+  <data name="Panel_Clash_Menu_Delete" xml:space="preserve"><value>Удалить</value></data>
+  <data name="Panel_Clash_Menu_SelectA" xml:space="preserve"><value>Перейти к объекту A</value></data>
+  <data name="Panel_Clash_Menu_SelectB" xml:space="preserve"><value>Перейти к объекту B</value></data>
+  <data name="Panel_Clash_Menu_SelectBoth" xml:space="preserve"><value>Выбрать оба объекта</value></data>
+  <data name="Panel_Clash_Menu_GroupByA" xml:space="preserve"><value>Группировать по объекту A</value></data>
+  <data name="Panel_Clash_Menu_GroupByB" xml:space="preserve"><value>Группировать по объекту B</value></data>
+  <data name="Panel_Clash_Menu_ResetGrouping" xml:space="preserve"><value>Сбросить группировку</value></data>
+  <data name="Panel_Clash_Menu_Status" xml:space="preserve"><value>Статус</value></data>
+  <data name="Panel_Clash_Menu_Assign" xml:space="preserve"><value>Назначить исполнителя…</value></data>
+  <data name="Panel_Clash_Menu_Comment" xml:space="preserve"><value>Добавить комментарий…</value></data>
+  <data name="Panel_Clash_Menu_GroupSelected" xml:space="preserve"><value>Сгруппировать выделенные…</value></data>
+  <data name="Panel_Clash_Menu_Ungroup" xml:space="preserve"><value>Разгруппировать</value></data>
+  <data name="Panel_Clash_Menu_CreateSelectedViewpoints" xml:space="preserve"><value>Сформировать выделенные точки обзора</value></data>
+  <data name="Panel_Clash_Result_Title" xml:space="preserve"><value>Результат коллизии</value></data>
+  <data name="Panel_Clash_Test_Title" xml:space="preserve"><value>Clash Test</value></data>
+  <data name="Panel_Clash_GroupingMatches_ToolTip_Format" xml:space="preserve"><value>По выбранному уровню найдено коллизий: {0}. Уже сгруппированные результаты обрабатываются отдельно.</value></data>
+  <data name="Panel_Clash_GroupCreateFailed" xml:space="preserve"><value>Не удалось создать ClashResultGroup.</value></data>
+  <data name="Panel_Section_All" xml:space="preserve"><value>Все</value></data>
+  <data name="Panel_HeightMarks_NoObjects" xml:space="preserve"><value>Нет объектов</value></data>
+  <data name="Panel_HeightMarks_ItemUnavailable" xml:space="preserve"><value>Объект недоступен</value></data>
+  <data name="Panel_Colors_Ai_ResponseFileFilter" xml:space="preserve"><value>Текстовый файл (*.txt)|*.txt|Markdown (*.md)|*.md</value></data>
+  <data name="Panel_Colors_SelectionSetFolderFailed_Format" xml:space="preserve"><value>Не удалось создать папку Selection Sets: {0}</value></data>
+  <data name="Panel_Selection_ModelUnitScaleFailed" xml:space="preserve"><value>Не удалось определить масштаб единиц модели.</value></data>
+  <data name="Panel_Clash_Item_None" xml:space="preserve"><value>(нет)</value></data>
+  <data name="Panel_Clash_ItemFallback_Format" xml:space="preserve"><value>(элемент #{0})</value></data>
+  <data name="Panel_Colors_Match_Title" xml:space="preserve"><value>Сопоставление цвета</value></data>
+  <data name="Panel_Colors_Property_Title" xml:space="preserve"><value>Цвет по свойству</value></data>
+  <data name="Panel_Colors_Overrides_Title" xml:space="preserve"><value>Сброс переопределений</value></data>
+  <data name="Panel_Colors_SelectByProperty_Title" xml:space="preserve"><value>Выбор по значению свойства</value></data>
+  <data name="Panel_Selection_Memory_Title" xml:space="preserve"><value>Слот выделения</value></data>
+  <data name="Panel_Selection_Invert_Title" xml:space="preserve"><value>Инвертировать выделение</value></data>
+  <data name="Panel_Selection_Isolate_Title" xml:space="preserve"><value>Изолировать</value></data>
+  <data name="Panel_Selection_Unhide_Title" xml:space="preserve"><value>Показать всё</value></data>
+  <data name="Panel_Selection_SectionBox_Title" xml:space="preserve"><value>Секущий параллелепипед</value></data>
+  <data name="Panel_Clash_Column_New" xml:space="preserve"><value>Нов.</value></data>
+  <data name="Panel_Clash_Column_Active" xml:space="preserve"><value>Акт.</value></data>
+  <data name="SettingsAiKeyPlaceholder" xml:space="preserve"><value>ВАШ_КЛЮЧ</value></data>
+  <data name="Panel_DevScripts_DllFilter" xml:space="preserve"><value>DLL (*.dll)|*.dll</value></data>
+  <data name="Panel_DevScripts_DllLabel_Format" xml:space="preserve"><value>DLL: {0}</value></data>
+  <data name="Panel_Clash_Gif_DefaultName" xml:space="preserve"><value>Облёт коллизии</value></data>
+  <data name="Panel_Clash_SelectionFailed_Format" xml:space="preserve"><value>Ошибка выделения: {0}</value></data>
+  <data name="Panel_Selection_NoSelectionOrSavedBox" xml:space="preserve"><value>Нет выделенных объектов и сохранённой области Section Box.</value></data>
+  <data name="Panel_Selection_SectionBoxApplied_Format" xml:space="preserve"><value>Section box: {0} объектов; общее расширение {1} мм, добавка X/Y/Z {2}/{3}/{4} мм; смещение {5}/{6}/{7} мм</value></data>
+  <data name="Panel_Selection_SectionBoxAppliedSaved_Format" xml:space="preserve"><value>Section box: {0} объектов (сохранённая область); общее расширение {1} мм, добавка X/Y/Z {2}/{3}/{4} мм; смещение {5}/{6}/{7} мм</value></data>
+  <data name="Panel_Clash_Preview_Failed" xml:space="preserve"><value>Не удалось показать коллизию.</value></data>
+  <data name="Panel_Clash_Preview_RestoreFailed" xml:space="preserve"><value>Не удалось восстановить предыдущий режим «Только пара».</value></data>
+  <data name="Panel_Clash_Preview_NoItems_Format" xml:space="preserve"><value>Нет элементов: {0}</value></data>
+  <data name="Panel_Clash_Preview_EmptyGroup" xml:space="preserve"><value>В группе нет коллизий.</value></data>
+  <data name="Panel_Clash_PairIsolation_RestoreFailed_Format" xml:space="preserve"><value>не удалось восстановить видимость: {0}</value></data>
+  <data name="Panel_Clash_PairIsolation_SkippedInactiveModel" xml:space="preserve"><value>изоляция пропущена: объекты A/B не принадлежат активной модели</value></data>
+  <data name="Panel_Clash_PairIsolation_AppliedWithProxy_Format" xml:space="preserve"><value>скрыто ветвей: {0}; пропущено proxy items без состояния видимости: {1}</value></data>
+  <data name="Panel_Clash_Transparency_NoActiveDocument_Detail" xml:space="preserve"><value> | нет активного документа</value></data>
+  <data name="Panel_Clash_Transparency_ZeroLevel_Detail" xml:space="preserve"><value> | уровень прозрачности 0%</value></data>
+  <data name="Panel_Clash_Transparency_ClashItemsMissing_Detail" xml:space="preserve"><value> | clash items не найдены</value></data>
+  <data name="Panel_Clash_Transparency_OwnersMissing_Detail" xml:space="preserve"><value> | владельцы не найдены</value></data>
+  <data name="Panel_Clash_Transparency_Applied_Detail_Format" xml:space="preserve"><value> | владельцев: {0}, текущих непрозрачных: {1}</value></data>
+  <data name="Panel_Clash_Preview_DefaultGroupName" xml:space="preserve"><value>Группа коллизий</value></data>
+</root>

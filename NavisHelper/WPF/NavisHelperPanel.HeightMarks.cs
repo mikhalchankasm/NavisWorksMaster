@@ -13,6 +13,7 @@ using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Agent.Services;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NwApplication = Autodesk.Navisworks.Api.Application;
 
 namespace NavisHelper.WPF
@@ -40,30 +41,30 @@ namespace NavisHelper.WPF
 
             var intro = new TextBlock
             {
-                Text =
-                    "Метки создаются по текущему выделению модели. Таблица хранит именованные группы " +
-                    "только в текущей сессии: выберите группу, чтобы восстановить её объекты в модели.",
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = Brushes.DimGray,
                 Margin = new Thickness(0, 0, 0, 8),
             };
+            _panelLocalizationBindings.BindText(
+                intro,
+                "Panel_HeightMarks_Introduction");
             root.Children.Add(intro);
             Grid.SetRow(intro, 0);
 
             var objectsHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
-            objectsHeader.Children.Add(CreateGroupHeader("Сессионные группы объектов"));
+            objectsHeader.Children.Add(CreateGroupHeader("Panel_HeightMarks_Group_SessionObjects"));
             var objectButtons = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
             objectButtons.Children.Add(CreateHeightActionButton(
-                "Добавить группу",
-                "Сохранить текущее выделение модели как одну именованную группу.",
+                "Panel_AddGroup",
+                "Panel_HeightMarks_AddGroup_ToolTip",
                 AddHeightGroupFromSelection, ButtonKind.Neutral, "\U00002795", true));
             objectButtons.Children.Add(CreateHeightActionButton(
-                "Удалить группы",
-                "Удалить выбранные группы из списка текущей сессии.",
+                "Panel_DeleteGroups",
+                "Panel_HeightMarks_DeleteGroups_ToolTip",
                 RemoveSelectedHeightGroups, ButtonKind.Destructive, "\U0001F5D1"));
             objectButtons.Children.Add(CreateHeightActionButton(
-                "Очистить",
-                "Очистить все сессионные группы.",
+                "Panel_Clear",
+                "Panel_HeightMarks_ClearGroups_ToolTip",
                 ClearHeightGroups, ButtonKind.Destructive, "\U0001F9F9"));
             DockPanel.SetDock(objectButtons, Dock.Right);
             objectsHeader.Children.Add(objectButtons);
@@ -80,26 +81,35 @@ namespace NavisHelper.WPF
                 SelectionMode = DataGridSelectionMode.Extended,
                 SelectionUnit = DataGridSelectionUnit.FullRow,
                 MinHeight = 190,
-                ToolTip = "Ctrl/Shift — выбрать несколько групп. Их объекты будут выделены в модели.",
             };
-            _heightObjectsGrid.Columns.Add(new DataGridTextColumn
+            _panelLocalizationBindings.BindToolTip(
+                _heightObjectsGrid,
+                "Panel_HeightMarks_Grid_ToolTip");
+            _panelLocalizationBindings.BindAction(
+                _heightObjectsGrid,
+                "HeightMarks.GroupContents",
+                RefreshHeightGroupLocalizedContents);
+            var groupColumn = new DataGridTextColumn
             {
-                Header = "Группа",
                 Binding = new Binding("Name"),
                 Width = new DataGridLength(190),
-            });
-            _heightObjectsGrid.Columns.Add(new DataGridTextColumn
+            };
+            _panelLocalizationBindings.BindColumnHeader(groupColumn, "Panel_Group");
+            _heightObjectsGrid.Columns.Add(groupColumn);
+            var itemCountColumn = new DataGridTextColumn
             {
-                Header = "Объектов",
                 Binding = new Binding("ItemCount"),
                 Width = new DataGridLength(80),
-            });
-            _heightObjectsGrid.Columns.Add(new DataGridTextColumn
+            };
+            _panelLocalizationBindings.BindColumnHeader(itemCountColumn, "Panel_Objects");
+            _heightObjectsGrid.Columns.Add(itemCountColumn);
+            var contentsColumn = new DataGridTextColumn
             {
-                Header = "Состав",
                 Binding = new Binding("Contents"),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-            });
+            };
+            _panelLocalizationBindings.BindColumnHeader(contentsColumn, "Panel_Contents");
+            _heightObjectsGrid.Columns.Add(contentsColumn);
             _heightObjectsGrid.SelectionChanged += OnHeightGroupSelectionChanged;
             _heightObjectsGrid.PreviewMouseLeftButtonDown += OnHeightGroupPreviewMouseLeftButtonDown;
             root.Children.Add(_heightObjectsGrid);
@@ -115,11 +125,13 @@ namespace NavisHelper.WPF
 
             var targetLabel = new TextBlock
             {
-                Text = "Целевой уровень Z, мм:",
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 6, 5),
-                ToolTip = "Глобальная Z документа; используется размерной линией.",
             };
+            _panelLocalizationBindings.BindText(targetLabel, "Panel_HeightMarks_TargetZ_Label");
+            _panelLocalizationBindings.BindToolTip(
+                targetLabel,
+                "Panel_HeightMarks_TargetZ_ToolTip");
             footer.Children.Add(targetLabel);
             _heightTargetZText = new TextBox
             {
@@ -127,18 +139,20 @@ namespace NavisHelper.WPF
                 MinWidth = 150,
                 Margin = new Thickness(0, 0, 8, 5),
                 VerticalContentAlignment = VerticalAlignment.Center,
-                ToolTip = "Глобальная Z документа; используется размерной линией.",
             };
+            _panelLocalizationBindings.BindToolTip(
+                _heightTargetZText,
+                "Panel_HeightMarks_TargetZ_ToolTip");
             footer.Children.Add(_heightTargetZText);
             Grid.SetColumn(_heightTargetZText, 1);
             Grid.SetColumnSpan(_heightTargetZText, 2);
 
             var nameLabel = new TextBlock
             {
-                Text = "Имя точки обзора:",
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 6, 5),
             };
+            _panelLocalizationBindings.BindText(nameLabel, "Panel_ViewpointName");
             footer.Children.Add(nameLabel);
             Grid.SetRow(nameLabel, 1);
 
@@ -156,24 +170,24 @@ namespace NavisHelper.WPF
 
             var runButtons = new WrapPanel();
             runButtons.Children.Add(CreateHeightActionButton(
-                "Отметка Z",
-                "Создать сохранённую точку обзора с redline-подписями для текущего выделения.",
+                "Panel_ZElevation",
+                "Panel_HeightMarks_Elevation_ToolTip",
                 () => RunElevationMarkers(false), ButtonKind.Primary, "\U0001F4CF", true));
             runButtons.Children.Add(CreateHeightActionButton(
-                "Размерная линия до Z",
-                "Создать сохранённую точку обзора с размерными линиями для текущего выделения.",
+                "Panel_HeightMarks_DimensionToZ_Action",
+                "Panel_HeightMarks_Dimension_ToolTip",
                 () => RunElevationMarkers(true), ButtonKind.Primary, "\U0001F4D0", true));
             runButtons.Children.Add(CreateHeightActionButton(
-                "Graphics-метка",
-                "Показать временные Graphics.Text2D-метки для текущего выделения, не меняя камеру.",
+                "Panel_GraphicsMarker",
+                "Panel_HeightMarks_Graphics_ToolTip",
                 ShowHeightGraphicsMarkers, ButtonKind.Neutral, "\U0001F3F7", true));
             runButtons.Children.Add(CreateHeightActionButton(
-                "Скрыть Graphics",
-                "Убрать временные Graphics-метки.",
+                "Panel_HideGraphics",
+                "Panel_HeightMarks_HideGraphics_ToolTip",
                 HideHeightGraphicsMarkers, ButtonKind.Neutral, "\U0001F6AB"));
             runButtons.Children.Add(CreateHeightActionButton(
-                "Сохранить скрин",
-                "Сохранить текущий вид в изображение (Ctrl+Shift+H).",
+                "Panel_SaveScreenshot",
+                "Panel_HeightMarks_Screenshot_ToolTip",
                 SaveHeightScreenshot, ButtonKind.Neutral, "\U0001F4F7"));
             footer.Children.Add(runButtons);
             Grid.SetRow(runButtons, 2);
@@ -182,11 +196,12 @@ namespace NavisHelper.WPF
             root.Children.Add(footer);
             Grid.SetRow(footer, 3);
 
-            return new TabItem
+            var tab = new TabItem
             {
-                Header = "↕ Высоты Z",
                 Content = root,
             };
+            _panelLocalizationBindings.BindHeader(tab, "Panel_ZElevations");
+            return tab;
         }
 
         internal bool ShowHeightMarksTab()
@@ -200,12 +215,17 @@ namespace NavisHelper.WPF
             return true;
         }
 
-        private Button CreateHeightActionButton(string text, string tooltip, Action action, ButtonKind kind = ButtonKind.Neutral, string emoji = null, bool requiresSelection = false)
+        private Button CreateHeightActionButton(
+            string textResourceKey,
+            string tooltipResourceKey,
+            Action action,
+            ButtonKind kind = ButtonKind.Neutral,
+            string emoji = null,
+            bool requiresSelection = false)
         {
             var button = new Button
             {
-                Content = MakeButtonContent(null, emoji, text),
-                ToolTip = tooltip,
+                Content = MakeLocalizedButtonContent(null, emoji, textResourceKey),
                 Height = 28,
                 Margin = new Thickness(3, 1, 0, 1),
                 Padding = new Thickness(8, 0, 8, 0),
@@ -213,6 +233,7 @@ namespace NavisHelper.WPF
                 Cursor = Cursors.Hand,
                 Style = UiTheme.ButtonStyle(kind)
             };
+            _panelLocalizationBindings.BindToolTip(button, tooltipResourceKey);
             button.Click += (sender, args) => action();
             if (requiresSelection) _selectionGating.Register(button);
             return button;
@@ -227,16 +248,15 @@ namespace NavisHelper.WPF
             var selection = document?.CurrentSelection?.SelectedItems;
             if (document == null || selection == null || selection.Count == 0)
             {
-                SetGlobalStatus("Выберите объекты для новой группы", Brushes.Orange);
+                SetGlobalStatusResource("Panel_HeightMarks_SelectItemsForGroup", Brushes.Orange);
                 return;
             }
             if (selection.Count > ElevationMarkerPlanHelper.DefaultMaximumItemCount)
             {
-                SetGlobalStatus(
-                    "В одной группе допускается не более " +
-                    ElevationMarkerPlanHelper.DefaultMaximumItemCount +
-                    " объектов",
-                    Brushes.Orange);
+                SetGlobalStatusResource(
+                    "Panel_HeightMarks_GroupLimit_Format",
+                    Brushes.Orange,
+                    ElevationMarkerPlanHelper.DefaultMaximumItemCount);
                 return;
             }
 
@@ -246,18 +266,18 @@ namespace NavisHelper.WPF
             var names = items.Cast<ModelItem>().Select(HeightItemName).ToList();
             var suggestedName = HeightMarkGroupNameHelper.Suggest(names);
             var groupName = Microsoft.VisualBasic.Interaction.InputBox(
-                "Имя группы выделенных объектов:",
-                "Добавить группу высот",
+                PanelUi("Panel_HeightMarks_GroupName_Prompt"),
+                PanelUi("Panel_HeightMarks_AddGroup_Title"),
                 suggestedName).Trim();
             if (string.IsNullOrWhiteSpace(groupName))
             {
-                SetGlobalStatus("Добавление группы отменено", Brushes.Gray);
+                SetGlobalStatusResource("Panel_HeightMarks_AddGroupCancelled", Brushes.Gray);
                 return;
             }
             if (_heightMarkGroups.Any(existingGroup =>
                     string.Equals(existingGroup.Name, groupName, StringComparison.OrdinalIgnoreCase)))
             {
-                SetGlobalStatus("Группа с таким именем уже существует", Brushes.Orange);
+                SetGlobalStatusResource("Panel_HeightMarks_DuplicateGroup", Brushes.Orange);
                 return;
             }
 
@@ -280,11 +300,11 @@ namespace NavisHelper.WPF
             }
 
             SelectHeightGroupsInModel(new[] { group });
-            SetGlobalStatus(
-                "Добавлена группа \"" + groupName + "\": " +
-                items.Count.ToString(CultureInfo.CurrentCulture) +
-                " объектов",
-                Brushes.DarkGreen);
+            SetGlobalStatusResource(
+                "Panel_HeightMarks_GroupAdded_Format",
+                Brushes.DarkGreen,
+                groupName,
+                items.Count);
         }
 
         private void RemoveSelectedHeightGroups()
@@ -306,8 +326,10 @@ namespace NavisHelper.WPF
                 _suppressHeightGroupSelectionSync = false;
             }
             SelectHeightGroupsInModel(Enumerable.Empty<HeightMarkSessionGroup>());
-            SetGlobalStatus(
-                "Удалено групп: " + selected.Count.ToString(CultureInfo.CurrentCulture));
+            SetGlobalStatusResource(
+                "Panel_HeightMarks_GroupsDeleted_Format",
+                null,
+                selected.Count);
         }
 
         private void ClearHeightGroups()
@@ -325,7 +347,7 @@ namespace NavisHelper.WPF
                 _suppressHeightGroupSelectionSync = false;
             }
             SelectHeightGroupsInModel(Enumerable.Empty<HeightMarkSessionGroup>());
-            SetGlobalStatus("Сессионные группы высот очищены");
+            SetGlobalStatusResource("Panel_HeightMarks_GroupsCleared");
         }
 
         private void OnHeightGroupSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -375,8 +397,8 @@ namespace NavisHelper.WPF
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         EnsureHeightSessionDocument(NwApplication.ActiveDocument);
-                        SetGlobalStatus(
-                            "Документ изменился. Сессионные группы очищены.",
+                        SetGlobalStatusResource(
+                            "Panel_HeightMarks_DocumentChanged",
                             Brushes.Orange);
                     }));
                     return;
@@ -400,25 +422,35 @@ namespace NavisHelper.WPF
                 else
                     document.CurrentSelection.Clear();
 
-                SetGlobalStatus(
-                    selection.Count > 0
-                        ? "В модели выделено объектов из групп: " +
-                          selection.Count.ToString(CultureInfo.CurrentCulture) +
-                          (selection.Count > ElevationMarkerPlanHelper.DefaultMaximumItemCount
-                              ? "; для одной операции меток оставьте не более " +
-                                ElevationMarkerPlanHelper.DefaultMaximumItemCount
-                              : string.Empty)
-                        : "Группы не выбраны",
-                    selection.Count > ElevationMarkerPlanHelper.DefaultMaximumItemCount
-                        ? Brushes.Orange
-                        : selection.Count > 0
-                            ? Brushes.DarkGreen
-                            : Brushes.Gray);
+                if (selection.Count == 0)
+                {
+                    SetGlobalStatusResource(
+                        "Panel_HeightMarks_NoGroupsSelected",
+                        Brushes.Gray);
+                }
+                else if (selection.Count > ElevationMarkerPlanHelper.DefaultMaximumItemCount)
+                {
+                    SetGlobalStatusResource(
+                        "Panel_HeightMarks_ModelSelectionOverLimit_Format",
+                        Brushes.Orange,
+                        selection.Count,
+                        ElevationMarkerPlanHelper.DefaultMaximumItemCount);
+                }
+                else
+                {
+                    SetGlobalStatusResource(
+                        "Panel_HeightMarks_ModelSelection_Format",
+                        Brushes.DarkGreen,
+                        selection.Count);
+                }
             }
             catch (Exception ex)
             {
-                Logger.Error("Не удалось выбрать группу высот: " + ex, "ElevationMarker");
-                SetGlobalStatus("Не удалось выбрать объекты группы: " + ex.Message, Brushes.Red);
+                Logger.Error("Could not select the elevation group: " + ex, "ElevationMarker");
+                SetGlobalStatusResource(
+                    "Panel_HeightMarks_GroupSelectionFailed_Format",
+                    Brushes.Red,
+                    ex.Message);
             }
         }
 
@@ -440,16 +472,19 @@ namespace NavisHelper.WPF
                 : (_heightViewpointName.Text ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(viewpointName))
             {
-                SetGlobalStatus("Укажите имя точки обзора", Brushes.Orange);
+                SetGlobalStatusResource(
+                    "Panel_HeightMarks_ViewpointNameRequired",
+                    Brushes.Orange);
                 return;
             }
 
             _heightMarksBusy = true;
-            SetGlobalBusy(
-                true,
+            SetGlobalStatusResource(
                 includeDimensionLine
-                    ? "Создание размерных линий до Z..."
-                    : "Создание отметок Z...");
+                    ? "Panel_HeightMarks_CreatingDimensions"
+                    : "Panel_HeightMarks_CreatingElevations",
+                Brushes.DarkOrange);
+            SetGlobalBusy(true);
             try
             {
                 var result = ElevationMarkerService.Create(
@@ -459,18 +494,23 @@ namespace NavisHelper.WPF
                     viewpointName,
                     includeDimensionLine);
 
-                SetGlobalStatus(
-                    (includeDimensionLine ? "Создано размерных линий: " : "Создано отметок Z: ") +
-                    result.ItemCount.ToString(CultureInfo.CurrentCulture) +
-                    "; папка \"" + result.FolderName + "\"" +
-                    "; точка обзора \"" + result.ViewpointName + "\"",
-                    Brushes.DarkGreen);
+                SetGlobalStatusResource(
+                    includeDimensionLine
+                        ? "Panel_HeightMarks_DimensionsCreated_Format"
+                        : "Panel_HeightMarks_ElevationsCreated_Format",
+                    Brushes.DarkGreen,
+                    result.ItemCount,
+                    result.FolderName,
+                    result.ViewpointName);
                 _heightViewpointName.Text = DefaultHeightViewpointName();
             }
             catch (Exception ex)
             {
-                Logger.Error("Ошибка высотных меток Z: " + ex, "ElevationMarker");
-                SetGlobalStatus("Высотные метки Z: " + ex.Message, Brushes.Red);
+                Logger.Error("Z elevation marker failure: " + ex, "ElevationMarker");
+                SetGlobalStatusResource(
+                    "Panel_HeightMarks_Failed_Format",
+                    Brushes.Red,
+                    ex.Message);
             }
             finally
             {
@@ -483,41 +523,42 @@ namespace NavisHelper.WPF
         {
             if (ElevationGraphicsMarkerTool.ShowFromCurrentSelection())
             {
-                SetGlobalStatus(
-                    "Показано Graphics-меток: " +
-                    ElevationGraphicsMarkerTool.MarkerCount.ToString(CultureInfo.CurrentCulture),
-                    Brushes.DarkGreen);
+                SetGlobalStatusResource(
+                    "Panel_HeightMarks_GraphicsShown_Format",
+                    Brushes.DarkGreen,
+                    ElevationGraphicsMarkerTool.MarkerCount);
                 return;
             }
 
-            SetGlobalStatus(
-                ElevationGraphicsMarkerTool.LastError ?? "Не удалось показать Graphics-метки",
-                Brushes.Orange);
+            SetGlobalStatusResource(
+                "Panel_HeightMarks_GraphicsFailed_Format",
+                Brushes.Orange,
+                ElevationGraphicsMarkerTool.LastError ?? string.Empty);
         }
 
         private void HideHeightGraphicsMarkers()
         {
             ElevationGraphicsMarkerTool.Hide();
-            SetGlobalStatus("Graphics-метки скрыты", Brushes.Gray);
+            SetGlobalStatusResource("Panel_HeightMarks_GraphicsHidden", Brushes.Gray);
         }
 
         private void SaveHeightScreenshot()
         {
             if (NwApplication.ActiveDocument?.ActiveView == null)
             {
-                SetGlobalStatus("Нет активного окна вида", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Common_NoActiveView", Brushes.Orange);
                 return;
             }
 
-            var defaultName = "Высоты Z " +
+            var defaultName = PanelUi("Panel_HeightMarks_ScreenshotFilePrefix") + " " +
                 DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss", CultureInfo.InvariantCulture) +
                 ".png";
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
-                Title = "Сохранить скрин текущего вида",
+                Title = PanelUi("Panel_HeightMarks_SaveScreenshot_Title"),
                 FileName = defaultName,
                 DefaultExt = ".png",
-                Filter = "PNG (*.png)|*.png|JPEG (*.jpg)|*.jpg|Bitmap (*.bmp)|*.bmp",
+                Filter = PanelUi("Panel_HeightMarks_ScreenshotFileFilter"),
                 AddExtension = true,
                 OverwritePrompt = true,
             };
@@ -536,14 +577,20 @@ namespace NavisHelper.WPF
             string warning;
             if (CurrentViewScreenshotService.TrySave(dialog.FileName, out warning))
             {
-                SetGlobalStatus("Скрин сохранён: " + dialog.FileName, Brushes.DarkGreen);
+                SetGlobalStatusResource(
+                    "Panel_HeightMarks_ScreenshotSaved_Format",
+                    Brushes.DarkGreen,
+                    dialog.FileName);
                 return;
             }
 
-            SetGlobalStatus("Не удалось сохранить скрин: " + warning, Brushes.Red);
+            SetGlobalStatusResource(
+                "Panel_HeightMarks_ScreenshotFailed_Format",
+                Brushes.Red,
+                warning);
             MessageBox.Show(
                 warning,
-                "Сохранение скрина",
+                PanelUi("Panel_HeightMarks_SaveScreenshot_Title"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -560,21 +607,22 @@ namespace NavisHelper.WPF
 
             if (document == null)
             {
-                SetGlobalStatus("Нет активного документа", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Common_NoActiveDocument", Brushes.Orange);
                 return false;
             }
             if (selectedItems.Count == 0)
             {
-                SetGlobalStatus("Выберите объекты для высотных меток", Brushes.Orange);
+                SetGlobalStatusResource(
+                    "Panel_HeightMarks_SelectItems",
+                    Brushes.Orange);
                 return false;
             }
             if (selectedItems.Count > ElevationMarkerPlanHelper.DefaultMaximumItemCount)
             {
-                SetGlobalStatus(
-                    "Выбрано больше " +
-                    ElevationMarkerPlanHelper.DefaultMaximumItemCount +
-                    " объектов",
-                    Brushes.Orange);
+                SetGlobalStatusResource(
+                    "Panel_HeightMarks_SelectionLimit_Format",
+                    Brushes.Orange,
+                    ElevationMarkerPlanHelper.DefaultMaximumItemCount);
                 return false;
             }
 
@@ -602,7 +650,9 @@ namespace NavisHelper.WPF
                     return true;
             }
 
-            SetGlobalStatus("Целевой уровень Z должен быть числом в миллиметрах", Brushes.Orange);
+            SetGlobalStatusResource(
+                "Panel_HeightMarks_InvalidTargetZ",
+                Brushes.Orange);
             return false;
         }
 
@@ -662,7 +712,7 @@ namespace NavisHelper.WPF
         private static string BuildHeightGroupContents(IList<string> names)
         {
             if (names == null || names.Count == 0)
-                return "Нет объектов";
+                return UiLocalizationService.Current.GetString("Panel_HeightMarks_NoObjects");
 
             var visibleNames = names.Take(3).ToList();
             var result = string.Join("; ", visibleNames);
@@ -674,7 +724,7 @@ namespace NavisHelper.WPF
         private static string HeightItemName(ModelItem item)
         {
             if (item == null)
-                return "Объект недоступен";
+                return UiLocalizationService.Current.GetString("Panel_HeightMarks_ItemUnavailable");
             var name = string.IsNullOrWhiteSpace(item.DisplayName)
                 ? item.ClassDisplayName
                 : item.DisplayName;
@@ -683,6 +733,19 @@ namespace NavisHelper.WPF
                    !string.Equals(parent, name, StringComparison.OrdinalIgnoreCase)
                 ? parent + " / " + name
                 : name;
+        }
+
+        private void RefreshHeightGroupLocalizedContents()
+        {
+            foreach (var group in _heightMarkGroups)
+            {
+                var names = group.Items == null
+                    ? new List<string>()
+                    : group.Items.Cast<ModelItem>().Select(HeightItemName).ToList();
+                group.Contents = BuildHeightGroupContents(names);
+            }
+
+            _heightObjectsGrid?.Items.Refresh();
         }
 
         private static string DefaultHeightViewpointName()

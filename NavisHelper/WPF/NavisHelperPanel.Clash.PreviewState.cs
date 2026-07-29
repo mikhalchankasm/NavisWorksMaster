@@ -33,6 +33,8 @@ using WpfColor = System.Windows.Media.Color;
 using NwApplication = Autodesk.Navisworks.Api.Application;
 using NwColor = Autodesk.Navisworks.Api.Color;
 
+using NavisHelper.Core.Localization;
+
 namespace NavisHelper.WPF
 {
     public partial class NavisHelperPanel : UserControl
@@ -51,7 +53,8 @@ namespace NavisHelper.WPF
         private static Autodesk.Navisworks.Api.FolderItem FindOrCreateSavedViewpointFolder(Document doc, string folderName)
         {
             if (doc == null || doc.SavedViewpoints == null || doc.SavedViewpoints.RootItem == null)
-                throw new InvalidOperationException("Saved Viewpoints недоступны.");
+                throw new InvalidOperationException(
+                    UiLocalizationService.Current.GetString("Panel_Clash_SavedViewpointsUnavailable"));
 
             folderName = NormalizeSavedItemName(folderName, "Clash Test");
             foreach (SavedItem item in doc.SavedViewpoints.RootItem.Children)
@@ -69,7 +72,10 @@ namespace NavisHelper.WPF
                     return item as Autodesk.Navisworks.Api.FolderItem;
             }
 
-            throw new InvalidOperationException("Не удалось создать папку Saved Viewpoints: " + folderName);
+            throw new InvalidOperationException(
+                UiLocalizationService.Current.Format(
+                    "Panel_Clash_SavedViewpointFolderFailed_Format",
+                    folderName));
         }
 
         private static string MakeUniqueSavedViewpointName(Autodesk.Navisworks.Api.FolderItem folder, string baseName)
@@ -105,13 +111,13 @@ namespace NavisHelper.WPF
             switch (operation)
             {
                 case "run":
-                    return "выполнено";
+                    return UiLocalizationService.Current.GetString("Panel_Clash_Operation_Run");
                 case "reset":
-                    return "сброшено";
+                    return UiLocalizationService.Current.GetString("Panel_Clash_Operation_Reset");
                 case "compact":
-                    return "сжато";
+                    return UiLocalizationService.Current.GetString("Panel_Clash_Operation_Compact");
                 case "delete":
-                    return "удалено";
+                    return UiLocalizationService.Current.GetString("Panel_Clash_Operation_Delete");
                 default:
                     return operation;
             }
@@ -160,12 +166,14 @@ namespace NavisHelper.WPF
                 OnClashTestSelected();
                 RestoreClashResultSelection(selectedClash);
 
-                var suffix = string.IsNullOrWhiteSpace(reason) ? string.Empty : " (" + reason + ")";
-                SetGlobalStatus($"Clash Detective обновлён: {_loadedTests.Count} тестов{suffix}", Brushes.DarkGreen);
+                SetGlobalStatusResource(
+                    "Panel_Clash_RefreshCompleted_Format",
+                    Brushes.DarkGreen,
+                    _loadedTests.Count);
             }
             catch (Exception ex)
             {
-                SetGlobalStatus("Ошибка обновления Clash UI: " + ex.Message, Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_RefreshFailed_Format", Brushes.Red, ex.Message);
                 Logger.Error("Failed to refresh Clash UI from document: " + ex, "ClashUI");
             }
         }
@@ -178,7 +186,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
-                SetGlobalStatus($"Ошибка: {ex.Message}", Brushes.Red);
+                SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
             }
         }
 
@@ -188,11 +196,11 @@ namespace NavisHelper.WPF
 
             var doc = NwApplication.ActiveDocument;
             if (doc == null || doc.IsClear)
-                throw new InvalidOperationException("Нет активного документа");
+                throw new InvalidOperationException(PanelUi("Panel_Common_NoActiveDocument"));
 
             var clash = doc.GetClash();
             if (clash == null || clash.TestsData == null)
-                throw new InvalidOperationException("Clash Detective недоступен");
+                throw new InvalidOperationException(PanelUi("Panel_Clash_EngineUnavailable"));
 
             _loadedTests = ClashApiCompat.GetClashTests(clash).ToList();
 
@@ -206,7 +214,7 @@ namespace NavisHelper.WPF
             _allTestRows = rows.ToArray();
             FilterTestGrid();
             if (!quiet)
-                SetGlobalStatus($"Загружено тестов: {_loadedTests.Count}", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Clash_TestsLoaded_Format", Brushes.DarkGreen, _loadedTests.Count);
         }
 
         private void FilterTestGrid()
@@ -270,7 +278,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
-                SetGlobalStatus($"Ошибка загрузки коллизий: {ex.Message}", Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_ResultsLoadFailed_Format", Brushes.Red, ex.Message);
                 Logger.Error("Failed to load Clash results for selected test: " + ex, "ClashUI");
             }
         }
@@ -389,7 +397,7 @@ namespace NavisHelper.WPF
                 EnsureSelectedClashRowFreshForPreview();
 
                 var row = _clashGrid.SelectedItem;
-                if (row == null) { SetGlobalStatus("Выберите коллизию", Brushes.Orange); return; }
+                if (row == null) { SetGlobalStatusResource("Panel_Clash_SelectResult", Brushes.Orange); return; }
 
                 var results = GetClashResultsFromRow(row);
                 if (results.Count == 0) return;
@@ -416,26 +424,30 @@ namespace NavisHelper.WPF
                 else
                     _clashMgr.ShowClashResult(results[0]);
 
-                var previewStatus = _clashMgr.LastSuccess
-                    ? results.Count > 1 ? $"Группа показана: {name} ({results.Count})" : $"Коллизия показана: {results[0].DisplayName}"
-                    : _clashMgr.LastStatus;
+                UiStatusResourceDescriptor previewStatus =
+                    PreviewManagerUiStatusMapper.ForClashPreview(_clashMgr.LastUiOutcome);
                 if (_clashMgr.LastSuccess && _clashMgr.UsePairIsolation)
                 {
-                    var isolationStatus = string.IsNullOrWhiteSpace(_clashMgr.LastPairIsolationStatus)
-                        ? "скрыто ветвей " + _clashMgr.LastPairIsolationHiddenBranchCount
-                        : _clashMgr.LastPairIsolationStatus;
-                    previewStatus += $" | только пара: {isolationStatus}" +
-                                     $" за {_clashMgr.LastPairIsolationElapsedMilliseconds} мс";
+                    UiStatusResourceDescriptor isolationStatus =
+                        PreviewManagerUiStatusMapper.ForPairIsolation(
+                            _clashMgr.LastPairIsolationUiOutcome);
+                    previewStatus = new UiStatusResourceDescriptor(
+                        "Panel_Clash_Preview_OnlyPair_Format",
+                        previewStatus.AsLocalizedArgument(),
+                        isolationStatus.AsLocalizedArgument(),
+                        _clashMgr.LastPairIsolationElapsedMilliseconds);
                 }
 
-                SetGlobalStatus(previewStatus, _clashMgr.LastSuccess ? Brushes.DarkGreen : Brushes.Red);
+                SetGlobalStatusResource(
+                    previewStatus,
+                    _clashMgr.LastSuccess ? Brushes.DarkGreen : Brushes.Red);
 
                 // Сохраняем настройки
                 SaveClashSettings();
             }
             catch (Exception ex)
             {
-                SetGlobalStatus($"Ошибка: {ex.Message}", Brushes.Red);
+                SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
             }
         }
 
@@ -549,31 +561,38 @@ namespace NavisHelper.WPF
                 var doc = NwApplication.ActiveDocument;
                 if (doc == null || doc.IsClear || doc.ActiveView == null)
                 {
-                    SetGlobalStatus("Нет активного документа", Brushes.Orange);
+                    SetGlobalStatusResource("Panel_Common_NoActiveDocument", Brushes.Orange);
                     return;
                 }
 
                 var results = GetClashResultsFromRow(_clashGrid?.SelectedItem);
                 if (results.Count == 0)
                 {
-                    SetGlobalStatus("Выберите коллизию или группу", Brushes.Orange);
+                    SetGlobalStatusResource("Panel_Clash_SelectResultOrGroup", Brushes.Orange);
                     return;
                 }
 
                 var centers = GetClashCentersForRedlines(results, includeFallbackCenter: true);
                 if (centers.Count == 0)
                 {
-                    SetGlobalStatus("Нет точек clash для меток", Brushes.Orange);
+                    SetGlobalStatusResource("Panel_Clash_Markers_NoPoints", Brushes.Orange);
                     return;
                 }
 
-                string debug;
+                UiStatusResourceDescriptor debug;
                 var drawn = ApplyClashCenterRedlines(doc, centers, out debug);
-                SetGlobalStatus($"Метки: {drawn}/{centers.Count}{debug}", drawn > 0 ? Brushes.DarkGreen : Brushes.Orange);
+                SetGlobalStatusResource(
+                    "Panel_Clash_Markers_Completed_Format",
+                    drawn > 0 ? Brushes.DarkGreen : Brushes.Orange,
+                    drawn,
+                    centers.Count,
+                    debug == null
+                        ? (object)string.Empty
+                        : debug.AsLocalizedArgument());
             }
             catch (Exception ex)
             {
-                SetGlobalStatus($"Метки ошибка: {ex.Message}", Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_Markers_Failed_Format", Brushes.Red, ex.Message);
             }
         }
 
@@ -584,7 +603,7 @@ namespace NavisHelper.WPF
                 var doc = NwApplication.ActiveDocument;
                 if (doc == null || doc.IsClear || doc.CurrentViewpoint == null)
                 {
-                    SetGlobalStatus("Нет активного вида для сохранения VP", Brushes.Orange);
+                    SetGlobalStatusResource("Panel_Clash_Viewpoint_NoActiveView", Brushes.Orange);
                     return;
                 }
 
@@ -596,11 +615,15 @@ namespace NavisHelper.WPF
                 _clashMgr?.ClearPreviewTransparency();
                 SavedViewpointAppearanceHelper.SaveCurrentViewWithAppearanceOverrides(doc, folder, folderName, viewpointName);
                 SaveClashSettings();
-                SetGlobalStatus($"VP сохранён: {folderName}/{viewpointName}", Brushes.DarkGreen);
+                SetGlobalStatusResource(
+                    "Panel_Clash_Viewpoint_Saved_Format",
+                    Brushes.DarkGreen,
+                    folderName,
+                    viewpointName);
             }
             catch (Exception ex)
             {
-                SetGlobalStatus($"VP ошибка: {ex.Message}", Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_Viewpoint_Failed_Format", Brushes.Red, ex.Message);
             }
         }
 
@@ -659,9 +682,12 @@ namespace NavisHelper.WPF
                 centers.Add(point);
         }
 
-        private int ApplyClashCenterRedlines(Document doc, IList<Point3D> centers, out string debug)
+        private int ApplyClashCenterRedlines(
+            Document doc,
+            IList<Point3D> centers,
+            out UiStatusResourceDescriptor debug)
         {
-            debug = string.Empty;
+            debug = null;
             if (doc == null || doc.ActiveView == null || centers == null || centers.Count == 0)
                 return 0;
 
@@ -708,7 +734,8 @@ namespace NavisHelper.WPF
 
             if (drawn == 0)
             {
-                debug = " | ProjectPoint=null";
+                debug = new UiStatusResourceDescriptor(
+                    "Panel_Clash_Markers_ProjectPointNull_Detail");
                 return 0;
             }
 
@@ -718,7 +745,10 @@ namespace NavisHelper.WPF
             builder.Append("]}");
             RedlineJsonSanitizer.SetSupportedRedlines(view, builder.ToString(), null);
             view.RequestDelayedRedraw(ViewRedrawRequests.All);
-            debug = $" | markers {drawn}/{centers.Count}";
+            debug = new UiStatusResourceDescriptor(
+                "Panel_Clash_Markers_Debug_Detail_Format",
+                drawn,
+                centers.Count);
             return drawn;
         }
 

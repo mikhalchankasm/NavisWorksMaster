@@ -5,6 +5,7 @@ using System.Linq;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Clash;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using Application = Autodesk.Navisworks.Api.Application;
 using Color = Autodesk.Navisworks.Api.Color;
 
@@ -47,6 +48,12 @@ namespace NavisHelper
         public int LastPairIsolationHiddenBranchCount { get; private set; }
         public long LastPairIsolationElapsedMilliseconds { get; private set; }
         public string LastPairIsolationStatus { get; private set; } = "";
+        internal PreviewManagerUiOutcome LastUiOutcome { get; private set; } =
+            PreviewManagerUiOutcome.None;
+        internal PreviewManagerUiOutcome LastPairIsolationUiOutcome { get; private set; } =
+            PreviewManagerUiOutcome.None;
+        internal PreviewManagerUiOutcome LastTransparencyUiOutcome { get; private set; } =
+            PreviewManagerUiOutcome.None;
 
         /// <summary>Показать коллизию: подсветка + zoom + section box.</summary>
         public void ShowClashResult(ClashResult cr)
@@ -55,6 +62,8 @@ namespace NavisHelper
             if (!ClearPairIsolation(false))
             {
                 LastStatus = "Не удалось восстановить предыдущий режим «Только пара»";
+                LastUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.ClashPairRestoreFailed);
                 LastSuccess = false;
                 return;
             }
@@ -69,6 +78,9 @@ namespace NavisHelper
             if ((items1 == null || items1.Count == 0) && (items2 == null || items2.Count == 0))
             {
                 LastStatus = $"Нет элементов: {cr.DisplayName}";
+                LastUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.ClashResultNoItems,
+                    cr.DisplayName);
                 LastSuccess = false;
                 return;
             }
@@ -188,6 +200,12 @@ namespace NavisHelper
             var name1 = items1.Count > 0 ? items1.First().DisplayName : "?";
             var name2 = items2.Count > 0 ? items2.First().DisplayName : "?";
             LastStatus = $"{cr.DisplayName}\n  A: {name1}\n  B: {name2}{markerInfo}";
+            LastUiOutcome = new PreviewManagerUiOutcome(
+                PreviewManagerUiOutcomeKind.ClashResultShown,
+                cr.DisplayName,
+                name1,
+                name2,
+                LastClashCenter);
             LastSuccess = true;
         }
 
@@ -197,6 +215,8 @@ namespace NavisHelper
             if (!ClearPairIsolation(false))
             {
                 LastStatus = "Не удалось восстановить предыдущий режим «Только пара»";
+                LastUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.ClashPairRestoreFailed);
                 LastSuccess = false;
                 return;
             }
@@ -207,6 +227,8 @@ namespace NavisHelper
             if (list.Count == 0)
             {
                 LastStatus = "Нет коллизий в группе";
+                LastUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.ClashGroupEmpty);
                 LastSuccess = false;
                 return;
             }
@@ -248,6 +270,11 @@ namespace NavisHelper
             if (items1.Count == 0 && items2.Count == 0)
             {
                 LastStatus = $"Нет элементов: {groupName}";
+                LastUiOutcome = new PreviewManagerUiOutcome(
+                    string.IsNullOrWhiteSpace(groupName)
+                        ? PreviewManagerUiOutcomeKind.ClashGroupNoItemsUnnamed
+                        : PreviewManagerUiOutcomeKind.ClashGroupNoItems,
+                    groupName);
                 LastSuccess = false;
                 return;
             }
@@ -343,6 +370,18 @@ namespace NavisHelper
 
             var displayName = string.IsNullOrWhiteSpace(groupName) ? "Группа коллизий" : groupName;
             LastStatus = $"{displayName}\n  Коллизий: {list.Count}\n  A: {items1.Count}\n  B: {items2.Count}";
+            LastUiOutcome = string.IsNullOrWhiteSpace(groupName)
+                ? new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.ClashGroupShownUnnamed,
+                    list.Count,
+                    items1.Count,
+                    items2.Count)
+                : new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.ClashGroupShown,
+                    displayName,
+                    list.Count,
+                    items1.Count,
+                    items2.Count);
             LastSuccess = true;
         }
 
@@ -485,6 +524,9 @@ namespace NavisHelper
                 // Keep the handles so a later reset can retry the restore.
                 Logger.Error("Failed to restore Clash pair isolation: " + ex.Message, "ClashPreview");
                 LastPairIsolationStatus = "не удалось восстановить видимость: " + ex.Message;
+                LastPairIsolationUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.PairIsolationRestoreFailed,
+                    ex.Message);
                 return false;
             }
         }
@@ -492,6 +534,7 @@ namespace NavisHelper
         private void ApplyPairIsolation(Document document, ModelItemCollection pairItems)
         {
             LastPairIsolationStatus = "";
+            LastPairIsolationUiOutcome = PreviewManagerUiOutcome.None;
             if (!UsePairIsolation || document == null || pairItems == null || pairItems.Count == 0)
                 return;
 
@@ -519,6 +562,8 @@ namespace NavisHelper
                 timer.Stop();
                 LastPairIsolationElapsedMilliseconds = timer.ElapsedMilliseconds;
                 LastPairIsolationStatus = "изоляция пропущена: объекты A/B не принадлежат активной модели";
+                LastPairIsolationUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.PairIsolationSkippedInactiveModel);
                 return;
             }
 
@@ -567,6 +612,10 @@ namespace NavisHelper
                     LastPairIsolationStatus += "; пропущено proxy items без состояния видимости " +
                                                detachedVisibilityItemCount.ToString();
                 }
+                LastPairIsolationUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.PairIsolationApplied,
+                    hiddenBranches.Count,
+                    detachedVisibilityItemCount);
                 try { document.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All); }
                 catch { }
             }
@@ -585,6 +634,7 @@ namespace NavisHelper
             LastPairIsolationHiddenBranchCount = 0;
             LastPairIsolationElapsedMilliseconds = 0;
             LastPairIsolationStatus = "";
+            LastPairIsolationUiOutcome = PreviewManagerUiOutcome.None;
         }
 
         private static void CollectPairIsolationFrontier(
@@ -808,17 +858,24 @@ namespace NavisHelper
         public int ApplyClashRootContextTransparency()
         {
             LastFullBoxTransparencyStatus = "";
+            LastTransparencyUiOutcome = PreviewManagerUiOutcome.None;
             var doc = Application.ActiveDocument;
             double trans = ContextTransparency;
             if (doc == null || trans <= 0)
             {
                 LastFullBoxTransparencyStatus = doc == null ? "нет активного документа" : "уровень 0%";
+                LastTransparencyUiOutcome = new PreviewManagerUiOutcome(
+                    doc == null
+                        ? PreviewManagerUiOutcomeKind.TransparencyNoActiveDocument
+                        : PreviewManagerUiOutcomeKind.TransparencyZeroLevel);
                 return 0;
             }
 
             if (_prevColoredItems == null || _prevColoredItems.Count == 0)
             {
                 LastFullBoxTransparencyStatus = "clash items не найдены";
+                LastTransparencyUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.TransparencyClashItemsMissing);
                 return 0;
             }
 
@@ -852,8 +909,10 @@ namespace NavisHelper
             LastExpandedBox = null;
             LastClashCenter = null;
             LastStatus = string.Empty;
+            LastUiOutcome = PreviewManagerUiOutcome.None;
             LastSuccess = false;
             LastFullBoxTransparencyStatus = string.Empty;
+            LastTransparencyUiOutcome = PreviewManagerUiOutcome.None;
         }
 
         /// <summary>
@@ -864,7 +923,17 @@ namespace NavisHelper
         {
             var doc = Application.ActiveDocument;
             double trans = ContextTransparency;
-            if (trans <= 0) return 0;
+            LastFullBoxTransparencyStatus = "";
+            LastTransparencyUiOutcome = PreviewManagerUiOutcome.None;
+            if (doc == null || trans <= 0)
+            {
+                LastFullBoxTransparencyStatus = doc == null ? "нет активного документа" : "уровень 0%";
+                LastTransparencyUiOutcome = new PreviewManagerUiOutcome(
+                    doc == null
+                        ? PreviewManagerUiOutcomeKind.TransparencyNoActiveDocument
+                        : PreviewManagerUiOutcomeKind.TransparencyZeroLevel);
+                return 0;
+            }
 
             var selection = doc.CurrentSelection.SelectedItems;
             if (selection.Count == 0) return 0;
@@ -875,6 +944,7 @@ namespace NavisHelper
         private int ApplyOwnerTransparency(Document doc, IEnumerable<ModelItem> sourceItems, IEnumerable<ModelItem> opaqueItems, string statusPrefix)
         {
             LastFullBoxTransparencyStatus = "";
+            LastTransparencyUiOutcome = PreviewManagerUiOutcome.None;
             if (doc == null || sourceItems == null || ContextTransparency <= 0)
                 return 0;
 
@@ -887,6 +957,8 @@ namespace NavisHelper
             if (ownerItems.Count == 0)
             {
                 LastFullBoxTransparencyStatus = statusPrefix + ": владельцы не найдены";
+                LastTransparencyUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.TransparencyOwnersMissing);
                 return 0;
             }
 
@@ -919,6 +991,10 @@ namespace NavisHelper
 
             LastFullBoxTransparencyStatus =
                 $"{statusPrefix}: владельцев {ownerItems.Count}, текущих непрозрачных {opaqueCollection.Count}";
+            LastTransparencyUiOutcome = new PreviewManagerUiOutcome(
+                PreviewManagerUiOutcomeKind.TransparencyApplied,
+                ownerItems.Count,
+                opaqueCollection.Count);
 
             return ownerItems.Count;
         }

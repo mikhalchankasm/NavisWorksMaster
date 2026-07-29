@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using Microsoft.VisualBasic;
 using Path = System.IO.Path;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NavisHelper.Interfaces;
 using NavisHelper.Agent.Services;
 using Autodesk.Navisworks.Api;
@@ -53,12 +54,35 @@ namespace NavisHelper.WPF
                 });
             }
             var content = new StackPanel { Orientation = Orientation.Horizontal };
-            content.Children.Add(new TextBlock { Text = $"{(int)scheme}. {ColorSchemes.GetSchemeNameRu(scheme)}", VerticalAlignment = VerticalAlignment.Center, Width = 150 });
+            content.Children.Add(new TextBlock
+            {
+                Text = $"{(int)scheme}. {ColorSchemeUiText.GetName(UiLocalizationService.Current, scheme)}",
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 150
+            });
             content.Children.Add(colorDots);
             return new ListBoxItem { Content = content, Tag = scheme };
         }
 
         private void OnSchemeSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateColorPreview();
+
+        private void RefreshSchemeListItemTexts()
+        {
+            if (_schemeListBox == null)
+                return;
+
+            foreach (ListBoxItem item in _schemeListBox.Items.OfType<ListBoxItem>())
+            {
+                var content = item.Content as StackPanel;
+                var label = content?.Children.OfType<TextBlock>().FirstOrDefault();
+                if (label == null || !(item.Tag is ColorSchemeType))
+                    continue;
+
+                var scheme = (ColorSchemeType)item.Tag;
+                label.Text =
+                    $"{(int)scheme}. {ColorSchemeUiText.GetName(UiLocalizationService.Current, scheme)}";
+            }
+        }
 
         private void UpdateColorPreview()
         {
@@ -90,7 +114,13 @@ namespace NavisHelper.WPF
             try
             {
                 var selected = _schemeListBox.SelectedItem as ListBoxItem;
-                if (selected == null) { MessageBox.Show("Выберите схему из списка.", "AI Цвета"); return; }
+                if (selected == null)
+                {
+                    MessageBox.Show(
+                        PanelUi("Panel_Colors_SelectScheme"),
+                        PanelUi("Panel_Colors_Ai_Title"));
+                    return;
+                }
                 var scheme = (ColorSchemeType)selected.Tag;
                 AIConfig.Instance.SetColorScheme((int)scheme);
 
@@ -98,14 +128,20 @@ namespace NavisHelper.WPF
                 {
                     var model = _modelCombo?.SelectedItem as string ?? AIConfig.Instance.ModelName;
                     var thinking = _thinkingCheck?.IsChecked == true;
-                    _aiResponseLog.Text = $"Запуск...\nМодель: {model} (thinking: {(thinking ? "вкл" : "выкл")})\n" +
-                                          $"Схема: {ColorSchemes.GetSchemeNameRu(scheme)}\n" +
-                                          "Ожидание ответа...\n";
+                    _aiResponseLog.Text = UiLocalizationService.Current.Format(
+                        "Panel_Colors_Ai_Starting_Format",
+                        model,
+                        thinking
+                            ? PanelUi("Panel_Common_Enabled")
+                            : PanelUi("Panel_Common_Disabled"),
+                        ColorSchemeUiText.GetName(
+                            UiLocalizationService.Current,
+                            scheme));
                 }
 
                 NwApplication.Plugins.ExecuteAddInPlugin("AIColorObjects.CBC");
             }
-            catch (Exception ex) { MessageBox.Show("Ошибка: " + ex.Message, "AI Цвета", MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         /// <summary>
@@ -129,7 +165,8 @@ namespace NavisHelper.WPF
 
             if (colors == null || colors.Count == 0)
             {
-                sb.AppendLine("Цвета не получены. Проверьте ключ OPEN_ROUTER_NW_KEY и подключение.");
+                sb.AppendLine(UiLocalizationService.Current.GetString(
+                    "Panel_Colors_Ai_NoColors"));
                 return sb.ToString();
             }
 
@@ -142,23 +179,36 @@ namespace NavisHelper.WPF
                 byColor[kvp.Value].Add(kvp.Key);
             }
 
-            sb.AppendLine($"Результат: {colors.Count} объектов, {byColor.Count} групп");
+            sb.AppendLine(UiLocalizationService.Current.Format(
+                "Panel_Colors_Ai_ResultSummary_Format",
+                colors.Count,
+                byColor.Count));
             sb.AppendLine(new string('=', 50));
             sb.AppendLine();
 
             // Таблица в markdown-подобном стиле
             // Определяем ширину колонок
-            int maxGroupName = 5; // "Группа"
+            string groupHeader = UiLocalizationService.Current.GetString(
+                "Panel_Colors_Ai_GroupColumn");
+            int maxGroupName = groupHeader.Length;
             foreach (var g in byColor)
             {
                 var nameLen = g.Value.Count > 1
-                    ? $"{g.Value.Count} объектов".Length
+                    ? UiLocalizationService.Current.Format(
+                        "Panel_Colors_Ai_ObjectCount_Format",
+                        g.Value.Count).Length
                     : g.Value[0].Length;
                 if (nameLen > maxGroupName) maxGroupName = nameLen;
             }
             maxGroupName = Math.Min(maxGroupName, 30);
 
-            sb.AppendLine("#".PadRight(3) + " | " + "Группа".PadRight(maxGroupName) + " | " + "Цвет RGB".PadRight(15) + " | Кол-во");
+            sb.AppendLine(
+                "#".PadRight(3) + " | " +
+                groupHeader.PadRight(maxGroupName) + " | " +
+                UiLocalizationService.Current.GetString(
+                    "Panel_Colors_Ai_RgbColumn").PadRight(15) + " | " +
+                UiLocalizationService.Current.GetString(
+                    "Panel_Colors_Ai_CountColumn"));
             sb.AppendLine(new string('-', 3) + "-+-" + new string('-', maxGroupName) + "-+-" + new string('-', 15) + "-+-------");
 
             int groupNum = 1;
@@ -180,12 +230,16 @@ namespace NavisHelper.WPF
             sb.AppendLine();
 
             // Детальный список
-            sb.AppendLine("Детали по группам:");
+            sb.AppendLine(UiLocalizationService.Current.GetString(
+                "Panel_Colors_Ai_GroupDetails"));
             sb.AppendLine(new string('-', 50));
             groupNum = 1;
             foreach (var group in byColor)
             {
-                sb.AppendLine($"Группа {groupNum} — RGB({group.Key}):");
+                sb.AppendLine(UiLocalizationService.Current.Format(
+                    "Panel_Colors_Ai_GroupDetail_Format",
+                    groupNum,
+                    group.Key));
                 foreach (var name in group.Value)
                     sb.AppendLine($"  {name}");
                 sb.AppendLine();
@@ -197,8 +251,8 @@ namespace NavisHelper.WPF
 
         /// <summary>
         /// Извлекает читаемое имя группы из списка объектов.
-        /// "/24-008-ОВ_ВЕ1.1", "/24-008-ОВ_ВЕ2" → "ВЕ (6 шт.)"
-        /// "/240100-ТК1-Футляр1220_1" → "Футляр (7 шт.)"
+        /// Example: two related ventilation-system names are collapsed to a shared label and count.
+        /// Example: numbered casing names are collapsed to the casing label and count.
         /// </summary>
 
         private static string ExtractGroupLabel(List<string> names)
@@ -216,14 +270,14 @@ namespace NavisHelper.WPF
 
             if (dashParts.Length >= 3)
             {
-                // "/240100-ТК1-Футляр1220_1" → last dash part = "Футляр1220_1"
+                // Use the segment after the last dash.
                 var lastDash = dashParts[dashParts.Length - 1];
                 var uParts = lastDash.Split('_');
                 candidate = uParts.Length >= 2 ? uParts[0] + "_" + uParts[1] : lastDash;
             }
             else if (underscoreIdx > 0)
             {
-                // "24-008-ОВ_ВЕ1.3" → after first _ after ОВ
+                // Use the segment after the first underscore following the system code.
                 var afterPrefix = sample.Substring(sample.IndexOf('_') + 1);
                 candidate = afterPrefix;
             }
@@ -243,7 +297,10 @@ namespace NavisHelper.WPF
             }
 
             var label = root.Length > 0 ? root.ToString() : candidate;
-            return label + " (" + names.Count + " шт.)";
+            return UiLocalizationService.Current.Format(
+                "Panel_Colors_Ai_GroupLabel_Format",
+                label,
+                names.Count);
         }
 
         private void OnSaveAIResponse(object sender, RoutedEventArgs e)
@@ -251,12 +308,12 @@ namespace NavisHelper.WPF
             try
             {
                 var text = _aiResponseLog?.Text;
-                if (string.IsNullOrEmpty(text)) { MessageBox.Show("Нет данных для сохранения.", "AI Цвета"); return; }
+                if (string.IsNullOrEmpty(text)) { MessageBox.Show(PanelUi("Panel_Colors_Ai_NoDataToSave"), PanelUi("Panel_Colors_Ai_Title")); return; }
 
                 var dlg = new Microsoft.Win32.SaveFileDialog
                 {
-                    Title = "Сохранить ответ AI",
-                    Filter = "Текстовый файл (*.txt)|*.txt|Markdown (*.md)|*.md",
+                    Title = PanelUi("Panel_Colors_AiResponse_Save_Title"),
+                    Filter = PanelUi("Panel_Colors_Ai_ResponseFileFilter"),
                     DefaultExt = ".txt",
                     FileName = $"AI_Colors_{DateTime.Now:yyyyMMdd_HHmmss}"
                 };
@@ -264,10 +321,12 @@ namespace NavisHelper.WPF
                 if (dlg.ShowDialog() == true)
                 {
                     System.IO.File.WriteAllText(dlg.FileName, text, System.Text.Encoding.UTF8);
-                    MessageBox.Show($"Сохранено: {dlg.FileName}", "AI Цвета");
+                    MessageBox.Show(
+                        UiLocalizationService.Current.Format("Panel_Common_Saved_Format", dlg.FileName),
+                        PanelUi("Panel_Colors_Ai_Title"));
                 }
             }
-            catch (Exception ex) { MessageBox.Show("Ошибка сохранения: " + ex.Message, "AI Цвета", MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_SaveFailed_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         // ============================================================
@@ -284,7 +343,7 @@ namespace NavisHelper.WPF
                 var sel = doc.CurrentSelection.SelectedItems;
                 if (sel == null || sel.Count == 0)
                 {
-                    MessageBox.Show("Выделите объект для считывания цвета.", "Match Color");
+                    MessageBox.Show(PanelUi("Panel_Colors_Match_SelectSource"), PanelUi("Panel_Colors_Match_Title"));
                     return;
                 }
 
@@ -300,7 +359,7 @@ namespace NavisHelper.WPF
 
                 if (nwCol == null)
                 {
-                    MessageBox.Show("Не удалось считать цвет объекта.", "Match Color");
+                    MessageBox.Show(PanelUi("Panel_Colors_Match_ReadFailed"), PanelUi("Panel_Colors_Match_Title"));
                     return;
                 }
 
@@ -317,7 +376,7 @@ namespace NavisHelper.WPF
                 if (_matchTransText != null)
                     _matchTransText.Text = ((int)(_matchTransparency * 100)).ToString() + "%";
             }
-            catch (Exception ex) { MessageBox.Show("Ошибка: " + ex.Message, "Match Color", MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Match_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         private void OnPickAndApplyColor()
@@ -327,11 +386,11 @@ namespace NavisHelper.WPF
                 OnPickColor(null, null);
                 OnPasteColor(null, null);
                 if (!string.IsNullOrEmpty(_matchColorRgb))
-                    SetGlobalStatus($"Match Color: применён цвет {_matchColorRgb}", Brushes.DarkGreen);
+                    SetGlobalStatusResource("Panel_Colors_Match_Applied_Format", Brushes.DarkGreen, _matchColorRgb);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Match Color", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Match_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -349,11 +408,11 @@ namespace NavisHelper.WPF
                     _matchColorText.Text = _matchColorRgb;
                 ApplyManualColorTransparency(input, color);
 
-                SetGlobalStatus($"Match Color: считан цвет {_matchColorRgb}", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Colors_Match_Read_Format", Brushes.DarkGreen, _matchColorRgb);
             }
             catch (Exception ex)
             {
-                SetGlobalStatus($"Не удалось разобрать цвет: {ex.Message}", Brushes.DarkRed);
+                SetGlobalStatusResource("Panel_Colors_Match_ParseFailed_Format", Brushes.DarkRed, ex.Message);
             }
         }
 
@@ -384,7 +443,7 @@ namespace NavisHelper.WPF
                 var selection = doc.CurrentSelection.SelectedItems;
                 if (selection == null || selection.Count == 0)
                 {
-                    MessageBox.Show("Выделите элементы для авто-окраски.", "Color by Property");
+                    MessageBox.Show(PanelUi("Panel_Colors_Property_SelectItems"), PanelUi("Panel_Colors_Property_Title"));
                     return;
                 }
 
@@ -397,7 +456,7 @@ namespace NavisHelper.WPF
                     if (item == null) continue;
                     string value = FindPropertyValue(item, PropertyAliases);
                     if (string.IsNullOrWhiteSpace(value))
-                        value = "— без значения —";
+                        value = PanelUi("Panel_Colors_Property_NoValue");
 
                     if (!groups.TryGetValue(value, out var group))
                     {
@@ -406,7 +465,11 @@ namespace NavisHelper.WPF
                     }
                     group.Add(item);
 
-                    var objectName = string.IsNullOrWhiteSpace(item.DisplayName) ? $"<без имени #{objectNames.Count + 1}>" : item.DisplayName;
+                    var objectName = string.IsNullOrWhiteSpace(item.DisplayName)
+                        ? UiLocalizationService.Current.Format(
+                            "Panel_Colors_Property_Unnamed_Format",
+                            objectNames.Count + 1)
+                        : item.DisplayName;
                     objectNames.Add(objectName);
                 }
 
@@ -424,7 +487,11 @@ namespace NavisHelper.WPF
                     string rgbText = $"{color.Item1},{color.Item2},{color.Item3}";
                     foreach (var item in kv.Value)
                     {
-                        string key = string.IsNullOrWhiteSpace(item.DisplayName) ? $"<без имени #{colors.Count + 1}>" : item.DisplayName;
+                        string key = string.IsNullOrWhiteSpace(item.DisplayName)
+                            ? UiLocalizationService.Current.Format(
+                                "Panel_Colors_Property_Unnamed_Format",
+                                colors.Count + 1)
+                            : item.DisplayName;
                         while (colors.ContainsKey(key))
                             key = $"{key}_{colors.Count + 1}";
                         colors[key] = rgbText;
@@ -432,11 +499,11 @@ namespace NavisHelper.WPF
                 }
 
                 AddColorHistory(objectNames, colors, CopyModelItems(selection));
-                SetGlobalStatus($"Color by Property: {groups.Count} групп, {objectNames.Count} элементов", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Colors_Property_Result_Format", Brushes.DarkGreen, groups.Count, objectNames.Count);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Color by Property", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Property_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -453,11 +520,11 @@ namespace NavisHelper.WPF
                 try { doc.CurrentSelection.Clear(); } catch { }
                 try { doc.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All); } catch { }
 
-                SetGlobalStatus("Overrides NavisHelper сброшены", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Colors_OverridesReset", Brushes.DarkGreen);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Reset overrides", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Overrides_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -471,7 +538,7 @@ namespace NavisHelper.WPF
                 var selected = doc.CurrentSelection.SelectedItems;
                 if (selected == null || selected.Count == 0)
                 {
-                    MessageBox.Show("Выделите один или несколько элементов.", "Select by Property Value");
+                    MessageBox.Show(PanelUi("Panel_Colors_SelectByProperty_SelectItems"), PanelUi("Panel_Colors_SelectByProperty_Title"));
                     return;
                 }
 
@@ -485,9 +552,10 @@ namespace NavisHelper.WPF
 
                 var suggestion = string.Join(", ", sourceValues.Take(6));
                 var input = Microsoft.VisualBasic.Interaction.InputBox(
-                    "Введите точное значение свойства (Система / Спец / Отметка):\n" +
-                    (string.IsNullOrWhiteSpace(suggestion) ? string.Empty : $"Доступные из выделения: {suggestion}"),
-                    "Select by Property Value",
+                    UiLocalizationService.Current.Format(
+                        "Panel_Colors_SelectByProperty_Prompt_Format",
+                        suggestion),
+                    PanelUi("Panel_Colors_SelectByProperty_Title"),
                     sourceValues.FirstOrDefault() ?? string.Empty);
 
                 if (string.IsNullOrWhiteSpace(input))
@@ -506,18 +574,18 @@ namespace NavisHelper.WPF
 
                 if (result.Count == 0)
                 {
-                    SetGlobalStatus("По этому значению ничего не найдено", Brushes.Orange);
-                    MessageBox.Show("По этому значению ничего не найдено.", "Select by Property Value");
+                    SetGlobalStatusResource("Panel_Colors_SelectByProperty_NoMatches", Brushes.Orange);
+                    MessageBox.Show(PanelUi("Panel_Colors_SelectByProperty_NoMatches"), PanelUi("Panel_Colors_SelectByProperty_Title"));
                     return;
                 }
 
                 doc.CurrentSelection.Clear();
                 doc.CurrentSelection.CopyFrom(result);
-                SetGlobalStatus($"Выделено по значению: {result.Count} эл.", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Colors_SelectByProperty_Result_Format", Brushes.DarkGreen, result.Count);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Select by Property Value", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_SelectByProperty_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -528,13 +596,21 @@ namespace NavisHelper.WPF
                 var doc = NwApplication.ActiveDocument;
                 if (doc == null || doc.IsClear)
                 {
-                    MessageBox.Show("Нет активной модели.", "Поисковый набор", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show(
+                        PanelUi("Panel_Colors_SearchSet_NoActiveModel"),
+                        PanelUi("Panel_Colors_SearchSet_Title"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
                     return;
                 }
 
                 if (doc.SelectionSets == null || doc.SelectionSets.RootItem == null)
                 {
-                    MessageBox.Show("В активной модели недоступны Selection Sets.", "Поисковый набор", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show(
+                        PanelUi("Panel_Colors_SearchSet_Unavailable"),
+                        PanelUi("Panel_Colors_SearchSet_Title"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
                     return;
                 }
 
@@ -549,8 +625,8 @@ namespace NavisHelper.WPF
                 if (existing != null && !(existing is SelectionSet))
                 {
                     MessageBox.Show(
-                        "В целевой папке уже есть папка или другой сохранённый элемент с таким именем. Укажите другое имя набора.",
-                        "Поисковый набор",
+                        PanelUi("Panel_Colors_SearchSet_NameConflict"),
+                        PanelUi("Panel_Colors_SearchSet_Title"),
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning);
                     return;
@@ -559,8 +635,8 @@ namespace NavisHelper.WPF
                 if (existing != null && !options.OverwriteExisting)
                 {
                     MessageBox.Show(
-                        "В целевой папке уже есть поисковый/выборочный набор с таким именем.",
-                        "Поисковый набор",
+                        PanelUi("Panel_Colors_SearchSet_Existing"),
+                        PanelUi("Panel_Colors_SearchSet_Title"),
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning);
                     return;
@@ -569,8 +645,10 @@ namespace NavisHelper.WPF
                 if (existing != null)
                 {
                     var overwriteResult = MessageBox.Show(
-                        "Заменить существующий набор \"" + options.SetName + "\" в этой папке?",
-                        "Поисковый набор",
+                        UiLocalizationService.Current.Format(
+                            "Panel_Colors_SearchSet_Replace_Format",
+                            options.SetName),
+                        PanelUi("Panel_Colors_SearchSet_Title"),
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Question);
                     if (overwriteResult != MessageBoxResult.Yes)
@@ -587,7 +665,8 @@ namespace NavisHelper.WPF
                 {
                     var existingIndex = targetFolder.Children.IndexOf(existing);
                     if (existingIndex < 0)
-                        throw new InvalidOperationException("Не удалось найти существующий набор в целевой папке.");
+                        throw new InvalidOperationException(
+                            PanelUi("Panel_Colors_SearchSet_ExistingNotFound"));
 
                     doc.SelectionSets.ReplaceWithCopy(targetFolder, existingIndex, searchSet);
                 }
@@ -602,17 +681,25 @@ namespace NavisHelper.WPF
                     doc.CurrentSelection.CopyFrom(matchedItems);
                 }
 
-                var folderText = string.IsNullOrWhiteSpace(options.FolderPath) ? "корень Selection Sets" : options.FolderPath;
-                var actionText = existing == null ? "создан" : "обновлён";
-                SetGlobalStatus($"Search Set {actionText}: {folderText}/{options.SetName}, найдено {matchedItems.Count} эл.", matchedItems.Count > 0 ? Brushes.DarkGreen : Brushes.Orange);
+                object folderText = string.IsNullOrWhiteSpace(options.FolderPath)
+                    ? LocalizedStatusArgument("Panel_Colors_SearchSet_Root")
+                    : (object)options.FolderPath;
+                SetGlobalStatusResource(
+                    existing == null
+                        ? "Panel_Colors_SearchSet_Created_Format"
+                        : "Panel_Colors_SearchSet_Updated_Format",
+                    matchedItems.Count > 0 ? Brushes.DarkGreen : Brushes.Orange,
+                    folderText,
+                    options.SetName,
+                    matchedItems.Count);
 
                 if (createdFolderCount > 0)
-                    Logger.Info($"Создано папок Selection Sets: {createdFolderCount}; Search Set: {options.FolderPath}/{options.SetName}", "NavisHelperPanel");
+                    Logger.Info($"Selection Sets folders created: {createdFolderCount}; Search Set: {options.FolderPath}/{options.SetName}", "NavisHelperPanel");
             }
             catch (Exception ex)
             {
-                Logger.Error($"Ошибка создания поискового набора: {ex}", "NavisHelperPanel");
-                MessageBox.Show("Ошибка: " + ex.Message, "Поисковый набор", MessageBoxButton.OK, MessageBoxImage.Error);
+                Logger.Error($"Search Set creation failed: {ex}", "NavisHelperPanel");
+                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_SearchSet_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -621,7 +708,7 @@ namespace NavisHelper.WPF
             var defaults = BuildDefaultSearchSetOptions(doc);
             var dialog = new Window
             {
-                Title = "Сохранить поисковый набор",
+                Title = PanelUi("Panel_Colors_SearchSet_Save_Title"),
                 Owner = Window.GetWindow(this),
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 ResizeMode = ResizeMode.NoResize,
@@ -633,33 +720,33 @@ namespace NavisHelper.WPF
             form.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
             form.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            TextBox folderBox = AddSearchSetTextRow(form, 0, "Папка", defaults.FolderPath);
-            TextBox nameBox = AddSearchSetTextRow(form, 1, "Имя набора", defaults.SetName);
-            TextBox categoryBox = AddSearchSetTextRow(form, 2, "Категория", defaults.Category);
-            TextBox propertyBox = AddSearchSetTextRow(form, 3, "Свойство", defaults.Property);
+            TextBox folderBox = AddSearchSetTextRow(form, 0, "Panel_Folder", defaults.FolderPath);
+            TextBox nameBox = AddSearchSetTextRow(form, 1, "Panel_SetName", defaults.SetName);
+            TextBox categoryBox = AddSearchSetTextRow(form, 2, "Panel_Category", defaults.Category);
+            TextBox propertyBox = AddSearchSetTextRow(form, 3, "Panel_Property", defaults.Property);
 
             form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var opLabel = new TextBlock { Text = "Оператор", Margin = new Thickness(0, 4, 10, 4), VerticalAlignment = VerticalAlignment.Center };
+            var opLabel = new TextBlock { Text = PanelUi("Panel_Operator"), Margin = new Thickness(0, 4, 10, 4), VerticalAlignment = VerticalAlignment.Center };
             Grid.SetRow(opLabel, 4);
             Grid.SetColumn(opLabel, 0);
             form.Children.Add(opLabel);
             var operatorCombo = new ComboBox { Margin = new Thickness(0, 4, 0, 4), Height = 24 };
-            operatorCombo.Items.Add("Содержит");
-            operatorCombo.Items.Add("Точно равно");
+            operatorCombo.Items.Add(PanelUi("Panel_Contains"));
+            operatorCombo.Items.Add(PanelUi("Panel_ExactlyEquals"));
             operatorCombo.Items.Add("Wildcard");
-            operatorCombo.Items.Add("Свойство задано");
+            operatorCombo.Items.Add(PanelUi("Panel_PropertyExists"));
             operatorCombo.SelectedIndex = 0;
             Grid.SetRow(operatorCombo, 4);
             Grid.SetColumn(operatorCombo, 1);
             form.Children.Add(operatorCombo);
 
-            TextBox valueBox = AddSearchSetTextRow(form, 5, "Значение", defaults.Value);
+            TextBox valueBox = AddSearchSetTextRow(form, 5, "Panel_Value", defaults.Value);
 
             root.Children.Add(form);
 
             var overwriteCheck = new CheckBox
             {
-                Content = "Перезаписать набор с таким именем в этой папке",
+                Content = PanelUi("Panel_Colors_SearchSet_Overwrite_ToolTip"),
                 IsChecked = false,
                 Margin = new Thickness(120, 0, 0, 6)
             };
@@ -667,15 +754,15 @@ namespace NavisHelper.WPF
 
             var selectCheck = new CheckBox
             {
-                Content = "Выделить найденные элементы после создания",
+                Content = PanelUi("Panel_Colors_SearchSet_SelectAfterCreate_ToolTip"),
                 IsChecked = true,
                 Margin = new Thickness(120, 0, 0, 12)
             };
             root.Children.Add(selectCheck);
 
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var okButton = new Button { Content = "Создать", Width = 92, Height = 28, Margin = new Thickness(0, 0, 8, 0), IsDefault = true };
-            var cancelButton = new Button { Content = "Отмена", Width = 82, Height = 28, IsCancel = true };
+            var okButton = new Button { Content = PanelUi("Panel_Create"), Width = 92, Height = 28, Margin = new Thickness(0, 0, 8, 0), IsDefault = true };
+            var cancelButton = new Button { Content = PanelUi("Panel_Cancel"), Width = 82, Height = 28, IsCancel = true };
             buttons.Children.Add(okButton);
             buttons.Children.Add(cancelButton);
             root.Children.Add(buttons);
@@ -686,14 +773,24 @@ namespace NavisHelper.WPF
                     string.IsNullOrWhiteSpace(categoryBox.Text) ||
                     string.IsNullOrWhiteSpace(propertyBox.Text))
                 {
-                    MessageBox.Show(dialog, "Заполните имя набора, категорию и свойство.", "Поисковый набор", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(
+                        dialog,
+                        PanelUi("Panel_Colors_SearchSet_RequiredFields"),
+                        PanelUi("Panel_Colors_SearchSet_Title"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
                     return;
                 }
 
                 var selectedOperator = operatorCombo.SelectedIndex;
                 if (selectedOperator != 3 && string.IsNullOrWhiteSpace(valueBox.Text))
                 {
-                    MessageBox.Show(dialog, "Для выбранного оператора нужно значение.", "Поисковый набор", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(
+                        dialog,
+                        PanelUi("Panel_Colors_SearchSet_ValueRequired"),
+                        PanelUi("Panel_Colors_SearchSet_Title"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
                     return;
                 }
 
@@ -708,7 +805,9 @@ namespace NavisHelper.WPF
             return new NativeSearchSetOptions
             {
                 FolderPath = NormalizeSearchSetFolderPath(folderBox.Text),
-                SetName = NormalizeSavedItemName(nameBox.Text, "Search Set"),
+                SetName = NormalizeSavedItemName(
+                    nameBox.Text,
+                    PersistedModelNames.SearchSetFallback),
                 Category = categoryBox.Text.Trim(),
                 Property = propertyBox.Text.Trim(),
                 Operator = GetSearchSetOperator(operatorCombo.SelectedIndex),
@@ -721,13 +820,17 @@ namespace NavisHelper.WPF
             };
         }
 
-        private static TextBox AddSearchSetTextRow(Grid form, int row, string label, string value)
+        private TextBox AddSearchSetTextRow(
+            Grid form,
+            int row,
+            string labelResourceKey,
+            string value)
         {
             form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var textLabel = new TextBlock
             {
-                Text = label,
+                Text = PanelUi(labelResourceKey),
                 Margin = new Thickness(0, 4, 10, 4),
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -914,7 +1017,10 @@ namespace NavisHelper.WPF
                 doc.SelectionSets.InsertCopy(currentFolder, currentFolder.Children.Count, folder);
                 nextFolder = FindChildGroupByName(currentFolder, segment);
                 if (nextFolder == null)
-                    throw new InvalidOperationException("Не удалось создать папку Selection Sets: " + segment);
+                    throw new InvalidOperationException(
+                        UiLocalizationService.Current.Format(
+                            "Panel_Colors_SelectionSetFolderFailed_Format",
+                            segment));
 
                 createdFolderCount++;
                 currentFolder = nextFolder;
@@ -989,7 +1095,9 @@ namespace NavisHelper.WPF
             {
                 if (string.IsNullOrEmpty(_matchColorRgb))
                 {
-                    MessageBox.Show("Сначала считайте цвет с объекта.", "Match Color");
+                    MessageBox.Show(
+                        PanelUi("Panel_Colors_Match_ReadFirst"),
+                        PanelUi("Panel_Colors_Match_Title"));
                     return;
                 }
 
@@ -999,7 +1107,9 @@ namespace NavisHelper.WPF
                 var sel = doc.CurrentSelection.SelectedItems;
                 if (sel == null || sel.Count == 0)
                 {
-                    MessageBox.Show("Выделите объекты для применения цвета.", "Match Color");
+                    MessageBox.Show(
+                        PanelUi("Panel_Colors_Match_SelectTargets"),
+                        PanelUi("Panel_Colors_Match_Title"));
                     return;
                 }
 
@@ -1016,7 +1126,7 @@ namespace NavisHelper.WPF
                 if (_matchTransCheck?.IsChecked == true && _matchTransparency >= 0)
                     doc.Models.OverridePermanentTransparency(sel, _matchTransparency);
             }
-            catch (Exception ex) { MessageBox.Show("Ошибка: " + ex.Message, "Match Color", MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Match_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         // ============================================================
@@ -1032,11 +1142,10 @@ namespace NavisHelper.WPF
             if (objectNames == null || objectNames.Count == 0 || _historyListBox == null) return;
 
             var uniqueColors = new HashSet<string>(colors.Values).Count;
-            var label = $"[{DateTime.Now:HH:mm:ss}] {objectNames.Count} объектов, {uniqueColors} групп";
-
             var entry = new ColorHistoryEntry
             {
-                Label = label,
+                ObjectCount = objectNames.Count,
+                ColorGroupCount = uniqueColors,
                 ObjectNames = new List<string>(objectNames),
                 Colors = new Dictionary<string, string>(colors),
                 Time = DateTime.Now,
@@ -1047,11 +1156,39 @@ namespace NavisHelper.WPF
             if (_colorHistory.Count > 10)
                 _colorHistory.RemoveAt(_colorHistory.Count - 1);
 
-            // Обновляем ListBox
+            RefreshColorHistoryItems();
+        }
+
+        private void RefreshColorHistoryItems()
+        {
+            if (_historyListBox == null)
+                return;
+
             _historyListBox.Items.Clear();
+            if (_colorHistory.Count == 0)
+            {
+                _historyListBox.Items.Add(new ListBoxItem
+                {
+                    Content = PanelUi("Panel_NoEntries"),
+                    IsEnabled = false,
+                    Foreground = Brushes.Gray,
+                    FontStyle = FontStyles.Italic
+                });
+                return;
+            }
+
             foreach (var h in _colorHistory)
             {
-                var item = new ListBoxItem { Content = h.Label, Tag = h, FontSize = 11 };
+                var item = new ListBoxItem
+                {
+                    Content = UiLocalizationService.Current.Format(
+                        "Panel_Colors_HistoryEntry_Format",
+                        h.Time,
+                        h.ObjectCount,
+                        h.ColorGroupCount),
+                    Tag = h,
+                    FontSize = 11
+                };
                 _historyListBox.Items.Add(item);
             }
         }
@@ -1061,13 +1198,13 @@ namespace NavisHelper.WPF
             try
             {
                 var selected = _historyListBox?.SelectedItem as ListBoxItem;
-                if (selected == null) { MessageBox.Show("Выберите запись из истории.", "AI Цвета"); return; }
+                if (selected == null) { MessageBox.Show(PanelUi("Panel_Colors_HistorySelectEntry"), PanelUi("Panel_Colors_Ai_Title")); return; }
                 var entry = selected.Tag as ColorHistoryEntry;
                 if (entry == null) return;
 
                 SelectFromHistory(entry);
             }
-            catch (Exception ex) { MessageBox.Show("Ошибка: " + ex.Message, "AI Цвета", MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         private void OnRecolorFromHistory(object sender, RoutedEventArgs e)
@@ -1075,14 +1212,14 @@ namespace NavisHelper.WPF
             try
             {
                 var selected = _historyListBox?.SelectedItem as ListBoxItem;
-                if (selected == null) { MessageBox.Show("Выберите запись из истории.", "AI Цвета"); return; }
+                if (selected == null) { MessageBox.Show(PanelUi("Panel_Colors_HistorySelectEntry"), PanelUi("Panel_Colors_Ai_Title")); return; }
                 var entry = selected.Tag as ColorHistoryEntry;
                 if (entry == null) return;
 
                 SelectFromHistory(entry);
                 OnApplyColorScheme(sender, e);
             }
-            catch (Exception ex) { MessageBox.Show("Ошибка: " + ex.Message, "AI Цвета", MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         /// <summary>
@@ -1101,22 +1238,21 @@ namespace NavisHelper.WPF
         }
 
         // ============================================================
-        //  Блоки вкладки "🎨 Цвета"
+        //  Colors tab sections
         // ============================================================
 
         private StackPanel CreateMatchColorSection()
         {
             var stack = new StackPanel { Margin = new Thickness(0, 4, 0, 4) };
-            stack.Children.Add(CreateGroupHeader("Match Color"));
+            stack.Children.Add(CreateGroupHeader("Panel_MatchColor"));
 
-            stack.Children.Add(new TextBlock
+            stack.Children.Add(BindPanelText(new TextBlock
             {
-                Text = "Цвет вручную (HEX / RGB / RAL):",
                 FontSize = 11,
                 Margin = new Thickness(0, 6, 0, 3)
-            });
+            }, "Panel_Colors_ManualInput_Label"));
             var manualRow = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-            var readManualButton = ActionBtn("match_color_manual", "\U0001F3A8", "Считать", "Разобрать введённый цвет в текущий Match Color без применения", OnReadManualColor, 82);
+            var readManualButton = ActionBtn("match_color_manual", "\U0001F3A8", "Panel_Read", "Panel_Colors_ManualRead_ToolTip", OnReadManualColor, 82);
             DockPanel.SetDock(readManualButton, Dock.Right);
             manualRow.Children.Add(readManualButton);
             _manualColorBox = new TextBox
@@ -1139,8 +1275,8 @@ namespace NavisHelper.WPF
             stack.Children.Add(manualRow);
 
             var actionRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
-            actionRow.Children.Add(ActionBtn("match_color_pick", "\U0001F489", "С объекта", "Считать цвет с первого выделенного объекта", () => OnPickColor(null, null)));
-            actionRow.Children.Add(ActionBtn("match_color_apply", "\u25B6", "Применить", "Применить считанный цвет к выделению", () => OnPasteColor(null, null), 0, ButtonKind.Primary, true));
+            actionRow.Children.Add(ActionBtn("match_color_pick", "\U0001F489", "Panel_FromObject", "Panel_Colors_Match_Read_ToolTip", () => OnPickColor(null, null)));
+            actionRow.Children.Add(ActionBtn("match_color_apply", "\u25B6", "Panel_Apply", "Panel_Colors_Match_Apply_ToolTip", () => OnPasteColor(null, null), 0, ButtonKind.Primary, true));
             stack.Children.Add(actionRow);
 
             var colorRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
@@ -1154,8 +1290,17 @@ namespace NavisHelper.WPF
                 Background = Brushes.LightGray,
                 CornerRadius = new CornerRadius(2)
             };
-            _matchColorText = new TextBlock { Text = "не выбран", VerticalAlignment = VerticalAlignment.Center, FontSize = 11, Width = 140 };
-            _matchTransCheck = new CheckBox { Content = "Применить прозрачность", IsChecked = true, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            _matchColorText = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 11, Width = 140 };
+            _panelLocalizationBindings.BindAction(
+                _matchColorText,
+                "MatchColor.CurrentValue",
+                () => _matchColorText.Text = string.IsNullOrWhiteSpace(_matchColorRgb)
+                    ? PanelUi("Panel_NotSelected")
+                    : _matchColorRgb);
+            _matchTransCheck = new CheckBox { IsChecked = true, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            _panelLocalizationBindings.BindContent(
+                _matchTransCheck,
+                "Panel_ApplyTransparency");
             _matchTransText = new TextBlock { Text = "-", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), Width = 45, FontSize = 11 };
 
             colorRow.Children.Add(_matchColorSwatch);
@@ -1170,27 +1315,33 @@ namespace NavisHelper.WPF
         private StackPanel CreateColorTransferSection()
         {
             var stack = new StackPanel { Margin = new Thickness(0, 4, 0, 4) };
-            stack.Children.Add(CreateGroupHeader("Перенос цветов"));
+            stack.Children.Add(CreateGroupHeader("Panel_ColorTransfer"));
 
-            stack.Children.Add(new TextBlock { Text = "Папка с файлами цветов:", FontSize = 11, Margin = new Thickness(0, 2, 0, 4) });
+            stack.Children.Add(BindPanelText(
+                new TextBlock { FontSize = 11, Margin = new Thickness(0, 2, 0, 4) },
+                "Panel_Colors_Folder_Label"));
             var pathRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             _folderPathBox = new TextBox
             {
                 FontSize = 11,
                 Height = 28,
-                VerticalContentAlignment = VerticalAlignment.Center,
-                ToolTip = "Путь к папке с .txt файлами цветов\nМожно вставить путь через Ctrl+V"
+                VerticalContentAlignment = VerticalAlignment.Center
             };
+            _panelLocalizationBindings.BindToolTip(
+                _folderPathBox,
+                "Panel_Colors_FolderPath_ToolTip");
             var browseBtn = new Button
             {
                 Content = "\U0001F4C1",
                 Width = 36, Height = 28,
                 Margin = new Thickness(4, 0, 0, 0),
                 HorizontalContentAlignment = HorizontalAlignment.Center,
-                ToolTip = "Выбрать папку (современный диалог)",
                 Cursor = Cursors.Hand,
                 Style = UiTheme.ButtonStyle(ButtonKind.Neutral)
             };
+            _panelLocalizationBindings.BindToolTip(
+                browseBtn,
+                "Panel_Colors_FolderSelect_Modern");
             browseBtn.Click += OnBrowseFolder;
             DockPanel.SetDock(browseBtn, Dock.Right);
             pathRow.Children.Add(browseBtn);
@@ -1199,17 +1350,21 @@ namespace NavisHelper.WPF
 
             _overwriteCheck = new CheckBox
             {
-                Content = "Перезаписывать существующие файлы",
                 IsChecked = true,
                 FontSize = 11,
-                Margin = new Thickness(0, 0, 0, 8),
-                ToolTip = "Если включено — существующие .txt файлы будут перезаписаны при экспорте"
+                Margin = new Thickness(0, 0, 0, 8)
             };
+            _panelLocalizationBindings.BindContent(
+                _overwriteCheck,
+                "Panel_Colors_Overwrite_Label");
+            _panelLocalizationBindings.BindToolTip(
+                _overwriteCheck,
+                "Panel_Colors_ExportOverwrite_ToolTip");
             stack.Children.Add(_overwriteCheck);
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal };
-            actions.Children.Add(ActionBtn("export_colors", "\U00002B06", "Выгрузить", "Выгрузить RGB-цвета и прозрачность всех потомков выделенных объектов в .txt файлы (по одному на объект)", () => ExecutePlugin("ExportColors.CBC")));
-            actions.Children.Add(ActionBtn("import_colors", "\U00002B07", "Загрузить", "Загрузить цвета из .txt файлов и применить к потомкам выделенных объектов по совпадению имён", () => ExecutePlugin("ImportColors.CBC"), 0, ButtonKind.Primary));
+            actions.Children.Add(ActionBtn("export_colors", "\U00002B06", "Panel_ExportColors", "Panel_Colors_Export_ToolTip", () => ExecutePlugin("ExportColors.CBC")));
+            actions.Children.Add(ActionBtn("import_colors", "\U00002B07", "Panel_ImportColors", "Panel_Colors_Import_ToolTip", () => ExecutePlugin("ImportColors.CBC"), 0, ButtonKind.Primary));
             stack.Children.Add(actions);
 
             return stack;
@@ -1218,21 +1373,18 @@ namespace NavisHelper.WPF
         private StackPanel CreateColorHistorySection()
         {
             var stack = new StackPanel { Margin = new Thickness(0, 4, 0, 4) };
-            stack.Children.Add(CreateGroupHeader("История покрасок"));
+            stack.Children.Add(CreateGroupHeader("Panel_ColoringHistory"));
 
             _historyListBox = new ListBox { Height = 160, Margin = new Thickness(0, 0, 0, 6), FontSize = 11 };
             stack.Children.Add(_historyListBox);
-            _historyListBox.Items.Add(new ListBoxItem
-            {
-                Content = "Нет записей",
-                IsEnabled = false,
-                Foreground = Brushes.Gray,
-                FontStyle = FontStyles.Italic
-            });
+            _panelLocalizationBindings.BindAction(
+                _historyListBox,
+                "Colors.HistoryItems",
+                RefreshColorHistoryItems);
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal };
-            actions.Children.Add(ActionBtn("history_select", "\U0001F50D", "Выделить", "Выделить объекты из записи истории", () => OnSelectFromHistory(null, null)));
-            actions.Children.Add(ActionBtn("history_apply", "\U0001F4AA", "Применить", "Повторно применить последний сценарий покраски", () => OnRecolorFromHistory(null, null), 0, ButtonKind.Primary, true));
+            actions.Children.Add(ActionBtn("history_select", "\U0001F50D", "Panel_Select", "Panel_Colors_HistorySelect_ToolTip", () => OnSelectFromHistory(null, null)));
+            actions.Children.Add(ActionBtn("history_apply", "\U0001F4AA", "Panel_Apply", "Panel_Colors_HistoryApply_ToolTip", () => OnRecolorFromHistory(null, null), 0, ButtonKind.Primary, true));
             stack.Children.Add(actions);
 
             return stack;
@@ -1240,7 +1392,9 @@ namespace NavisHelper.WPF
 
         private void OnBrowseFolder(object sender, RoutedEventArgs e)
         {
-            var path = FolderPickerDialog.Show("Выберите папку с файлами цветов", _folderPathBox.Text);
+            var path = FolderPickerDialog.Show(
+                PanelUi("Panel_Colors_FolderSelect_Prompt"),
+                _folderPathBox.Text);
             if (path != null)
                 _folderPathBox.Text = path;
         }

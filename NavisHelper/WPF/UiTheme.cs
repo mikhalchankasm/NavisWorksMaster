@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using NavisHelper.Core.Localization;
 using WpfColor = System.Windows.Media.Color;
 using WpfBorder = System.Windows.Controls.Border;
 
@@ -498,7 +499,11 @@ namespace NavisHelper.WPF
                 try { onClick(); }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Ошибка: " + ex.Message, "NavisHelper", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show(
+                        UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
+                        "NavisHelper",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
                 }
             };
             return btn;
@@ -551,11 +556,16 @@ namespace NavisHelper.WPF
         /// (переключение через Visibility, без ре-парентинга — ссылки на поля и состояние
         /// скролла сохраняются). selectSegment — делегат программного переключения.
         /// </summary>
-        public static UIElement Segmented(string[] headers, UIElement[] contents, int initialIndex,
-            Action<int> onChanged, out Action<int> selectSegment)
+        public static UIElement Segmented(
+            string[] headers,
+            UIElement[] contents,
+            int initialIndex,
+            Action<int> onChanged,
+            out Action<int> selectSegment,
+            out RadioButton[] segmentButtons)
         {
             if (headers == null || contents == null || headers.Length != contents.Length || headers.Length == 0)
-                throw new ArgumentException("Segmented: headers/contents должны быть непустыми и одинаковой длины");
+                throw new ArgumentException("Segmented headers and contents must be non-empty and have equal lengths.");
             if (initialIndex < 0 || initialIndex >= headers.Length) initialIndex = 0;
 
             var root = new Grid();
@@ -572,6 +582,7 @@ namespace NavisHelper.WPF
 
             var groupName = Guid.NewGuid().ToString("N");
             var radios = new RadioButton[headers.Length];
+            segmentButtons = radios;
             var suppress = false;
 
             for (int i = 0; i < headers.Length; i++)

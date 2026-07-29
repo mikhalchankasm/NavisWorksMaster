@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using Microsoft.VisualBasic;
 using Path = System.IO.Path;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NavisHelper.Interfaces;
 using NavisHelper.Agent.Services;
 using Autodesk.Navisworks.Api;
@@ -40,15 +41,15 @@ namespace NavisHelper.WPF
         {
             var stack = new StackPanel { Margin = new Thickness(8) };
 
-            stack.Children.Add(CreateGroupHeader("Импорт"));
-            stack.Children.Add(Btn("csv_import", "\U0001F4CA", "CSV → атрибуты", "Загрузить пользовательские атрибуты из CSV файла (разделитель — точка с запятой) и записать в свойства элементов", "CsvAttributeLoader.CSVL"));
-            stack.Children.Add(Btn("import_ps", "\U0001F4C4", "Импорт PS-листов", "Импортировать PS-листы (PipeSpec) в текущий документ", "ImportPslists.CBC"));
+            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_Import"));
+            stack.Children.Add(Btn("csv_import", "\U0001F4CA", "Panel_Model_ImportCsv_Action", "Panel_Model_ImportCsv_ToolTip", "CsvAttributeLoader.CSVL"));
+            stack.Children.Add(Btn("import_ps", "\U0001F4C4", "Panel_Model_ImportPsLists_Action", "Panel_Model_ImportPsLists_ToolTip", "ImportPslists.CBC"));
 
             stack.Children.Add(CreateSeparator());
-            stack.Children.Add(CreateGroupHeader("Экспорт"));
-            stack.Children.Add(Btn("save_hierarchy", "\U0001F4BE", "Сохранить иерархию", "Экспортировать дерево модели в текстовый файл", "SaveHierarhy.COMPANY"));
-            stack.Children.Add(Btn("save_nwd2018", "\U0001F4BE", "Сохранить как NWD 2018", "Пересохранить текущий файл в формате Navisworks 2018 (совместимость со старыми версиями)", "SaveAsNavis2018.MS"));
-            stack.Children.Add(ActionBtn("export_selected_props", "\U0001F4BE", "Экспорт свойств в Excel", "Сохранить свойства выделения в CSV файл (для открытия в Excel)", ExportSelectedPropertiesToExcelLikeFile, requiresSelection: true));
+            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_Export"));
+            stack.Children.Add(Btn("save_hierarchy", "\U0001F4BE", "Panel_SaveHierarchy", "Panel_Model_ExportTree_ToolTip", "SaveHierarhy.COMPANY"));
+            stack.Children.Add(Btn("save_nwd2018", "\U0001F4BE", "Panel_Model_Save2018_Action", "Panel_Model_Save2018_ToolTip", "SaveAsNavis2018.MS"));
+            stack.Children.Add(ActionBtn("export_selected_props", "\U0001F4BE", "Panel_Model_ExportProperties_Action", "Panel_Model_ExportProperties_ToolTip", ExportSelectedPropertiesToExcelLikeFile, requiresSelection: true));
 
             return stack;
         }
@@ -61,112 +62,147 @@ namespace NavisHelper.WPF
         {
             var stack = new StackPanel { Margin = new Thickness(8) };
 
-            stack.Children.Add(CreateGroupHeader("Разметка вида"));
+            stack.Children.Add(CreateGroupHeader("Panel_Views_Group_Markup"));
             var viewRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
-            viewRow.Children.Add(Btn("markup_viewpoint", "\U0001F5BC", "Пометить выделенное", "Пометить выделенные элементы эллипсами текущего вида", "MarkupViewpoint.CBC"));
-            viewRow.Children.Add(Btn("top_view", "\U0001F4C6", "Вид сверху + секция", "Переключить в вид сверху, сфокусироваться на выделении и включить секцию", "TopViewSection.CBC"));
-            viewRow.Children.Add(Btn("top_view_bbox", "\U000025FC", "Габаритный прямоугольник", "Построить прямоугольник габарита выделения", "TopViewBoundingRect.CBC"));
-            viewRow.Children.Add(Btn("top_view_hatch", "\U000025A7", "Заштриховать габарит", "Построить контур и диагональную штриховку габарита выделения", "TopViewBoundingHatch.CBC"));
+            viewRow.Children.Add(Btn("markup_viewpoint", "\U0001F5BC", "Panel_MarkSelection", "Panel_Views_MarkSelection_ToolTip", "MarkupViewpoint.CBC"));
+            viewRow.Children.Add(Btn("top_view", "\U0001F4C6", "Panel_Views_TopSection_Action", "Panel_Views_TopSection_ToolTip", "TopViewSection.CBC"));
+            viewRow.Children.Add(Btn("top_view_bbox", "\U000025FC", "Panel_BoundingRectangle", "Panel_Views_BoundsRectangle_ToolTip", "TopViewBoundingRect.CBC"));
+            viewRow.Children.Add(Btn("top_view_hatch", "\U000025A7", "Panel_HatchBounds", "Panel_Views_BoundsHatch_ToolTip", "TopViewBoundingHatch.CBC"));
             stack.Children.Add(viewRow);
 
-            stack.Children.Add(CreateGroupHeader("Маркеры выделения"));
+            stack.Children.Add(CreateGroupHeader("Panel_Views_Group_SelectionMarkers"));
             var markerRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
-            markerRow.Children.Add(Btn("selection_center_dot_marker", "\U000025CF", "Точки центров", "Временные кружки в центре каждого выделенного объекта", "SelectionCenterDotMarker.CBC"));
-            markerRow.Children.Add(Btn("selection_hatch_marker", "\U0001F4CD", "Маркер центров", "Временный многоугольный маркер через центры выделенных объектов", "SelectionHatchMarker.CBC"));
-            markerRow.Children.Add(Btn("selection_bounds_hatch_marker", "\U0001F5D0", "Маркер габаритов", "Временный многоугольный маркер по углам bbox выделенных объектов", "SelectionHatchBoundsMarker.CBC"));
+            markerRow.Children.Add(Btn("selection_center_dot_marker", "\U000025CF", "Panel_CenterPoints", "Panel_Views_CenterPoints_ToolTip", "SelectionCenterDotMarker.CBC"));
+            markerRow.Children.Add(Btn("selection_hatch_marker", "\U0001F4CD", "Panel_CenterMarker", "Panel_Views_CenterMarker_ToolTip", "SelectionHatchMarker.CBC"));
+            markerRow.Children.Add(Btn("selection_bounds_hatch_marker", "\U0001F5D0", "Panel_BoundsMarker", "Panel_Views_BoundsMarker_ToolTip", "SelectionHatchBoundsMarker.CBC"));
             stack.Children.Add(markerRow);
 
-            stack.Children.Add(CreateGroupHeader("Точки обзора"));
+            stack.Children.Add(CreateGroupHeader("Panel_Views_Group_Viewpoints"));
             var vpRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
-            vpRow.Children.Add(Btn("sort_viewpoints", "\U0001F501", "Сортировать VP", "Сортировать все сохранённые точки обзора по имени (алфавитный порядок)", "SortViewpoints.COMPANY"));
-            vpRow.Children.Add(Btn("save_viewpoints", "\U0001F4BE", "Сохранить список VP", "Сохранить список точек обзора", "SaveViewpiontList.COMPANY"));
+            vpRow.Children.Add(Btn("sort_viewpoints", "\U0001F501", "Panel_Views_Sort_Action", "Panel_Views_Sort_ToolTip", "SortViewpoints.COMPANY"));
+            vpRow.Children.Add(Btn("save_viewpoints", "\U0001F4BE", "Panel_Views_SaveList_Action", "Panel_Views_SaveList_ToolTip", "SaveViewpiontList.COMPANY"));
             stack.Children.Add(vpRow);
 
-            stack.Children.Add(CreateGroupHeader("Section Box по выделению"));
+            stack.Children.Add(CreateGroupHeader("Panel_Views_Group_SelectionSectionBox"));
 
             var sectionPanel = new StackPanel();
             var controlsRow = new WrapPanel { Margin = new Thickness(0, 4, 0, 4) };
-            controlsRow.Children.Add(ActionBtn("selection_section_show", "\U0001F4CD", "В выделенные элементы", "Установить Section Box по текущему выделению", ShowSelectionSectionBox, 0, ButtonKind.Primary, true));
-            controlsRow.Children.Add(ActionBtn("selection_section_reset", "\U0001F504", "Сброс", "Сбросить Section Box и прозрачность контекста", ResetSelectionSectionBox, 0, ButtonKind.Destructive));
+            controlsRow.Children.Add(ActionBtn("selection_section_show", "\U0001F4CD", "Panel_Section_FitSelection_Action", "Panel_Section_Show_ToolTip", ShowSelectionSectionBox, 0, ButtonKind.Primary, true));
+            controlsRow.Children.Add(ActionBtn("selection_section_reset", "\U0001F504", "Panel_Reset", "Panel_Section_Reset_ToolTip", ResetSelectionSectionBox, 0, ButtonKind.Destructive));
             sectionPanel.Children.Add(controlsRow);
 
             var expansionPanel = new StackPanel { Margin = new Thickness(0, 4, 0, 2) };
             expansionPanel.Children.Add(CreateSectionAxisSliderRow(
-                "Все", 0, 10000, 1000,
-                "Общее расширение Section Box одновременно по X, Y и Z. Индивидуальные значения ниже добавляются к общему.",
-                out _selOffsetAllSlider));
+                "Panel_Section_All", 0, 10000, 1000,
+                "Panel_Section_ExpansionAll_ToolTip",
+                out _selOffsetAllSlider,
+                true));
             expansionPanel.Children.Add(CreateSectionAxisSliderRow(
                 "X+", 0, 10000, 0,
-                "Дополнительное расширение Section Box по оси X сверх общего значения: добавляется с каждой стороны.",
+                "Panel_Section_ExpansionX_ToolTip",
                 out _selOffsetXSlider));
             expansionPanel.Children.Add(CreateSectionAxisSliderRow(
                 "Y+", 0, 10000, 0,
-                "Дополнительное расширение Section Box по оси Y сверх общего значения: добавляется с каждой стороны.",
+                "Panel_Section_ExpansionY_ToolTip",
                 out _selOffsetYSlider));
             expansionPanel.Children.Add(CreateSectionAxisSliderRow(
                 "Z+", 0, 10000, 0,
-                "Дополнительное расширение Section Box по оси Z сверх общего значения: добавляется с каждой стороны.",
+                "Panel_Section_ExpansionZ_ToolTip",
                 out _selOffsetZSlider));
-            sectionPanel.Children.Add(new Expander
+            var expansionExpander = new Expander
             {
-                Header = "Расширение: общее + по осям · шаг 100 мм",
                 IsExpanded = true,
                 FontSize = 11,
-                Content = expansionPanel,
-                ToolTip = "Независимо расширяет или сужает Section Box по каждой оси."
-            });
+                Content = expansionPanel
+            };
+            _panelLocalizationBindings.BindHeader(
+                expansionExpander,
+                "Panel_Section_Expansion_GroupLabel");
+            _panelLocalizationBindings.BindToolTip(
+                expansionExpander,
+                "Panel_Section_AxisExpansion_Description");
+            sectionPanel.Children.Add(expansionExpander);
 
             var shiftPanel = new StackPanel { Margin = new Thickness(0, 4, 0, 2) };
             shiftPanel.Children.Add(CreateSectionAxisSliderRow(
                 "X", -10000, 10000, 0,
-                "Смещение всего Section Box по оси X.",
+                "Panel_Section_ShiftX_ToolTip",
                 out _selShiftXSlider));
             shiftPanel.Children.Add(CreateSectionAxisSliderRow(
                 "Y", -10000, 10000, 0,
-                "Смещение всего Section Box по оси Y.",
+                "Panel_Section_ShiftY_ToolTip",
                 out _selShiftYSlider));
             shiftPanel.Children.Add(CreateSectionAxisSliderRow(
                 "Z", -10000, 10000, 0,
-                "Смещение всего Section Box по оси Z.",
+                "Panel_Section_ShiftZ_ToolTip",
                 out _selShiftZSlider));
-            sectionPanel.Children.Add(new Expander
+            var shiftExpander = new Expander
             {
-                Header = "Смещение бокса по осям · шаг 100 мм",
                 IsExpanded = true,
                 FontSize = 11,
-                Content = shiftPanel,
-                ToolTip = "Перемещает Section Box целиком, не меняя его размер."
-            });
+                Content = shiftPanel
+            };
+            _panelLocalizationBindings.BindHeader(
+                shiftExpander,
+                "Panel_Section_Shift_GroupLabel");
+            _panelLocalizationBindings.BindToolTip(
+                shiftExpander,
+                "Panel_Section_Shift_Description");
+            sectionPanel.Children.Add(shiftExpander);
 
-            var transTooltip = "Прозрачность контекстных элементов вне выделения. Применяется автоматически, когда предпросмотр уже показан.";
             var transLabel = new TextBlock { Text = "70%" };
-            _selTransSlider = CreateViewSlider(0, 100, 70, 10, transTooltip);
+            _selTransSlider = CreateViewSlider(
+                0,
+                100,
+                70,
+                10,
+                PanelUi("Panel_Section_ContextTransparency_ToolTip"));
             _selTransSlider.ValueChanged += (s, e) =>
             {
                 var value = (int)_selTransSlider.Value;
                 transLabel.Text = $"{value}%";
-                _selTransSlider.ToolTip = $"{transTooltip}\nТекущее значение: {value}%";
+                RefreshContextTransparencyToolTip();
                 ScheduleSelectionSectionRefresh();
             };
-            sectionPanel.Children.Add(CreateViewSliderRow("Контекст", _selTransSlider, transLabel, "0%", "50%", "100%", transTooltip, 86, 48));
+            _panelLocalizationBindings.BindAction(
+                _selTransSlider,
+                "SelectionSection.ContextTransparencyToolTip",
+                RefreshContextTransparencyToolTip);
+            sectionPanel.Children.Add(CreateViewSliderRow(
+                "Panel_Context",
+                _selTransSlider,
+                transLabel,
+                "0%",
+                "50%",
+                "100%",
+                PanelUi("Panel_Section_ContextTransparency_ToolTip"),
+                86,
+                48,
+                true));
 
             var checkRow = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
             _selUseSectionBox = new CheckBox
             {
-                Content = "Section Box",
                 FontSize = 11,
                 IsChecked = true,
-                Margin = new Thickness(0, 0, 14, 4),
-                ToolTip = "Включать section box вокруг текущего выделения."
+                Margin = new Thickness(0, 0, 14, 4)
             };
+            _panelLocalizationBindings.BindContent(_selUseSectionBox, "Panel_SectionBox");
+            _panelLocalizationBindings.BindToolTip(
+                _selUseSectionBox,
+                "Panel_Section_Enable_ToolTip");
             _selContextTrans = new CheckBox
             {
-                Content = "Прозрачный контекст",
                 FontSize = 11,
                 IsChecked = false,
-                Margin = new Thickness(0, 0, 0, 4),
-                ToolTip = "Делать элементы вне выделения полупрозрачными с выбранным процентом прозрачности."
+                Margin = new Thickness(0, 0, 0, 4)
             };
+            _panelLocalizationBindings.BindContent(
+                _selContextTrans,
+                "Panel_TransparentContext");
+            _panelLocalizationBindings.BindToolTip(
+                _selContextTrans,
+                "Panel_Section_ApplyTransparency_ToolTip");
             _selUseSectionBox.Checked += (s, e) => ScheduleSelectionSectionRefresh();
             _selUseSectionBox.Unchecked += (s, e) => ScheduleSelectionSectionRefresh();
             _selContextTrans.Checked += (s, e) => ScheduleSelectionSectionRefresh();
@@ -187,22 +223,26 @@ namespace NavisHelper.WPF
                 SelectionUnit = DataGridSelectionUnit.FullRow,
                 MaxHeight = 190,
                 MinHeight = 82,
-                ItemsSource = _selectionSectionHistory,
-                ToolTip = "Последние 10 объектов, для которых Section Box применялся явно. Ctrl/Shift — выбрать несколько; двойной щелчок — применить Section Box."
+                ItemsSource = _selectionSectionHistory
             };
-            _selectionSectionHistoryGrid.Columns.Add(new DataGridTextColumn
+            _panelLocalizationBindings.BindToolTip(
+                _selectionSectionHistoryGrid,
+                "Panel_Section_History_Description");
+            var objectColumn = new DataGridTextColumn
             {
-                Header = "Объект",
                 Binding = new System.Windows.Data.Binding("ObjectName"),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star),
                 MinWidth = 150
-            });
-            _selectionSectionHistoryGrid.Columns.Add(new DataGridTextColumn
+            };
+            _panelLocalizationBindings.BindColumnHeader(objectColumn, "Panel_Object");
+            _selectionSectionHistoryGrid.Columns.Add(objectColumn);
+            var timeColumn = new DataGridTextColumn
             {
-                Header = "Время",
                 Binding = new System.Windows.Data.Binding("AppliedAt"),
                 Width = new DataGridLength(72)
-            });
+            };
+            _panelLocalizationBindings.BindColumnHeader(timeColumn, "Panel_Time");
+            _selectionSectionHistoryGrid.Columns.Add(timeColumn);
             _selectionSectionHistoryGrid.SelectionChanged += OnSelectionSectionHistorySelectionChanged;
             _selectionSectionHistoryGrid.MouseDoubleClick += OnSelectionSectionHistoryDoubleClick;
 
@@ -220,12 +260,14 @@ namespace NavisHelper.WPF
             var historyPanel = new DockPanel { LastChildFill = true };
             var historyTitle = new TextBlock
             {
-                Text = "Последние объекты",
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Margin = new Thickness(0, 0, 0, 4),
-                ToolTip = "Ctrl/Shift — выбрать несколько объектов в модели. Двойной щелчок — применить Section Box."
+                Margin = new Thickness(0, 0, 0, 4)
             };
+            _panelLocalizationBindings.BindText(historyTitle, "Panel_RecentObjects");
+            _panelLocalizationBindings.BindToolTip(
+                historyTitle,
+                "Panel_Clash_Grid_SelectionHint");
             DockPanel.SetDock(historyTitle, Dock.Top);
             historyPanel.Children.Add(historyTitle);
             historyPanel.Children.Add(_selectionSectionHistoryGrid);
@@ -264,19 +306,40 @@ namespace NavisHelper.WPF
             double minimum,
             double maximum,
             double value,
-            string tooltip,
-            out Slider slider)
+            string tooltipResourceKey,
+            out Slider slider,
+            bool localizeAxis = false)
         {
-            var valueLabel = new TextBlock { Text = $"{(int)value} мм" };
-            var axisSlider = CreateViewSlider(minimum, maximum, value, 100, tooltip);
+            var valueLabel = new TextBlock();
+            var axisSlider = CreateViewSlider(
+                minimum,
+                maximum,
+                value,
+                100,
+                PanelUi(tooltipResourceKey));
+            Action refreshToolTip = () =>
+            {
+                string tooltip = PanelUi(tooltipResourceKey);
+                axisSlider.ToolTip = UiLocalizationService.Current.Format(
+                    "Panel_Section_CurrentValue_FormatMmStep100Mm",
+                    tooltip,
+                    (int)axisSlider.Value);
+                valueLabel.ToolTip = tooltip;
+                valueLabel.Text = UiLocalizationService.Current.Format(
+                    "Panel_Common_Millimetres_Format",
+                    (int)axisSlider.Value);
+            };
             axisSlider.ValueChanged += (s, e) =>
             {
                 var currentValue = (int)axisSlider.Value;
-                valueLabel.Text = $"{currentValue} мм";
-                axisSlider.ToolTip = $"{tooltip}\nТекущее значение: {currentValue} мм. Шаг: 100 мм.";
+                refreshToolTip();
                 if (!_suppressSelectionSectionControlRefresh)
                     ScheduleSelectionSectionRefresh();
             };
+            _panelLocalizationBindings.BindAction(
+                axisSlider,
+                "SelectionSection.AxisToolTip:" + tooltipResourceKey,
+                refreshToolTip);
             slider = axisSlider;
 
             return CreateViewSliderRow(
@@ -286,9 +349,20 @@ namespace NavisHelper.WPF
                 $"{(int)minimum}",
                 $"{(int)((minimum + maximum) / 2.0)}",
                 $"{(int)maximum}",
-                tooltip,
+                PanelUi(tooltipResourceKey),
                 38,
-                72);
+                72,
+                localizeAxis);
+        }
+
+        private void RefreshContextTransparencyToolTip()
+        {
+            string tooltip = PanelUi(
+                "Panel_Section_ContextTransparency_ToolTip");
+            _selTransSlider.ToolTip = UiLocalizationService.Current.Format(
+                "Panel_Section_CurrentValue_Format",
+                tooltip,
+                (int)_selTransSlider.Value);
         }
 
         private static Slider CreateViewSlider(double minimum, double maximum, double value, double tickFrequency, string tooltip)
@@ -309,7 +383,7 @@ namespace NavisHelper.WPF
             };
         }
 
-        private static FrameworkElement CreateViewSliderRow(
+        private FrameworkElement CreateViewSliderRow(
             string labelText,
             Slider slider,
             TextBlock valueLabel,
@@ -318,7 +392,8 @@ namespace NavisHelper.WPF
             string maxText,
             string tooltip,
             double labelWidth,
-            double valueWidth)
+            double valueWidth,
+            bool localizeLabel = false)
         {
             var root = new Grid { Margin = new Thickness(0, 0, 0, 8) };
             root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(labelWidth) });
@@ -327,11 +402,13 @@ namespace NavisHelper.WPF
 
             var label = new TextBlock
             {
-                Text = labelText,
                 VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 11,
-                ToolTip = tooltip
+                FontSize = 11
             };
+            if (localizeLabel)
+                _panelLocalizationBindings.BindText(label, labelText);
+            else
+                label.Text = labelText;
             Grid.SetColumn(label, 0);
             root.Children.Add(label);
 
@@ -346,7 +423,6 @@ namespace NavisHelper.WPF
             valueLabel.TextAlignment = TextAlignment.Right;
             valueLabel.FontSize = 11;
             valueLabel.FontWeight = FontWeights.SemiBold;
-            valueLabel.ToolTip = tooltip;
             Grid.SetColumn(valueLabel, 2);
             root.Children.Add(valueLabel);
 

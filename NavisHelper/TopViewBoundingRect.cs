@@ -10,6 +10,7 @@ using Autodesk.Navisworks.Api.Plugins;
 using Application = Autodesk.Navisworks.Api.Application;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 
 namespace NavisHelper
 {
@@ -25,8 +26,11 @@ namespace NavisHelper
         private double _hatchSpacing = 0.024;
 
         protected virtual string MarkupStyle => MarkupRedlineJsonBuilder.RectangleStyle;
-        protected virtual string CommandTitle => "Габаритный прямоугольник";
-        protected virtual string ViewpointNamePrefix => "Габарит";
+        protected virtual string CommandTitle =>
+            UiLocalizationService.Current.GetString("BoundingRectTitle");
+        protected virtual string ViewpointNamePrefix =>
+            UiLocalizationService.Current.GetString("BoundingRectViewpointPrefix");
+        protected virtual string LogCommandTitle => "Габаритный прямоугольник";
 
         public override int Execute(params string[] parameters)
         {
@@ -42,7 +46,9 @@ namespace NavisHelper
                 var selection = doc.CurrentSelection.SelectedItems;
                 if (selection.Count == 0)
                 {
-                    MessageBox.Show("Нет выделенных элементов.", CommandTitle,
+                    MessageBox.Show(
+                        UiLocalizationService.Current.GetString("CommonNoSelection"),
+                        CommandTitle,
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return 0;
                 }
@@ -62,7 +68,8 @@ namespace NavisHelper
                 BoundingBox3D combinedBBox = selection.BoundingBox();
                 if (combinedBBox == null)
                 {
-                    MessageBox.Show("Не удалось определить область выделенных элементов.",
+                    MessageBox.Show(
+                        UiLocalizationService.Current.GetString("BoundingRegionUnavailable"),
                         CommandTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return 0;
                 }
@@ -96,7 +103,8 @@ namespace NavisHelper
 
                 if (validCorners < 2)
                 {
-                    MessageBox.Show("Выделенные элементы за пределами видимости камеры.",
+                    MessageBox.Show(
+                        UiLocalizationService.Current.GetString("BoundingOutsideCamera"),
                         CommandTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return 0;
                 }
@@ -170,7 +178,7 @@ namespace NavisHelper
                     }
                 }
 
-                Logger.Info($"{CommandTitle}: \"{viewpointName}\" ({selection.Count} элементов)", "TopViewBoundingRect");
+                Logger.Info($"{LogCommandTitle}: \"{viewpointName}\" ({selection.Count} элементов)", "TopViewBoundingRect");
                 return 0;
             }
             catch (Exception ex)
@@ -257,7 +265,7 @@ namespace NavisHelper
         {
             using (var form = new Form())
             {
-                form.Text = "Имя точки обзора";
+                form.Text = UiLocalizationService.Current.GetString("CommonViewpointNameTitle");
                 form.Size = new Size(420, 130);
                 form.StartPosition = FormStartPosition.CenterScreen;
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -276,11 +284,31 @@ namespace NavisHelper
                 }
                 catch { }
 
-                var label = new Label { Text = "Имя точки обзора:", Left = 10, Top = 10, Width = 380 };
+                var label = new Label
+                {
+                    Text = UiLocalizationService.Current.GetString("CommonViewpointNameLabel"),
+                    Left = 10,
+                    Top = 10,
+                    Width = 380
+                };
                 var textBox = new TextBox { Left = 10, Top = 35, Width = 385, Text = initialText };
                 textBox.SelectAll();
-                var okBtn = new Button { Text = "OK", Left = 230, Top = 70, Width = 75, DialogResult = DialogResult.OK };
-                var cancelBtn = new Button { Text = "Отмена", Left = 315, Top = 70, Width = 75, DialogResult = DialogResult.Cancel };
+                var okBtn = new Button
+                {
+                    Text = UiLocalizationService.Current.GetString("CommonOk"),
+                    Left = 230,
+                    Top = 70,
+                    Width = 75,
+                    DialogResult = DialogResult.OK
+                };
+                var cancelBtn = new Button
+                {
+                    Text = UiLocalizationService.Current.GetString("CommonCancel"),
+                    Left = 315,
+                    Top = 70,
+                    Width = 75,
+                    DialogResult = DialogResult.Cancel
+                };
 
                 form.Controls.AddRange(new Control[] { label, textBox, okBtn, cancelBtn });
                 form.AcceptButton = okBtn;

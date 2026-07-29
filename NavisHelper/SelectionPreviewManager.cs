@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using Application = Autodesk.Navisworks.Api.Application;
 
 namespace NavisHelper
@@ -34,6 +35,8 @@ namespace NavisHelper
         public string LastStatus { get; private set; } = "";
         public bool LastSuccess { get; private set; } = false;
         public BoundingBox3D LastExpandedBox { get; private set; }
+        internal PreviewManagerUiOutcome LastUiOutcome { get; private set; } =
+            PreviewManagerUiOutcome.None;
 
         /// <summary>
         /// Section box + прозрачность по текущему выделению.
@@ -45,6 +48,8 @@ namespace NavisHelper
             if (doc == null)
             {
                 LastStatus = "Нет активного документа";
+                LastUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.SelectionNoActiveDocument);
                 LastSuccess = false;
                 return;
             }
@@ -62,6 +67,8 @@ namespace NavisHelper
                 if (bbox == null)
                 {
                     LastStatus = "Не удалось определить габариты";
+                    LastUiOutcome = new PreviewManagerUiOutcome(
+                        PreviewManagerUiOutcomeKind.SelectionBoundsUnavailable);
                     LastSuccess = false;
                     return;
                 }
@@ -88,6 +95,8 @@ namespace NavisHelper
                 if (bbox == null)
                 {
                     LastStatus = "Не удалось определить габариты";
+                    LastUiOutcome = new PreviewManagerUiOutcome(
+                        PreviewManagerUiOutcomeKind.SelectionBoundsUnavailable);
                     return;
                 }
 
@@ -100,6 +109,8 @@ namespace NavisHelper
             else
             {
                 LastStatus = "Нет выделенных объектов и сохранённой области Section Box";
+                LastUiOutcome = new PreviewManagerUiOutcome(
+                    PreviewManagerUiOutcomeKind.SelectionNoSelectionOrSavedBox);
                 LastSuccess = false;
                 return;
             }
@@ -156,6 +167,18 @@ namespace NavisHelper
                 $"Section box: {selection.Count} объектов{(reusedAnchor ? " (сохранённая область)" : "")}; общее расширение {(int)CommonOffsetMm} мм, " +
                 $"добавка X/Y/Z {(int)OffsetXMm}/{(int)OffsetYMm}/{(int)OffsetZMm} мм; смещение " +
                 $"{(int)ShiftXMm}/{(int)ShiftYMm}/{(int)ShiftZMm} мм";
+            LastUiOutcome = new PreviewManagerUiOutcome(
+                reusedAnchor
+                    ? PreviewManagerUiOutcomeKind.SelectionAppliedFromSavedAnchor
+                    : PreviewManagerUiOutcomeKind.SelectionApplied,
+                selection.Count,
+                (int)CommonOffsetMm,
+                (int)OffsetXMm,
+                (int)OffsetYMm,
+                (int)OffsetZMm,
+                (int)ShiftXMm,
+                (int)ShiftYMm,
+                (int)ShiftZMm);
             LastSuccess = true;
         }
 
@@ -201,6 +224,8 @@ namespace NavisHelper
             _selectionAnchorBounds = null;
             _selectionAnchorRoots = null;
             LastStatus = "Section box по выделению сброшен";
+            LastUiOutcome = new PreviewManagerUiOutcome(
+                PreviewManagerUiOutcomeKind.SelectionReset);
             LastSuccess = true;
         }
 

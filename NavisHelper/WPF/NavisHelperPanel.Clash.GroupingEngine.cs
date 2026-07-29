@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using Microsoft.VisualBasic;
 using Path = System.IO.Path;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Interfaces;
 using NavisHelper.Agent.Services;
@@ -39,6 +40,8 @@ namespace NavisHelper.WPF
     {
         private readonly Dictionary<string, List<ClashResult>> _clashTreeMatchCache =
             new Dictionary<string, List<ClashResult>>(StringComparer.OrdinalIgnoreCase);
+        private object _clashGroupContentsRowObject;
+        private IList<ClashResult> _clashGroupContentsResults;
 
         private GroupBox BuildClashGroupingTreePanel()
         {
@@ -49,12 +52,15 @@ namespace NavisHelper.WPF
 
             _clashGroupingStatus = new TextBlock
             {
-                Text = "Группировка: нет",
                 FontSize = 10,
                 Foreground = Brushes.DimGray,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 4)
             };
+            _panelLocalizationBindings.BindAction(
+                _clashGroupingStatus,
+                "Clash.GroupingStatus",
+                UpdateClashGroupingStatusText);
             Grid.SetRow(_clashGroupingStatus, 0);
             layout.Children.Add(_clashGroupingStatus);
 
@@ -69,32 +75,42 @@ namespace NavisHelper.WPF
                 FontSize = 11,
                 Margin = new Thickness(0)
             };
-            tabs.Items.Add(new TabItem { Header = "Объект A", Content = _clashTreeA });
-            tabs.Items.Add(new TabItem { Header = "Объект B", Content = _clashTreeB });
-            tabs.Items.Add(new TabItem { Header = "Состав", Content = groupContentsPanel });
+            var objectATab = new TabItem { Content = _clashTreeA };
+            var objectBTab = new TabItem { Content = _clashTreeB };
+            var contentsTab = new TabItem { Content = groupContentsPanel };
+            _panelLocalizationBindings.BindHeader(objectATab, "Panel_ObjectA");
+            _panelLocalizationBindings.BindHeader(objectBTab, "Panel_ObjectB");
+            _panelLocalizationBindings.BindHeader(contentsTab, "Panel_Contents");
+            tabs.Items.Add(objectATab);
+            tabs.Items.Add(objectBTab);
+            tabs.Items.Add(contentsTab);
             Grid.SetRow(tabs, 1);
             layout.Children.Add(tabs);
 
             var commands = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             _applyClashGroupingButton = new Button
             {
-                Content = "Объединить по уровню",
                 Height = 24,
                 Padding = new Thickness(6, 0, 6, 0),
                 Margin = new Thickness(0, 0, 4, 4),
                 FontSize = 11,
                 Cursor = Cursors.Hand,
                 IsEnabled = false,
-                ToolTip = "Сначала выберите уровень дерева A или B",
                 Style = UiTheme.ButtonStyle(ButtonKind.Primary)
             };
+            _panelLocalizationBindings.BindContent(
+                _applyClashGroupingButton,
+                "Panel_Clash_MergeLevel_Label");
+            _panelLocalizationBindings.BindAction(
+                _applyClashGroupingButton,
+                "Clash.ApplyGroupingToolTip",
+                RefreshApplyClashGroupingToolTip);
             _applyClashGroupingButton.Click += (s, e) => ApplyPendingClashGrouping();
             ToolTipService.SetShowOnDisabled(_applyClashGroupingButton, true);
             commands.Children.Add(_applyClashGroupingButton);
 
             var reset = new Button
             {
-                Content = "Сброс группировки",
                 Height = 24,
                 Margin = new Thickness(0, 0, 0, 4),
                 Padding = new Thickness(6, 0, 6, 0),
@@ -102,6 +118,7 @@ namespace NavisHelper.WPF
                 Cursor = Cursors.Hand,
                 Style = UiTheme.ButtonStyle(ButtonKind.Destructive)
             };
+            _panelLocalizationBindings.BindContent(reset, "Panel_ResetGrouping");
             reset.Click += (s, e) =>
             {
                 ResetSelectedClashGrouping();
@@ -111,7 +128,7 @@ namespace NavisHelper.WPF
             Grid.SetRow(commands, 2);
             layout.Children.Add(commands);
 
-            var group = ClashGroupBox("Дерево A/B", layout, 0);
+            var group = ClashGroupBox("Panel_Clash_Group_TreeAB", layout, 0);
             group.Margin = new Thickness(6, 0, 0, 0);
             group.VerticalAlignment = VerticalAlignment.Stretch;
             group.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -126,12 +143,17 @@ namespace NavisHelper.WPF
 
             _clashGroupContentsStatus = new TextBlock
             {
-                Text = "Выберите коллизию или группу",
                 FontSize = 10,
                 Foreground = Brushes.DimGray,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(2, 2, 2, 4)
             };
+            _panelLocalizationBindings.BindAction(
+                _clashGroupContentsStatus,
+                "Clash.GroupContentsStatus",
+                () => UpdateClashGroupContents(
+                    _clashGroupContentsRowObject,
+                    _clashGroupContentsResults));
             Grid.SetRow(_clashGroupContentsStatus, 0);
             layout.Children.Add(_clashGroupContentsStatus);
 
@@ -152,10 +174,17 @@ namespace NavisHelper.WPF
                 CanUserAddRows = false,
                 CanUserDeleteRows = false
             };
-            _clashGroupContentsGrid.Columns.Add(new DataGridTextColumn { Header = "#", Binding = new System.Windows.Data.Binding("Index"), Width = new DataGridLength(34) });
-            _clashGroupContentsGrid.Columns.Add(new DataGridTextColumn { Header = "Коллизия", Binding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            _clashGroupContentsGrid.Columns.Add(new DataGridTextColumn { Header = "A", Binding = new System.Windows.Data.Binding("ItemA"), Width = new DataGridLength(110) });
-            _clashGroupContentsGrid.Columns.Add(new DataGridTextColumn { Header = "B", Binding = new System.Windows.Data.Binding("ItemB"), Width = new DataGridLength(110) });
+            var indexColumn = new DataGridTextColumn { Header = "#", Binding = new System.Windows.Data.Binding("Index"), Width = new DataGridLength(34) };
+            var clashColumn = new DataGridTextColumn { Binding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) };
+            var itemAColumn = new DataGridTextColumn { Header = "A", Binding = new System.Windows.Data.Binding("ItemA"), Width = new DataGridLength(110) };
+            var itemBColumn = new DataGridTextColumn { Header = "B", Binding = new System.Windows.Data.Binding("ItemB"), Width = new DataGridLength(110) };
+            _panelLocalizationBindings.BindColumnHeader(
+                clashColumn,
+                "Panel_Clash_Column_Name");
+            _clashGroupContentsGrid.Columns.Add(indexColumn);
+            _clashGroupContentsGrid.Columns.Add(clashColumn);
+            _clashGroupContentsGrid.Columns.Add(itemAColumn);
+            _clashGroupContentsGrid.Columns.Add(itemBColumn);
             ScrollViewer.SetHorizontalScrollBarVisibility(_clashGroupContentsGrid, ScrollBarVisibility.Auto);
             ScrollViewer.SetVerticalScrollBarVisibility(_clashGroupContentsGrid, ScrollBarVisibility.Auto);
 
@@ -164,7 +193,7 @@ namespace NavisHelper.WPF
             return layout;
         }
 
-        private static TreeView MakeClashGroupingTree()
+        private TreeView MakeClashGroupingTree()
         {
             var compactItemStyle = new Style(typeof(TreeViewItem));
             compactItemStyle.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(-6, 0, 0, 0)));
@@ -178,9 +207,11 @@ namespace NavisHelper.WPF
                 Padding = new Thickness(6, 0, 0, 0),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch,
-                ItemContainerStyle = compactItemStyle,
-                ToolTip = "Выберите уровень дерева, чтобы сгруппировать коллизии по этому объекту"
+                ItemContainerStyle = compactItemStyle
             };
+            _panelLocalizationBindings.BindToolTip(
+                tree,
+                "Panel_Clash_GroupTree_Instruction");
             ScrollViewer.SetHorizontalScrollBarVisibility(tree, ScrollBarVisibility.Auto);
             ScrollViewer.SetVerticalScrollBarVisibility(tree, ScrollBarVisibility.Auto);
             // Виртуализация верхнего уровня: узлы строятся вручную, поэтому эффект
@@ -197,13 +228,12 @@ namespace NavisHelper.WPF
             var filterRow = new StackPanel { Margin = new Thickness(0, 0, 0, 4) };
 
             _clashFilterPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 2) };
-            _clashFilterPanel.Children.Add(new TextBlock
+            _clashFilterPanel.Children.Add(BindPanelText(new TextBlock
             {
-                Text = "Статусы:",
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 4, 2),
                 FontSize = 10
-            });
+            }, "Panel_Statuses"));
             MakeCheck(_clashFilterPanel, "New", true, Brushes.Red);
             MakeCheck(_clashFilterPanel, "Active", true, Brushes.OrangeRed);
             MakeCheck(_clashFilterPanel, "Reviewed", true, Brushes.DodgerBlue);
@@ -212,30 +242,37 @@ namespace NavisHelper.WPF
             filterRow.Children.Add(_clashFilterPanel);
 
             var columnFilters = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) };
-            columnFilters.Children.Add(new TextBlock { Text = "Коллизия:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 2), FontSize = 10 });
-            _clashFilterBox = CreateClashColumnFilterBox("имя", 120);
+            columnFilters.Children.Add(BindPanelText(
+                new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 2), FontSize = 10 },
+                "Panel_Clash_Filter_Name_Label"));
+            _clashFilterBox = CreateClashColumnFilterBox("Panel_Clash_Filter_Name_Hint", 120);
             columnFilters.Children.Add(_clashFilterBox);
             columnFilters.Children.Add(new TextBlock { Text = "A:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 4, 2), FontSize = 10 });
-            _clashItemAFilterBox = CreateClashColumnFilterBox("объект A", 105);
+            _clashItemAFilterBox = CreateClashColumnFilterBox("Panel_ObjectA", 105);
             columnFilters.Children.Add(_clashItemAFilterBox);
             columnFilters.Children.Add(new TextBlock { Text = "B:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 4, 2), FontSize = 10 });
-            _clashItemBFilterBox = CreateClashColumnFilterBox("объект B", 105);
+            _clashItemBFilterBox = CreateClashColumnFilterBox("Panel_ObjectB", 105);
             columnFilters.Children.Add(_clashItemBFilterBox);
             filterRow.Children.Add(columnFilters);
 
             return filterRow;
         }
 
-        private TextBox CreateClashColumnFilterBox(string hint, double width)
+        private TextBox CreateClashColumnFilterBox(string hintResourceKey, double width)
         {
             var box = new TextBox
             {
                 Height = 22,
                 Width = width,
                 Margin = new Thickness(0, 0, 0, 2),
-                FontSize = 11,
-                ToolTip = "Фильтр: " + hint
+                FontSize = 11
             };
+            _panelLocalizationBindings.BindAction(
+                box,
+                "Clash.FilterToolTip:" + hintResourceKey,
+                () => box.ToolTip = UiLocalizationService.Current.Format(
+                    "Panel_Filter0",
+                    PanelUi(hintResourceKey)));
             box.TextChanged += (s, e) => RefreshClashGridRows();
             return box;
         }
@@ -290,12 +327,18 @@ namespace NavisHelper.WPF
             if (_clashBoxModePointRadio != null) _clashBoxModePointRadio.IsChecked = true;
         }
 
-        private Button ClashActionButton(string text, string tooltip, Action action, double minWidth = 0, ButtonKind kind = ButtonKind.Neutral)
+        private Button ClashActionButton(
+            string textResourceKey,
+            string toolTipResourceKey,
+            Action action,
+            double minWidth = 0,
+            ButtonKind kind = ButtonKind.Neutral)
         {
+            var label = new TextBlock { TextWrapping = TextWrapping.NoWrap };
+            _panelLocalizationBindings.BindText(label, textResourceKey);
             var btn = new Button
             {
-                Content = new TextBlock { Text = text, TextWrapping = TextWrapping.NoWrap },
-                ToolTip = tooltip,
+                Content = label,
                 Height = 26,
                 MinWidth = minWidth,
                 Padding = new Thickness(8, 0, 8, 0),
@@ -304,6 +347,7 @@ namespace NavisHelper.WPF
                 Cursor = Cursors.Hand,
                 Style = UiTheme.ButtonStyle(kind)
             };
+            _panelLocalizationBindings.BindToolTip(btn, toolTipResourceKey);
             btn.Click += (s, e) =>
             {
                 try
@@ -312,32 +356,46 @@ namespace NavisHelper.WPF
                 }
                 catch (Exception ex)
                 {
-                    SetGlobalStatus("Ошибка: " + ex.Message, Brushes.Red);
+                    SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
                 }
             };
             return btn;
         }
 
-        private static System.Windows.Controls.Primitives.ToggleButton ClashActionToggle(string text, string tooltip)
+        private System.Windows.Controls.Primitives.ToggleButton ClashActionToggle(
+            string textResourceKey,
+            string toolTipResourceKey)
         {
-            return new System.Windows.Controls.Primitives.ToggleButton
+            var label = new TextBlock { TextWrapping = TextWrapping.NoWrap };
+            _panelLocalizationBindings.BindText(label, textResourceKey);
+            var toggle = new System.Windows.Controls.Primitives.ToggleButton
             {
-                Content = new TextBlock { Text = text, TextWrapping = TextWrapping.NoWrap },
-                ToolTip = tooltip,
+                Content = label,
                 Height = 26,
                 Padding = new Thickness(8, 0, 8, 0),
                 Margin = new Thickness(0, 0, 4, 4),
                 FontSize = 11,
                 Cursor = Cursors.Hand
             };
+            _panelLocalizationBindings.BindToolTip(toggle, toolTipResourceKey);
+            return toggle;
         }
 
-        private Button ClashTopBarButton(string text, string tooltip, Action action, ButtonKind kind = ButtonKind.Neutral)
+        private Button ClashTopBarButton(
+            string textResourceKey,
+            string toolTipResourceKey,
+            Action action,
+            ButtonKind kind = ButtonKind.Neutral)
         {
+            var label = new TextBlock
+            {
+                TextWrapping = TextWrapping.NoWrap,
+                TextAlignment = TextAlignment.Center
+            };
+            _panelLocalizationBindings.BindText(label, textResourceKey);
             var btn = new Button
             {
-                Content = new TextBlock { Text = text, TextWrapping = TextWrapping.NoWrap, TextAlignment = TextAlignment.Center },
-                ToolTip = tooltip,
+                Content = label,
                 Height = 24,
                 MinWidth = 0,
                 Padding = new Thickness(6, 0, 6, 0),
@@ -346,6 +404,7 @@ namespace NavisHelper.WPF
                 Cursor = Cursors.Hand,
                 Style = UiTheme.ButtonStyle(kind)
             };
+            _panelLocalizationBindings.BindToolTip(btn, toolTipResourceKey);
 
             if (action != null)
             {
@@ -357,7 +416,7 @@ namespace NavisHelper.WPF
                     }
                     catch (Exception ex)
                     {
-                        SetGlobalStatus("Ошибка: " + ex.Message, Brushes.Red);
+                        SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
                     }
                 };
             }
@@ -377,10 +436,10 @@ namespace NavisHelper.WPF
                 return false;
 
             var reason = NavisHelper.Agent.AgentRuntime.InteractiveBusyReason;
-            var message = string.IsNullOrWhiteSpace(reason)
-                ? "Navisworks занят интерактивной операцией"
-                : "Navisworks занят: " + reason;
-            SetGlobalStatus(message, Brushes.Orange);
+            if (string.IsNullOrWhiteSpace(reason))
+                SetGlobalStatusResource("Panel_Clash_InteractiveBusy", Brushes.Orange);
+            else
+                SetGlobalStatusResource("Panel_Clash_InteractiveBusy_Format", Brushes.Orange, reason);
             Logger.Info("Ignored Clash UI action while interactive busy: " + (action ?? "unknown") + " reason=" + (reason ?? string.Empty), "ClashUI");
             return true;
         }
@@ -404,7 +463,10 @@ namespace NavisHelper.WPF
                 Orientation = Orientation.Horizontal,
                 Margin = new Thickness(0, 0, 4, 4)
             };
-            panel.Children.Add(ClashActionButton("Маркер", "Показать/скрыть 2D маркер в точке пересечения коллизии", ToggleClashMarker));
+            panel.Children.Add(ClashActionButton(
+                "Panel_Clash_Action_Marker",
+                "Panel_Clash_Action_Marker_ToolTip",
+                ToggleClashMarker));
             _clashMarkerSizeText = new TextBox
             {
                 Text = "10",
@@ -412,9 +474,11 @@ namespace NavisHelper.WPF
                 Height = 22,
                 FontSize = 10,
                 VerticalContentAlignment = VerticalAlignment.Center,
-                ToolTip = "Радиус маркера (5-30, как в Autodesk ClashMarkers)",
                 Margin = new Thickness(0, 0, 2, 4)
             };
+            _panelLocalizationBindings.BindToolTip(
+                _clashMarkerSizeText,
+                "Panel_Clash_MarkerRadius_ToolTip");
             panel.Children.Add(_clashMarkerSizeText);
             panel.Children.Add(new TextBlock
             {
@@ -435,7 +499,7 @@ namespace NavisHelper.WPF
             ClearActiveViewRedlines(doc);
             try { doc?.CurrentSelection?.Clear(); } catch { }
             try { doc?.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All); } catch { }
-            SetGlobalStatus("Вид сброшен", Brushes.Gray);
+            SetGlobalStatusResource("Panel_Clash_ViewReset", Brushes.Gray);
         }
 
         private void EnableSelectedClashPairIsolation()
@@ -450,7 +514,7 @@ namespace NavisHelper.WPF
             _clashMgr.UsePairIsolation = true;
             if (_clashGrid?.SelectedItem == null)
             {
-                SetGlobalStatus("Режим «Только пара» включён. Дважды щёлкните по коллизии.", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_OnlyPairEnabled", Brushes.Orange);
                 return;
             }
 
@@ -461,7 +525,7 @@ namespace NavisHelper.WPF
         {
             _clashMgr.UsePairIsolation = false;
             _clashMgr.ClearPairIsolation();
-            SetGlobalStatus("Показаны все ветви, временно скрытые режимом «Только пара»", Brushes.DarkGreen);
+            SetGlobalStatusResource("Panel_Clash_OnlyPairRestored", Brushes.DarkGreen);
         }
 
         private void ShowAllAfterClashPairIsolation()
@@ -476,7 +540,7 @@ namespace NavisHelper.WPF
 
             _clashMgr.UsePairIsolation = false;
             _clashMgr.ClearPairIsolation();
-            SetGlobalStatus("Показаны все ветви, временно скрытые режимом «Только пара»", Brushes.DarkGreen);
+            SetGlobalStatusResource("Panel_Clash_OnlyPairRestored", Brushes.DarkGreen);
         }
 
         private void SetClashOnlyPairToggle(bool isChecked)
@@ -512,22 +576,38 @@ namespace NavisHelper.WPF
                 int count = hasSelection
                     ? _clashMgr.ApplyTransparencyToSelection()
                     : _clashMgr.ApplyClashRootContextTransparency();
-                var details = string.IsNullOrWhiteSpace(_clashMgr.LastFullBoxTransparencyStatus)
-                    ? string.Empty
-                    : " | " + _clashMgr.LastFullBoxTransparencyStatus;
-                SetGlobalStatus(hasSelection
-                    ? $"Прозрачность: {count} владельцев по выделению{details}"
-                    : $"Прозрачность: {count} владельцев A/B{details}", count > 0 ? Brushes.DarkGreen : Brushes.Orange);
+                UiStatusResourceDescriptor detailsDescriptor =
+                    PreviewManagerUiStatusMapper.ForTransparencyDetails(
+                        _clashMgr.LastTransparencyUiOutcome);
+                object details = detailsDescriptor == null
+                    ? (object)string.Empty
+                    : detailsDescriptor.AsLocalizedArgument();
+                SetGlobalStatusResource(
+                    hasSelection
+                        ? "Panel_Clash_Transparency_Selection_Format"
+                        : "Panel_Clash_Transparency_Pair_Format",
+                    count > 0 ? Brushes.DarkGreen : Brushes.Orange,
+                    count,
+                    details);
             }
             catch (Exception ex)
             {
-                SetGlobalStatus($"Ошибка: {ex.Message}", Brushes.Red);
+                SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
             }
         }
 
         private CheckBox MakeCheck(WrapPanel panel, string text, bool isChecked, Brush color)
         {
-            var cb = new CheckBox { Content = text, IsChecked = isChecked, Foreground = color, FontWeight = FontWeights.SemiBold, Margin = new Thickness(3, 0, 3, 0), FontSize = 11 };
+            var cb = new CheckBox
+            {
+                IsChecked = isChecked,
+                Foreground = color,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(3, 0, 3, 0),
+                FontSize = 11,
+                Tag = text
+            };
+            _panelLocalizationBindings.BindContent(cb, "Panel_Clash_Status_" + text);
             cb.Checked += (s, e) => RefreshClashGridRows();
             cb.Unchecked += (s, e) => RefreshClashGridRows();
             panel?.Children.Add(cb);
@@ -544,8 +624,10 @@ namespace NavisHelper.WPF
                     sp.Children.Add(new Border { Width = 14, Height = 14, Background = new SolidColorBrush(WpfColor.FromRgb(r.Value, g.Value, b.Value)), Margin = new Thickness(0, 0, 4, 0), CornerRadius = new CornerRadius(2) });
                 else
                     sp.Children.Add(new Border { Width = 14, Height = 14, Background = Brushes.Transparent, BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 4, 0), CornerRadius = new CornerRadius(2) });
-                sp.Children.Add(new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center });
-                // Tag = null для "без подсветки", byte[] для цвета
+                var nameText = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+                _panelLocalizationBindings.BindText(nameText, "Panel_Color_" + name);
+                sp.Children.Add(nameText);
+                // Tag is null for no highlight and byte[] for a color.
                 combo.Items.Add(new ComboBoxItem { Content = sp, Tag = r.HasValue ? new byte[] { r.Value, g.Value, b.Value } : null });
             }
             combo.SelectedIndex = defIdx;
@@ -555,15 +637,15 @@ namespace NavisHelper.WPF
         private ContextMenu BuildClashTestContextMenu()
         {
             var menu = new ContextMenu();
-            menu.Items.Add(ClashTestMenuItem("Выполнить", () => ApplySelectedClashTestOperation("run")));
-            menu.Items.Add(ClashTestMenuItem("Сброс", () => ApplySelectedClashTestOperation("reset")));
-            menu.Items.Add(ClashTestMenuItem("Сжать", () => ApplySelectedClashTestOperation("compact")));
+            menu.Items.Add(ClashTestMenuItem("Panel_Clash_Menu_Run", () => ApplySelectedClashTestOperation("run")));
+            menu.Items.Add(ClashTestMenuItem("Panel_Clash_Menu_Reset", () => ApplySelectedClashTestOperation("reset")));
+            menu.Items.Add(ClashTestMenuItem("Panel_Clash_Menu_Compact", () => ApplySelectedClashTestOperation("compact")));
             menu.Items.Add(new Separator());
-            menu.Items.Add(ClashTestMenuItem("Сформировать точки обзора", CreateViewpointsForSelectedClashTests));
-            menu.Items.Add(BuildClashStatusMenu("Статус всех коллизий", true));
+            menu.Items.Add(ClashTestMenuItem("Panel_Clash_Menu_CreateViewpoints", CreateViewpointsForSelectedClashTests));
+            menu.Items.Add(BuildClashStatusMenu("Panel_Clash_Menu_AllStatuses", true));
             menu.Items.Add(new Separator());
-            menu.Items.Add(ClashTestMenuItem("Переименовать", RenameSelectedClashTest));
-            menu.Items.Add(ClashTestMenuItem("Удалить", () => ApplySelectedClashTestOperation("delete")));
+            menu.Items.Add(ClashTestMenuItem("Panel_Clash_Menu_Rename", RenameSelectedClashTest));
+            menu.Items.Add(ClashTestMenuItem("Panel_Clash_Menu_Delete", () => ApplySelectedClashTestOperation("delete")));
             return menu;
         }
 
@@ -607,28 +689,29 @@ namespace NavisHelper.WPF
         private ContextMenu BuildClashResultContextMenu()
         {
             var menu = new ContextMenu();
-            menu.Items.Add(ClashResultMenuItem("Перейти к объекту A", () => SelectClashResultItems(ClashResultSelectionMode.ItemA)));
-            menu.Items.Add(ClashResultMenuItem("Перейти к объекту B", () => SelectClashResultItems(ClashResultSelectionMode.ItemB)));
-            menu.Items.Add(ClashResultMenuItem("Выбрать оба объекта", () => SelectClashResultItems(ClashResultSelectionMode.Both)));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_SelectA", () => SelectClashResultItems(ClashResultSelectionMode.ItemA)));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_SelectB", () => SelectClashResultItems(ClashResultSelectionMode.ItemB)));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_SelectBoth", () => SelectClashResultItems(ClashResultSelectionMode.Both)));
             menu.Items.Add(new Separator());
-            menu.Items.Add(ClashResultMenuItem("Группировать по объекту A", () => SetClashGrouping(ClashGroupingSide.ItemA)));
-            menu.Items.Add(ClashResultMenuItem("Группировать по объекту B", () => SetClashGrouping(ClashGroupingSide.ItemB)));
-            menu.Items.Add(ClashResultMenuItem("Сбросить группировку", ResetSelectedClashGrouping));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_GroupByA", () => SetClashGrouping(ClashGroupingSide.ItemA)));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_GroupByB", () => SetClashGrouping(ClashGroupingSide.ItemB)));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_ResetGrouping", ResetSelectedClashGrouping));
             menu.Items.Add(new Separator());
-            menu.Items.Add(BuildClashStatusMenu("Статус", false));
-            menu.Items.Add(ClashResultMenuItem("Назначить исполнителя…", SetClashAssignedToPrompt));
-            menu.Items.Add(ClashResultMenuItem("Добавить комментарий…", AddClashCommentPrompt));
+            menu.Items.Add(BuildClashStatusMenu("Panel_Clash_Menu_Status", false));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_Assign", SetClashAssignedToPrompt));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_Comment", AddClashCommentPrompt));
             menu.Items.Add(new Separator());
-            menu.Items.Add(ClashResultMenuItem("Сгруппировать выделенные…", GroupSelectedClashResultsPrompt));
-            menu.Items.Add(ClashResultMenuItem("Разгруппировать", UngroupSelectedClashGroup));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_GroupSelected", GroupSelectedClashResultsPrompt));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_Ungroup", UngroupSelectedClashGroup));
             menu.Items.Add(new Separator());
-            menu.Items.Add(ClashResultMenuItem("Сформировать выделенные точки обзора", CreateViewpointsForSelectedClashResults));
+            menu.Items.Add(ClashResultMenuItem("Panel_Clash_Menu_CreateSelectedViewpoints", CreateViewpointsForSelectedClashResults));
             return menu;
         }
 
-        private MenuItem BuildClashStatusMenu(string header, bool testScope)
+        private MenuItem BuildClashStatusMenu(string headerResourceKey, bool testScope)
         {
-            var menu = new MenuItem { Header = header };
+            var menu = new MenuItem();
+            _panelLocalizationBindings.BindHeader(menu, headerResourceKey);
             foreach (ClashResultStatus status in new[]
             {
                 ClashResultStatus.Approved,
@@ -640,15 +723,16 @@ namespace NavisHelper.WPF
             {
                 var captured = status;
                 menu.Items.Add(testScope
-                    ? ClashTestMenuItem(captured.ToString(), () => SetSelectedClashStatus(captured, true))
-                    : ClashResultMenuItem(captured.ToString(), () => SetSelectedClashStatus(captured, false)));
+                    ? ClashTestMenuItem("Panel_Clash_Status_" + captured, () => SetSelectedClashStatus(captured, true))
+                    : ClashResultMenuItem("Panel_Clash_Status_" + captured, () => SetSelectedClashStatus(captured, false)));
             }
             return menu;
         }
 
-        private MenuItem ClashResultMenuItem(string text, Action action)
+        private MenuItem ClashResultMenuItem(string resourceKey, Action action)
         {
-            var item = new MenuItem { Header = text };
+            var item = new MenuItem();
+            _panelLocalizationBindings.BindHeader(item, resourceKey);
             item.Click += (s, e) =>
             {
                 try
@@ -658,16 +742,21 @@ namespace NavisHelper.WPF
                 catch (Exception ex)
                 {
                     Logger.Error("Clash Result action failed: " + ex, "ClashUI");
-                    SetGlobalStatus("Ошибка: " + ex.Message, Brushes.Red);
-                    MessageBox.Show("Ошибка: " + ex.Message, "Clash Result", MessageBoxButton.OK, MessageBoxImage.Error);
+                    SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
+                    MessageBox.Show(
+                        UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
+                        PanelUi("Panel_Clash_Result_Title"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
                 }
             };
             return item;
         }
 
-        private MenuItem ClashTestMenuItem(string text, Action action)
+        private MenuItem ClashTestMenuItem(string resourceKey, Action action)
         {
-            var item = new MenuItem { Header = text };
+            var item = new MenuItem();
+            _panelLocalizationBindings.BindHeader(item, resourceKey);
             item.Click += (s, e) =>
             {
                 try
@@ -676,8 +765,12 @@ namespace NavisHelper.WPF
                 }
                 catch (Exception ex)
                 {
-                    SetGlobalStatus("Ошибка: " + ex.Message, Brushes.Red);
-                    MessageBox.Show("Ошибка: " + ex.Message, "Clash Test", MessageBoxButton.OK, MessageBoxImage.Error);
+                    SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
+                    MessageBox.Show(
+                        UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
+                        PanelUi("Panel_Clash_Test_Title"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
                 }
             };
             return item;
@@ -735,8 +828,7 @@ namespace NavisHelper.WPF
 
         private void OnClashGridBeginningEdit(object sender, DataGridBeginningEditEventArgs e)
         {
-            var header = e.Column?.Header as string;
-            if (!string.Equals(header, "Имя группы", StringComparison.Ordinal))
+            if (!ReferenceEquals(e.Column, _clashGroupNameColumn))
             {
                 e.Cancel = true;
                 return;
@@ -746,7 +838,7 @@ namespace NavisHelper.WPF
             if (row == null || row.VirtualGroupId == null)
             {
                 e.Cancel = true;
-                SetGlobalStatus("Переименование доступно только для ручных групп", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_GroupRenameManualOnly", Brushes.Orange);
             }
         }
 
@@ -755,8 +847,7 @@ namespace NavisHelper.WPF
             if (e.EditAction != DataGridEditAction.Commit)
                 return;
 
-            var header = e.Column?.Header as string;
-            if (!string.Equals(header, "Имя группы", StringComparison.Ordinal))
+            if (!ReferenceEquals(e.Column, _clashGroupNameColumn))
                 return;
 
             var row = e.Row?.Item as ClashResultGridRow;
@@ -767,7 +858,7 @@ namespace NavisHelper.WPF
             var nextName = (editor?.Text ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(nextName))
             {
-                SetGlobalStatus("Имя группы не может быть пустым", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_GroupNameRequired", Brushes.Orange);
                 BeginInvokeForCurrentClashDocument(RefreshClashGridRows, DispatcherPriority.Background);
                 return;
             }
@@ -792,12 +883,12 @@ namespace NavisHelper.WPF
                 var clash = doc == null ? null : doc.GetClash();
                 var testsData = clash == null ? null : clash.TestsData;
                 if (testsData == null)
-                    throw new InvalidOperationException("Clash Detective недоступен");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_EngineUnavailable"));
 
                 var selectedTest = (_testGrid == null ? null : _testGrid.SelectedItem as ClashTestRow)?.Test;
                 var persistentGroup = group.PersistentGroup ?? FindClashResultGroup(selectedTest, group.Label, group.Side);
                 if (persistentGroup == null)
-                    throw new InvalidOperationException("Сохранённая группа не найдена");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_SavedGroupNotFound"));
 
                 var duplicate = selectedTest == null
                     ? null
@@ -809,7 +900,7 @@ namespace NavisHelper.WPF
                              (InferClashGroupingSideFromGroupName(item.DisplayName) == group.Side &&
                               string.Equals(GetUserClashGroupName(item.DisplayName), cleanName, StringComparison.OrdinalIgnoreCase))));
                 if (duplicate != null)
-                    throw new InvalidOperationException("Группа с таким именем уже есть");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_GroupNameDuplicate"));
 
                 using (var transaction = doc.BeginTransaction("NavisHelper Clash Group Rename"))
                 {
@@ -821,11 +912,11 @@ namespace NavisHelper.WPF
                 group.PersistentGroup = persistentGroup;
                 SaveActiveClashGroupsToCache();
                 RefreshClashGridRows();
-                SetGlobalStatus($"Группа переименована: {group.Label}", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Clash_GroupRenamed_Format", Brushes.DarkGreen, group.Label);
             }
             catch (Exception ex)
             {
-                SetGlobalStatus("Группа не переименована: " + ex.Message, Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_GroupRenameFailed_Format", Brushes.Red, ex.Message);
                 BeginInvokeForCurrentClashDocument(RefreshClashGridRows, DispatcherPriority.Background);
             }
         }
@@ -869,6 +960,8 @@ namespace NavisHelper.WPF
 
         private void UpdateClashGroupContents(object rowObject, IList<ClashResult> results)
         {
+            _clashGroupContentsRowObject = rowObject;
+            _clashGroupContentsResults = results;
             if (_clashGroupContentsGrid == null)
                 return;
 
@@ -880,7 +973,7 @@ namespace NavisHelper.WPF
 
             if (rows.Count == 0)
             {
-                _clashGroupContentsStatus.Text = "Выберите коллизию или группу";
+                _clashGroupContentsStatus.Text = PanelUi("Panel_Clash_SelectResultOrGroup_Hint");
                 _clashGroupContentsStatus.Foreground = Brushes.DimGray;
                 return;
             }
@@ -888,10 +981,15 @@ namespace NavisHelper.WPF
             var gridRow = rowObject as ClashResultGridRow;
             var label = gridRow != null && gridRow.IsGroup
                 ? string.IsNullOrWhiteSpace(gridRow.GroupName) ? gridRow.Name : gridRow.GroupName
-                : "Одиночная коллизия";
+                : PanelUi("Panel_Clash_SingleClash");
             var uniqueA = ClashGroupDisplayPolicy.CountDistinctNames(rows.Select(row => row.ItemA));
             var uniqueB = ClashGroupDisplayPolicy.CountDistinctNames(rows.Select(row => row.ItemB));
-            _clashGroupContentsStatus.Text = $"Состав: {label} | коллизий: {rows.Count} | A: {uniqueA} | B: {uniqueB}";
+            _clashGroupContentsStatus.Text = UiLocalizationService.Current.Format(
+                "Panel_Clash_GroupContents_Format",
+                label,
+                rows.Count,
+                uniqueA,
+                uniqueB);
             _clashGroupContentsStatus.Foreground = gridRow != null && gridRow.IsGroup ? Brushes.DarkGreen : Brushes.DimGray;
         }
 
@@ -930,7 +1028,9 @@ namespace NavisHelper.WPF
             {
                 tree.Items.Add(new TreeViewItem
                 {
-                    Header = new TextBlock { Text = "нет данных", Foreground = Brushes.Gray, FontStyle = FontStyles.Italic },
+                    Header = BindPanelText(
+                        new TextBlock { Foreground = Brushes.Gray, FontStyle = FontStyles.Italic },
+                        "Panel_NoData"),
                     IsEnabled = false,
                     Style = tree.ItemContainerStyle
                 });
@@ -944,7 +1044,9 @@ namespace NavisHelper.WPF
                 {
                     Text = entry.Name,
                     TextTrimming = TextTrimming.CharacterEllipsis,
-                    ToolTip = entry.Path + "\nПКМ: выделить этот объект в модели"
+                    ToolTip = UiLocalizationService.Current.Format(
+                        "Panel_Clash_TreeNode_RightClickHint_Format",
+                        entry.Path)
                 };
 
                 var tag = new ClashTreeNodeTag
@@ -959,7 +1061,9 @@ namespace NavisHelper.WPF
                     Header = text,
                     IsExpanded = true,
                     Style = tree.ItemContainerStyle,
-                    ToolTip = "Объединить коллизии внутри: " + entry.Path,
+                    ToolTip = UiLocalizationService.Current.Format(
+                        "Panel_Clash_MergeInside_Format",
+                        entry.Path),
                     Tag = tag,
                     ContextMenu = BuildClashTreeContextMenu(tag)
                 };
@@ -988,7 +1092,10 @@ namespace NavisHelper.WPF
         private ContextMenu BuildClashTreeContextMenu(ClashTreeNodeTag tag)
         {
             var menu = new ContextMenu();
-            var selectInModel = new MenuItem { Header = "Выделить в модели" };
+            var selectInModel = new MenuItem
+            {
+                Header = PanelUi("Panel_Clash_SelectInModel_Action")
+            };
             selectInModel.Click += (sender, args) => SelectClashTreeItemInModel(tag);
             menu.Items.Add(selectInModel);
             return menu;
@@ -1004,24 +1111,24 @@ namespace NavisHelper.WPF
                 var doc = NwApplication.ActiveDocument;
                 if (doc == null || doc.IsClear)
                 {
-                    SetGlobalStatus("Нет активного документа", Brushes.Orange);
+                    SetGlobalStatusResource("Panel_Common_NoActiveDocument", Brushes.Orange);
                     return;
                 }
 
                 var selection = new ModelItemCollection();
                 if (tag == null || !AddSelectableModelItem(selection, tag.Item))
                 {
-                    SetGlobalStatus("Объект дерева больше недоступен в активной модели", Brushes.Orange);
+                    SetGlobalStatusResource("Panel_Clash_TreeItemUnavailable", Brushes.Orange);
                     return;
                 }
 
                 doc.CurrentSelection.CopyFrom(selection);
                 var sideLabel = tag.Side == ClashGroupingSide.ItemA ? "A" : "B";
-                SetGlobalStatus($"Выделен объект {sideLabel}: {tag.Label}", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Clash_TreeItemSelected_Format", Brushes.DarkGreen, sideLabel, tag.Label);
             }
             catch (Exception ex)
             {
-                SetGlobalStatus("Не удалось выделить объект: " + ex.Message, Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_TreeItemSelectFailed_Format", Brushes.Red, ex.Message);
             }
         }
 
@@ -1046,14 +1153,17 @@ namespace NavisHelper.WPF
             if (_applyClashGroupingButton != null)
             {
                 _applyClashGroupingButton.IsEnabled = matchCount > 0;
-                _applyClashGroupingButton.ToolTip =
-                    $"По выбранному уровню найдено коллизий: {matchCount}. Уже сгруппированные результаты обрабатываются отдельно.";
+                RefreshApplyClashGroupingToolTip();
             }
 
             var sideLabel = tag.Side == ClashGroupingSide.ItemA ? "A" : "B";
             if (_clashGroupingStatus != null)
             {
-                _clashGroupingStatus.Text = $"Уровень {sideLabel}: {tag.Label} | найдено: {matchCount}";
+                _clashGroupingStatus.Text = UiLocalizationService.Current.Format(
+                    "Panel_Level01Found2",
+                    sideLabel,
+                    tag.Label,
+                    matchCount);
                 _clashGroupingStatus.Foreground = Brushes.DarkSlateBlue;
             }
         }
@@ -1063,7 +1173,7 @@ namespace NavisHelper.WPF
             var tag = _pendingClashGroupingTag;
             if (tag == null)
             {
-                SetGlobalStatus("Выберите уровень дерева A или B", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_SelectTreeLevel", Brushes.Orange);
                 return;
             }
 
@@ -1083,8 +1193,9 @@ namespace NavisHelper.WPF
             {
                 Mouse.OverrideCursor = Cursors.Wait;
                 SetClashInteractiveControlsEnabled(false);
-                SetGlobalBusy(true, $"Создание группы {sideLabel}: {tag.Label}");
-                SetGlobalStatus($"Группа {sideLabel}: поиск коллизий...", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_GroupCreating_Format", Brushes.Orange, sideLabel, tag.Label);
+                SetGlobalBusy(true);
+                SetGlobalStatusResource("Panel_Clash_GroupSearching_Format", Brushes.Orange, sideLabel);
                 PumpDispatcherOnce();
                 var added = AddVirtualClashGroup(tag);
                 if (!added)
@@ -1092,7 +1203,7 @@ namespace NavisHelper.WPF
 
                 RefreshClashGridRows();
                 UpdateClashGroupingTrees();
-                SetGlobalStatus($"Группа добавлена {sideLabel}: {tag.Label}", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Clash_GroupAdded_Format", Brushes.DarkGreen, sideLabel, tag.Label);
             }
             finally
             {
@@ -1116,7 +1227,7 @@ namespace NavisHelper.WPF
 
             if (matches.Count == 0)
             {
-                SetGlobalStatus("Для выбранного уровня коллизии не найдены", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_GroupNoResults", Brushes.Orange);
                 return false;
             }
 
@@ -1128,8 +1239,8 @@ namespace NavisHelper.WPF
             if (sameGroup != null)
             {
                 var replace = MessageBox.Show(
-                    $"Группа \"{sameGroup.Label}\" уже есть.\nОбновить её состав по текущим результатам?",
-                    "Группа уже существует",
+                    UiLocalizationService.Current.Format("Panel_Clash_GroupExists_Message_Format", sameGroup.Label),
+                    PanelUi("Panel_Clash_GroupExists_Title"),
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
                 if (replace != MessageBoxResult.Yes)
@@ -1162,11 +1273,11 @@ namespace NavisHelper.WPF
             if (overlapping.Count > 0)
             {
                 var answer = MessageBox.Show(
-                    $"Уже в других группах: {overlapping.Count} из {matches.Count} коллизий.\n\n" +
-                    "Да - перенести их в новую группу.\n" +
-                    "Нет - оставить их в старых группах и добавить только свободные.\n" +
-                    "Отмена - не создавать группу.",
-                    "Коллизии уже сгруппированы",
+                    UiLocalizationService.Current.Format(
+                        "Panel_Clash_GroupOverlap_Message_Format",
+                        overlapping.Count,
+                        matches.Count),
+                    PanelUi("Panel_Clash_GroupOverlap_Title"),
                     MessageBoxButton.YesNoCancel,
                     MessageBoxImage.Question);
 
@@ -1185,7 +1296,7 @@ namespace NavisHelper.WPF
 
             if (groupResults.Count == 0)
             {
-                SetGlobalStatus("Новая группа не создана: все коллизии остались в старых группах", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_GroupNoMove", Brushes.Orange);
                 return false;
             }
 
@@ -1234,7 +1345,20 @@ namespace NavisHelper.WPF
                 return;
 
             _applyClashGroupingButton.IsEnabled = false;
-            _applyClashGroupingButton.ToolTip = "Сначала выберите уровень дерева A или B";
+            RefreshApplyClashGroupingToolTip();
+        }
+
+        private void RefreshApplyClashGroupingToolTip()
+        {
+            if (_applyClashGroupingButton == null)
+                return;
+
+            var tag = _pendingClashGroupingTag;
+            _applyClashGroupingButton.ToolTip = tag == null
+                ? PanelUi("Panel_Clash_GroupTree_SelectLevel_ToolTip")
+                : UiLocalizationService.Current.Format(
+                    "Panel_Clash_GroupingMatches_ToolTip_Format",
+                    FindClashResultsForTreeNode(tag).Count);
         }
 
         private void InvalidateClashTreeMatchCache()
@@ -1248,7 +1372,7 @@ namespace NavisHelper.WPF
             var selectedTest = (_testGrid == null ? null : _testGrid.SelectedItem as ClashTestRow)?.Test;
             if (selectedTest == null)
             {
-                SetGlobalStatus("Выберите Clash Test для сохранения группы", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_SelectTestForGroup", Brushes.Orange);
                 return false;
             }
 
@@ -1261,7 +1385,7 @@ namespace NavisHelper.WPF
                 var clash = doc == null ? null : doc.GetClash();
                 var testsData = clash == null ? null : clash.TestsData;
                 if (testsData == null)
-                    throw new InvalidOperationException("Clash Detective недоступен");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_EngineUnavailable"));
 
                 var moved = 0;
                 var targetResults = results.Where(result => result != null).Distinct().ToList();
@@ -1270,18 +1394,18 @@ namespace NavisHelper.WPF
                     var group = FindOrCreateClashResultGroup(testsData, selectedTest, groupName);
                     moved = RebuildClashResultGroup(testsData, selectedTest, group, targetResults);
                     if (targetResults.Count > 0 && EnumerateClashResults(group.Children).Count() == 0)
-                        throw new InvalidOperationException("ClashResultGroup создана, но результаты не были перенесены внутрь группы.");
+                        throw new InvalidOperationException(PanelUi("Panel_Clash_GroupMoveInvariantFailed"));
 
                     transaction.Commit();
                     persistedGroup = group;
                 }
 
-                SetGlobalStatus($"Группа сохранена: {groupName}, перенесено {moved}", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Clash_GroupSaved_Format", Brushes.DarkGreen, groupName, moved);
                 return true;
             }
             catch (Exception ex)
             {
-                SetGlobalStatus("Группа не сохранена: " + ex.Message, Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_GroupSaveFailed_Format", Brushes.Red, ex.Message);
                 return false;
             }
         }
@@ -1339,7 +1463,8 @@ namespace NavisHelper.WPF
                 .OfType<ClashResultGroup>()
                 .FirstOrDefault(group => string.Equals(group.DisplayName, groupName, StringComparison.OrdinalIgnoreCase));
             if (existing == null)
-                throw new InvalidOperationException("Не удалось создать ClashResultGroup.");
+                throw new InvalidOperationException(
+                    UiLocalizationService.Current.GetString("Panel_Clash_GroupCreateFailed"));
 
             return existing;
         }

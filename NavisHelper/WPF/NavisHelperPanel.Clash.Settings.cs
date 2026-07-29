@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using Microsoft.VisualBasic;
 using Path = System.IO.Path;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NavisHelper.Interfaces;
 using NavisHelper.Agent.Services;
 using Autodesk.Navisworks.Api;
@@ -90,7 +91,7 @@ namespace NavisHelper.WPF
 
                 if (selectedResults.Count == 0)
                 {
-                    SetGlobalStatus("Нет выбранной коллизии для VP", Brushes.Orange);
+                    SetGlobalStatusResource("Panel_Clash_Viewpoint_NoSelectedResult", Brushes.Orange);
                     return;
                 }
 
@@ -110,20 +111,24 @@ namespace NavisHelper.WPF
                 }
 
                 if (!_clashMgr.LastSuccess)
-                    throw new InvalidOperationException(_clashMgr.LastStatus);
+                    throw new UiStatusResourceException(
+                        PreviewManagerUiStatusMapper.ForClashPreview(
+                            _clashMgr.LastUiOutcome));
 
-                string redlineDebug;
+                UiStatusResourceDescriptor redlineDebug;
                 var drawGroupMarkers = _clashGroupMarkersForViewpoints?.IsChecked == true && selectedResults.Count > 1;
                 var centers = GetClashCentersForRedlines(selectedResults, includeFallbackCenter: !drawGroupMarkers);
                 if (drawGroupMarkers || centers.Count > 0)
                 {
                     var drawn = ApplyClashCenterRedlines(doc, centers, out redlineDebug);
                     if (drawn == 0 && centers.Count == 0)
-                        redlineDebug = " | no clash center";
+                        redlineDebug = new UiStatusResourceDescriptor(
+                            "Panel_Clash_Viewpoint_NoCenterSuffix");
                 }
                 else
                 {
-                    redlineDebug = " | no clash center";
+                    redlineDebug = new UiStatusResourceDescriptor(
+                        "Panel_Clash_Viewpoint_NoCenterSuffix");
                 }
 
                 var normalizedBaseName = NormalizeSavedItemName(vpName, "Clash Preview");
@@ -134,7 +139,15 @@ namespace NavisHelper.WPF
                 // Чистим redlines после сохранения
                 ClearActiveViewRedlines(doc);
 
-                var savedMessage = $"VP: {vpName}{redlineDebug}";
+                var savedNameArguments = new List<object>
+                {
+                    UiLocalizedArgument.FromResource(
+                        "Panel_Clash_Viewpoint_SavedNameEntry_Format",
+                        vpName,
+                        redlineDebug == null
+                            ? (object)string.Empty
+                            : redlineDebug.AsLocalizedArgument())
+                };
                 if (createTwoViewpoints && _clashMgr.LastExpandedBox != null)
                 {
                     ViewpointCameraHelper.ApplyIsoOppositeViewToBox(doc, _clashMgr.LastExpandedBox, _clashMgr.LastClashCenter);
@@ -142,19 +155,37 @@ namespace NavisHelper.WPF
                     if (drawGroupMarkers || centers.Count > 0)
                         ApplyClashCenterRedlines(doc, centers, out redlineDebug);
                     else
-                        redlineDebug = " | no clash center";
+                        redlineDebug = new UiStatusResourceDescriptor(
+                            "Panel_Clash_Viewpoint_NoCenterSuffix");
 
                     var secondName = MakeUniqueSavedViewpointName(folder, normalizedBaseName + " (2)");
                     SavedViewpointAppearanceHelper.SaveCurrentViewWithAppearanceOverrides(doc, folder, folder.DisplayName, secondName);
                     ClearActiveViewRedlines(doc);
-                    savedMessage += $"; {secondName}{redlineDebug}";
+                    savedNameArguments.Add(
+                        UiLocalizedArgument.FromResource(
+                            "Panel_Clash_Viewpoint_SavedNameEntry_Format",
+                            secondName,
+                            redlineDebug == null
+                                ? (object)string.Empty
+                                : redlineDebug.AsLocalizedArgument()));
                 }
 
-                SetGlobalStatus(savedMessage, Brushes.DarkGreen);
+                SetGlobalStatusResource(
+                    "Panel_Clash_Viewpoint_SavedNames_Format",
+                    Brushes.DarkGreen,
+                    UiLocalizedArgument.Join("; ", savedNameArguments));
+            }
+            catch (UiStatusResourceException ex)
+            {
+                SetGlobalStatusResource(
+                    new UiStatusResourceDescriptor(
+                        "Panel_Clash_Viewpoint_Failed_Format",
+                        ex.Descriptor.AsLocalizedArgument()),
+                    Brushes.Red);
             }
             catch (Exception ex)
             {
-                SetGlobalStatus($"VP ошибка: {ex.Message}", Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_Viewpoint_Failed_Format", Brushes.Red, ex.Message);
             }
         }
 
@@ -197,7 +228,8 @@ namespace NavisHelper.WPF
 
         private static string GetClashItemName(Autodesk.Navisworks.Api.ModelItemCollection items)
         {
-            if (items == null || items.Count == 0) return "(нет)";
+            if (items == null || items.Count == 0)
+                return UiLocalizationService.Current.GetString("Panel_Clash_Item_None");
             var item = items.First();
             // DisplayName
             if (!string.IsNullOrWhiteSpace(item.DisplayName)) return item.DisplayName;
@@ -206,7 +238,7 @@ namespace NavisHelper.WPF
             // Parent name
             if (item.Parent != null && !string.IsNullOrWhiteSpace(item.Parent.DisplayName))
                 return $".../{item.Parent.DisplayName}";
-            return $"(элемент #{items.Count})";
+            return UiLocalizationService.Current.Format("Panel_Clash_ItemFallback_Format", items.Count);
         }
 
         private static string FormatClashDistance(ClashResult result)

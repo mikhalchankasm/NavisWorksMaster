@@ -32,6 +32,8 @@ using WpfColor = System.Windows.Media.Color;
 using NwApplication = Autodesk.Navisworks.Api.Application;
 using NwColor = Autodesk.Navisworks.Api.Color;
 
+using NavisHelper.Core.Localization;
+
 namespace NavisHelper.WPF
 {
     public partial class NavisHelperPanel : UserControl
@@ -181,6 +183,68 @@ namespace NavisHelper.WPF
             return panel;
         }
 
+        private string PanelUi(string resourceKey)
+        {
+            return _panelLocalizationBindings.Text(resourceKey);
+        }
+
+        private TextBlock BindPanelText(TextBlock target, string resourceKey)
+        {
+            _panelLocalizationBindings.BindText(target, resourceKey);
+            return target;
+        }
+
+        private T BindPanelContent<T>(T target, string resourceKey)
+            where T : ContentControl
+        {
+            _panelLocalizationBindings.BindContent(target, resourceKey);
+            return target;
+        }
+
+        private T BindPanelHeader<T>(T target, string resourceKey)
+            where T : HeaderedContentControl
+        {
+            _panelLocalizationBindings.BindHeader(target, resourceKey);
+            return target;
+        }
+
+        private T BindPanelToolTip<T>(T target, string resourceKey)
+            where T : FrameworkElement
+        {
+            _panelLocalizationBindings.BindToolTip(target, resourceKey);
+            return target;
+        }
+
+        private object MakeLocalizedButtonContent(
+            string iconName,
+            string fallbackEmoji,
+            string textResourceKey)
+        {
+            var content = (StackPanel)MakeButtonContent(
+                iconName,
+                fallbackEmoji,
+                PanelUi(textResourceKey));
+            var label = content.Children.OfType<TextBlock>().Last();
+            _panelLocalizationBindings.BindText(label, textResourceKey);
+            return content;
+        }
+
+        private Border PanelSectionCard(string resourceKey, UIElement content)
+        {
+            var section = new StackPanel();
+            section.Children.Add(BindPanelText(
+                new TextBlock
+                {
+                    FontSize = UiTheme.FontSmall,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = UiTheme.TextSecondary,
+                    Margin = new Thickness(0, 0, 0, UiTheme.Gap)
+                },
+                resourceKey));
+            section.Children.Add(content);
+            return UiTheme.SectionCard(string.Empty, section);
+        }
+
         private static TabItem WrapInTab(string header, UIElement content)
         {
             var scroll = new ScrollViewer
@@ -192,14 +256,14 @@ namespace NavisHelper.WPF
             return new TabItem { Header = header, Content = scroll };
         }
 
-        private static TextBlock CreateGroupHeader(string text)
+        private TextBlock CreateGroupHeader(string resourceKey)
         {
-            return new TextBlock
+            return BindPanelText(new TextBlock
             {
-                Text = text, FontSize = UiTheme.FontHeader, FontWeight = FontWeights.SemiBold,
+                FontSize = UiTheme.FontHeader, FontWeight = FontWeights.SemiBold,
                 Foreground = UiTheme.TextPrimary,
                 Margin = new Thickness(0, 6, 0, 6)
-            };
+            }, resourceKey);
         }
 
         private static Border CreateSeparator()
@@ -214,12 +278,11 @@ namespace NavisHelper.WPF
 
         /// <summary>Кнопка с иконкой для вызова плагина. iconName — имя файла без .png.</summary>
 
-        private Button Btn(string iconName, string fallbackEmoji, string text, string tooltip, string pluginId, ButtonKind kind = ButtonKind.Neutral, bool requiresSelection = false)
+        private Button Btn(string iconName, string fallbackEmoji, string textResourceKey, string toolTipResourceKey, string pluginId, ButtonKind kind = ButtonKind.Neutral, bool requiresSelection = false)
         {
             var btn = new Button
             {
-                Content = MakeButtonContent(iconName, fallbackEmoji, text),
-                ToolTip = tooltip,
+                Content = MakeLocalizedButtonContent(iconName, fallbackEmoji, textResourceKey),
                 Height = 32,
                 Margin = new Thickness(0, 2, 0, 2),
                 Padding = new Thickness(8, 0, 8, 0),
@@ -227,6 +290,7 @@ namespace NavisHelper.WPF
                 FontSize = 12, Cursor = Cursors.Hand, Tag = pluginId,
                 Style = UiTheme.ButtonStyle(kind)
             };
+            _panelLocalizationBindings.BindToolTip(btn, toolTipResourceKey);
             btn.Click += OnButtonClick;
             if (requiresSelection) _selectionGating.Register(btn);
             return btn;
@@ -234,19 +298,33 @@ namespace NavisHelper.WPF
 
         /// <summary>Кнопка навигации.</summary>
 
-        private Button NavBtn(string iconName, string fallbackEmoji, string text, string hotkey, string tooltip, Action action, ButtonKind kind = ButtonKind.Neutral, bool requiresSelection = false)
+        private Button NavBtn(string iconName, string fallbackEmoji, string textResourceKey, string hotkey, string toolTipResourceKey, Action action, ButtonKind kind = ButtonKind.Neutral, bool requiresSelection = false)
         {
-            var label = hotkey != null ? $"{text}  ({hotkey})" : text;
+            var label = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+            if (hotkey != null)
+            {
+                _panelLocalizationBindings.BindFormattedText(
+                    label,
+                    "Panel_Common_LabelHotkey_Format",
+                    () => new object[] { PanelUi(textResourceKey), hotkey });
+            }
+            else
+            {
+                _panelLocalizationBindings.BindText(label, textResourceKey);
+            }
+            var content = (StackPanel)MakeButtonContent(iconName, fallbackEmoji, string.Empty);
+            content.Children.RemoveAt(content.Children.Count - 1);
+            content.Children.Add(label);
             var btn = new Button
             {
-                Content = MakeButtonContent(iconName, fallbackEmoji, label),
-                ToolTip = tooltip,
+                Content = content,
                 Height = 36, Margin = new Thickness(0, 2, 0, 2),
                 Padding = new Thickness(8, 0, 8, 0),
                 HorizontalContentAlignment = HorizontalAlignment.Left,
                 FontSize = 13, Cursor = Cursors.Hand,
                 Style = UiTheme.ButtonStyle(kind)
             };
+            _panelLocalizationBindings.BindToolTip(btn, toolTipResourceKey);
             btn.Click += (s, e) => TreeNavigation.SafeExecute(action);
             if (requiresSelection) _selectionGating.Register(btn);
             return btn;
@@ -254,23 +332,23 @@ namespace NavisHelper.WPF
 
         /// <summary>Кнопка-действие.</summary>
 
-        private Button ActionBtn(string iconName, string fallbackEmoji, string text, string tooltip, Action action, int width = 0, ButtonKind kind = ButtonKind.Neutral, bool requiresSelection = false)
+        private Button ActionBtn(string iconName, string fallbackEmoji, string textResourceKey, string toolTipResourceKey, Action action, int width = 0, ButtonKind kind = ButtonKind.Neutral, bool requiresSelection = false)
         {
             var btn = new Button
             {
-                Content = MakeButtonContent(iconName, fallbackEmoji, text),
-                ToolTip = tooltip,
+                Content = MakeLocalizedButtonContent(iconName, fallbackEmoji, textResourceKey),
                 Height = 34, Margin = new Thickness(0, 2, 4, 2),
                 Padding = new Thickness(8, 0, 8, 0),
                 HorizontalContentAlignment = HorizontalAlignment.Left,
                 FontSize = 12, Cursor = Cursors.Hand,
                 Style = UiTheme.ButtonStyle(kind)
             };
+            _panelLocalizationBindings.BindToolTip(btn, toolTipResourceKey);
             if (width > 0) btn.Width = width;
             btn.Click += (s, e) =>
             {
                 try { action(); }
-                catch (Exception ex) { MessageBox.Show("Ошибка: " + ex.Message, "NavisHelper", MessageBoxButton.OK, MessageBoxImage.Error); }
+                catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), "NavisHelper", MessageBoxButton.OK, MessageBoxImage.Error); }
             };
             if (requiresSelection) _selectionGating.Register(btn);
             return btn;
@@ -283,7 +361,7 @@ namespace NavisHelper.WPF
                 if (PluginCommandExecutor.TryExecuteDirect(pluginId)) return;
                 Autodesk.Navisworks.Api.Application.Plugins.ExecuteAddInPlugin(pluginId);
             }
-            catch (Exception ex) { MessageBox.Show("Ошибка: " + ex.Message, "NavisHelper", MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), "NavisHelper", MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         private static void OnButtonClick(object sender, RoutedEventArgs e)

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Application = Autodesk.Navisworks.Api.Application;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 // using Microsoft.Toolkit.Uwp.Notifications; // Временно отключено из-за проблем с совместимостью
 
 namespace NavisHelper
@@ -34,7 +35,7 @@ namespace NavisHelper
                 {
                     var openDialog = new OpenFileDialog()
                     {
-                        Filter = "Xml файлы|*.xml|Все файлы|*.*",
+                        Filter = UiLocalizationService.Current.GetString("CommonFileFilterXmlAll"),
                         RestoreDirectory = true
                     };
 

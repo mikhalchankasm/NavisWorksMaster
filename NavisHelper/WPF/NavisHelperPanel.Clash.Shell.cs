@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using Microsoft.VisualBasic;
 using Path = System.IO.Path;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NavisHelper.Interfaces;
 using NavisHelper.Agent.Services;
 using Autodesk.Navisworks.Api;
@@ -68,15 +69,30 @@ namespace NavisHelper.WPF
             root.Margin = new Thickness(4);
 
             var topBar = new WrapPanel { Margin = new Thickness(0, 0, 0, 6), VerticalAlignment = VerticalAlignment.Center };
-            var loadTestsBtn = ClashTopBarButton("\U0001F504 Тесты", "Загрузить Clash Test", LoadClashTests);
+            var loadTestsBtn = ClashTopBarButton(
+                "Panel_Clash_Top_LoadTests",
+                "Panel_Clash_Top_LoadTests_ToolTip",
+                LoadClashTests);
             topBar.Children.Add(loadTestsBtn);
-            var runSelectedTestsBtn = ClashTopBarButton("\U000025B6 Выбр.", "Запустить выбранные Clash Test", RunSelectedClashTests, ButtonKind.Primary);
+            var runSelectedTestsBtn = ClashTopBarButton(
+                "Panel_Clash_Top_RunSelected",
+                "Panel_Clash_Top_RunSelected_ToolTip",
+                RunSelectedClashTests,
+                ButtonKind.Primary);
             RegisterClashInteractiveButton(runSelectedTestsBtn);
             topBar.Children.Add(runSelectedTestsBtn);
-            var runAllTestsBtn = ClashTopBarButton("\U000026A0 Все", "Запустить все Clash Test без сохранения отчёта или модели", RunAllClashTests, ButtonKind.Primary);
+            var runAllTestsBtn = ClashTopBarButton(
+                "Panel_Clash_Top_RunAll",
+                "Panel_Clash_Top_RunAll_ToolTip",
+                RunAllClashTests,
+                ButtonKind.Primary);
             RegisterClashInteractiveButton(runAllTestsBtn);
             topBar.Children.Add(runAllTestsBtn);
-            var deleteZeroTestsBtn = ClashTopBarButton("\U0001F5D1 0", "Удалить Clash Test, у которых в результатах проверки 0 коллизий", DeleteZeroClashTests, ButtonKind.Destructive);
+            var deleteZeroTestsBtn = ClashTopBarButton(
+                "Panel_Clash_Top_DeleteZero",
+                "Panel_Clash_Top_DeleteZero_ToolTip",
+                DeleteZeroClashTests,
+                ButtonKind.Destructive);
             RegisterClashInteractiveButton(deleteZeroTestsBtn);
             topBar.Children.Add(deleteZeroTestsBtn);
             topBar.Children.Add(new Border
@@ -86,7 +102,11 @@ namespace NavisHelper.WPF
                 Background = new SolidColorBrush(WpfColor.FromRgb(0xDD, 0xDD, 0xDD)),
                 Margin = new Thickness(4, 1, 6, 1)
             });
-            var checkAllTestsBtn = ClashTopBarButton("\U00002713 Проверка", "Выполнить внешнюю команду проверки всех коллизий", null, ButtonKind.Primary);
+            var checkAllTestsBtn = ClashTopBarButton(
+                "Panel_Clash_Top_ExternalCheck",
+                "Panel_Clash_Top_ExternalCheck_ToolTip",
+                null,
+                ButtonKind.Primary);
             RegisterClashInteractiveButton(checkAllTestsBtn);
             checkAllTestsBtn.Click += (s, e) =>
             {
@@ -111,8 +131,6 @@ namespace NavisHelper.WPF
 
             _clashTreePanelToggle = new System.Windows.Controls.Primitives.ToggleButton
             {
-                Content = "\U0001F332 Дерево",
-                ToolTip = "Открыть дерево группировки A/B поверх таблицы коллизий",
                 Height = 24,
                 Padding = new Thickness(6, 0, 6, 0),
                 FontSize = 11,
@@ -120,6 +138,12 @@ namespace NavisHelper.WPF
                 IsChecked = _clashGroupPanelVisible,
                 VerticalAlignment = VerticalAlignment.Top
             };
+            _panelLocalizationBindings.BindContent(
+                _clashTreePanelToggle,
+                "Panel_Clash_TreeToggle");
+            _panelLocalizationBindings.BindToolTip(
+                _clashTreePanelToggle,
+                "Panel_Clash_GroupTree_ToolTip");
             _clashTreePanelToggle.Checked += (s, e) =>
             {
                 if (!_suppressClashTreeToggleEvents)
@@ -134,7 +158,6 @@ namespace NavisHelper.WPF
             _clashSettingsToggle = new System.Windows.Controls.Primitives.ToggleButton
             {
                 Content = "⚙",
-                ToolTip = "Настройки коллизий: подсветка, Section Box, прозрачность, точки обзора",
                 Height = 24,
                 Padding = new Thickness(8, 0, 8, 0),
                 FontSize = 11,
@@ -142,6 +165,9 @@ namespace NavisHelper.WPF
                 Margin = new Thickness(4, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Top
             };
+            _panelLocalizationBindings.BindToolTip(
+                _clashSettingsToggle,
+                "Panel_Clash_Settings_Description");
 
             var topBarHost = new DockPanel { Margin = new Thickness(0, 0, 0, 6), LastChildFill = true };
             DockPanel.SetDock(_clashSettingsToggle, Dock.Right);
@@ -154,11 +180,13 @@ namespace NavisHelper.WPF
             root.Children.Add(topBarHost);
 
             var testHeader = new StackPanel { Margin = new Thickness(0, 0, 0, 4) };
-            testHeader.Children.Add(ClashCaption("Тесты"));
+            testHeader.Children.Add(ClashCaption("Panel_Clash_Caption_Tests"));
             _testFilterBox = new TextBox { Height = 22, Margin = new Thickness(0, 0, 0, 2), FontSize = 11 };
             _testFilterBox.AcceptsReturn = false;
             _testFilterBox.TextChanged += (s, e) => FilterTestGrid();
-            var testFilterLabel = new TextBlock { Text = "Фильтр тестов...", Foreground = Brushes.Gray, FontSize = 11, IsHitTestVisible = false, Margin = new Thickness(4, 3, 0, 0) };
+            var testFilterLabel = BindPanelText(
+                new TextBlock { Foreground = Brushes.Gray, FontSize = 11, IsHitTestVisible = false, Margin = new Thickness(4, 3, 0, 0) },
+                "Panel_TestFilter");
             var testFilterContainer = new Grid();
             testFilterContainer.Children.Add(_testFilterBox);
             testFilterContainer.Children.Add(testFilterLabel);
@@ -176,10 +204,18 @@ namespace NavisHelper.WPF
                 GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
                 FontSize = 11, RowHeight = 22
             };
-            _testGrid.Columns.Add(new DataGridTextColumn { Header = "Тест", Binding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            _testGrid.Columns.Add(new DataGridTextColumn { Header = "Всего", Binding = new System.Windows.Data.Binding("Total"), Width = new DataGridLength(45) });
-            _testGrid.Columns.Add(new DataGridTextColumn { Header = "New", Binding = new System.Windows.Data.Binding("New"), Width = new DataGridLength(35) });
-            _testGrid.Columns.Add(new DataGridTextColumn { Header = "Act", Binding = new System.Windows.Data.Binding("Active"), Width = new DataGridLength(35) });
+            var testNameColumn = new DataGridTextColumn { Binding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) };
+            var totalColumn = new DataGridTextColumn { Binding = new System.Windows.Data.Binding("Total"), Width = new DataGridLength(45) };
+            _panelLocalizationBindings.BindColumnHeader(testNameColumn, "Panel_Test");
+            _panelLocalizationBindings.BindColumnHeader(totalColumn, "Panel_Total");
+            _testGrid.Columns.Add(testNameColumn);
+            _testGrid.Columns.Add(totalColumn);
+            var newColumn = new DataGridTextColumn { Binding = new System.Windows.Data.Binding("New"), Width = new DataGridLength(35) };
+            var activeColumn = new DataGridTextColumn { Binding = new System.Windows.Data.Binding("Active"), Width = new DataGridLength(35) };
+            _panelLocalizationBindings.BindColumnHeader(newColumn, "Panel_Clash_Column_New");
+            _panelLocalizationBindings.BindColumnHeader(activeColumn, "Panel_Clash_Column_Active");
+            _testGrid.Columns.Add(newColumn);
+            _testGrid.Columns.Add(activeColumn);
             _testGrid.SelectionChanged += (s, e) =>
             {
                 if (!_suppressClashTestSelectionChanged)
@@ -198,9 +234,11 @@ namespace NavisHelper.WPF
                 ResizeDirection = GridResizeDirection.Rows,
                 ResizeBehavior = GridResizeBehavior.PreviousAndNext,
                 ShowsPreview = false,
-                Cursor = Cursors.SizeNS,
-                ToolTip = "Перетащите, чтобы изменить высоту таблиц"
+                Cursor = Cursors.SizeNS
             };
+            _panelLocalizationBindings.BindToolTip(
+                splitter,
+                "Panel_Clash_TableSplitter_ToolTip");
             splitter.MouseEnter += (s, e) => splitter.Background = new SolidColorBrush(WpfColor.FromRgb(0xC7, 0xD4, 0xE4));
             splitter.MouseLeave += (s, e) => splitter.Background = new SolidColorBrush(WpfColor.FromRgb(0xDF, 0xE3, 0xE8));
             splitter.DragCompleted += (s, e) => SaveClashSettings();
@@ -225,11 +263,10 @@ namespace NavisHelper.WPF
             };
             _clashGrid.RowStyle = BuildClashGridRowStyle();
             _clashGrid.CellStyle = BuildClashGridCellStyle();
-            _clashGrid.Columns.Add(new DataGridTextColumn { Header = "Ст.", Binding = new System.Windows.Data.Binding("Status"), Width = new DataGridLength(35), IsReadOnly = true });
-            _clashGrid.Columns.Add(new DataGridTextColumn { Header = "Коллизия", Binding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly = true });
-            _clashGrid.Columns.Add(new DataGridTextColumn
+            var statusColumn = new DataGridTextColumn { Binding = new System.Windows.Data.Binding("Status"), Width = new DataGridLength(35), IsReadOnly = true };
+            var resultNameColumn = new DataGridTextColumn { Binding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly = true };
+            var groupNameColumn = new DataGridTextColumn
             {
-                Header = "Имя группы",
                 Binding = new System.Windows.Data.Binding("GroupName")
                 {
                     Mode = System.Windows.Data.BindingMode.TwoWay,
@@ -237,8 +274,17 @@ namespace NavisHelper.WPF
                 },
                 Width = new DataGridLength(125),
                 IsReadOnly = false
-            });
-            _clashGrid.Columns.Add(new DataGridTextColumn { Header = "Расст.", Binding = new System.Windows.Data.Binding("Distance"), Width = new DataGridLength(72), IsReadOnly = true });
+            };
+            var distanceColumn = new DataGridTextColumn { Binding = new System.Windows.Data.Binding("Distance"), Width = new DataGridLength(72), IsReadOnly = true };
+            _panelLocalizationBindings.BindColumnHeader(statusColumn, "Panel_St");
+            _panelLocalizationBindings.BindColumnHeader(resultNameColumn, "Panel_Clash_Column_Name");
+            _panelLocalizationBindings.BindColumnHeader(groupNameColumn, "Panel_GroupName");
+            _panelLocalizationBindings.BindColumnHeader(distanceColumn, "Panel_Dist");
+            _clashGroupNameColumn = groupNameColumn;
+            _clashGrid.Columns.Add(statusColumn);
+            _clashGrid.Columns.Add(resultNameColumn);
+            _clashGrid.Columns.Add(groupNameColumn);
+            _clashGrid.Columns.Add(distanceColumn);
             _clashGrid.Columns.Add(new DataGridTextColumn { Header = "A", Binding = new System.Windows.Data.Binding("ItemA"), Width = new DataGridLength(80), IsReadOnly = true });
             _clashGrid.Columns.Add(new DataGridTextColumn { Header = "B", Binding = new System.Windows.Data.Binding("ItemB"), Width = new DataGridLength(80), IsReadOnly = true });
             _clashGrid.SelectionChanged += (s, e) =>
@@ -253,13 +299,17 @@ namespace NavisHelper.WPF
             _clashGrid.ContextMenuOpening += OnClashResultContextMenuOpening;
             _clashGrid.ContextMenu = BuildClashResultContextMenu();
             _clashGrid.ContextMenu.Closed += (s, e) => _clashContextMenuItem = null;
+            _panelLocalizationBindings.BindAction(
+                _clashGrid,
+                "Clash.GridRows",
+                RefreshClashGridLocalization);
             clashListLayout.Children.Add(_clashGrid);
 
             var clashArea = new Grid();
             clashArea.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             clashArea.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             clashArea.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MinHeight = 100 });
-            var clashCaption = ClashCaption("Коллизии");
+            var clashCaption = ClashCaption("Panel_Clash_Caption_Clashes");
             clashCaption.Margin = new Thickness(0, 0, 0, 2);
             Grid.SetRow(clashCaption, 0);
             clashArea.Children.Add(clashCaption);
@@ -285,7 +335,9 @@ namespace NavisHelper.WPF
             var settings = new StackPanel { Margin = new Thickness(0, 6, 0, 2) };
 
             var colorsRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-            colorsRow.Children.Add(new TextBlock { Text = "Подсветка", VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 12, 0), FontSize = 11 });
+            colorsRow.Children.Add(BindPanelText(
+                new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 12, 0), FontSize = 11 },
+                "Panel_Highlight"));
             colorsRow.Children.Add(new TextBlock { Text = "A", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0), FontSize = 11 });
             _clashColorA = MakeColorCombo(1); // Красный
             colorsRow.Children.Add(_clashColorA);
@@ -297,7 +349,9 @@ namespace NavisHelper.WPF
             var sectionBoxRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             _clashUseSectionBox = new CheckBox
             {
-                Content = new TextBlock { Text = "Включать\nпри навигации", FontSize = 11, LineHeight = 13 },
+                Content = BindPanelText(
+                    new TextBlock { FontSize = 11, LineHeight = 13 },
+                    "Panel_Clash_EnableDuringNavigation"),
                 IsChecked = true,
                 Margin = new Thickness(0, 0, 10, 2),
                 FontSize = 11,
@@ -310,19 +364,23 @@ namespace NavisHelper.WPF
                 Orientation = Orientation.Horizontal,
                 Margin = new Thickness(0, 0, 0, 0)
             };
-            _clashBoxModePointRadio = new RadioButton { Content = "От точки", GroupName = "ClashBoxMode", IsChecked = true, FontSize = 11, Margin = new Thickness(0, 1, 8, 0) };
-            _clashBoxModeItemsRadio = new RadioButton { Content = "По объектам", GroupName = "ClashBoxMode", FontSize = 11, Margin = new Thickness(0, 1, 0, 0) };
+            _clashBoxModePointRadio = new RadioButton { GroupName = "ClashBoxMode", IsChecked = true, FontSize = 11, Margin = new Thickness(0, 1, 8, 0) };
+            _clashBoxModeItemsRadio = new RadioButton { GroupName = "ClashBoxMode", FontSize = 11, Margin = new Thickness(0, 1, 0, 0) };
+            _panelLocalizationBindings.BindContent(_clashBoxModePointRadio, "Panel_FromPoint");
+            _panelLocalizationBindings.BindContent(_clashBoxModeItemsRadio, "Panel_ByObjects");
             _clashBoxModePointRadio.Checked += (s, e) => ScheduleClashPreviewRefresh();
             _clashBoxModeItemsRadio.Checked += (s, e) => ScheduleClashPreviewRefresh();
             boxModePanel.Children.Add(_clashBoxModePointRadio);
             boxModePanel.Children.Add(_clashBoxModeItemsRadio);
-            var boxModeGroup = ClashGroupBox("Габариты", boxModePanel, 0);
+            var boxModeGroup = ClashGroupBox("Panel_Bounds", boxModePanel, 0);
             boxModeGroup.Padding = new Thickness(6, 2, 6, 3);
             boxModeGroup.Margin = new Thickness(0, 0, 10, 2);
             sectionBoxRow.Children.Add(boxModeGroup);
 
             var offsetBlock = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 2) };
-            offsetBlock.Children.Add(new TextBlock { Text = "Отступ", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0), FontSize = 11, Foreground = Brushes.DimGray });
+            offsetBlock.Children.Add(BindPanelText(
+                new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0), FontSize = 11, Foreground = Brushes.DimGray },
+                "Panel_Offset"));
             var offsetSliderBlock = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
             _clashOffsetSlider = new Slider
             {
@@ -337,30 +395,48 @@ namespace NavisHelper.WPF
                 AutoToolTipPlacement = System.Windows.Controls.Primitives.AutoToolTipPlacement.TopLeft,
                 AutoToolTipPrecision = 0
             };
-            var offsetLabel = new TextBlock { Text = "1000 мм", MinWidth = 60, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, FontSize = 11, FontWeight = FontWeights.SemiBold };
+            var offsetLabel = new TextBlock
+            {
+                Text = UiLocalizationService.Current.Format(
+                    "Panel_Common_Millimetres_Format",
+                    1000),
+                MinWidth = 60,
+                TextAlignment = TextAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold
+            };
             _clashOffsetSlider.ValueChanged += (s, ev) =>
             {
-                offsetLabel.Text = $"{(int)_clashOffsetSlider.Value} мм";
+                offsetLabel.Text = UiLocalizationService.Current.Format(
+                    "Panel_Common_Millimetres_Format",
+                    (int)_clashOffsetSlider.Value);
                 ScheduleClashPreviewRefresh();
             };
             offsetSliderBlock.Children.Add(_clashOffsetSlider);
             offsetBlock.Children.Add(offsetSliderBlock);
             offsetBlock.Children.Add(offsetLabel);
             sectionBoxRow.Children.Add(offsetBlock);
-            settings.Children.Add(UiTheme.SectionCard("Section Box", sectionBoxRow));
+            settings.Children.Add(PanelSectionCard("Panel_SectionBox", sectionBoxRow));
 
             var contextTransparencyRow = new WrapPanel();
             _clashContextTrans = new CheckBox
             {
-                Content = "Прозрачность контекста",
                 IsChecked = false,
                 Margin = new Thickness(0, 1, 14, 4),
-                FontSize = 11,
-                ToolTip = "Используется только для визуального просмотра выбранной коллизии в форме. Saved Viewpoints сохраняются без прозрачности."
+                FontSize = 11
             };
+            _panelLocalizationBindings.BindContent(
+                _clashContextTrans,
+                "Panel_ContextTransparency");
+            _panelLocalizationBindings.BindToolTip(
+                _clashContextTrans,
+                "Panel_Clash_Transparency_Description");
             contextTransparencyRow.Children.Add(_clashContextTrans);
             var transBlock = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 2) };
-            transBlock.Children.Add(new TextBlock { Text = "Уровень", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0), FontSize = 11, Foreground = Brushes.DimGray });
+            transBlock.Children.Add(BindPanelText(
+                new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0), FontSize = 11, Foreground = Brushes.DimGray },
+                "Panel_Level"));
             var transSliderBlock = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
             _clashTransSlider = new Slider
             {
@@ -373,9 +449,11 @@ namespace NavisHelper.WPF
                 TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
                 IsMoveToPointEnabled = true,
                 AutoToolTipPlacement = System.Windows.Controls.Primitives.AutoToolTipPlacement.TopLeft,
-                AutoToolTipPrecision = 0,
-                ToolTip = "Уровень прозрачности только для просмотра. При сохранении VP не применяется."
+                AutoToolTipPrecision = 0
             };
+            _panelLocalizationBindings.BindToolTip(
+                _clashTransSlider,
+                "Panel_Clash_Transparency_ToolTip");
             var transLabel = new TextBlock { Text = "70%", MinWidth = 40, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, FontSize = 11, FontWeight = FontWeights.SemiBold };
             _clashTransSlider.ValueChanged += (s, ev) => transLabel.Text = $"{(int)_clashTransSlider.Value}%";
             transSliderBlock.Children.Add(_clashTransSlider);
@@ -390,36 +468,42 @@ namespace NavisHelper.WPF
             transBlock.Children.Add(transSliderBlock);
             transBlock.Children.Add(transLabel);
             contextTransparencyRow.Children.Add(transBlock);
-            settings.Children.Add(UiTheme.SectionCard("Просмотр: прозрачность", contextTransparencyRow));
+            settings.Children.Add(PanelSectionCard("Panel_ViewingTransparency", contextTransparencyRow));
 
             var viewpointOptionsRow = new WrapPanel();
             _clashDualViewpoints = new CheckBox
             {
-                Content = "2 ракурса",
                 IsChecked = false,
                 Margin = new Thickness(0, 1, 14, 4),
-                FontSize = 11,
-                ToolTip = "Сохраняет две точки обзора для каждой коллизии: (1) текущий диагональный ISO и (2) противоположный диагональный ISO."
+                FontSize = 11
             };
+            _panelLocalizationBindings.BindContent(_clashDualViewpoints, "Panel_Clash_DualViewpoints_Label");
+            _panelLocalizationBindings.BindToolTip(
+                _clashDualViewpoints,
+                "Panel_Clash_DualViewpoints_ToolTip");
             viewpointOptionsRow.Children.Add(_clashDualViewpoints);
             _clashGroupMarkersForViewpoints = new CheckBox
             {
-                Content = "Метки центров",
                 IsChecked = true,
                 Margin = new Thickness(0, 1, 14, 4),
-                FontSize = 11,
-                ToolTip = "При сохранении viewpoint добавляет redline-кружки в центрах выбранной коллизии или всех коллизий строки-группы."
+                FontSize = 11
             };
+            _panelLocalizationBindings.BindContent(
+                _clashGroupMarkersForViewpoints,
+                "Panel_CenterMarks");
+            _panelLocalizationBindings.BindToolTip(
+                _clashGroupMarkersForViewpoints,
+                "Panel_Clash_MarkersForViewpoint_ToolTip");
             viewpointOptionsRow.Children.Add(_clashGroupMarkersForViewpoints);
-            settings.Children.Add(UiTheme.SectionCard("Точки обзора", viewpointOptionsRow));
+            settings.Children.Add(PanelSectionCard("Panel_Views_Group_Viewpoints", viewpointOptionsRow));
 
-            SetGlobalStatus("Загрузите тесты", Brushes.Gray);
+            SetGlobalStatusResource("Panel_Clash_LoadTestsFirst", Brushes.Gray);
 
             // Frequently used result actions stay in a named compact panel below the result list.
             var actions = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) };
             _clashOnlyPairToggle = ClashActionToggle(
-                "Только пара",
-                "Нажато: временно скрывать всё, кроме объектов A/B выбранной коллизии. При переходе к другой коллизии изоляция обновляется автоматически.");
+                "Panel_Clash_Action_OnlyPair",
+                "Panel_Clash_Action_OnlyPair_ToolTip");
             _clashOnlyPairToggle.Checked += (s, e) =>
             {
                 if (!_suppressClashPairToggleEvents)
@@ -431,29 +515,28 @@ namespace NavisHelper.WPF
                     DisableSelectedClashPairIsolation();
             };
             actions.Children.Add(_clashOnlyPairToggle);
-            actions.Children.Add(ClashActionButton("Показать всё", "Вернуть ветви модели, временно скрытые режимом «Только пара»", ShowAllAfterClashPairIsolation));
+            actions.Children.Add(ClashActionButton("Panel_Clash_Action_ShowAll", "Panel_Clash_Action_ShowAll_ToolTip", ShowAllAfterClashPairIsolation));
             actions.Children.Add(ClashActionsDivider());
-            actions.Children.Add(ClashActionButton("Section", "Включить/выключить Section Box", SectionBoxHelper.Toggle));
-            actions.Children.Add(ClashActionButton("Сброс", "Сбросить вид", ResetClashView, kind: ButtonKind.Destructive));
+            actions.Children.Add(ClashActionButton("Panel_Clash_Action_Section", "Panel_Clash_Action_Section_ToolTip", SectionBoxHelper.Toggle));
+            actions.Children.Add(ClashActionButton("Panel_Reset", "Panel_Clash_Action_ResetView_ToolTip", ResetClashView, kind: ButtonKind.Destructive));
             actions.Children.Add(BuildClashMarkerControl());
-            actions.Children.Add(ClashActionButton("Плоскость", "Показать/скрыть плоскость по текущему выделению", ToggleSelectionPlane));
-            actions.Children.Add(ClashActionButton("Метки", "Нарисовать redline-кружки в центрах выбранной коллизии или группы", DrawSelectedClashCenterMarkers));
-            actions.Children.Add(ClashActionButton("Сохр. VP", "Сохранить текущий вид вручную: камера, section box, цвета и redlines. Preview-прозрачность перед сохранением сбрасывается.", SaveCurrentClashManualViewpoint));
-            actions.Children.Add(ClashActionButton("GIF", "Создать GIF-облёт выбранной коллизии\n24 кадра, шаг 15°", CreateClashOrbitGif));
+            actions.Children.Add(ClashActionButton("Panel_Clash_Action_Plane", "Panel_Clash_Action_Plane_ToolTip", ToggleSelectionPlane));
+            actions.Children.Add(ClashActionButton("Panel_Clash_Action_Marks", "Panel_Clash_Action_Marks_ToolTip", DrawSelectedClashCenterMarkers));
+            actions.Children.Add(ClashActionButton("Panel_Clash_Action_SaveViewpoint", "Panel_Clash_Action_SaveViewpoint_ToolTip", SaveCurrentClashManualViewpoint));
+            actions.Children.Add(ClashActionButton("Panel_Clash_Action_Gif", "Panel_Clash_Action_Gif_ToolTip", CreateClashOrbitGif));
             actions.Children.Add(ClashActionsDivider());
-            actions.Children.Add(ClashActionButton("Assigned to", "Задать ответственного для выбранной коллизии", SetClashAssignedToPrompt));
-            actions.Children.Add(ClashActionButton("BCF", "Экспортировать выбранную коллизию в BCF", ExportSelectedClashesToBcf));
+            actions.Children.Add(ClashActionButton("Panel_Clash_Action_AssignedTo", "Panel_Clash_Action_AssignedTo_ToolTip", SetClashAssignedToPrompt));
+            actions.Children.Add(ClashActionButton("Panel_Clash_Action_Bcf", "Panel_Clash_Action_Bcf_ToolTip", ExportSelectedClashesToBcf));
             actions.Children.Add(ClashActionsDivider());
-            actions.Children.Add(ClashActionButton("Контекст", "Безопасная прозрачность: только ближайшие владельцы текущей коллизии или текущего выделения", ApplyClashSelectionTransparency));
+            actions.Children.Add(ClashActionButton("Panel_Context", "Panel_Clash_Action_Context_ToolTip", ApplyClashSelectionTransparency));
             var resultActions = new StackPanel { Margin = new Thickness(0, 2, 0, 0) };
-            resultActions.Children.Add(new TextBlock
+            resultActions.Children.Add(BindPanelText(new TextBlock
             {
-                Text = "Действия с результатами",
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiTheme.TextSecondary,
                 Margin = new Thickness(0, 0, 0, 2)
-            });
+            }, "Panel_ResultActions"));
             resultActions.Children.Add(actions);
             Grid.SetRow(resultActions, 5);
             root.Children.Add(resultActions);
@@ -468,19 +551,20 @@ namespace NavisHelper.WPF
                 Height = 22,
                 FontSize = 11,
                 Cursor = Cursors.Hand,
-                ToolTip = "Закрыть настройки",
                 Style = UiTheme.ButtonStyle(ButtonKind.Neutral)
             };
+            _panelLocalizationBindings.BindToolTip(
+                overlayClose,
+                "Panel_CloseSettings");
             overlayClose.Click += (s, e) => _clashSettingsToggle.IsChecked = false;
             DockPanel.SetDock(overlayClose, Dock.Right);
             overlayHeader.Children.Add(overlayClose);
-            overlayHeader.Children.Add(new TextBlock
+            overlayHeader.Children.Add(BindPanelText(new TextBlock
             {
-                Text = "Настройки коллизий",
                 FontSize = UiTheme.FontBody,
                 FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center
-            });
+            }, "Panel_ClashSettings"));
 
             var overlayLayout = new Grid();
             overlayLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -524,19 +608,20 @@ namespace NavisHelper.WPF
                 Height = 22,
                 FontSize = 11,
                 Cursor = Cursors.Hand,
-                ToolTip = "Закрыть дерево",
                 Style = UiTheme.ButtonStyle(ButtonKind.Neutral)
             };
+            _panelLocalizationBindings.BindToolTip(
+                treeOverlayClose,
+                "Panel_CloseTree");
             treeOverlayClose.Click += (s, e) => _clashTreePanelToggle.IsChecked = false;
             DockPanel.SetDock(treeOverlayClose, Dock.Right);
             treeOverlayHeader.Children.Add(treeOverlayClose);
-            treeOverlayHeader.Children.Add(new TextBlock
+            treeOverlayHeader.Children.Add(BindPanelText(new TextBlock
             {
-                Text = "Дерево объектов A/B",
                 FontSize = UiTheme.FontBody,
                 FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center
-            });
+            }, "Panel_Clash_ObjectTree_Header"));
 
             var treeOverlayLayout = new Grid();
             treeOverlayLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -600,7 +685,9 @@ namespace NavisHelper.WPF
             }
             catch { }
 
-            return new TabItem { Header = "\U000026A0 Коллизии", Content = root };
+            var tab = new TabItem { Content = root };
+            _panelLocalizationBindings.BindHeader(tab, "Panel_Tab_Clashes");
+            return tab;
         }
 
         /// <summary>
@@ -631,16 +718,17 @@ namespace NavisHelper.WPF
             if (save && !visible) SaveClashSettings();
         }
 
-        private static TextBlock ClashCaption(string text)
+        private TextBlock ClashCaption(string resourceKey)
         {
-            return new TextBlock
+            var caption = new TextBlock
             {
-                Text = text,
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.Gray,
                 Margin = new Thickness(0, 4, 0, 2)
             };
+            _panelLocalizationBindings.BindText(caption, resourceKey);
+            return caption;
         }
 
         private static double ClampClashStar(double value, double fallback)
@@ -673,19 +761,21 @@ namespace NavisHelper.WPF
             };
         }
 
-        private static GroupBox ClashGroupBox(string header, UIElement content, double minWidth)
+        private GroupBox ClashGroupBox(
+            string headerResourceKey,
+            UIElement content,
+            double minWidth)
         {
             var group = new GroupBox
             {
-                Header = string.IsNullOrWhiteSpace(header)
-                    ? null
-                    : new TextBlock { Text = header, FontWeight = FontWeights.SemiBold },
                 Content = content,
                 Padding = new Thickness(8, 5, 8, 6),
                 Margin = new Thickness(0, 0, 8, 6),
                 FontSize = 11,
                 FontWeight = FontWeights.Normal
             };
+            if (!string.IsNullOrWhiteSpace(headerResourceKey))
+                _panelLocalizationBindings.BindHeader(group, headerResourceKey);
 
             if (minWidth > 0)
                 group.MinWidth = minWidth;

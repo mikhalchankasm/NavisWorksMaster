@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using NavisHelper.Core.Localization;
 using WpfColor = System.Windows.Media.Color;
 
 namespace NavisHelper.WPF
@@ -17,16 +18,16 @@ namespace NavisHelper.WPF
         {
             var stack = new StackPanel { Margin = new Thickness(8) };
 
-            stack.Children.Add(CreateGroupHeader("Окраска"));
+            stack.Children.Add(CreateGroupHeader("Panel_Colors_Group_Coloring"));
             var paintRow = new WrapPanel();
-            var colorsByNameBtn = Btn("colors_by_name", "\U0001F3A8", "Colors By Name", "Окраска элементов по имени из текстового файла (name;R,G,B;transparency)", "ColorsByName.CBC", ButtonKind.Primary);
+            var colorsByNameBtn = Btn("colors_by_name", "\U0001F3A8", "Panel_Colors_ByName_Action", "Panel_Colors_ByName_ToolTip", "ColorsByName.CBC", ButtonKind.Primary);
             colorsByNameBtn.Margin = new Thickness(0, 2, 4, 2);
             paintRow.Children.Add(colorsByNameBtn);
-            paintRow.Children.Add(ActionBtn("color_by_property", "\U0001F9EE", "Color by Property", "Авто-окраска по уникальному значению свойства (Система/Спец/Отметка)", OnColorByProperty, requiresSelection: true));
-            var overridePdmsBtn = Btn("override_pdms", "\U0001F527", "Override PDMS", "Переопределить цвета объектов PDMS", "HideItems.CBC");
+            paintRow.Children.Add(ActionBtn("color_by_property", "\U0001F9EE", "Panel_Colors_Property_Action", "Panel_Colors_Property_Action_ToolTip", OnColorByProperty, requiresSelection: true));
+            var overridePdmsBtn = Btn("override_pdms", "\U0001F527", "Panel_Colors_OverridePdms_Action", "Panel_Colors_OverridePdms_ActionObjectColors", "HideItems.CBC");
             overridePdmsBtn.Margin = new Thickness(0, 2, 4, 2);
             paintRow.Children.Add(overridePdmsBtn);
-            paintRow.Children.Add(ActionBtn("reset_color_overrides", "\U0001F504", "Сбросить overrides", "Сбросить все overrides цвета/прозрачности модели", ResetAllOverrides, kind: ButtonKind.Destructive));
+            paintRow.Children.Add(ActionBtn("reset_color_overrides", "\U0001F504", "Panel_ResetOverrides", "Panel_Colors_ResetOverrides_ToolTip", ResetAllOverrides, kind: ButtonKind.Destructive));
             stack.Children.Add(paintRow);
 
             stack.Children.Add(CreateMatchColorSection());
@@ -46,70 +47,67 @@ namespace NavisHelper.WPF
         {
             var stack = new StackPanel { Margin = new Thickness(8) };
 
-            stack.Children.Add(CreateGroupHeader("Навигация по дереву"));
+            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_TreeNavigation"));
             var navRow1 = new WrapPanel();
-            navRow1.Children.Add(NavBtn("parent", "\U00002B06", "Parent", "Ctrl+Q", "Выбрать родительский элемент для каждого выделенного объекта.\nПоднимается на 1 уровень вверх по дереву модели.", TreeNavigation.SelectParents, requiresSelection: true));
-            navRow1.Children.Add(NavBtn("child", "\U00002B07", "Child", "Ctrl+W", "Выбрать все дочерние элементы (1 уровень вниз).\nРаскрывает следующий уровень дерева.", TreeNavigation.SelectChildren, requiresSelection: true));
-            navRow1.Children.Add(NavBtn("sibling", "\U00002194", "Sibling", "Ctrl+E", "Выбрать всех соседей — элементы с тем же родителем.\nПолезно для выделения всех объектов на одном уровне.", TreeNavigation.SelectSiblings, requiresSelection: true));
+            navRow1.Children.Add(NavBtn("parent", "\U00002B06", "Panel_Parent", "Ctrl+Q", "Panel_Model_Parent_ToolTip", TreeNavigation.SelectParents, requiresSelection: true));
+            navRow1.Children.Add(NavBtn("child", "\U00002B07", "Panel_Child", "Ctrl+W", "Panel_Model_Child_ToolTip", TreeNavigation.SelectChildren, requiresSelection: true));
+            navRow1.Children.Add(NavBtn("sibling", "\U00002194", "Panel_Sibling", "Ctrl+E", "Panel_Model_Siblings_ToolTip", TreeNavigation.SelectSiblings, requiresSelection: true));
             stack.Children.Add(navRow1);
 
             var navRow2 = new WrapPanel();
-            navRow2.Children.Add(NavBtn("leaf", "\U0001F343", "Leaf", null, "Выбрать конечные узлы (листья) — элементы без потомков.\nФильтрует только геометрические объекты на самом нижнем уровне.", TreeNavigation.SelectLeafNodes, requiresSelection: true));
-            navRow2.Children.Add(NavBtn("all_under", "\U0001F4C2", "All Under", null, "Выбрать ВСЕ потомки на всех уровнях вниз.\nПолный раскрыв ветки дерева.", TreeNavigation.SelectAllUnder, requiresSelection: true));
+            navRow2.Children.Add(NavBtn("leaf", "\U0001F343", "Panel_Leaf", null, "Panel_Model_Leaves_ToolTip", TreeNavigation.SelectLeafNodes, requiresSelection: true));
+            navRow2.Children.Add(NavBtn("all_under", "\U0001F4C2", "Panel_AllUnder", null, "Panel_Model_AllDescendants_ToolTip", TreeNavigation.SelectAllUnder, requiresSelection: true));
             stack.Children.Add(navRow2);
 
-            stack.Children.Add(CreateGroupHeader("Операции с выборкой"));
+            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_SelectionOperations"));
             var setOpsRow = new WrapPanel();
-            setOpsRow.Children.Add(ActionBtn("selection_invert", "\U00002195", "Invert", "Инвертировать текущую выборку", InvertSelection, requiresSelection: true));
-            setOpsRow.Children.Add(ActionBtn("selection_isolate", "\U0001F5D1", "Isolate", "Скрыть всё, кроме выделенного", IsolateSelection, 0, ButtonKind.Destructive, true));
-            setOpsRow.Children.Add(ActionBtn("selection_unhide", "\U0001F513", "Unhide All", "Показать все элементы", UnhideAll));
+            setOpsRow.Children.Add(ActionBtn("selection_invert", "\U00002195", "Panel_Invert", "Panel_Selection_Invert_ToolTip", InvertSelection, requiresSelection: true));
+            setOpsRow.Children.Add(ActionBtn("selection_isolate", "\U0001F5D1", "Panel_Isolate", "Panel_Model_Isolate_ToolTip", IsolateSelection, 0, ButtonKind.Destructive, true));
+            setOpsRow.Children.Add(ActionBtn("selection_unhide", "\U0001F513", "Panel_UnhideAll", "Panel_Selection_UnhideAll_ToolTip", UnhideAll));
             stack.Children.Add(setOpsRow);
 
             var selectByPropertyRow = new WrapPanel();
-            selectByPropertyRow.Children.Add(ActionBtn("selection_set_prop", "\U0001F50D", "Select by Property", "Скопировать выборку по значению свойства", OnSelectByPropertyValue, requiresSelection: true));
+            selectByPropertyRow.Children.Add(ActionBtn("selection_set_prop", "\U0001F50D", "Panel_Colors_SelectByProperty_Label", "Panel_Colors_SelectByProperty_Action", OnSelectByPropertyValue, requiresSelection: true));
             stack.Children.Add(selectByPropertyRow);
 
-            stack.Children.Add(CreateGroupHeader("Поисковые наборы"));
+            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_SearchSets"));
             var searchSetRow = new WrapPanel();
-            searchSetRow.Children.Add(ActionBtn("selection_search_set", "\U0001F4C1", "Сохранить поиск", "Создать папку и сохранить динамический поисковый набор", OnCreateSearchSelectionSet));
+            searchSetRow.Children.Add(ActionBtn("selection_search_set", "\U0001F4C1", "Panel_SaveSearch", "Panel_Colors_SearchSet_Action_ToolTip", OnCreateSearchSelectionSet));
             stack.Children.Add(searchSetRow);
 
             var copyFilterRow = new WrapPanel();
-            copyFilterRow.Children.Add(Btn("copy_names", "\U0001F4CB", "Копировать имена", "Копировать DisplayName выделенных объектов в буфер обмена (Ctrl+M)", "CopySelectedNames.CBC", requiresSelection: true));
-            copyFilterRow.Children.Add(ActionBtn("selection_bounds_info", "\U0001F4D0", "Габариты", "Показать габариты текущего выделения и скопировать значения в буфер обмена", ShowAndCopySelectionBounds, requiresSelection: true));
-            copyFilterRow.Children.Add(Btn("filter", "\U0001F50D", "Filter by list", "Скрыть/показать элементы модели по списку имён из текстового файла", "FilterModels.COMPANY"));
+            copyFilterRow.Children.Add(Btn("copy_names", "\U0001F4CB", "Panel_CopyNames", "Panel_Model_CopyNames_ToolTip", "CopySelectedNames.CBC", requiresSelection: true));
+            copyFilterRow.Children.Add(ActionBtn("selection_bounds_info", "\U0001F4D0", "Panel_Bounds", "Panel_Model_BoundsInfo_ToolTip", ShowAndCopySelectionBounds, requiresSelection: true));
+            copyFilterRow.Children.Add(Btn("filter", "\U0001F50D", "Panel_Model_FilterList_Action", "Panel_Model_FilterList_ToolTip", "FilterModels.COMPANY"));
             stack.Children.Add(copyFilterRow);
 
-            stack.Children.Add(CreateGroupHeader("Запомнить выборку"));
+            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_SelectionMemory"));
             var memoryRow = new WrapPanel();
-            memoryRow.Children.Add(ActionBtn("selection_save", "\U0001F4BE", "Запомнить", "Сохранить текущую выборку в память (Ctrl+Shift+1)", () => SaveSelectionSetSlot(0), requiresSelection: true));
-            memoryRow.Children.Add(ActionBtn("selection_recall", "\U000021A9", "Вернуть", "Вернуть выборку из памяти (Ctrl+1)", () => RecallSelectionSetSlot(0)));
+            memoryRow.Children.Add(ActionBtn("selection_save", "\U0001F4BE", "Panel_Remember", "Panel_Model_MemorySave_ToolTip", () => SaveSelectionSetSlot(0), requiresSelection: true));
+            memoryRow.Children.Add(ActionBtn("selection_recall", "\U000021A9", "Panel_Restore", "Panel_Model_MemoryRestore_ToolTip", () => RecallSelectionSetSlot(0)));
             stack.Children.Add(memoryRow);
             _selectionMemoryText = new TextBlock
             {
-                Text = "память пуста",
                 FontSize = 11,
                 Foreground = Brushes.Gray,
                 Margin = new Thickness(2, 2, 0, 8)
             };
             stack.Children.Add(_selectionMemoryText);
-            UpdateSelectionMemoryIndicator();
+            _panelLocalizationBindings.BindAction(
+                _selectionMemoryText,
+                "SelectionMemory.Status",
+                UpdateSelectionMemoryIndicator);
 
-            stack.Children.Add(new TextBlock
+            var hotkeys = new TextBlock
             {
-                Text = "Горячие клавиши:\n" +
-                       "  Ctrl+Q  Parent (вверх по дереву)\n" +
-                       "  Ctrl+W  Child (вниз по дереву)\n" +
-                       "  Ctrl+E  Sibling (соседи)\n" +
-                       "  Ctrl+M  Копировать имена\n" +
-                       "  Ctrl+Shift+P  Командная палитра\n" +
-                       "  Ctrl+Shift+H  Сохранить скрин текущего вида\n" +
-                       "  Ctrl+1  Вернуть выборку\n" +
-                       "  Ctrl+Shift+1  Запомнить выборку",
                 FontSize = 11,
                 Foreground = Brushes.Gray,
                 Margin = new Thickness(0, 4, 0, 0)
-            });
+            };
+            _panelLocalizationBindings.BindText(
+                hotkeys,
+                "Panel_Model_TreeHotkeys_Help");
+            stack.Children.Add(hotkeys);
 
             return stack;
         }
@@ -131,15 +129,19 @@ namespace NavisHelper.WPF
             // Модель и ключ настраиваются на вкладке «⚙ Настройки» (SettingsTab.cs)
             var settingsHint = new TextBlock
             {
-                Text = "Модель и API-ключ — на вкладке «⚙ Настройки»",
                 FontSize = 10,
                 Foreground = new SolidColorBrush(WpfColor.FromRgb(120, 120, 120)),
                 Margin = new Thickness(0, 0, 0, 6)
             };
+            _panelLocalizationBindings.BindText(
+                settingsHint,
+                "Panel_Colors_Ai_ReadyHint");
             topStack.Children.Add(settingsHint);
 
             // --- Цветовая схема ---
-            topStack.Children.Add(new TextBlock { Text = "Цветовая схема:", FontSize = 12, Margin = new Thickness(0, 4, 0, 4) });
+            topStack.Children.Add(BindPanelText(
+                new TextBlock { FontSize = 12, Margin = new Thickness(0, 4, 0, 4) },
+                "Panel_ColorScheme"));
 
             _schemeListBox = new ListBox { Height = 220, Margin = new Thickness(0, 0, 0, 6), FontSize = 12 };
             foreach (ColorSchemeType scheme in Enum.GetValues(typeof(ColorSchemeType)))
@@ -151,7 +153,9 @@ namespace NavisHelper.WPF
             _schemeListBox.SelectionChanged += OnSchemeSelectionChanged;
             topStack.Children.Add(_schemeListBox);
 
-            topStack.Children.Add(new TextBlock { Text = "Превью палитры:", FontSize = 12, Margin = new Thickness(0, 0, 0, 4) });
+            topStack.Children.Add(BindPanelText(
+                new TextBlock { FontSize = 12, Margin = new Thickness(0, 0, 0, 4) },
+                "Panel_PalettePreview"));
             _previewPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
             topStack.Children.Add(_previewPanel);
             UpdateColorPreview();
@@ -161,13 +165,18 @@ namespace NavisHelper.WPF
             // --- Кнопка запуска ---
             var applyBtn = new Button
             {
-                Content = MakeButtonContent("ai_color", "\U0001F3A8", "Применить AI-окраску"),
+                Content = MakeLocalizedButtonContent(
+                    "ai_color",
+                    "\U0001F3A8",
+                    "Panel_Colors_AiApply_Action"),
                 Height = 36, FontSize = 13,
                 HorizontalContentAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 4, 0, 6), Cursor = Cursors.Hand,
-                ToolTip = "Сохранить выбранную схему и отправить выделенные объекты в AI для подбора цветов",
                 Style = UiTheme.ButtonStyle(ButtonKind.Primary)
             };
+            _panelLocalizationBindings.BindToolTip(
+                applyBtn,
+                "Panel_Colors_Ai_Apply_ToolTip");
             applyBtn.Click += OnApplyColorScheme;
             topStack.Children.Add(applyBtn);
 
@@ -175,18 +184,23 @@ namespace NavisHelper.WPF
 
             // --- Заголовок + кнопки лога ---
             var logHeader = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
-            logHeader.Children.Add(new TextBlock { Text = "Ответ модели:", FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+            logHeader.Children.Add(BindPanelText(
+                new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center },
+                "Panel_ModelResponse"));
 
             var logBtns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
             DockPanel.SetDock(logBtns, Dock.Right);
 
             var copyBtn = new Button
             {
-                Content = "Копировать", FontSize = 10, Padding = new Thickness(6, 2, 6, 2),
+                FontSize = 10, Padding = new Thickness(6, 2, 6, 2),
                 Margin = new Thickness(4, 0, 0, 0), Cursor = Cursors.Hand,
-                ToolTip = "Копировать ответ в буфер обмена",
                 Style = UiTheme.ButtonStyle(ButtonKind.Neutral)
             };
+            _panelLocalizationBindings.BindContent(copyBtn, "Panel_Copy");
+            _panelLocalizationBindings.BindToolTip(
+                copyBtn,
+                "Panel_Colors_Ai_CopyResponse_ToolTip");
             copyBtn.Click += (s, e) =>
             {
                 try
@@ -210,23 +224,34 @@ namespace NavisHelper.WPF
                         thread.Start();
                         thread.Join(2000);
                         if (threadEx != null)
-                            MessageBox.Show("Не удалось скопировать: " + threadEx.Message, "AI Цвета");
+                            MessageBox.Show(
+                                UiLocalizationService.Current.Format(
+                                    "Panel_Common_CopyFailed_Format",
+                                    threadEx.Message),
+                                PanelUi("Panel_Colors_Ai_Title"));
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Не удалось скопировать: " + ex.Message, "AI Цвета");
+                    MessageBox.Show(
+                        UiLocalizationService.Current.Format(
+                            "Panel_Common_CopyFailed_Format",
+                            ex.Message),
+                        PanelUi("Panel_Colors_Ai_Title"));
                 }
             };
             logBtns.Children.Add(copyBtn);
 
             var saveBtn = new Button
             {
-                Content = "Сохранить", FontSize = 10, Padding = new Thickness(6, 2, 6, 2),
+                FontSize = 10, Padding = new Thickness(6, 2, 6, 2),
                 Margin = new Thickness(4, 0, 0, 0), Cursor = Cursors.Hand,
-                ToolTip = "Сохранить ответ в .txt файл",
                 Style = UiTheme.ButtonStyle(ButtonKind.Neutral)
             };
+            _panelLocalizationBindings.BindContent(saveBtn, "Panel_Save");
+            _panelLocalizationBindings.BindToolTip(
+                saveBtn,
+                "Panel_Colors_Ai_SaveResponse_ToolTip");
             saveBtn.Click += OnSaveAIResponse;
             logBtns.Children.Add(saveBtn);
 

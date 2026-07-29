@@ -3,6 +3,7 @@ using Autodesk.Navisworks.Api.Plugins;
 using System;
 using System.Windows.Forms;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 
 namespace NavisHelper
 {
@@ -31,8 +32,11 @@ namespace NavisHelper
                         Logger.Info($"✅ Выбрана схема: {ColorSchemes.GetSchemeNameRu(dialog.SelectedScheme)}", "AIColorSchemeSelector");
                         
                         MessageBox.Show(
-                            $"Цветовая схема изменена на:\n{(int)dialog.SelectedScheme}. {ColorSchemes.GetSchemeNameRu(dialog.SelectedScheme)}",
-                            "Цветовая схема",
+                            UiLocalizationService.Current.Format(
+                                "ColorSchemeChangedMessageFormat",
+                                (int)dialog.SelectedScheme,
+                                ColorSchemeUiText.GetName(dialog.SelectedScheme)),
+                            UiLocalizationService.Current.GetString("ColorSchemeChangedTitle"),
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information);
                         
@@ -45,7 +49,11 @@ namespace NavisHelper
             catch (Exception ex)
             {
                 Logger.Error($"❌ Ошибка: {ex.Message}", "AIColorSchemeSelector");
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format("CommonErrorMessageFormat", ex.Message),
+                    UiLocalizationService.Current.GetString("CommonErrorTitle"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
                 return 0;
             }
         }
@@ -71,8 +79,10 @@ namespace NavisHelper
         
         private void InitializeComponents()
         {
+            UiLocalizationService localization = UiLocalizationService.Current;
+
             // Настройки формы
-            this.Text = "Выбор цветовой схемы";
+            this.Text = localization.GetString("ColorSchemeWindowTitle");
             this.Size = new System.Drawing.Size(500, 450);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -82,7 +92,7 @@ namespace NavisHelper
             // Заголовок
             var titleLabel = new Label
             {
-                Text = "Выберите цветовую схему для автоматического окрашивания:",
+                Text = localization.GetString("ColorSchemePrompt"),
                 Location = new System.Drawing.Point(15, 15),
                 Size = new System.Drawing.Size(460, 25),
                 Font = new System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold)
@@ -100,7 +110,7 @@ namespace NavisHelper
             // Заполняем список
             foreach (ColorSchemeType scheme in Enum.GetValues(typeof(ColorSchemeType)))
             {
-                _listBox.Items.Add($"{(int)scheme}. {ColorSchemes.GetSchemeNameRu(scheme)}");
+                _listBox.Items.Add($"{(int)scheme}. {ColorSchemeUiText.GetName(scheme)}");
             }
             
             _listBox.SelectedIndexChanged += ListBox_SelectedIndexChanged;
@@ -109,7 +119,7 @@ namespace NavisHelper
             // Панель превью цветов
             var previewLabel = new Label
             {
-                Text = "Превью цветов:",
+                Text = localization.GetString("ColorSchemePreviewLabel"),
                 Location = new System.Drawing.Point(280, 45),
                 Size = new System.Drawing.Size(120, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9)
@@ -138,7 +148,7 @@ namespace NavisHelper
             // Кнопки
             var okButton = new Button
             {
-                Text = "OK",
+                Text = localization.GetString("CommonOk"),
                 Location = new System.Drawing.Point(280, 370),
                 Size = new System.Drawing.Size(90, 30),
                 DialogResult = DialogResult.OK
@@ -153,7 +163,7 @@ namespace NavisHelper
             
             var cancelButton = new Button
             {
-                Text = "Отмена",
+                Text = localization.GetString("CommonCancel"),
                 Location = new System.Drawing.Point(380, 370),
                 Size = new System.Drawing.Size(90, 30),
                 DialogResult = DialogResult.Cancel
@@ -219,45 +229,7 @@ namespace NavisHelper
         
         private void UpdateDescription(ColorSchemeType scheme)
         {
-            string description;
-            switch (scheme)
-            {
-                case ColorSchemeType.Grayscale:
-                    description = "Классические оттенки серого.\nИдеально для технических чертежей и нейтральной визуализации.";
-                    break;
-                case ColorSchemeType.GrayPastel:
-                    description = "Серые тона с мягкими пастельными акцентами.\nБаланс между техничностью и визуальной привлекательностью.";
-                    break;
-                case ColorSchemeType.Warm:
-                    description = "Теплые тона: оранжевый, персиковый, медовый.\nПодходит для уютной визуализации интерьеров.";
-                    break;
-                case ColorSchemeType.Cool:
-                    description = "Холодные тона: голубой, стальной, лавандовый.\nСоздает ощущение прохлады и современности.";
-                    break;
-                case ColorSchemeType.Earth:
-                    description = "Земляные тона: коричневый, бежевый, песочный.\nНатуральная палитра для ландшафтных проектов.";
-                    break;
-                case ColorSchemeType.Ocean:
-                    description = "Морская палитра: бирюзовый, аквамарин, морская пена.\nОсвежающие цвета для водных объектов.";
-                    break;
-                case ColorSchemeType.Forest:
-                    description = "Лесная тема: зеленый, оливковый, хаки.\nПриродная палитра для экстерьеров и парков.";
-                    break;
-                case ColorSchemeType.Architectural:
-                    description = "Архитектурные нейтральные тона: камень, бетон, мрамор.\nПрофессиональная палитра для BIM-моделей.";
-                    break;
-                case ColorSchemeType.HighContrast:
-                    description = "Яркие контрастные цвета для максимальной различимости.\nХорошо для презентаций и выделения категорий.";
-                    break;
-                case ColorSchemeType.Random:
-                    description = "Случайная генерация цветов.\nМаксимальное разнообразие, но без общей темы.";
-                    break;
-                default:
-                    description = "";
-                    break;
-            }
-            
-            _descriptionLabel.Text = description;
+            _descriptionLabel.Text = ColorSchemeUiText.GetDescription(scheme);
         }
     }
 }

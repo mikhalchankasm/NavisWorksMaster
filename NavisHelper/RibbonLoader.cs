@@ -1,16 +1,13 @@
 using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.IO;
 using System.Reflection;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
 using Autodesk.Windows;
 using NavisHelper.Agent;
+using NavisHelper.Core.Localization;
 
 namespace NavisHelper
 {
@@ -70,70 +67,104 @@ namespace NavisHelper
 
         private bool CreateRibbonButtons(RibbonControl ribbon)
         {
-            // === Вкладка NavisHelper ===
-            var tab = GetOrCreateTab(ribbon, "NavisHelper", "NH");
+            var tab = GetOrCreateTab(ribbon);
             if (tab == null)
                 return false;
 
-            var panel = GetOrCreatePanel(tab, "NavisHelper", "N");
+            var panel = GetOrCreatePanel(tab);
+            RibbonButton showPanelButton = GetOrCreateButton(
+                panel.Source,
+                RibbonIds.ShowPanelButton,
+                () => new RibbonButton
+                {
+                    ShowText = true,
+                    ShowImage = true,
+                    Size = RibbonItemSize.Large,
+                    Orientation = System.Windows.Controls.Orientation.Vertical,
+                    KeyTip = "NH",
+                    CommandHandler = new ShowPanelCommandHandler(),
+                    Image = LoadEmbeddedImage("NavisHelper.Resources.ColorsByName_16.png"),
+                    LargeImage = LoadEmbeddedImage("NavisHelper.Resources.ColorsByName_32.png")
+                });
 
-            var button = new RibbonButton();
-            button.Id = "NavisHelper.Button.ShowPanel";
-            button.Text = "NavisHelper";
-            button.ShowText = true;
-            button.ShowImage = true;
-            button.Size = RibbonItemSize.Large;
-            button.Orientation = System.Windows.Controls.Orientation.Vertical;
-            button.KeyTip = "NH";
-            button.CommandHandler = new ShowPanelCommandHandler();
-            button.Image = LoadEmbeddedImage("NavisHelper.Resources.ColorsByName_16.png");
-            button.LargeImage = LoadEmbeddedImage("NavisHelper.Resources.ColorsByName_32.png");
-            panel.Source.Items.Add(button);
-
-            // Parent & Child — встроен в dock panel (вкладка "Навигация")
+            tab.Title = "NavisHelper";
+            panel.Source.Title = "NavisHelper";
+            showPanelButton.Text = "NavisHelper";
+            showPanelButton.ToolTip = "NavisHelper";
 
             return true;
         }
 
-        private static RibbonTab GetOrCreateTab(RibbonControl ribbon, string title, string keyTip)
+        private static RibbonTab GetOrCreateTab(RibbonControl ribbon)
         {
-            string tabId = title + ".Tab";
-
             foreach (var existingTab in ribbon.Tabs)
             {
-                if (existingTab.Id == tabId)
+                if (existingTab.Id == RibbonIds.Tab)
                     return existingTab;
             }
 
-            var tab = new RibbonTab();
-            tab.Id = tabId;
-            tab.Title = title;
-            tab.KeyTip = keyTip;
+            var tab = new RibbonTab
+            {
+                Id = RibbonIds.Tab,
+                KeyTip = "NH"
+            };
             ribbon.Tabs.Add(tab);
 
             return tab;
         }
 
-        private static RibbonPanel GetOrCreatePanel(RibbonTab tab, string title, string keyTip)
+        private static RibbonPanel GetOrCreatePanel(RibbonTab tab)
         {
-            string panelId = title + ".Panel";
-
             foreach (var existingPanel in tab.Panels)
             {
-                if (existingPanel.Source != null && existingPanel.Source.Id == panelId + "_Source")
+                if (existingPanel.Id == RibbonIds.Panel ||
+                    (existingPanel.Source != null &&
+                     existingPanel.Source.Id == RibbonIds.PanelSource))
+                {
+                    if (existingPanel.Source == null)
+                    {
+                        existingPanel.Source = new RibbonPanelSource
+                        {
+                            Id = RibbonIds.PanelSource,
+                            KeyTip = "N"
+                        };
+                    }
+
                     return existingPanel;
+                }
             }
 
-            var source = new RibbonPanelSource();
-            source.Id = panelId + "_Source";
-            source.Title = title;
-            source.KeyTip = keyTip;
-
-            var panel = new RibbonPanel();
-            panel.Source = source;
+            var source = new RibbonPanelSource
+            {
+                Id = RibbonIds.PanelSource,
+                KeyTip = "N"
+            };
+            var panel = new RibbonPanel
+            {
+                Id = RibbonIds.Panel,
+                Source = source
+            };
             tab.Panels.Add(panel);
 
             return panel;
+        }
+
+        private static RibbonButton GetOrCreateButton(
+            RibbonPanelSource source,
+            string id,
+            Func<RibbonButton> factory)
+        {
+            foreach (RibbonItem item in source.Items)
+            {
+                var existing = item as RibbonButton;
+                if (existing != null && existing.Id == id)
+                    return existing;
+            }
+
+            RibbonButton button = factory();
+            button.Id = id;
+            source.Items.Add(button);
+            return button;
         }
 
         private static ImageSource LoadEmbeddedImage(string resourceName)
@@ -167,7 +198,11 @@ namespace NavisHelper
     /// </summary>
     internal class ShowPanelCommandHandler : ICommand
     {
-        public event EventHandler CanExecuteChanged;
+        public event EventHandler CanExecuteChanged
+        {
+            add { }
+            remove { }
+        }
 
         public bool CanExecute(object parameter)
         {
@@ -183,9 +218,7 @@ namespace NavisHelper
                 var pluginRecord = Autodesk.Navisworks.Api.Application.Plugins.FindPlugin("NavisHelperDockPane.CBC");
                 if (pluginRecord == null)
                 {
-                    System.Windows.MessageBox.Show(
-                        "Плагин NavisHelperDockPane.CBC не найден в реестре.",
-                        "NavisHelper", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    RibbonCommandMessages.ShowPluginMissing("NavisHelperDockPane.CBC");
                     return;
                 }
 
@@ -198,10 +231,8 @@ namespace NavisHelper
                 var dockPane = pluginRecord.LoadedPlugin as DockPanePlugin;
                 if (dockPane == null)
                 {
-                    System.Windows.MessageBox.Show(
-                        "Не удалось загрузить DockPane. LoadedPlugin = " +
-                        (pluginRecord.LoadedPlugin?.GetType().Name ?? "null"),
-                        "NavisHelper", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    RibbonCommandMessages.ShowDockPaneLoadFailed(
+                        pluginRecord.LoadedPlugin?.GetType().Name ?? "null");
                     return;
                 }
 
@@ -209,10 +240,9 @@ namespace NavisHelper
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show(
-                    "Ошибка: " + ex.Message,
-                    "NavisHelper", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                RibbonCommandMessages.ShowError(ex.Message);
             }
         }
     }
+
 }

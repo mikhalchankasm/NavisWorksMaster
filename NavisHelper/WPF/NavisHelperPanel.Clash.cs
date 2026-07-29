@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using Microsoft.VisualBasic;
 using Path = System.IO.Path;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Interfaces;
 using NavisHelper.Agent.Services;
@@ -47,6 +48,8 @@ namespace NavisHelper.WPF
         private TextBox _clashItemBFilterBox;
 
         private WrapPanel _clashFilterPanel;
+
+        private DataGridColumn _clashGroupNameColumn;
 
         private bool _suppressClashTestSelectionChanged;
 
@@ -304,20 +307,36 @@ namespace NavisHelper.WPF
             if (_clashGroupingStatus == null)
                 return;
 
+            if (_pendingClashGroupingTag != null)
+            {
+                var pendingMatchCount = FindClashResultsForTreeNode(_pendingClashGroupingTag).Count;
+                var pendingSideLabel = _pendingClashGroupingTag.Side == ClashGroupingSide.ItemA ? "A" : "B";
+                _clashGroupingStatus.Text = UiLocalizationService.Current.Format(
+                    "Panel_Level01Found2",
+                    pendingSideLabel,
+                    _pendingClashGroupingTag.Label,
+                    pendingMatchCount);
+                _clashGroupingStatus.Foreground = Brushes.DarkSlateBlue;
+                return;
+            }
+
             if (_virtualClashGroups.Count > 0)
             {
                 var groupedClashes = _virtualClashGroups
                     .SelectMany(group => group.Results ?? new List<ClashResult>())
                     .Distinct()
                     .Count();
-                _clashGroupingStatus.Text = $"Групп: {_virtualClashGroups.Count}, коллизий в группах: {groupedClashes}";
+                _clashGroupingStatus.Text = UiLocalizationService.Current.Format(
+                    "Panel_Clash_GroupCount_Format",
+                    _virtualClashGroups.Count,
+                    groupedClashes);
                 _clashGroupingStatus.Foreground = Brushes.DarkGreen;
                 return;
             }
 
             if (_clashGroupingSide == ClashGroupingSide.None)
             {
-                _clashGroupingStatus.Text = "Группировка: нет";
+                _clashGroupingStatus.Text = PanelUi("Panel_GroupingNone");
                 _clashGroupingStatus.Foreground = Brushes.DimGray;
                 return;
             }
@@ -325,9 +344,14 @@ namespace NavisHelper.WPF
             var sideLabel = _clashGroupingSide == ClashGroupingSide.ItemA ? "A" : "B";
             var label = !string.IsNullOrWhiteSpace(_clashGroupingLabel)
                 ? _clashGroupingLabel
-                : string.IsNullOrWhiteSpace(_clashGroupingPath) ? "авто" : _clashGroupingPath;
+                : string.IsNullOrWhiteSpace(_clashGroupingPath)
+                    ? PanelUi("Panel_Automatic")
+                    : _clashGroupingPath;
 
-            _clashGroupingStatus.Text = $"Группировка {sideLabel}: {label}";
+            _clashGroupingStatus.Text = UiLocalizationService.Current.Format(
+                "Panel_Grouping01",
+                sideLabel,
+                label);
             _clashGroupingStatus.Foreground = Brushes.DarkGreen;
         }
 

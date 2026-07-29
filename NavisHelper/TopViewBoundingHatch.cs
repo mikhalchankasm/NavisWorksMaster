@@ -1,5 +1,6 @@
 using Autodesk.Navisworks.Api.Plugins;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.Core.Localization;
 
 namespace NavisHelper
 {
@@ -8,8 +9,11 @@ namespace NavisHelper
     public sealed class TopViewBoundingHatch : TopViewBoundingRect
     {
         protected override string MarkupStyle => MarkupRedlineJsonBuilder.HatchStyle;
-        protected override string CommandTitle => "Заштриховать габарит";
-        protected override string ViewpointNamePrefix => "Штриховка";
+        protected override string CommandTitle =>
+            UiLocalizationService.Current.GetString("BoundingHatchTitle");
+        protected override string ViewpointNamePrefix =>
+            UiLocalizationService.Current.GetString("BoundingHatchViewpointPrefix");
+        protected override string LogCommandTitle => "Заштриховать габарит";
 
         public override int Execute(params string[] parameters)
         {

@@ -16,12 +16,16 @@
 
 - `NavisHelper.bundle/Contents/2024/NavisHelper.dll`
 - `NavisHelper.bundle/Contents/2024/NavisHelper.Contracts.dll`
+- `NavisHelper.bundle/Contents/2024/ru/NavisHelper.resources.dll`
 - `NavisHelper.bundle/Contents/2025/NavisHelper.dll`
 - `NavisHelper.bundle/Contents/2025/NavisHelper.Contracts.dll`
+- `NavisHelper.bundle/Contents/2025/ru/NavisHelper.resources.dll`
 - `NavisHelper.bundle/Contents/2026/NavisHelper.dll`
 - `NavisHelper.bundle/Contents/2026/NavisHelper.Contracts.dll`
+- `NavisHelper.bundle/Contents/2026/ru/NavisHelper.resources.dll`
 - `NavisHelper.bundle/Contents/2027/NavisHelper.dll`
 - `NavisHelper.bundle/Contents/2027/NavisHelper.Contracts.dll`
+- `NavisHelper.bundle/Contents/2027/ru/NavisHelper.resources.dll`
 
 Это обязательное правило для всех дополнительных действий, связанных со сборкой, выкладкой и обновлением bundle.
 
@@ -37,6 +41,7 @@
 - `Release` и `Release2026` копируют DLL в `Contents/2026`
 - `Release2027` копирует DLL в `Contents/2027`
 - `NavisHelper.Contracts.dll` копируется рядом с `NavisHelper.dll`, потому что основной плагин и MCP-сервер используют общий контрактный проект `NavisHelper.Contracts`
+- русская satellite assembly копируется в `Contents/<version>/ru/NavisHelper.resources.dll`
 
 Важно: сборка обновляет только bundle внутри репозитория: `NavisHelper.bundle`. NavisHelper поддерживает только пользовательскую установку, поэтому Navisworks должен загружать bundle из `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle`. После локальной сборки нужно отдельно выполнить install/update шага, иначе Navisworks продолжит грузить старую установленную DLL. Старая системная копия в `ProgramData` или `Program Files` должна быть удалена перед установкой.
 
@@ -77,7 +82,7 @@ powershell -ExecutionPolicy Bypass -File tools\install_local_bundle.ps1
 2. Сборка `Release2025|x64` проходит успешно
 3. Сборка `Release2026|x64` проходит успешно
 4. Сборка `Release2027|x64` проходит успешно
-5. В локальном bundle после сборки реально появились/обновились `NavisHelper.dll` и `NavisHelper.Contracts.dll` для поддерживаемых bundle-версий
+5. В локальном bundle после сборки реально появились/обновились `NavisHelper.dll`, `NavisHelper.Contracts.dll` и `ru/NavisHelper.resources.dll` для поддерживаемых bundle-версий
 6. `NavisHelper.Contracts` для release-конфигураций собирается как `Release|Any CPU`, не `Debug|Any CPU`
 7. `NavisHelper.bundle/PackageContents.xml` содержит блоки `2024`, `2025`, `2026` и `2027`
 8. Для визуальной проверки в Navisworks установленный bundle обновлён через `tools\install_local_bundle.ps1` или release installer, а не только собран в репозитории
