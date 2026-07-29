@@ -128,7 +128,7 @@ The ribbon UI is defined in `CustomRibbon.xaml` (embedded resource) using Autode
 
 ### AI Integration Layer
 
-`AIColorService.cs` calls the DeepSeek API (configurable endpoint). Configuration is loaded by `AIConfig.cs` from environment variables or `%APPDATA%\NavisHelper\ai_config.json`. `LocalColorBridge.cs` provides file-based IPC between the Navisworks process and the standalone `ColorService/` executable, with fallback to direct API calls.
+`AIColorObjects` uses OpenRouter as a bring-your-own-key integration. The key is read only from `OPEN_ROUTER_NW_KEY` and is never serialized to `%APPDATA%\NavisHelper\ai_config.json`. The command can launch an external `ColorService.exe` process through file-based IPC, but that executable is not included in the current installer or distribution. Without it, `AIColorObjects` uses the local `ColorSchemes` fallback. Registered MCP tools do not use this external AI path.
 
 ### Core Utilities
 

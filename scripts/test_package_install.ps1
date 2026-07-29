@@ -58,6 +58,14 @@ try {
     New-Item -ItemType Directory -Force -Path $unpackedRoot | Out-Null
     Expand-Archive -LiteralPath $ZipPath -DestinationPath $unpackedRoot -Force
 
+    Assert-File (Join-Path $unpackedRoot "LICENSE") "Packaged project license"
+    Assert-File (Join-Path $unpackedRoot "THIRD-PARTY-NOTICES.md") "Packaged third-party notices"
+    Assert-File (Join-Path $unpackedRoot "licenses\dotnet-runtime-9.0.18-THIRD-PARTY-NOTICES.TXT") "Packaged .NET runtime notices"
+    $autodeskInterop = @(Get-ChildItem -LiteralPath (Join-Path $unpackedRoot "NavisHelper.bundle\Contents") -Recurse -File -Filter "Autodesk.Navisworks.Interop.ComApi.dll")
+    if ($autodeskInterop.Count -gt 0) {
+        throw "Packaged bundle contains Autodesk.Navisworks.Interop.ComApi.dll: $($autodeskInterop.FullName -join ', ')"
+    }
+
     $installScript = Join-Path $unpackedRoot "Install-NavisHelperBundle.ps1"
     Assert-File $installScript "Packaged installer script"
     $packageVersion = Get-PackageVersion $unpackedRoot

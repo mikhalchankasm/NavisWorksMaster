@@ -238,6 +238,7 @@
     <Reference Include="Autodesk.Navisworks.Interop.ComApi">
       <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Interop.ComApi.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="Navisworks.Clash.Plugin">
@@ -304,6 +305,7 @@
     <Reference Include="Autodesk.Navisworks.Interop.ComApi">
       <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2024\Autodesk.Navisworks.Interop.ComApi.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Navisworks.Clash.Plugin">
       <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2024\Navisworks.Clash.Plugin.dll</HintPath>
@@ -354,6 +356,7 @@
     <Reference Include="Autodesk.Navisworks.Interop.ComApi">
       <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2025\Autodesk.Navisworks.Interop.ComApi.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Navisworks.Clash.Plugin">
       <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2025\Navisworks.Clash.Plugin.dll</HintPath>
@@ -404,6 +407,7 @@
     <Reference Include="Autodesk.Navisworks.Interop.ComApi">
       <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Autodesk.Navisworks.Interop.ComApi.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Navisworks.Clash.Plugin">
       <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2026\Navisworks.Clash.Plugin.dll</HintPath>
@@ -475,6 +479,7 @@
     <Reference Include="Autodesk.Navisworks.Interop.ComApi">
       <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2027\Autodesk.Navisworks.Interop.ComApi.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Navisworks.Clash.Plugin">
       <HintPath>C:\Program Files\Autodesk\Navisworks Manage 2027\Navisworks.Clash.Plugin.dll</HintPath>

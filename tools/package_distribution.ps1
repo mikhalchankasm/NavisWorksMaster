@@ -95,6 +95,10 @@ $mcpDest = Join-Path $packageDir "McpServer"
 $configuratorDest = Join-Path $packageDir "McpConfigurator"
 $docsDest = Join-Path $packageDir "docs"
 $toolsDest = Join-Path $packageDir "tools"
+$licensesSource = Join-Path $repoRoot "licenses"
+$licensesDest = Join-Path $packageDir "licenses"
+$projectLicense = Join-Path $repoRoot "LICENSE"
+$thirdPartyNotices = Join-Path $repoRoot "THIRD-PARTY-NOTICES.md"
 
 New-Item -ItemType Directory -Force -Path $OutputRoot | Out-Null
 Remove-DirectorySafely $packageDir $OutputRoot
@@ -156,6 +160,14 @@ if (-not (Test-Path -LiteralPath (Join-Path $mcpPublishDir "NavisHelper.McpServe
 }
 
 Copy-Directory $bundleSource $bundleDest
+# Autodesk API assemblies are supplied by the matching Navisworks installation.
+# Remove stale ignored Copy Local output so it cannot leak into a public package.
+Get-ChildItem -LiteralPath $bundleDest -Recurse -File -Filter "Autodesk.Navisworks.Interop.ComApi.dll" |
+    Remove-Item -Force
+$leakedAutodeskInterop = @(Get-ChildItem -LiteralPath $bundleDest -Recurse -File -Filter "Autodesk.Navisworks.Interop.ComApi.dll")
+if ($leakedAutodeskInterop.Count -gt 0) {
+    throw "Autodesk.Navisworks.Interop.ComApi.dll must not be included in the public distribution bundle."
+}
 # NavisHelper.Dev is a local script-development assembly and is not referenced
 # by PackageContents.xml. Never let a stale ignored build artifact leak into a
 # public bundle merely because it happens to exist under Contents/<year>.
@@ -180,6 +192,18 @@ Invoke-NativeCommand "dotnet" $configuratorPublishArgs
 if (-not (Test-Path -LiteralPath (Join-Path $configuratorDest "NavisHelper.McpConfigurator.exe"))) {
     throw "Published MCP configurator executable not found."
 }
+
+foreach ($requiredLicenseSource in @($projectLicense, $thirdPartyNotices)) {
+    if (-not (Test-Path -LiteralPath $requiredLicenseSource -PathType Leaf)) {
+        throw "Required release license file was not found: $requiredLicenseSource"
+    }
+}
+if (-not (Test-Path -LiteralPath $licensesSource -PathType Container)) {
+    throw "Third-party license directory was not found: $licensesSource"
+}
+Copy-Item -LiteralPath $projectLicense -Destination (Join-Path $packageDir "LICENSE") -Force
+Copy-Item -LiteralPath $thirdPartyNotices -Destination (Join-Path $packageDir "THIRD-PARTY-NOTICES.md") -Force
+Copy-Directory $licensesSource $licensesDest
 
 New-Item -ItemType Directory -Force -Path $docsDest | Out-Null
 foreach ($doc in @(

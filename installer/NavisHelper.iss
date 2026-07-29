@@ -5,6 +5,9 @@
 #ifndef SourceDir
 #define SourceDir "..\artifacts\distribution\NavisHelper-full-win-x64-framework-dependent-2.8.9.0"
 #endif
+#ifndef BundleInstallDir
+#define BundleInstallDir "{userappdata}\Autodesk\ApplicationPlugins\NavisHelper.bundle"
+#endif
 
 [Setup]
 AppId={{C2BD54D7-2F4E-4A8E-8ED5-9FDF784638AD}
@@ -23,10 +26,17 @@ WizardStyle=modern
 DisableProgramGroupPage=yes
 CloseApplications=yes
 RestartApplications=no
+#ifdef InstallerSmokeTest
+Uninstallable=no
+CreateUninstallRegKey=no
+#endif
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[InstallDelete]
+Type: filesandordirs; Name: "{#BundleInstallDir}"
 
 [Files]
 Source: "{#SourceDir}\McpServer\*"; DestDir: "{app}\McpServer"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -34,24 +44,29 @@ Source: "{#SourceDir}\McpConfigurator\*"; DestDir: "{app}\McpConfigurator"; Flag
 Source: "{#SourceDir}\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceDir}\tools\*"; DestDir: "{app}\tools"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceDir}\README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceDir}\SETUP_PROMPT.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#SourceDir}\UPDATE_PROMPT.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#SourceDir}\manifest.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\mcp-client-config.example.json"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\NavisHelper.bundle\*"; DestDir: "{userappdata}\Autodesk\ApplicationPlugins\NavisHelper.bundle"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\NavisHelper.bundle\*"; DestDir: "{#BundleInstallDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Configure MCP clients"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients all --create-missing --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
 Name: "{group}\Detect MCP clients"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--detect --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
 
 [Run]
+#ifndef InstallerSmokeTest
 Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients all --create-missing --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""; Description: "{cm:ConfigureMcpClients}"; Flags: postinstall
+#endif
 
 [UninstallRun]
 Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--remove --clients all"; Flags: runhidden skipifdoesntexist; RunOnceId: "RemoveNavisHelperMcpClients"
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{userappdata}\Autodesk\ApplicationPlugins\NavisHelper.bundle"
+Type: filesandordirs; Name: "{#BundleInstallDir}"
 
 [Code]
 function IsProcessRunning(ProcessName: string): Boolean;
@@ -131,6 +146,7 @@ end;
 
 function InitializeSetup(): Boolean;
 begin
+#ifndef InstallerSmokeTest
   if IsProcessRunning('Roamer.exe') then
   begin
     MsgBox(ExpandConstant('{cm:CloseNavisworksBeforeInstall}'), mbError, MB_OK);
@@ -153,6 +169,7 @@ begin
     Result := False;
     exit;
   end;
+#endif
 #endif
 
   Result := True;
