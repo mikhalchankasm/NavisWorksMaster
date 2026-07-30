@@ -74,7 +74,7 @@
     <value>CSV files|*.csv|Text files|*.txt|All files|*.*</value>
   </data>
   <data name="CommonFileFilterTextAll" xml:space="preserve">
-    <value>Text file|*.txt|All files|*.*</value>
+    <value>Text files|*.txt|All files|*.*</value>
   </data>
   <data name="CommonFileFilterTextOnly" xml:space="preserve">
     <value>Text files (*.txt)|*.txt</value>
@@ -107,10 +107,10 @@
     <value>NavisHelper</value>
   </data>
   <data name="SettingsLanguageSectionTitle" xml:space="preserve">
-    <value>Interface language / Язык интерфейса</value>
+    <value>Interface language</value>
   </data>
   <data name="SettingsLanguageFieldLabel" xml:space="preserve">
-    <value>Language / Язык:</value>
+    <value>Language:</value>
   </data>
   <data name="SettingsLanguageEnglishName" xml:space="preserve">
     <value>English</value>
@@ -179,7 +179,7 @@ The key is stored only in the environment variable and is never written to files
     <value>Bounds marker</value>
   </data>
   <data name="Panel_Section_Shift_GroupLabel" xml:space="preserve">
-    <value>Box shift by axis · 100 mm step</value>
+    <value>Section Box shift by axis · 100 mm step</value>
   </data>
   <data name="Panel_ByObjects" xml:space="preserve">
     <value>By objects</value>
@@ -364,7 +364,7 @@ while navigating</value>
     <value>Export colors</value>
   </data>
   <data name="Panel_Model_ExportProperties_Action" xml:space="preserve">
-    <value>Export properties to Excel</value>
+    <value>Export properties for Excel</value>
   </data>
   <data name="Panel_Model_ExportTree_ToolTip" xml:space="preserve">
     <value>Export the model tree to a text file</value>
@@ -519,7 +519,7 @@ while navigating</value>
     <value>Selection operations</value>
   </data>
   <data name="Panel_Model_Group_TreeNavigation" xml:space="preserve">
-    <value>Navigation in model tree</value>
+    <value>Model tree navigation</value>
   </data>
   <data name="Panel_ModelResponse" xml:space="preserve">
     <value>Model response:</value>
@@ -570,10 +570,10 @@ while navigating</value>
     <value>Open log</value>
   </data>
   <data name="Settings_Ai_KeyFound" xml:space="preserve">
-    <value>✅ OPEN_ROUTER_NW_KEY key found</value>
+    <value>✅ OPEN_ROUTER_NW_KEY found</value>
   </data>
   <data name="Settings_Ai_KeyMissing" xml:space="preserve">
-    <value>❌ OPEN_ROUTER_NW_KEY key not found</value>
+    <value>❌ OPEN_ROUTER_NW_KEY not found</value>
   </data>
   <data name="Panel_Clash_GroupTree_ToolTip" xml:space="preserve">
     <value>Open the A/B grouping tree over the clash table</value>
@@ -628,8 +628,8 @@ You can paste a path with Ctrl+V</value>
     <value>Refresh</value>
   </data>
   <data name="Settings_Ai_RefreshKey_ToolTip" xml:space="preserve">
-    <value>Refresh the environment variable OPEN_ROUTER_NW_KEY.
-Navisworks must be restarted after setx.</value>
+    <value>Refresh the OPEN_ROUTER_NW_KEY environment variable.
+Restart Navisworks after running setx.</value>
   </data>
   <data name="Panel_Remember" xml:space="preserve">
     <value>Remember</value>
@@ -798,7 +798,7 @@ Keeps only geometric objects on the lowest level.</value>
     <value>Target Z level, mm:</value>
   </data>
   <data name="Panel_Views_CenterPoints_ToolTip" xml:space="preserve">
-    <value>Temporary circles at the center of each selected object</value>
+    <value>Temporary circles at the centers of selected items</value>
   </data>
   <data name="Panel_Views_BoundsMarker_ToolTip" xml:space="preserve">
     <value>Temporary polygon marker at the bounding-box corners of selected objects</value>
@@ -1037,7 +1037,7 @@ Provides variety while retaining a soft appearance.</value>
     <value>Select a CSV attribute file</value>
   </data>
   <data name="FilterSearchPrompt" xml:space="preserve">
-    <value>Use exact matching? The alternative uses partial matching.</value>
+    <value>Use exact matching? Select No to use partial matching.</value>
   </data>
   <data name="FilterSearchTitle" xml:space="preserve">
     <value>Search type</value>
@@ -1062,7 +1062,7 @@ Provides variety while retaining a soft appearance.</value>
     <value>Select a folder for the color files</value>
   </data>
   <data name="ExportColorsOverwritePromptFormat" xml:space="preserve">
-    <value>The folder already contains {0} .txt files.
+    <value>The folder already contains {0} text files (.txt).
 
 Overwrite existing files?</value>
   </data>
@@ -1652,7 +1652,7 @@ File: {1}</value>
     <value>Select items to isolate.</value>
   </data>
   <data name="Panel_Selection_Isolate_Result_Format" xml:space="preserve">
-    <value>Isolate: {0} items hidden</value>
+    <value>Isolation applied: {0} items hidden</value>
   </data>
   <data name="Panel_Selection_Unhide_Result" xml:space="preserve">
     <value>All items are visible</value>
@@ -1690,7 +1690,7 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
     <value>The Section Box history belongs to another document and was cleared</value>
   </data>
   <data name="Panel_Selection_HistoryApplied_Format" xml:space="preserve">
-    <value>Section Box applied to {0} history items</value>
+    <value>Section Box applied to {0} items from history</value>
   </data>
   <data name="Panel_Selection_HistoryNavigateFailed_Format" xml:space="preserve">
     <value>Could not navigate to the history item:
@@ -1700,7 +1700,7 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
     <value>The selected history items are no longer available</value>
   </data>
   <data name="Panel_Selection_HistorySelected_Format" xml:space="preserve">
-    <value>Items selected from history in the model: {0}</value>
+    <value>Items from history selected in the model: {0}</value>
   </data>
   <data name="Panel_Selection_HistorySelectionCleared" xml:space="preserve">
     <value>History item selection cleared</value>
@@ -1709,7 +1709,7 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
     <value>Could not select history items: {0}</value>
   </data>
   <data name="Panel_Selection_SectionBoxReset" xml:space="preserve">
-    <value>Selection Section Box reset</value>
+    <value>Section Box for the selection was reset</value>
   </data>
   <data name="Panel_Selection_ExportProperties_SelectItems" xml:space="preserve">
     <value>Select items to export.</value>
@@ -1773,7 +1773,7 @@ Waiting for a response…
     <value>Group {0} — RGB({1}):</value>
   </data>
   <data name="Panel_Colors_Ai_GroupLabel_Format" xml:space="preserve">
-    <value>{0} ({1} pcs.)</value>
+    <value>{0} ({1} items)</value>
   </data>
   <data name="Panel_Colors_Ai_NoDataToSave" xml:space="preserve">
     <value>There is no data to save.</value>
@@ -2240,8 +2240,8 @@ Values in the selection: {0}</value>
   <data name="Panel_Common_Millimetres_Format" xml:space="preserve"><value>{0} mm</value></data>
   <data name="Panel_Clash_LoadTestsFirst" xml:space="preserve"><value>Load tests</value></data>
   <data name="Panel_Clash_ViewReset" xml:space="preserve"><value>View reset</value></data>
-  <data name="Panel_Clash_OnlyPairEnabled" xml:space="preserve"><value>Only Pair mode is enabled. Double-click a clash.</value></data>
-  <data name="Panel_Clash_OnlyPairRestored" xml:space="preserve"><value>All branches temporarily hidden by Only Pair mode are visible</value></data>
+  <data name="Panel_Clash_OnlyPairEnabled" xml:space="preserve"><value>Pair only mode is enabled. Double-click a clash.</value></data>
+  <data name="Panel_Clash_OnlyPairRestored" xml:space="preserve"><value>All branches temporarily hidden by Pair only mode are visible</value></data>
   <data name="Panel_Clash_GroupRenameManualOnly" xml:space="preserve"><value>Only manual groups can be renamed</value></data>
   <data name="Panel_Clash_GroupNameRequired" xml:space="preserve"><value>Group name cannot be empty</value></data>
   <data name="Panel_Clash_SavedGroupNotFound" xml:space="preserve"><value>Saved group was not found</value></data>
@@ -2320,7 +2320,7 @@ Values in the selection: {0}</value>
   <data name="Panel_Clash_DeleteZero_None" xml:space="preserve"><value>No zero-result Clash Tests found</value></data>
   <data name="Panel_Clash_DeleteZero_Unrun_Message_Format" xml:space="preserve"><value>Nothing was deleted.&#xA;&#xA;Found {0} zero-result tests, but they appear not to have run because LastRun is missing.{1}&#xA;&#xA;Run the tests first, then try deleting zero-result tests again.</value></data>
   <data name="Panel_Clash_DeleteZero_Unrun_Title" xml:space="preserve"><value>Zero-result tests were not deleted</value></data>
-  <data name="Panel_Clash_DeleteZero_Unrun_Status" xml:space="preserve"><value>Zero-result tests were not deleted: all found tests have not run</value></data>
+  <data name="Panel_Clash_DeleteZero_Unrun_Status" xml:space="preserve"><value>Zero-result tests were not deleted: none of the tests found have run</value></data>
   <data name="Panel_Clash_DeleteZero_Skipped_Format" xml:space="preserve"><value>&#xA;&#xA;Skipped {0} unrun zero-result tests. They will not be deleted.</value></data>
   <data name="Panel_Clash_DeleteZero_Confirm_Format" xml:space="preserve"><value>Delete only Clash Tests that ran and have 0 results: {0}?{1}{2}</value></data>
   <data name="Panel_Clash_DeleteZero_Title" xml:space="preserve"><value>Delete zero-result Clash Tests</value></data>
@@ -2374,7 +2374,7 @@ Values in the selection: {0}</value>
   <data name="Panel_Clash_GridSummaryGrouped_Format" xml:space="preserve"><value>Clashes: {0}, groups: {1}, rows: {2}</value></data>
   <data name="Panel_Clash_GridSummary_Format" xml:space="preserve"><value>Clashes: {0} / {1}</value></data>
   <data name="Panel_Clash_GroupAbbreviation" xml:space="preserve"><value>Grp.</value></data>
-  <data name="Panel_Clash_ResultCountShort_Format" xml:space="preserve"><value>{0} pcs.</value></data>
+  <data name="Panel_Clash_ResultCountShort_Format" xml:space="preserve"><value>{0} clashes</value></data>
   <data name="Panel_Clash_GroupRowName_Format" xml:space="preserve"><value>{0}: {1} ({2})</value></data>
   <data name="Panel_Clash_GroupRowNameWithoutSide_Format" xml:space="preserve"><value>{0} ({1})</value></data>
   <data name="Panel_Clash_DefaultGroupA" xml:space="preserve"><value>Group A</value></data>
@@ -2393,7 +2393,7 @@ Values in the selection: {0}</value>
   <data name="Panel_Clash_Preview_ResultShown_Format" xml:space="preserve"><value>Clash shown: {0}</value></data>
   <data name="Panel_Clash_Preview_Failed_Format" xml:space="preserve"><value>Could not show clash: {0}</value></data>
   <data name="Panel_Clash_Preview_HiddenBranches_Format" xml:space="preserve"><value>hidden branches: {0}</value></data>
-  <data name="Panel_Clash_Preview_OnlyPair_Format" xml:space="preserve"><value>{0} | only pair: {1} in {2} ms</value></data>
+  <data name="Panel_Clash_Preview_OnlyPair_Format" xml:space="preserve"><value>{0} | pair only: {1} in {2} ms</value></data>
   <data name="Panel_Clash_Markers_NoPoints" xml:space="preserve"><value>No clash points for markers</value></data>
   <data name="Panel_Clash_Markers_Completed_Format" xml:space="preserve"><value>Markers: {0}/{1}{2}</value></data>
   <data name="Panel_Clash_Markers_ProjectPointNull_Detail" xml:space="preserve"><value> | ProjectPoint=null</value></data>
@@ -2494,10 +2494,10 @@ Values in the selection: {0}</value>
   <data name="Panel_Clash_Gif_DefaultName" xml:space="preserve"><value>Clash Orbit</value></data>
   <data name="Panel_Clash_SelectionFailed_Format" xml:space="preserve"><value>Selection error: {0}</value></data>
   <data name="Panel_Selection_NoSelectionOrSavedBox" xml:space="preserve"><value>No selected items or saved Section Box area.</value></data>
-  <data name="Panel_Selection_SectionBoxApplied_Format" xml:space="preserve"><value>Section box: {0} items; common expansion {1} mm, X/Y/Z addition {2}/{3}/{4} mm; shift {5}/{6}/{7} mm</value></data>
-  <data name="Panel_Selection_SectionBoxAppliedSaved_Format" xml:space="preserve"><value>Section box: {0} items (saved area); common expansion {1} mm, X/Y/Z addition {2}/{3}/{4} mm; shift {5}/{6}/{7} mm</value></data>
+  <data name="Panel_Selection_SectionBoxApplied_Format" xml:space="preserve"><value>Section Box: {0} items; overall expansion {1} mm, X/Y/Z addition {2}/{3}/{4} mm; shift {5}/{6}/{7} mm</value></data>
+  <data name="Panel_Selection_SectionBoxAppliedSaved_Format" xml:space="preserve"><value>Section Box: {0} items (saved area); overall expansion {1} mm, X/Y/Z addition {2}/{3}/{4} mm; shift {5}/{6}/{7} mm</value></data>
   <data name="Panel_Clash_Preview_Failed" xml:space="preserve"><value>Could not show the clash.</value></data>
-  <data name="Panel_Clash_Preview_RestoreFailed" xml:space="preserve"><value>Could not restore the previous Only Pair mode.</value></data>
+  <data name="Panel_Clash_Preview_RestoreFailed" xml:space="preserve"><value>Could not restore the previous Pair only mode.</value></data>
   <data name="Panel_Clash_Preview_NoItems_Format" xml:space="preserve"><value>No items: {0}</value></data>
   <data name="Panel_Clash_Preview_EmptyGroup" xml:space="preserve"><value>The group contains no clashes.</value></data>
   <data name="Panel_Clash_PairIsolation_RestoreFailed_Format" xml:space="preserve"><value>could not restore visibility: {0}</value></data>
