@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Reflection;
 using System.Windows.Forms;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 
 namespace NavisHelper
 {
@@ -122,7 +123,12 @@ namespace NavisHelper
             catch (Exception ex)
             {
                 Logger.Error($"❌ Ошибка: {ex.Message}", "AboutNavisHelper");
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                UiLocalizationService localization = UiLocalizationService.Current;
+                MessageBox.Show(
+                    localization.Format("CommonErrorMessageFormat", ex.Message),
+                    localization.GetString("CommonErrorTitle"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
                 return 0;
             }
         }
@@ -140,8 +146,10 @@ namespace NavisHelper
 
         private void InitializeComponents()
         {
+            UiLocalizationService localization = UiLocalizationService.Current;
+
             // Настройки формы
-            this.Text = "О программе NavisHelper";
+            this.Text = localization.GetString("AboutWindowTitle");
             this.Size = new Size(450, 350);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -163,7 +171,7 @@ namespace NavisHelper
             // Версия
             var versionLabel = new Label
             {
-                Text = $"Версия {AppVersion.VersionString}",
+                Text = localization.Format("AboutVersionFormat", AppVersion.VersionString),
                 Location = new Point(20, 65),
                 Size = new Size(400, 25),
                 Font = new Font("Segoe UI", 12),
@@ -183,7 +191,7 @@ namespace NavisHelper
             // Описание
             var descLabel = new Label
             {
-                Text = AppVersion.Description,
+                Text = localization.GetString("AboutDescription"),
                 Location = new Point(20, 115),
                 Size = new Size(395, 25),
                 Font = new Font("Segoe UI", 10),
@@ -194,12 +202,7 @@ namespace NavisHelper
             // Функции
             var featuresLabel = new Label
             {
-                Text = "Возможности:\n" +
-                       "• Автоматическое окрашивание объектов (10 цветовых схем)\n" +
-                       "• Работа с Clash Detective\n" +
-                       "• Импорт/экспорт данных\n" +
-                       "• Управление viewpoints\n" +
-                       "• И многое другое...",
+                Text = localization.GetString("AboutFeatures"),
                 Location = new Point(20, 145),
                 Size = new Size(395, 100),
                 Font = new Font("Segoe UI", 9),
@@ -232,7 +235,7 @@ namespace NavisHelper
             // Кнопка OK
             var okButton = new Button
             {
-                Text = "OK",
+                Text = localization.GetString("CommonOk"),
                 Location = new Point(330, 270),
                 Size = new Size(90, 30),
                 DialogResult = DialogResult.OK,

@@ -32,6 +32,9 @@ jobs:
       - name: Check typed host command router
         run: python scripts/check_host_command_router.py
 
+      - name: Check panel localization
+        run: python scripts/check_panel_localization.py
+
       - name: Build contracts
         run: dotnet build NavisHelper.Contracts/NavisHelper.Contracts.csproj -c Release
 
@@ -56,6 +59,9 @@ jobs:
             New-Item -ItemType Directory -Force -Path $destination | Out-Null
             New-Item -ItemType File -Force -Path (Join-Path $destination "NavisHelper.dll") | Out-Null
             New-Item -ItemType File -Force -Path (Join-Path $destination "NavisHelper.Contracts.dll") | Out-Null
+            $russianDestination = Join-Path $destination "ru"
+            New-Item -ItemType Directory -Force -Path $russianDestination | Out-Null
+            New-Item -ItemType File -Force -Path (Join-Path $russianDestination "NavisHelper.resources.dll") | Out-Null
           }
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\package_distribution.ps1 -SkipBuild -Runtime win-x64 -OutputRoot "$env:RUNNER_TEMP\navishelper-package-smoke" -PackageName ci-package-smoke
 

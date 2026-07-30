@@ -9,6 +9,7 @@ using Autodesk.Navisworks.Api.ComApi;
 // using NavisHelper.WPF; // Временно отключено
 // using System.Windows; // Временно отключено
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 // using Microsoft.Toolkit.Uwp.Notifications; // Временно отключено из-за проблем с совместимостью
 
 namespace NavisHelper
@@ -128,8 +129,8 @@ namespace NavisHelper
         private bool ShowSearchTypeDialog()
         {
             DialogResult result = System.Windows.Forms.MessageBox.Show(
-                "Выберите тип поиска:\n\nДа - Точное совпадение\nНет - Частичное совпадение",
-                "Тип поиска",
+                UiLocalizationService.Current.GetString("FilterSearchPrompt"),
+                UiLocalizationService.Current.GetString("FilterSearchTitle"),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
             
@@ -167,8 +168,8 @@ namespace NavisHelper
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
-                openFileDialog.Filter = "Текстовые файлы (*.txt)|*.txt";
-                openFileDialog.Title = "Выберите текстовый файл";
+                openFileDialog.Filter = UiLocalizationService.Current.GetString("CommonFileFilterTextOnly");
+                openFileDialog.Title = UiLocalizationService.Current.GetString("FilterFileDialogTitle");
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {

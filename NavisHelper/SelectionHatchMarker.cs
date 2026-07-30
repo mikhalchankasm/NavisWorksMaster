@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows.Forms;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
+using NavisHelper.Core.Localization;
 using Application = Autodesk.Navisworks.Api.Application;
 using NavisHelper.Agent.Contracts;
 
@@ -14,7 +15,8 @@ namespace NavisHelper
     public class SelectionHatchMarker : AddInPlugin
     {
         protected virtual bool UseObjectBoundingCorners => false;
-        protected virtual string CommandTitle => "Маркер выделения";
+        protected virtual string CommandTitle =>
+            UiLocalizationService.Current.GetString("SelectionMarkerTitle");
 
         public override int Execute(params string[] parameters)
         {
@@ -22,14 +24,22 @@ namespace NavisHelper
             var selection = document == null || document.CurrentSelection == null ? null : document.CurrentSelection.SelectedItems;
             if (selection == null || selection.Count == 0)
             {
-                MessageBox.Show("Нет выделенных элементов.", CommandTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(
+                    UiLocalizationService.Current.GetString("CommonNoSelection"),
+                    CommandTitle,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
                 return 0;
             }
 
             var bounds = selection.BoundingBox();
             if (bounds == null)
             {
-                MessageBox.Show("Не удалось определить габарит выделения.", CommandTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    UiLocalizationService.Current.GetString("SelectionBoundsUnavailable"),
+                    CommandTitle,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return 0;
             }
 
@@ -78,7 +88,13 @@ namespace NavisHelper
                 MarkupRedlineJsonBuilder.HatchStyle,
                 10);
             if (!string.IsNullOrWhiteSpace(ClashMarkerTool.LastError))
-                MessageBox.Show("Не удалось включить маркер: " + ClashMarkerTool.LastError, CommandTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format(
+                        "SelectionMarkerEnableFailedFormat",
+                        ClashMarkerTool.LastError),
+                    CommandTitle,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             return 0;
         }
     }

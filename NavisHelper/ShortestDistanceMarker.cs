@@ -3,6 +3,7 @@ using System.Windows.Forms;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NwApplication = Autodesk.Navisworks.Api.Application;
 
 namespace NavisHelper
@@ -23,8 +24,8 @@ namespace NavisHelper
                     return 0;
 
                 MessageBox.Show(
-                    "Не удалось открыть вкладку «Высоты Z» в панели NavisHelper.",
-                    "Метки высот Z",
+                    UiLocalizationService.Current.GetString("HeightMarksOpenFailed"),
+                    UiLocalizationService.Current.GetString("HeightMarksTitle"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
                 return 1;
@@ -33,8 +34,8 @@ namespace NavisHelper
             {
                 Logger.Error("Не удалось открыть вкладку высот Z: " + ex, "ElevationMarker");
                 MessageBox.Show(
-                    "Не удалось открыть вкладку «Высоты Z». Подробности записаны в журнал.",
-                    "Метки высот Z",
+                    UiLocalizationService.Current.GetString("HeightMarksOpenFailedLogged"),
+                    UiLocalizationService.Current.GetString("HeightMarksTitle"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
                 return 1;

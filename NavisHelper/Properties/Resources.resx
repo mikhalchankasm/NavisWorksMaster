@@ -1,0 +1,2512 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="CommonBrowse" xml:space="preserve">
+    <value>Browse...</value>
+  </data>
+  <data name="CommonCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="CommonErrorMessageFormat" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="CommonErrorTitle" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="CommonFileFilterCsvTextAll" xml:space="preserve">
+    <value>CSV files|*.csv|Text files|*.txt|All files|*.*</value>
+  </data>
+  <data name="CommonFileFilterTextAll" xml:space="preserve">
+    <value>Text file|*.txt|All files|*.*</value>
+  </data>
+  <data name="CommonFileFilterTextOnly" xml:space="preserve">
+    <value>Text files (*.txt)|*.txt</value>
+  </data>
+  <data name="CommonFileFilterXmlAll" xml:space="preserve">
+    <value>XML files|*.xml|All files|*.*</value>
+  </data>
+  <data name="CommonNoSelection" xml:space="preserve">
+    <value>No items are selected.</value>
+  </data>
+  <data name="CommonOk" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="CommonViewpointNameLabel" xml:space="preserve">
+    <value>Viewpoint name:</value>
+  </data>
+  <data name="CommonViewpointNameTitle" xml:space="preserve">
+    <value>Viewpoint name</value>
+  </data>
+  <data name="RibbonTabTitle" xml:space="preserve">
+    <value>NavisHelper</value>
+  </data>
+  <data name="RibbonPanelTitle" xml:space="preserve">
+    <value>NavisHelper</value>
+  </data>
+  <data name="RibbonOpenPanelText" xml:space="preserve">
+    <value>NavisHelper</value>
+  </data>
+  <data name="RibbonOpenPanelToolTip" xml:space="preserve">
+    <value>NavisHelper</value>
+  </data>
+  <data name="SettingsLanguageSectionTitle" xml:space="preserve">
+    <value>Interface language / Язык интерфейса</value>
+  </data>
+  <data name="SettingsLanguageFieldLabel" xml:space="preserve">
+    <value>Language / Язык:</value>
+  </data>
+  <data name="SettingsLanguageEnglishName" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="SettingsLanguageRussianName" xml:space="preserve">
+    <value>Русский</value>
+  </data>
+  <data name="SettingsLanguageAppliedStatusFormat" xml:space="preserve">
+    <value>Interface language changed to {0}.</value>
+  </data>
+  <data name="SettingsLanguagePersistenceWarningFormat" xml:space="preserve">
+    <value>Interface language changed to {0}, but the preference could not be saved. It remains active for this session.</value>
+  </data>
+  <data name="SettingsLanguageChangeFailed" xml:space="preserve">
+    <value>Could not change the interface language. Details were written to the log.</value>
+  </data>
+  <data name="Panel_Section_CurrentValue_Format" xml:space="preserve">
+    <value>{0}
+Current value: {1}%.</value>
+  </data>
+  <data name="Panel_Section_CurrentValue_FormatMmStep100Mm" xml:space="preserve">
+    <value>{0}
+Current value: {1} mm. Step: 100 mm.</value>
+  </data>
+  <data name="Settings_Ai_KeyHelp" xml:space="preserve">
+    <value>1. Get an API key at openrouter.ai (Keys section).
+2. Run this command in Windows Command Prompt:
+    setx OPEN_ROUTER_NW_KEY sk-or-...
+3. Restart Navisworks so the key is loaded automatically.
+The key is stored only in the environment variable and is never written to files.</value>
+  </data>
+  <data name="Panel_Clash_DualViewpoints_Label" xml:space="preserve">
+    <value>2 views</value>
+  </data>
+  <data name="Panel_AddGroup" xml:space="preserve">
+    <value>Add group</value>
+  </data>
+  <data name="Settings_Ai_Model_Label" xml:space="preserve">
+    <value>AI model:</value>
+  </data>
+  <data name="Panel_All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="Panel_Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Panel_Colors_AiApply_Action" xml:space="preserve">
+    <value>Apply AI coloring</value>
+  </data>
+  <data name="Panel_Colors_Match_Apply_ToolTip" xml:space="preserve">
+    <value>Apply the read color to the selection</value>
+  </data>
+  <data name="Panel_ApplyTransparency" xml:space="preserve">
+    <value>Apply transparency</value>
+  </data>
+  <data name="Panel_Colors_Property_Action_ToolTip" xml:space="preserve">
+    <value>Automatically color by a unique property value (System/Specification/Elevation)</value>
+  </data>
+  <data name="Panel_BoundingRectangle" xml:space="preserve">
+    <value>Bounding rectangle</value>
+  </data>
+  <data name="Panel_Bounds" xml:space="preserve">
+    <value>Bounds</value>
+  </data>
+  <data name="Panel_BoundsMarker" xml:space="preserve">
+    <value>Bounds marker</value>
+  </data>
+  <data name="Panel_Section_Shift_GroupLabel" xml:space="preserve">
+    <value>Box shift by axis · 100 mm step</value>
+  </data>
+  <data name="Panel_ByObjects" xml:space="preserve">
+    <value>By objects</value>
+  </data>
+  <data name="Panel_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Panel_CenterMarker" xml:space="preserve">
+    <value>Center marker</value>
+  </data>
+  <data name="Panel_CenterMarks" xml:space="preserve">
+    <value>Center marks</value>
+  </data>
+  <data name="Panel_CenterPoints" xml:space="preserve">
+    <value>Center points</value>
+  </data>
+  <data name="Panel_Check" xml:space="preserve">
+    <value>Check</value>
+  </data>
+  <data name="Panel_Checking" xml:space="preserve">
+    <value>Checking…</value>
+  </data>
+  <data name="Settings_Ai_Test_ToolTip" xml:space="preserve">
+    <value>Check OpenRouter API availability with the current key</value>
+  </data>
+  <data name="Panel_ChooseFolder" xml:space="preserve">
+    <value>Choose folder</value>
+  </data>
+  <data name="Panel_Colors_FolderSelect_Modern" xml:space="preserve">
+    <value>Choose folder (modern dialog)</value>
+  </data>
+  <data name="Panel_Model_Parent_ToolTip" xml:space="preserve">
+    <value>Choose the parent item for every selected object.
+Moves one level up the model tree.</value>
+  </data>
+  <data name="Panel_Clash_Column_Name" xml:space="preserve">
+    <value>Clash</value>
+  </data>
+  <data name="Panel_Clash_Filter_Name_Label" xml:space="preserve">
+    <value>Clash:</value>
+  </data>
+  <data name="Panel_ClashSettings" xml:space="preserve">
+    <value>Clash settings</value>
+  </data>
+  <data name="Panel_Clash_Settings_Description" xml:space="preserve">
+    <value>Clash settings: highlighting, Section Box, transparency, viewpoints</value>
+  </data>
+  <data name="Panel_Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="Panel_HeightMarks_ClearGroups_ToolTip" xml:space="preserve">
+    <value>Clear all session groups.</value>
+  </data>
+  <data name="Panel_CloseSettings" xml:space="preserve">
+    <value>Close settings</value>
+  </data>
+  <data name="Panel_CloseTree" xml:space="preserve">
+    <value>Close tree</value>
+  </data>
+  <data name="Panel_Colors_Property_Action" xml:space="preserve">
+    <value>Color by Property</value>
+  </data>
+  <data name="Panel_Colors_Folder_Label" xml:space="preserve">
+    <value>Color files folder:</value>
+  </data>
+  <data name="Panel_ColoringHistory" xml:space="preserve">
+    <value>Coloring history</value>
+  </data>
+  <data name="Panel_Colors_Group_Coloring" xml:space="preserve">
+    <value>Coloring</value>
+  </data>
+  <data name="Panel_Colors_Segment_Manual" xml:space="preserve">
+    <value>Manual</value>
+  </data>
+  <data name="Panel_Colors_ByName_Action" xml:space="preserve">
+    <value>Colors By Name</value>
+  </data>
+  <data name="Panel_ColorScheme" xml:space="preserve">
+    <value>Color scheme:</value>
+  </data>
+  <data name="Panel_Colors_ByName_ToolTip" xml:space="preserve">
+    <value>Colors items by name from a text file (name;R,G,B;transparency)</value>
+  </data>
+  <data name="Panel_ColorTransfer" xml:space="preserve">
+    <value>Color transfer</value>
+  </data>
+  <data name="Panel_Contents" xml:space="preserve">
+    <value>Contents</value>
+  </data>
+  <data name="Panel_Clash_GroupContents_Format" xml:space="preserve">
+    <value>Contents: {0} | clashes: {1} | A: {2} | B: {3}</value>
+  </data>
+  <data name="Panel_Context" xml:space="preserve">
+    <value>Context</value>
+  </data>
+  <data name="Panel_Section_ContextTransparency_ToolTip" xml:space="preserve">
+    <value>Context item transparency outside the selection. Applied automatically when the preview is already displayed.</value>
+  </data>
+  <data name="Panel_ContextTransparency" xml:space="preserve">
+    <value>Context transparency</value>
+  </data>
+  <data name="Panel_Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="Panel_CopyCommand" xml:space="preserve">
+    <value>Copy command</value>
+  </data>
+  <data name="Panel_CopyNames" xml:space="preserve">
+    <value>Copy names</value>
+  </data>
+  <data name="Panel_Model_CopyNames_ToolTip" xml:space="preserve">
+    <value>Copy selected object DisplayNames to the clipboard (Ctrl+M)</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_Action" xml:space="preserve">
+    <value>Copy selection by property value</value>
+  </data>
+  <data name="Panel_Colors_Ai_CopyResponse_ToolTip" xml:space="preserve">
+    <value>Copy the response to the clipboard</value>
+  </data>
+  <data name="Panel_Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Action_ToolTip" xml:space="preserve">
+    <value>Create a folder and save a dynamic search set</value>
+  </data>
+  <data name="Panel_HeightMarks_Dimension_ToolTip" xml:space="preserve">
+    <value>Create a saved viewpoint with dimension lines for the current selection.</value>
+  </data>
+  <data name="Panel_HeightMarks_Elevation_ToolTip" xml:space="preserve">
+    <value>Create a saved viewpoint with redline labels for the current selection.</value>
+  </data>
+  <data name="Panel_Model_ImportCsv_Action" xml:space="preserve">
+    <value>CSV → attributes</value>
+  </data>
+  <data name="Panel_HeightMarks_Grid_ToolTip" xml:space="preserve">
+    <value>Ctrl/Shift — select multiple groups. Their objects will be selected in the model.</value>
+  </data>
+  <data name="Panel_Clash_Grid_SelectionHint" xml:space="preserve">
+    <value>Ctrl/Shift — select multiple objects in the model. Double-click — apply Section Box.</value>
+  </data>
+  <data name="Panel_DeleteGroups" xml:space="preserve">
+    <value>Delete groups</value>
+  </data>
+  <data name="Panel_HeightMarks_DeleteGroups_ToolTip" xml:space="preserve">
+    <value>Delete selected groups from the current session list.</value>
+  </data>
+  <data name="Panel_DevScripts_Load_Action" xml:space="preserve">
+    <value>Dev: load DLL</value>
+  </data>
+  <data name="Panel_HeightMarks_DimensionToZ_Action" xml:space="preserve">
+    <value>Dimension line to Z</value>
+  </data>
+  <data name="Panel_Dist" xml:space="preserve">
+    <value>Dist.</value>
+  </data>
+  <data name="Panel_Clash_TableSplitter_ToolTip" xml:space="preserve">
+    <value>Drag to resize the tables</value>
+  </data>
+  <data name="Panel_Views_BoundsHatch_ToolTip" xml:space="preserve">
+    <value>Draw an outline and diagonal hatch around the selection bounds</value>
+  </data>
+  <data name="Panel_Views_BoundsRectangle_ToolTip" xml:space="preserve">
+    <value>Draw a rectangle around the selection bounds</value>
+  </data>
+  <data name="Panel_Section_Enable_ToolTip" xml:space="preserve">
+    <value>Enable a section box around the current selection.</value>
+  </data>
+  <data name="Settings_Ai_Thinking_ToolTip" xml:space="preserve">
+    <value>Enable extended thinking mode (for supported models)</value>
+  </data>
+  <data name="Panel_Clash_EnableDuringNavigation" xml:space="preserve">
+    <value>Enable
+while navigating</value>
+  </data>
+  <data name="Panel_Error0" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="Panel_Section_Expansion_GroupLabel" xml:space="preserve">
+    <value>Expansion: common + per axis · 100 mm step</value>
+  </data>
+  <data name="Panel_ExportColors" xml:space="preserve">
+    <value>Export colors</value>
+  </data>
+  <data name="Panel_Model_ExportProperties_Action" xml:space="preserve">
+    <value>Export properties to Excel</value>
+  </data>
+  <data name="Panel_Model_ExportTree_ToolTip" xml:space="preserve">
+    <value>Export the model tree to a text file</value>
+  </data>
+  <data name="Panel_Colors_Export_ToolTip" xml:space="preserve">
+    <value>Export the RGB colors and transparency of all descendants of selected objects to .txt files (one per object)</value>
+  </data>
+  <data name="Panel_Filter0" xml:space="preserve">
+    <value>Filter: {0}</value>
+  </data>
+  <data name="Panel_Section_FitSelection_Action" xml:space="preserve">
+    <value>Fit to selected items</value>
+  </data>
+  <data name="Panel_FromObject" xml:space="preserve">
+    <value>From object</value>
+  </data>
+  <data name="Panel_FromPoint" xml:space="preserve">
+    <value>From point</value>
+  </data>
+  <data name="Panel_HeightMarks_TargetZ_ToolTip" xml:space="preserve">
+    <value>Global document Z; used by the dimension line.</value>
+  </data>
+  <data name="Panel_GraphicsMarker" xml:space="preserve">
+    <value>Graphics marker</value>
+  </data>
+  <data name="Panel_Group" xml:space="preserve">
+    <value>Group</value>
+  </data>
+  <data name="Panel_Grouping01" xml:space="preserve">
+    <value>Grouping {0}: {1}</value>
+  </data>
+  <data name="Panel_GroupingNone" xml:space="preserve">
+    <value>Grouping: none</value>
+  </data>
+  <data name="Panel_GroupName" xml:space="preserve">
+    <value>Group name</value>
+  </data>
+  <data name="Panel_Clash_GroupCount_Format" xml:space="preserve">
+    <value>Groups: {0}, clashes in groups: {1}</value>
+  </data>
+  <data name="Panel_HatchBounds" xml:space="preserve">
+    <value>Hatch bounds</value>
+  </data>
+  <data name="Panel_HeightMarks_Group_SessionObjects" xml:space="preserve">
+    <value>Session object groups</value>
+  </data>
+  <data name="Panel_Model_Isolate_ToolTip" xml:space="preserve">
+    <value>Hide everything except the selection</value>
+  </data>
+  <data name="Panel_HideGraphics" xml:space="preserve">
+    <value>Hide Graphics</value>
+  </data>
+  <data name="Panel_Model_FilterList_ToolTip" xml:space="preserve">
+    <value>Hide/show model items by a list of names from a text file</value>
+  </data>
+  <data name="Panel_Highlight" xml:space="preserve">
+    <value>Highlight</value>
+  </data>
+  <data name="Panel_Model_TreeHotkeys_Help" xml:space="preserve">
+    <value>Hotkeys:
+  Ctrl+Q  Parent (up the tree)
+  Ctrl+W  Child (down the tree)
+  Ctrl+E  Sibling
+  Ctrl+M  Copy names
+  Ctrl+Shift+P  Command palette
+  Ctrl+Shift+H  Save current view screenshot
+  Ctrl+1  Restore selection
+  Ctrl+Shift+1  Remember selection</value>
+  </data>
+  <data name="Settings_Ai_KeyHelp_Title" xml:space="preserve">
+    <value>How to configure the key</value>
+  </data>
+  <data name="Panel_Colors_ExportOverwrite_ToolTip" xml:space="preserve">
+    <value>If enabled, existing .txt files will be overwritten during export</value>
+  </data>
+  <data name="Panel_ImportColors" xml:space="preserve">
+    <value>Import colors</value>
+  </data>
+  <data name="Panel_Model_ImportPsLists_Action" xml:space="preserve">
+    <value>Import PS lists</value>
+  </data>
+  <data name="Panel_Model_ImportPsLists_ToolTip" xml:space="preserve">
+    <value>Import PS lists (PipeSpec) into the current document</value>
+  </data>
+  <data name="Panel_Section_AxisExpansion_Description" xml:space="preserve">
+    <value>Independent expansion or contraction of the Section Box along each axis.</value>
+  </data>
+  <data name="Panel_Selection_MemoryCount_Format" xml:space="preserve">
+    <value>in memory: {0} objects</value>
+  </data>
+  <data name="Panel_Invert" xml:space="preserve">
+    <value>Invert</value>
+  </data>
+  <data name="Panel_Selection_Invert_ToolTip" xml:space="preserve">
+    <value>Invert the current selection</value>
+  </data>
+  <data name="Panel_Isolate" xml:space="preserve">
+    <value>Isolate</value>
+  </data>
+  <data name="Panel_Level" xml:space="preserve">
+    <value>Level</value>
+  </data>
+  <data name="Panel_Level01Found2" xml:space="preserve">
+    <value>Level {0}: {1} | found: {2}</value>
+  </data>
+  <data name="Panel_DevScripts_Load_ToolTip" xml:space="preserve">
+    <value>Load a DLL with IDevScript and run scripts</value>
+  </data>
+  <data name="Panel_Colors_Import_ToolTip" xml:space="preserve">
+    <value>Load colors from .txt files and apply them to descendants of selected objects with matching names</value>
+  </data>
+  <data name="Panel_Model_ImportCsv_ToolTip" xml:space="preserve">
+    <value>Load user attributes from a semicolon-delimited CSV file and write them to item properties</value>
+  </data>
+  <data name="Panel_Section_ApplyTransparency_ToolTip" xml:space="preserve">
+    <value>Make items outside the selection transparent using the selected transparency percentage.</value>
+  </data>
+  <data name="Panel_Colors_ManualInput_Label" xml:space="preserve">
+    <value>Manual color (HEX / RGB / RAL):</value>
+  </data>
+  <data name="Panel_Clash_MarkerRadius_ToolTip" xml:space="preserve">
+    <value>Marker radius (5–30, as in Autodesk ClashMarkers)</value>
+  </data>
+  <data name="Panel_Views_MarkSelection_ToolTip" xml:space="preserve">
+    <value>Mark selected items with ellipses in the current view</value>
+  </data>
+  <data name="Panel_MarkSelection" xml:space="preserve">
+    <value>Mark selection</value>
+  </data>
+  <data name="Panel_Selection_MemoryEmpty" xml:space="preserve">
+    <value>memory is empty</value>
+  </data>
+  <data name="Panel_Clash_MergeLevel_Label" xml:space="preserve">
+    <value>Merge at level</value>
+  </data>
+  <data name="Panel_Clash_MergeInside_Format" xml:space="preserve">
+    <value>Merge clashes inside: {0}</value>
+  </data>
+  <data name="Panel_Model_Group_Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="Panel_Model_Group_Import" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Panel_Model_Group_SearchSets" xml:space="preserve">
+    <value>Search sets</value>
+  </data>
+  <data name="Panel_Model_Group_SelectionMemory" xml:space="preserve">
+    <value>Remember selection</value>
+  </data>
+  <data name="Panel_Model_Group_SelectionOperations" xml:space="preserve">
+    <value>Selection operations</value>
+  </data>
+  <data name="Panel_Model_Group_TreeNavigation" xml:space="preserve">
+    <value>Navigation in model tree</value>
+  </data>
+  <data name="Panel_ModelResponse" xml:space="preserve">
+    <value>Model response:</value>
+  </data>
+  <data name="Panel_More" xml:space="preserve">
+    <value>More…</value>
+  </data>
+  <data name="Panel_Section_Shift_Description" xml:space="preserve">
+    <value>Moves the entire Section Box without changing its size.</value>
+  </data>
+  <data name="Settings_Ai_NoApiKey" xml:space="preserve">
+    <value>No API key</value>
+  </data>
+  <data name="Panel_NoData" xml:space="preserve">
+    <value>no data</value>
+  </data>
+  <data name="Panel_NoEntries" xml:space="preserve">
+    <value>No entries</value>
+  </data>
+  <data name="Panel_NotSelected" xml:space="preserve">
+    <value>not selected</value>
+  </data>
+  <data name="Panel_Object" xml:space="preserve">
+    <value>Object</value>
+  </data>
+  <data name="Panel_ObjectA" xml:space="preserve">
+    <value>Object A</value>
+  </data>
+  <data name="Panel_ObjectB" xml:space="preserve">
+    <value>Object B</value>
+  </data>
+  <data name="Panel_Objects" xml:space="preserve">
+    <value>Objects</value>
+  </data>
+  <data name="Panel_Clash_ObjectTree_Header" xml:space="preserve">
+    <value>Object tree A/B</value>
+  </data>
+  <data name="Panel_Offset" xml:space="preserve">
+    <value>Offset</value>
+  </data>
+  <data name="Settings_Ai_ApiAvailable" xml:space="preserve">
+    <value>OK — API is available</value>
+  </data>
+  <data name="Settings_Ai_OpenConfig_Action" xml:space="preserve">
+    <value>Open ai_config.json</value>
+  </data>
+  <data name="Panel_OpenLog" xml:space="preserve">
+    <value>Open log</value>
+  </data>
+  <data name="Settings_Ai_KeyFound" xml:space="preserve">
+    <value>✅ OPEN_ROUTER_NW_KEY key found</value>
+  </data>
+  <data name="Settings_Ai_KeyMissing" xml:space="preserve">
+    <value>❌ OPEN_ROUTER_NW_KEY key not found</value>
+  </data>
+  <data name="Panel_Clash_GroupTree_ToolTip" xml:space="preserve">
+    <value>Open the A/B grouping tree over the clash table</value>
+  </data>
+  <data name="Settings_About_Open_ToolTip" xml:space="preserve">
+    <value>Open the “About” dialog</value>
+  </data>
+  <data name="Settings_Ai_OpenConfig_ToolTip" xml:space="preserve">
+    <value>Open the AI configuration file (model, temperature, timeouts)</value>
+  </data>
+  <data name="Settings_Ai_OpenLog_ToolTip" xml:space="preserve">
+    <value>Open the NavisHelper log file for the current model</value>
+  </data>
+  <data name="Panel_Operator" xml:space="preserve">
+    <value>Operator</value>
+  </data>
+  <data name="Panel_Colors_OverridePdms_Action" xml:space="preserve">
+    <value>Override PDMS</value>
+  </data>
+  <data name="Panel_Colors_OverridePdms_ActionObjectColors" xml:space="preserve">
+    <value>Override PDMS object colors</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Overwrite_ToolTip" xml:space="preserve">
+    <value>Overwrite a set with this name in this folder</value>
+  </data>
+  <data name="Panel_Colors_Overwrite_Label" xml:space="preserve">
+    <value>Overwrite existing files</value>
+  </data>
+  <data name="Panel_PalettePreview" xml:space="preserve">
+    <value>Palette preview:</value>
+  </data>
+  <data name="Panel_Colors_FolderPath_ToolTip" xml:space="preserve">
+    <value>Path to the folder containing .txt color files
+You can paste a path with Ctrl+V</value>
+  </data>
+  <data name="Panel_Read" xml:space="preserve">
+    <value>Read</value>
+  </data>
+  <data name="Panel_Colors_ManualRead_ToolTip" xml:space="preserve">
+    <value>Read and parse the entered color into the current Match Color without applying it</value>
+  </data>
+  <data name="Panel_Colors_Match_Read_ToolTip" xml:space="preserve">
+    <value>Read the color from the first selected object</value>
+  </data>
+  <data name="Panel_Colors_HistoryApply_ToolTip" xml:space="preserve">
+    <value>Reapply the last coloring scenario</value>
+  </data>
+  <data name="Panel_RecentObjects" xml:space="preserve">
+    <value>Recent objects</value>
+  </data>
+  <data name="Panel_Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Settings_Ai_RefreshKey_ToolTip" xml:space="preserve">
+    <value>Refresh the environment variable OPEN_ROUTER_NW_KEY.
+Navisworks must be restarted after setx.</value>
+  </data>
+  <data name="Panel_Remember" xml:space="preserve">
+    <value>Remember</value>
+  </data>
+  <data name="Panel_HeightMarks_HideGraphics_ToolTip" xml:space="preserve">
+    <value>Remove temporary Graphics labels.</value>
+  </data>
+  <data name="Panel_Model_Save2018_ToolTip" xml:space="preserve">
+    <value>Resave the current file in Navisworks 2018 format for compatibility with older versions</value>
+  </data>
+  <data name="Panel_Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="Panel_Colors_ResetOverrides_ToolTip" xml:space="preserve">
+    <value>Reset all model color/transparency overrides</value>
+  </data>
+  <data name="Panel_ResetGrouping" xml:space="preserve">
+    <value>Reset grouping</value>
+  </data>
+  <data name="Panel_ResetOverrides" xml:space="preserve">
+    <value>Reset overrides</value>
+  </data>
+  <data name="Panel_Section_Reset_ToolTip" xml:space="preserve">
+    <value>Reset Section Box and context transparency</value>
+  </data>
+  <data name="Panel_Restore" xml:space="preserve">
+    <value>Restore</value>
+  </data>
+  <data name="Panel_Model_MemoryRestore_ToolTip" xml:space="preserve">
+    <value>Restore the selection from memory (Ctrl+1)</value>
+  </data>
+  <data name="Panel_ResultActions" xml:space="preserve">
+    <value>Result actions</value>
+  </data>
+  <data name="Panel_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Panel_Model_Save2018_Action" xml:space="preserve">
+    <value>Save as NWD 2018</value>
+  </data>
+  <data name="Panel_SaveHierarchy" xml:space="preserve">
+    <value>Save hierarchy</value>
+  </data>
+  <data name="Panel_SaveScreenshot" xml:space="preserve">
+    <value>Save screenshot</value>
+  </data>
+  <data name="Panel_SaveSearch" xml:space="preserve">
+    <value>Save search</value>
+  </data>
+  <data name="Panel_Model_ExportProperties_ToolTip" xml:space="preserve">
+    <value>Save selection properties to a CSV file for opening in Excel</value>
+  </data>
+  <data name="Panel_Clash_DualViewpoints_ToolTip" xml:space="preserve">
+    <value>Saves two viewpoints for each clash: (1) the current diagonal ISO and (2) the opposite diagonal ISO.</value>
+  </data>
+  <data name="Panel_HeightMarks_AddGroup_ToolTip" xml:space="preserve">
+    <value>Save the current model selection as one named group.</value>
+  </data>
+  <data name="Panel_Model_MemorySave_ToolTip" xml:space="preserve">
+    <value>Save the current selection in memory (Ctrl+Shift+1)</value>
+  </data>
+  <data name="Panel_HeightMarks_Screenshot_ToolTip" xml:space="preserve">
+    <value>Save the current view as an image (Ctrl+Shift+H).</value>
+  </data>
+  <data name="Panel_Views_SaveList_ToolTip" xml:space="preserve">
+    <value>Save the list of viewpoints</value>
+  </data>
+  <data name="Panel_Colors_Ai_SaveResponse_ToolTip" xml:space="preserve">
+    <value>Save the response to a .txt file</value>
+  </data>
+  <data name="Panel_Colors_Ai_Apply_ToolTip" xml:space="preserve">
+    <value>Save the selected scheme and send selected objects to AI for color assignment</value>
+  </data>
+  <data name="Panel_Views_SaveList_Action" xml:space="preserve">
+    <value>Save VP list</value>
+  </data>
+  <data name="Panel_SectionBox" xml:space="preserve">
+    <value>Section Box</value>
+  </data>
+  <data name="Panel_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="Panel_Clash_SelectResultOrGroup_Hint" xml:space="preserve">
+    <value>Select a clash or group</value>
+  </data>
+  <data name="Panel_Model_Child_ToolTip" xml:space="preserve">
+    <value>Select all child items one level down.
+Expands the next model-tree level.</value>
+  </data>
+  <data name="Panel_Model_AllDescendants_ToolTip" xml:space="preserve">
+    <value>Select ALL descendants at every level.
+Fully expands the model-tree branch.</value>
+  </data>
+  <data name="Panel_Model_Siblings_ToolTip" xml:space="preserve">
+    <value>Select all siblings — items with the same parent.
+Useful for selecting all objects on one level.</value>
+  </data>
+  <data name="Panel_Clash_GroupTree_Instruction" xml:space="preserve">
+    <value>Select a tree level to group clashes by that object</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_Label" xml:space="preserve">
+    <value>Select by Property</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_SelectAfterCreate_ToolTip" xml:space="preserve">
+    <value>Select found items after creation</value>
+  </data>
+  <data name="Panel_Clash_SelectInModel_Action" xml:space="preserve">
+    <value>Select in model</value>
+  </data>
+  <data name="Panel_Model_Leaves_ToolTip" xml:space="preserve">
+    <value>Select leaf nodes — items without descendants.
+Keeps only geometric objects on the lowest level.</value>
+  </data>
+  <data name="Panel_Colors_HistorySelect_ToolTip" xml:space="preserve">
+    <value>Select objects from the history entry</value>
+  </data>
+  <data name="Panel_Clash_GroupTree_SelectLevel_ToolTip" xml:space="preserve">
+    <value>Select tree level A or B first</value>
+  </data>
+  <data name="Panel_Section_Show_ToolTip" xml:space="preserve">
+    <value>Set Section Box to the current selection</value>
+  </data>
+  <data name="Panel_Selection_UnhideAll_ToolTip" xml:space="preserve">
+    <value>Show all items</value>
+  </data>
+  <data name="Panel_HeightMarks_Graphics_ToolTip" xml:space="preserve">
+    <value>Show temporary Graphics.Text2D labels for the current selection without changing the camera.</value>
+  </data>
+  <data name="Panel_Model_BoundsInfo_ToolTip" xml:space="preserve">
+    <value>Show the current selection bounds and copy the values to the clipboard</value>
+  </data>
+  <data name="Panel_Views_Sort_ToolTip" xml:space="preserve">
+    <value>Sort all saved viewpoints by name</value>
+  </data>
+  <data name="Panel_Views_Sort_Action" xml:space="preserve">
+    <value>Sort VP</value>
+  </data>
+  <data name="Panel_St" xml:space="preserve">
+    <value>St.</value>
+  </data>
+  <data name="Panel_Status_Ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Panel_Statuses" xml:space="preserve">
+    <value>Statuses:</value>
+  </data>
+  <data name="Panel_Views_TopSection_ToolTip" xml:space="preserve">
+    <value>Switch to top view, focus on the selection, and enable sectioning</value>
+  </data>
+  <data name="Panel_Tab_Clashes" xml:space="preserve">
+    <value>⚠ Clashes</value>
+  </data>
+  <data name="Panel_Tab_Colors" xml:space="preserve">
+    <value>🎨 Colors</value>
+  </data>
+  <data name="Panel_Tab_Model" xml:space="preserve">
+    <value>🌳 Model</value>
+  </data>
+  <data name="Panel_Tab_Settings" xml:space="preserve">
+    <value>⚙ Settings</value>
+  </data>
+  <data name="Panel_Tab_Views" xml:space="preserve">
+    <value>📷 Views</value>
+  </data>
+  <data name="Panel_HeightMarks_TargetZ_Label" xml:space="preserve">
+    <value>Target Z level, mm:</value>
+  </data>
+  <data name="Panel_Views_CenterPoints_ToolTip" xml:space="preserve">
+    <value>Temporary circles at the center of each selected object</value>
+  </data>
+  <data name="Panel_Views_BoundsMarker_ToolTip" xml:space="preserve">
+    <value>Temporary polygon marker at the bounding-box corners of selected objects</value>
+  </data>
+  <data name="Panel_Views_CenterMarker_ToolTip" xml:space="preserve">
+    <value>Temporary polygon marker through the centers of selected objects</value>
+  </data>
+  <data name="Panel_Test" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="Panel_TestFilter" xml:space="preserve">
+    <value>Test filter...</value>
+  </data>
+  <data name="Panel_Section_History_Description" xml:space="preserve">
+    <value>The last 10 objects for which Section Box was explicitly applied. Ctrl/Shift — select multiple; double-click — apply Section Box.</value>
+  </data>
+  <data name="Panel_HeightMarks_Introduction" xml:space="preserve">
+    <value>The markers are created for the current model selection. The table stores named groups only for the current session: select a group to restore its objects in the model.</value>
+  </data>
+  <data name="Panel_Colors_Ai_ReadyHint" xml:space="preserve">
+    <value>The model and API key are configured on the “⚙ Settings” tab</value>
+  </data>
+  <data name="Panel_Thinking" xml:space="preserve">
+    <value>Thinking</value>
+  </data>
+  <data name="Panel_Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Settings_Ai_Timeout" xml:space="preserve">
+    <value>Timeout (10 s) — no response from API</value>
+  </data>
+  <data name="Panel_Views_TopSection_Action" xml:space="preserve">
+    <value>Top view + section</value>
+  </data>
+  <data name="Panel_Total" xml:space="preserve">
+    <value>Total</value>
+  </data>
+  <data name="Panel_TransparentContext" xml:space="preserve">
+    <value>Transparent context</value>
+  </data>
+  <data name="Panel_UnhideAll" xml:space="preserve">
+    <value>Unhide All</value>
+  </data>
+  <data name="Panel_Clash_Transparency_Description" xml:space="preserve">
+    <value>Used only for visual inspection of the selected clash in the panel. Saved Viewpoints are stored without transparency.</value>
+  </data>
+  <data name="Panel_ViewingTransparency" xml:space="preserve">
+    <value>Viewing: transparency</value>
+  </data>
+  <data name="Panel_Clash_Transparency_ToolTip" xml:space="preserve">
+    <value>Viewing transparency only. It is not applied when saving a VP.</value>
+  </data>
+  <data name="Panel_ViewpointName" xml:space="preserve">
+    <value>Viewpoint name:</value>
+  </data>
+  <data name="Panel_Views_Group_Markup" xml:space="preserve">
+    <value>View markup</value>
+  </data>
+  <data name="Panel_Views_Group_SelectionMarkers" xml:space="preserve">
+    <value>Selection markers</value>
+  </data>
+  <data name="Panel_Views_Group_SelectionSectionBox" xml:space="preserve">
+    <value>Section Box for selection</value>
+  </data>
+  <data name="Panel_Views_Group_Viewpoints" xml:space="preserve">
+    <value>Viewpoints</value>
+  </data>
+  <data name="Panel_Views_Segment_Elevations" xml:space="preserve">
+    <value>Elevations</value>
+  </data>
+  <data name="Panel_Views_Segment_Markup" xml:space="preserve">
+    <value>Markup</value>
+  </data>
+  <data name="Panel_Clash_MarkersForViewpoint_ToolTip" xml:space="preserve">
+    <value>When saving a viewpoint, adds redline circles at the centers of the selected clash or all clashes in a group row.</value>
+  </data>
+  <data name="Panel_ZElevation" xml:space="preserve">
+    <value>Z elevation</value>
+  </data>
+  <data name="Panel_ZElevations" xml:space="preserve">
+    <value>↕ Z elevations</value>
+  </data>
+  <data name="Settings_About_Section" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="Settings_Service_Section" xml:space="preserve">
+    <value>Service</value>
+  </data>
+  <data name="RibbonPluginMissingMessageFormat" xml:space="preserve">
+    <value>Plugin {0} was not found in the Navisworks plugin registry.</value>
+  </data>
+  <data name="RibbonDockPaneLoadFailedFormat" xml:space="preserve">
+    <value>Could not load the DockPane. LoadedPlugin = {0}</value>
+  </data>
+  <data name="AboutWindowTitle" xml:space="preserve">
+    <value>About NavisHelper</value>
+  </data>
+  <data name="AboutVersionFormat" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="AboutDescription" xml:space="preserve">
+    <value>Navisworks productivity tools for model review and automation.</value>
+  </data>
+  <data name="AboutFeatures" xml:space="preserve">
+    <value>Features:
+• Automatic object coloring (14 color schemes)
+• Clash Detective workflows
+• Data import and export
+• Viewpoint management
+• And more...</value>
+  </data>
+  <data name="ColorSchemeWindowTitle" xml:space="preserve">
+    <value>Choose color scheme</value>
+  </data>
+  <data name="ColorSchemePrompt" xml:space="preserve">
+    <value>Choose a color scheme for automatic coloring:</value>
+  </data>
+  <data name="ColorSchemePreviewLabel" xml:space="preserve">
+    <value>Color preview:</value>
+  </data>
+  <data name="ColorSchemeChangedTitle" xml:space="preserve">
+    <value>Color scheme</value>
+  </data>
+  <data name="ColorSchemeChangedMessageFormat" xml:space="preserve">
+    <value>Color scheme changed to:
+{0}. {1}</value>
+  </data>
+  <data name="ColorSchemeUnknownName" xml:space="preserve">
+    <value>Unknown scheme</value>
+  </data>
+  <data name="ColorSchemeGrayscaleName" xml:space="preserve">
+    <value>Grayscale</value>
+  </data>
+  <data name="ColorSchemeGrayscaleDescription" xml:space="preserve">
+    <value>Classic shades of gray.
+Ideal for technical drawings and neutral visualization.</value>
+  </data>
+  <data name="ColorSchemeGrayPastelName" xml:space="preserve">
+    <value>Gray + pastel</value>
+  </data>
+  <data name="ColorSchemeGrayPastelDescription" xml:space="preserve">
+    <value>Gray tones with soft pastel accents.
+A balance of technical clarity and visual appeal.</value>
+  </data>
+  <data name="ColorSchemeWarmName" xml:space="preserve">
+    <value>Warm tones</value>
+  </data>
+  <data name="ColorSchemeWarmDescription" xml:space="preserve">
+    <value>Warm orange, peach, and honey tones.
+Suitable for inviting interior visualizations.</value>
+  </data>
+  <data name="ColorSchemeCoolName" xml:space="preserve">
+    <value>Cool tones</value>
+  </data>
+  <data name="ColorSchemeCoolDescription" xml:space="preserve">
+    <value>Cool blue, steel, and lavender tones.
+Creates a modern, crisp appearance.</value>
+  </data>
+  <data name="ColorSchemeEarthName" xml:space="preserve">
+    <value>Earth tones</value>
+  </data>
+  <data name="ColorSchemeEarthDescription" xml:space="preserve">
+    <value>Brown, beige, and sand tones.
+A natural palette for landscape projects.</value>
+  </data>
+  <data name="ColorSchemeOceanName" xml:space="preserve">
+    <value>Ocean</value>
+  </data>
+  <data name="ColorSchemeOceanDescription" xml:space="preserve">
+    <value>Turquoise, aquamarine, and sea-foam colors.
+A refreshing palette for water-related objects.</value>
+  </data>
+  <data name="ColorSchemeForestName" xml:space="preserve">
+    <value>Forest</value>
+  </data>
+  <data name="ColorSchemeForestDescription" xml:space="preserve">
+    <value>Green, olive, and khaki tones.
+A natural palette for exteriors and parks.</value>
+  </data>
+  <data name="ColorSchemeArchitecturalName" xml:space="preserve">
+    <value>Architectural</value>
+  </data>
+  <data name="ColorSchemeArchitecturalDescription" xml:space="preserve">
+    <value>Neutral stone, concrete, and marble tones.
+A professional palette for BIM models.</value>
+  </data>
+  <data name="ColorSchemeHighContrastName" xml:space="preserve">
+    <value>High contrast</value>
+  </data>
+  <data name="ColorSchemeHighContrastDescription" xml:space="preserve">
+    <value>Bright contrasting colors for maximum distinction.
+Useful for presentations and category highlighting.</value>
+  </data>
+  <data name="ColorSchemeRandomName" xml:space="preserve">
+    <value>Random colors</value>
+  </data>
+  <data name="ColorSchemeRandomDescription" xml:space="preserve">
+    <value>Randomly generated colors.
+Maximum variety without a shared theme.</value>
+  </data>
+  <data name="ColorSchemeIndustrialName" xml:space="preserve">
+    <value>Industrial</value>
+  </data>
+  <data name="ColorSchemeIndustrialDescription" xml:space="preserve">
+    <value>Robust industrial colors for equipment and process models.
+Emphasizes practical visual separation.</value>
+  </data>
+  <data name="ColorSchemeInfrastructureName" xml:space="preserve">
+    <value>Infrastructure</value>
+  </data>
+  <data name="ColorSchemeInfrastructureDescription" xml:space="preserve">
+    <value>Balanced colors for roads, utilities, and civil assets.
+Designed for large infrastructure models.</value>
+  </data>
+  <data name="ColorSchemeOilGasName" xml:space="preserve">
+    <value>Oil and gas</value>
+  </data>
+  <data name="ColorSchemeOilGasDescription" xml:space="preserve">
+    <value>Process-oriented colors for oil and gas facilities.
+Suitable for piping and equipment visualization.</value>
+  </data>
+  <data name="ColorSchemePastelRainbowName" xml:space="preserve">
+    <value>Pastel rainbow</value>
+  </data>
+  <data name="ColorSchemePastelRainbowDescription" xml:space="preserve">
+    <value>A broad pastel rainbow palette.
+Provides variety while retaining a soft appearance.</value>
+  </data>
+  <data name="ColorsByNameProgressCaption" xml:space="preserve">
+    <value>Applying colors by name</value>
+  </data>
+  <data name="CsvAttributeProgressCaption" xml:space="preserve">
+    <value>Loading attributes</value>
+  </data>
+  <data name="CsvAttributeDialogTitle" xml:space="preserve">
+    <value>Select a CSV attribute file</value>
+  </data>
+  <data name="FilterSearchPrompt" xml:space="preserve">
+    <value>Use exact matching? The alternative uses partial matching.</value>
+  </data>
+  <data name="FilterSearchTitle" xml:space="preserve">
+    <value>Search type</value>
+  </data>
+  <data name="FilterFileDialogTitle" xml:space="preserve">
+    <value>Select a text file</value>
+  </data>
+  <data name="FolderPickerPathLabel" xml:space="preserve">
+    <value>Folder path (you can paste with Ctrl+V):</value>
+  </data>
+  <data name="FolderPickerMissingPromptFormat" xml:space="preserve">
+    <value>The folder does not exist. Create it?
+{0}</value>
+  </data>
+  <data name="ExportColorsTitle" xml:space="preserve">
+    <value>Export colors</value>
+  </data>
+  <data name="ExportColorsSelectObjects" xml:space="preserve">
+    <value>Select objects in the model tree.</value>
+  </data>
+  <data name="ExportColorsChooseFolder" xml:space="preserve">
+    <value>Select a folder for the color files</value>
+  </data>
+  <data name="ExportColorsOverwritePromptFormat" xml:space="preserve">
+    <value>The folder already contains {0} .txt files.
+
+Overwrite existing files?</value>
+  </data>
+  <data name="ExportColorsProgressTitle" xml:space="preserve">
+    <value>Exporting colors</value>
+  </data>
+  <data name="ExportColorsRetryProgressFormat" xml:space="preserve">
+    <value>[{0}/{1}] Retry ({2} levels): {3}</value>
+  </data>
+  <data name="ExportColorsEmptyNameErrorFormat" xml:space="preserve">
+    <value>#{0}: empty name, skipped</value>
+  </data>
+  <data name="ExportColorsCollectTimeoutErrorFormat" xml:space="preserve">
+    <value>{0} — collection timed out ({1} levels), skipped</value>
+  </data>
+  <data name="ExportColorsApplyTimeoutErrorFormat" xml:space="preserve">
+    <value>{0} — export timed out ({1} levels &gt; {2} sec), skipped</value>
+  </data>
+  <data name="ExportColorsLimitedDepthWarningFormat" xml:space="preserve">
+    <value>{0} — exported {1} levels (full export &gt; {2} sec)</value>
+  </data>
+  <data name="ExportColorsCompleteFormat" xml:space="preserve">
+    <value>Done!
+Files created: {0}
+Skipped (already exist): {1}
+Total color rows: {2}
+Folder: {3}</value>
+  </data>
+  <data name="ExportColorsWarningsFormat" xml:space="preserve">
+    <value>
+
+Warnings ({0}):
+{1}
+
+Log: {2}</value>
+  </data>
+  <data name="ImportColorsTitle" xml:space="preserve">
+    <value>Import colors</value>
+  </data>
+  <data name="ImportColorsSelectObjects" xml:space="preserve">
+    <value>Select objects in the model tree to apply colors to.</value>
+  </data>
+  <data name="ImportColorsChooseFolder" xml:space="preserve">
+    <value>Select the folder containing color files</value>
+  </data>
+  <data name="ImportColorsNoTextFiles" xml:space="preserve">
+    <value>The folder contains no .txt files.</value>
+  </data>
+  <data name="ImportColorsProgressTitle" xml:space="preserve">
+    <value>Importing colors</value>
+  </data>
+  <data name="ImportColorsCompleteFormat" xml:space="preserve">
+    <value>Done!
+Files matched: {0} of {1}
+Applied to objects: {2}
+Files not found: {3}
+
+Log: {4}</value>
+  </data>
+  <data name="ProgressPreparing" xml:space="preserve">
+    <value>Preparing...</value>
+  </data>
+  <data name="OperationErrorDetailsFormat" xml:space="preserve">
+    <value>Error: {0}
+{1}</value>
+  </data>
+  <data name="MarkupTitle" xml:space="preserve">
+    <value>Mark selection</value>
+  </data>
+  <data name="MarkupDefaultNamePrefix" xml:space="preserve">
+    <value>Review</value>
+  </data>
+  <data name="MarkupViewpointNameConflict" xml:space="preserve">
+    <value>A viewpoint with this name already exists. Enter another name and run the command again.</value>
+  </data>
+  <data name="MarkupSavedViewpointsUnavailable" xml:space="preserve">
+    <value>The saved viewpoints collection is unavailable in the active document.</value>
+  </data>
+  <data name="MarkupCreateFailed" xml:space="preserve">
+    <value>Could not create a viewpoint with markup. Details were written to the log.</value>
+  </data>
+  <data name="HierarchyTitle" xml:space="preserve">
+    <value>Save hierarchy</value>
+  </data>
+  <data name="HierarchyNoDocument" xml:space="preserve">
+    <value>There is no active Navisworks document.</value>
+  </data>
+  <data name="HierarchySaveDocumentFirst" xml:space="preserve">
+    <value>Save the Navisworks document first so the export folder can be determined.</value>
+  </data>
+  <data name="HierarchyCanceled" xml:space="preserve">
+    <value>Hierarchy export was canceled. The original file was not changed.</value>
+  </data>
+  <data name="HierarchyCompletedFormat" xml:space="preserve">
+    <value>Model hierarchy saved.
+
+Items: {0}
+File: {1}</value>
+  </data>
+  <data name="HierarchyFailedFormat" xml:space="preserve">
+    <value>Could not save the hierarchy.
+
+{0}</value>
+  </data>
+  <data name="HierarchySaveDialogTitle" xml:space="preserve">
+    <value>Save model hierarchy</value>
+  </data>
+  <data name="HierarchyProgressCaption" xml:space="preserve">
+    <value>Exporting model hierarchy</value>
+  </data>
+  <data name="SelectionCenterDotsTitle" xml:space="preserve">
+    <value>Center points</value>
+  </data>
+  <data name="SelectionCentersUnavailable" xml:space="preserve">
+    <value>Could not determine the centers of selected items.</value>
+  </data>
+  <data name="SelectionMarkersEnableFailedFormat" xml:space="preserve">
+    <value>Could not enable markers: {0}</value>
+  </data>
+  <data name="SelectionMarkerTitle" xml:space="preserve">
+    <value>Selection marker</value>
+  </data>
+  <data name="SelectionBoundsMarkerTitle" xml:space="preserve">
+    <value>Bounding marker</value>
+  </data>
+  <data name="SelectionBoundsUnavailable" xml:space="preserve">
+    <value>Could not determine the selection bounds.</value>
+  </data>
+  <data name="SelectionMarkerEnableFailedFormat" xml:space="preserve">
+    <value>Could not enable the marker: {0}</value>
+  </data>
+  <data name="HeightMarksTitle" xml:space="preserve">
+    <value>Z elevation marks</value>
+  </data>
+  <data name="HeightMarksOpenFailed" xml:space="preserve">
+    <value>Could not open the “Z Elevations” tab in the NavisHelper panel.</value>
+  </data>
+  <data name="HeightMarksOpenFailedLogged" xml:space="preserve">
+    <value>Could not open the “Z Elevations” tab. Details were written to the log.</value>
+  </data>
+  <data name="BoundingRectTitle" xml:space="preserve">
+    <value>Bounding rectangle</value>
+  </data>
+  <data name="BoundingRectViewpointPrefix" xml:space="preserve">
+    <value>Bounds</value>
+  </data>
+  <data name="BoundingHatchTitle" xml:space="preserve">
+    <value>Hatch bounds</value>
+  </data>
+  <data name="BoundingHatchViewpointPrefix" xml:space="preserve">
+    <value>Hatch</value>
+  </data>
+  <data name="BoundingRegionUnavailable" xml:space="preserve">
+    <value>Could not determine the bounds of selected items.</value>
+  </data>
+  <data name="BoundingOutsideCamera" xml:space="preserve">
+    <value>The selected items are outside the camera view.</value>
+  </data>
+  <data name="PanelGroupTools" xml:space="preserve">
+    <value>Tools</value>
+  </data>
+  <data name="PanelGroupSelectionMarkers" xml:space="preserve">
+    <value>Selection markers</value>
+  </data>
+  <data name="PanelGroupColorTransfer" xml:space="preserve">
+    <value>Color transfer</value>
+  </data>
+  <data name="PanelGroupAiColors" xml:space="preserve">
+    <value>AI colors</value>
+  </data>
+  <data name="PanelGroupFiltering" xml:space="preserve">
+    <value>Filtering</value>
+  </data>
+  <data name="PanelGroupImportExport" xml:space="preserve">
+    <value>Import / Export</value>
+  </data>
+  <data name="PanelGroupViewpoints" xml:space="preserve">
+    <value>Viewpoints</value>
+  </data>
+  <data name="PanelGroupClashes" xml:space="preserve">
+    <value>Clashes</value>
+  </data>
+  <data name="PanelGroupHelp" xml:space="preserve">
+    <value>Help</value>
+  </data>
+  <data name="PanelButtonColorsByName" xml:space="preserve">
+    <value>Colors by name</value>
+  </data>
+  <data name="PanelButtonOverridePdmsColors" xml:space="preserve">
+    <value>Override PDMS colors</value>
+  </data>
+  <data name="PanelButtonMarkupSelection" xml:space="preserve">
+    <value>Mark selection</value>
+  </data>
+  <data name="PanelButtonHeightMarks" xml:space="preserve">
+    <value>Z elevation marks</value>
+  </data>
+  <data name="PanelButtonTopSection" xml:space="preserve">
+    <value>Top view + section</value>
+  </data>
+  <data name="PanelButtonBoundingRect" xml:space="preserve">
+    <value>Bounding rectangle</value>
+  </data>
+  <data name="PanelButtonBoundingHatch" xml:space="preserve">
+    <value>Hatch bounds</value>
+  </data>
+  <data name="PanelButtonCenterPoints" xml:space="preserve">
+    <value>Center points</value>
+  </data>
+  <data name="PanelButtonCenterMarker" xml:space="preserve">
+    <value>Center marker</value>
+  </data>
+  <data name="PanelButtonBoundsMarker" xml:space="preserve">
+    <value>Bounding marker</value>
+  </data>
+  <data name="PanelButtonCopyNames" xml:space="preserve">
+    <value>Copy names</value>
+  </data>
+  <data name="PanelButtonExportColors" xml:space="preserve">
+    <value>Export colors</value>
+  </data>
+  <data name="PanelButtonImportColors" xml:space="preserve">
+    <value>Import colors</value>
+  </data>
+  <data name="PanelButtonAiColoring" xml:space="preserve">
+    <value>AI coloring</value>
+  </data>
+  <data name="PanelButtonColorScheme" xml:space="preserve">
+    <value>Color scheme</value>
+  </data>
+  <data name="PanelButtonFilterList" xml:space="preserve">
+    <value>Filter from file list</value>
+  </data>
+  <data name="PanelButtonLoadCsv" xml:space="preserve">
+    <value>Load attributes from CSV</value>
+  </data>
+  <data name="PanelButtonImportPsLists" xml:space="preserve">
+    <value>Import PS lists</value>
+  </data>
+  <data name="PanelButtonSaveHierarchy" xml:space="preserve">
+    <value>Save hierarchy</value>
+  </data>
+  <data name="PanelButtonSaveViewpoints" xml:space="preserve">
+    <value>Save viewpoints</value>
+  </data>
+  <data name="PanelButtonSaveNwc2018" xml:space="preserve">
+    <value>Save as NWC 2018</value>
+  </data>
+  <data name="PanelButtonSortViewpoints" xml:space="preserve">
+    <value>Sort viewpoints</value>
+  </data>
+  <data name="PanelButtonRunClashes" xml:space="preserve">
+    <value>Run all clashes</value>
+  </data>
+  <data name="PanelButtonAbout" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="Settings_Ai_CopyCommand_ToolTip" xml:space="preserve">
+    <value>Copy the setx command to the clipboard (then insert your key)</value>
+  </data>
+  <data name="Settings_Ai_CommandCopied_Status" xml:space="preserve">
+    <value>Command copied — insert your key</value>
+  </data>
+  <data name="Panel_Parent" xml:space="preserve">
+    <value>Parent</value>
+  </data>
+  <data name="Panel_Child" xml:space="preserve">
+    <value>Child</value>
+  </data>
+  <data name="Panel_Sibling" xml:space="preserve">
+    <value>Sibling</value>
+  </data>
+  <data name="Panel_Leaf" xml:space="preserve">
+    <value>Leaf</value>
+  </data>
+  <data name="Panel_AllUnder" xml:space="preserve">
+    <value>All Under</value>
+  </data>
+  <data name="Panel_Model_FilterList_Action" xml:space="preserve">
+    <value>Filter by list</value>
+  </data>
+  <data name="Panel_Section_ExpansionAll_ToolTip" xml:space="preserve">
+    <value>Expand the Section Box equally along X, Y, and Z. The individual values below are added to this value.</value>
+  </data>
+  <data name="Panel_Section_ExpansionX_ToolTip" xml:space="preserve">
+    <value>Additional Section Box expansion along X beyond the common value, added on both sides.</value>
+  </data>
+  <data name="Panel_Section_ExpansionY_ToolTip" xml:space="preserve">
+    <value>Additional Section Box expansion along Y beyond the common value, added on both sides.</value>
+  </data>
+  <data name="Panel_Section_ExpansionZ_ToolTip" xml:space="preserve">
+    <value>Additional Section Box expansion along Z beyond the common value, added on both sides.</value>
+  </data>
+  <data name="Panel_Section_ShiftX_ToolTip" xml:space="preserve">
+    <value>Move the entire Section Box along X.</value>
+  </data>
+  <data name="Panel_Section_ShiftY_ToolTip" xml:space="preserve">
+    <value>Move the entire Section Box along Y.</value>
+  </data>
+  <data name="Panel_Section_ShiftZ_ToolTip" xml:space="preserve">
+    <value>Move the entire Section Box along Z.</value>
+  </data>
+  <data name="Panel_Clash_Group_TreeAB" xml:space="preserve">
+    <value>A/B tree</value>
+  </data>
+  <data name="Panel_Clash_Caption_Tests" xml:space="preserve">
+    <value>Tests</value>
+  </data>
+  <data name="Panel_Clash_Caption_Clashes" xml:space="preserve">
+    <value>Clashes</value>
+  </data>
+  <data name="Panel_Clash_Top_LoadTests" xml:space="preserve">
+    <value>🔄 Tests</value>
+  </data>
+  <data name="Panel_Clash_Top_LoadTests_ToolTip" xml:space="preserve">
+    <value>Load Clash Tests</value>
+  </data>
+  <data name="Panel_Clash_Top_RunSelected" xml:space="preserve">
+    <value>▶ Selected</value>
+  </data>
+  <data name="Panel_Clash_Top_RunSelected_ToolTip" xml:space="preserve">
+    <value>Run selected Clash Tests</value>
+  </data>
+  <data name="Panel_Clash_Top_RunAll" xml:space="preserve">
+    <value>⚠ All</value>
+  </data>
+  <data name="Panel_Clash_Top_RunAll_ToolTip" xml:space="preserve">
+    <value>Run all Clash Tests without saving a report or model</value>
+  </data>
+  <data name="Panel_Clash_Top_DeleteZero" xml:space="preserve">
+    <value>🗑 0</value>
+  </data>
+  <data name="Panel_Clash_Top_DeleteZero_ToolTip" xml:space="preserve">
+    <value>Delete Clash Tests with zero clashes in their results</value>
+  </data>
+  <data name="Panel_Clash_Top_ExternalCheck" xml:space="preserve">
+    <value>✓ Check</value>
+  </data>
+  <data name="Panel_Clash_Top_ExternalCheck_ToolTip" xml:space="preserve">
+    <value>Run the external command that checks all clashes</value>
+  </data>
+  <data name="Panel_Clash_Action_OnlyPair" xml:space="preserve">
+    <value>Pair only</value>
+  </data>
+  <data name="Panel_Clash_Action_OnlyPair_ToolTip" xml:space="preserve">
+    <value>When enabled, temporarily hide everything except objects A/B of the selected clash. Isolation follows the selected clash.</value>
+  </data>
+  <data name="Panel_Clash_Action_ShowAll" xml:space="preserve">
+    <value>Show all</value>
+  </data>
+  <data name="Panel_Clash_Action_ShowAll_ToolTip" xml:space="preserve">
+    <value>Restore model branches temporarily hidden by Pair only mode</value>
+  </data>
+  <data name="Panel_Clash_Action_Section" xml:space="preserve">
+    <value>Section</value>
+  </data>
+  <data name="Panel_Clash_Action_Section_ToolTip" xml:space="preserve">
+    <value>Toggle Section Box</value>
+  </data>
+  <data name="Panel_Clash_Action_ResetView_ToolTip" xml:space="preserve">
+    <value>Reset view</value>
+  </data>
+  <data name="Panel_Clash_Action_Marker" xml:space="preserve">
+    <value>Marker</value>
+  </data>
+  <data name="Panel_Clash_Action_Marker_ToolTip" xml:space="preserve">
+    <value>Show or hide the 2D marker at the clash intersection</value>
+  </data>
+  <data name="Panel_Clash_Action_Plane" xml:space="preserve">
+    <value>Plane</value>
+  </data>
+  <data name="Panel_Clash_Action_Plane_ToolTip" xml:space="preserve">
+    <value>Show or hide a plane for the current selection</value>
+  </data>
+  <data name="Panel_Clash_Action_Marks" xml:space="preserve">
+    <value>Marks</value>
+  </data>
+  <data name="Panel_Clash_Action_Marks_ToolTip" xml:space="preserve">
+    <value>Draw redline circles at centers of the selected clash or group</value>
+  </data>
+  <data name="Panel_Clash_Action_SaveViewpoint" xml:space="preserve">
+    <value>Save VP</value>
+  </data>
+  <data name="Panel_Clash_Action_SaveViewpoint_ToolTip" xml:space="preserve">
+    <value>Save the current view manually: camera, Section Box, colors, and redlines. Preview transparency is reset first.</value>
+  </data>
+  <data name="Panel_Clash_Action_Gif" xml:space="preserve">
+    <value>GIF</value>
+  </data>
+  <data name="Panel_Clash_Action_Gif_ToolTip" xml:space="preserve">
+    <value>Create a GIF orbit of the selected clash
+24 frames, 15° step</value>
+  </data>
+  <data name="Panel_Clash_Action_AssignedTo" xml:space="preserve">
+    <value>Assigned to</value>
+  </data>
+  <data name="Panel_Clash_Action_AssignedTo_ToolTip" xml:space="preserve">
+    <value>Set the assignee for the selected clash</value>
+  </data>
+  <data name="Panel_Clash_Action_Bcf" xml:space="preserve">
+    <value>BCF</value>
+  </data>
+  <data name="Panel_Clash_Action_Bcf_ToolTip" xml:space="preserve">
+    <value>Export the selected clash to BCF</value>
+  </data>
+  <data name="Panel_Clash_Action_Context_ToolTip" xml:space="preserve">
+    <value>Safe transparency: only the nearest owners of the current clash or current selection</value>
+  </data>
+  <data name="Panel_Clash_Filter_Name_Hint" xml:space="preserve">
+    <value>name</value>
+  </data>
+  <data name="Panel_Clash_SingleClash" xml:space="preserve">
+    <value>Single clash</value>
+  </data>
+  <data name="Panel_Automatic" xml:space="preserve">
+    <value>automatic</value>
+  </data>
+  <data name="Panel_Clash_TreeToggle" xml:space="preserve">
+    <value>🌲 Tree</value>
+  </data>
+  <data name="Panel_MatchColor" xml:space="preserve">
+    <value>Match Color</value>
+  </data>
+  <data name="Panel_Colors_FolderSelect_Prompt" xml:space="preserve">
+    <value>Choose the folder containing color files</value>
+  </data>
+  <data name="Panel_Colors_AiResponse_Save_Title" xml:space="preserve">
+    <value>Save AI response</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Save_Title" xml:space="preserve">
+    <value>Save search set</value>
+  </data>
+  <data name="Panel_Folder" xml:space="preserve">
+    <value>Folder</value>
+  </data>
+  <data name="Panel_SetName" xml:space="preserve">
+    <value>Set name</value>
+  </data>
+  <data name="Panel_Category" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="Panel_Property" xml:space="preserve">
+    <value>Property</value>
+  </data>
+  <data name="Panel_Value" xml:space="preserve">
+    <value>Value</value>
+  </data>
+  <data name="Panel_Contains" xml:space="preserve">
+    <value>Contains</value>
+  </data>
+  <data name="Panel_ExactlyEquals" xml:space="preserve">
+    <value>Exactly equals</value>
+  </data>
+  <data name="Panel_PropertyExists" xml:space="preserve">
+    <value>Property exists</value>
+  </data>
+  <data name="Panel_Common_Error_Format" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="Panel_Common_UnknownError" xml:space="preserve">
+    <value>Unknown error</value>
+  </data>
+  <data name="Panel_Common_NoActiveDocument" xml:space="preserve">
+    <value>No active document</value>
+  </data>
+  <data name="Panel_Common_NoActiveView" xml:space="preserve">
+    <value>No active view</value>
+  </data>
+  <data name="Panel_Clash_SelectResult" xml:space="preserve">
+    <value>Select a clash</value>
+  </data>
+  <data name="Panel_Clash_SelectResultOrGroup" xml:space="preserve">
+    <value>Select a clash or group</value>
+  </data>
+  <data name="Panel_Clash_EngineUnavailable" xml:space="preserve">
+    <value>Clash Detective is unavailable</value>
+  </data>
+  <data name="Panel_HeightMarks_SelectItemsForGroup" xml:space="preserve">
+    <value>Select items for the new group</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupLimit_Format" xml:space="preserve">
+    <value>A group can contain no more than {0} items</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupName_Prompt" xml:space="preserve">
+    <value>Name for the selected item group:</value>
+  </data>
+  <data name="Panel_HeightMarks_AddGroup_Title" xml:space="preserve">
+    <value>Add elevation group</value>
+  </data>
+  <data name="Panel_HeightMarks_AddGroupCancelled" xml:space="preserve">
+    <value>Group creation cancelled</value>
+  </data>
+  <data name="Panel_HeightMarks_DuplicateGroup" xml:space="preserve">
+    <value>A group with this name already exists</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupAdded_Format" xml:space="preserve">
+    <value>Added group “{0}”: {1} items</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupsDeleted_Format" xml:space="preserve">
+    <value>Groups deleted: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupsCleared" xml:space="preserve">
+    <value>Session elevation groups cleared</value>
+  </data>
+  <data name="Panel_HeightMarks_DocumentChanged" xml:space="preserve">
+    <value>The document changed. Session groups were cleared.</value>
+  </data>
+  <data name="Panel_HeightMarks_NoGroupsSelected" xml:space="preserve">
+    <value>No groups selected</value>
+  </data>
+  <data name="Panel_HeightMarks_ModelSelection_Format" xml:space="preserve">
+    <value>Items selected from groups in the model: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_ModelSelectionOverLimit_Format" xml:space="preserve">
+    <value>Items selected from groups: {0}; keep no more than {1} for one marker operation</value>
+  </data>
+  <data name="Panel_HeightMarks_GroupSelectionFailed_Format" xml:space="preserve">
+    <value>Could not select group items: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_ViewpointNameRequired" xml:space="preserve">
+    <value>Enter a viewpoint name</value>
+  </data>
+  <data name="Panel_HeightMarks_CreatingDimensions" xml:space="preserve">
+    <value>Creating dimension lines to Z…</value>
+  </data>
+  <data name="Panel_HeightMarks_CreatingElevations" xml:space="preserve">
+    <value>Creating Z elevation marks…</value>
+  </data>
+  <data name="Panel_HeightMarks_DimensionsCreated_Format" xml:space="preserve">
+    <value>Dimension lines created: {0}; folder “{1}”; viewpoint “{2}”</value>
+  </data>
+  <data name="Panel_HeightMarks_ElevationsCreated_Format" xml:space="preserve">
+    <value>Z elevation marks created: {0}; folder “{1}”; viewpoint “{2}”</value>
+  </data>
+  <data name="Panel_HeightMarks_Failed_Format" xml:space="preserve">
+    <value>Z elevation marks: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_GraphicsShown_Format" xml:space="preserve">
+    <value>Graphics markers shown: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_GraphicsFailed_Format" xml:space="preserve">
+    <value>Could not show Graphics markers: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_GraphicsHidden" xml:space="preserve">
+    <value>Graphics markers hidden</value>
+  </data>
+  <data name="Panel_HeightMarks_SaveScreenshot_Title" xml:space="preserve">
+    <value>Save current view screenshot</value>
+  </data>
+  <data name="Panel_HeightMarks_ScreenshotSaved_Format" xml:space="preserve">
+    <value>Screenshot saved: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_ScreenshotFailed_Format" xml:space="preserve">
+    <value>Could not save screenshot: {0}</value>
+  </data>
+  <data name="Panel_HeightMarks_SelectItems" xml:space="preserve">
+    <value>Select items for elevation marks</value>
+  </data>
+  <data name="Panel_HeightMarks_SelectionLimit_Format" xml:space="preserve">
+    <value>More than {0} items are selected</value>
+  </data>
+  <data name="Panel_HeightMarks_InvalidTargetZ" xml:space="preserve">
+    <value>The target Z level must be a number in millimetres</value>
+  </data>
+  <data name="Panel_HeightMarks_ScreenshotFilePrefix" xml:space="preserve">
+    <value>Z elevations</value>
+  </data>
+  <data name="Panel_HeightMarks_ScreenshotFileFilter" xml:space="preserve">
+    <value>PNG (*.png)|*.png|JPEG (*.jpg)|*.jpg|Bitmap (*.bmp)|*.bmp</value>
+  </data>
+  <data name="Panel_Selection_MemorySaved_Format" xml:space="preserve">
+    <value>Slot {0}: saved {1} items</value>
+  </data>
+  <data name="Panel_Selection_MemoryEmpty_Format" xml:space="preserve">
+    <value>Slot {0} is empty</value>
+  </data>
+  <data name="Panel_Selection_MemoryRestored_Format" xml:space="preserve">
+    <value>Slot {0}: restored {1} items</value>
+  </data>
+  <data name="Panel_Selection_Invert_SelectItems" xml:space="preserve">
+    <value>Select at least one item to invert the selection.</value>
+  </data>
+  <data name="Panel_Selection_Invert_Result_Format" xml:space="preserve">
+    <value>Selection inverted: {0} items selected</value>
+  </data>
+  <data name="Panel_Selection_Isolate_SelectItems" xml:space="preserve">
+    <value>Select items to isolate.</value>
+  </data>
+  <data name="Panel_Selection_Isolate_Result_Format" xml:space="preserve">
+    <value>Isolate: {0} items hidden</value>
+  </data>
+  <data name="Panel_Selection_Unhide_Result" xml:space="preserve">
+    <value>All items are visible</value>
+  </data>
+  <data name="Panel_Selection_Bounds_Title" xml:space="preserve">
+    <value>Selection bounds</value>
+  </data>
+  <data name="Panel_Selection_Bounds_SelectItems" xml:space="preserve">
+    <value>Select at least one item.</value>
+  </data>
+  <data name="Panel_Selection_BoundsUnavailable" xml:space="preserve">
+    <value>Could not determine the selection bounds.</value>
+  </data>
+  <data name="Panel_Selection_BoundsReport_Format" xml:space="preserve">
+    <value>Selection bounds
+Items: {0}
+Size X: {1:0.###} mm
+Size Y: {2:0.###} mm
+Size Z: {3:0.###} mm
+Coordinate units: {4}
+Min: {5:0.######}; {6:0.######}; {7:0.######}
+Max: {8:0.######}; {9:0.######}; {10:0.######}
+Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
+  </data>
+  <data name="Panel_Selection_BoundsCopied_Format" xml:space="preserve">
+    <value>Bounds copied: {0:0.###} × {1:0.###} × {2:0.###} mm</value>
+  </data>
+  <data name="Panel_Selection_BoundsCopiedToClipboard" xml:space="preserve">
+    <value>Values copied to the clipboard.</value>
+  </data>
+  <data name="Panel_Selection_BoundsFailed_Format" xml:space="preserve">
+    <value>Could not get or copy the bounds: {0}</value>
+  </data>
+  <data name="Panel_Selection_HistoryDocumentChanged" xml:space="preserve">
+    <value>The Section Box history belongs to another document and was cleared</value>
+  </data>
+  <data name="Panel_Selection_HistoryApplied_Format" xml:space="preserve">
+    <value>Section Box applied to {0} history items</value>
+  </data>
+  <data name="Panel_Selection_HistoryNavigateFailed_Format" xml:space="preserve">
+    <value>Could not navigate to the history item:
+{0}</value>
+  </data>
+  <data name="Panel_Selection_HistoryItemsUnavailable" xml:space="preserve">
+    <value>The selected history items are no longer available</value>
+  </data>
+  <data name="Panel_Selection_HistorySelected_Format" xml:space="preserve">
+    <value>Items selected from history in the model: {0}</value>
+  </data>
+  <data name="Panel_Selection_HistorySelectionCleared" xml:space="preserve">
+    <value>History item selection cleared</value>
+  </data>
+  <data name="Panel_Selection_HistorySelectionFailed_Format" xml:space="preserve">
+    <value>Could not select history items: {0}</value>
+  </data>
+  <data name="Panel_Selection_SectionBoxReset" xml:space="preserve">
+    <value>Selection Section Box reset</value>
+  </data>
+  <data name="Panel_Selection_ExportProperties_SelectItems" xml:space="preserve">
+    <value>Select items to export.</value>
+  </data>
+  <data name="Panel_Selection_ExportProperties_Title" xml:space="preserve">
+    <value>Export properties</value>
+  </data>
+  <data name="Panel_Selection_ExportProperties_FileFilter" xml:space="preserve">
+    <value>CSV (Excel compatible)|*.csv|All files|*.*</value>
+  </data>
+  <data name="Panel_Selection_ExportProperties_Saved_Format" xml:space="preserve">
+    <value>Properties saved: {0}</value>
+  </data>
+  <data name="Panel_Selection_HistoryObjectUnavailable" xml:space="preserve">
+    <value>(item unavailable)</value>
+  </data>
+  <data name="Panel_Selection_HistoryObjectUnnamed" xml:space="preserve">
+    <value>(unnamed)</value>
+  </data>
+  <data name="Panel_Colors_SelectScheme" xml:space="preserve">
+    <value>Select a scheme from the list.</value>
+  </data>
+  <data name="Panel_Colors_Ai_Title" xml:space="preserve">
+    <value>AI Colors</value>
+  </data>
+  <data name="Panel_Common_Enabled" xml:space="preserve">
+    <value>enabled</value>
+  </data>
+  <data name="Panel_Common_Disabled" xml:space="preserve">
+    <value>disabled</value>
+  </data>
+  <data name="Panel_Colors_Ai_Starting_Format" xml:space="preserve">
+    <value>Starting…
+Model: {0} (thinking: {1})
+Scheme: {2}
+Waiting for a response…
+</value>
+  </data>
+  <data name="Panel_Colors_Ai_NoColors" xml:space="preserve">
+    <value>No colors were returned. Check OPEN_ROUTER_NW_KEY and the connection.</value>
+  </data>
+  <data name="Panel_Colors_Ai_ResultSummary_Format" xml:space="preserve">
+    <value>Result: {0} items, {1} groups</value>
+  </data>
+  <data name="Panel_Colors_Ai_GroupColumn" xml:space="preserve">
+    <value>Group</value>
+  </data>
+  <data name="Panel_Colors_Ai_RgbColumn" xml:space="preserve">
+    <value>RGB color</value>
+  </data>
+  <data name="Panel_Colors_Ai_CountColumn" xml:space="preserve">
+    <value>Count</value>
+  </data>
+  <data name="Panel_Colors_Ai_ObjectCount_Format" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="Panel_Colors_Ai_GroupDetails" xml:space="preserve">
+    <value>Group details:</value>
+  </data>
+  <data name="Panel_Colors_Ai_GroupDetail_Format" xml:space="preserve">
+    <value>Group {0} — RGB({1}):</value>
+  </data>
+  <data name="Panel_Colors_Ai_GroupLabel_Format" xml:space="preserve">
+    <value>{0} ({1} pcs.)</value>
+  </data>
+  <data name="Panel_Colors_Ai_NoDataToSave" xml:space="preserve">
+    <value>There is no data to save.</value>
+  </data>
+  <data name="Panel_Common_Saved_Format" xml:space="preserve">
+    <value>Saved: {0}</value>
+  </data>
+  <data name="Panel_Common_SaveFailed_Format" xml:space="preserve">
+    <value>Save failed: {0}</value>
+  </data>
+  <data name="Panel_Colors_Match_SelectSource" xml:space="preserve">
+    <value>Select an item to read its color.</value>
+  </data>
+  <data name="Panel_Colors_Match_ReadFailed" xml:space="preserve">
+    <value>Could not read the item color.</value>
+  </data>
+  <data name="Panel_Colors_Match_Applied_Format" xml:space="preserve">
+    <value>Match Color: applied color {0}</value>
+  </data>
+  <data name="Panel_Colors_Match_Read_Format" xml:space="preserve">
+    <value>Match Color: read color {0}</value>
+  </data>
+  <data name="Panel_Colors_Match_ParseFailed_Format" xml:space="preserve">
+    <value>Could not parse the color: {0}</value>
+  </data>
+  <data name="Panel_Colors_Match_ReadFirst" xml:space="preserve">
+    <value>Read a color from an item first.</value>
+  </data>
+  <data name="Panel_Colors_Match_SelectTargets" xml:space="preserve">
+    <value>Select items to apply the color.</value>
+  </data>
+  <data name="Panel_Colors_Property_SelectItems" xml:space="preserve">
+    <value>Select items for automatic coloring.</value>
+  </data>
+  <data name="Panel_Colors_Property_Result_Format" xml:space="preserve">
+    <value>Color by Property: {0} groups, {1} items</value>
+  </data>
+  <data name="Panel_Colors_OverridesReset" xml:space="preserve">
+    <value>NavisHelper overrides reset</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_SelectItems" xml:space="preserve">
+    <value>Select one or more items.</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_Prompt_Format" xml:space="preserve">
+    <value>Enter an exact property value (System / Specification / Elevation):
+Values in the selection: {0}</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_NoMatches" xml:space="preserve">
+    <value>No items were found with this value.</value>
+  </data>
+  <data name="Panel_Colors_SelectByProperty_Result_Format" xml:space="preserve">
+    <value>Selected by value: {0} items</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Title" xml:space="preserve">
+    <value>Search set</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_NoActiveModel" xml:space="preserve">
+    <value>There is no active model.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Unavailable" xml:space="preserve">
+    <value>Selection Sets are unavailable in the active model.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_NameConflict" xml:space="preserve">
+    <value>The target folder contains a folder or another saved item with this name. Enter another set name.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Existing" xml:space="preserve">
+    <value>The target folder already contains a search or selection set with this name.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Replace_Format" xml:space="preserve">
+    <value>Replace the existing set “{0}” in this folder?</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_ExistingNotFound" xml:space="preserve">
+    <value>Could not find the existing set in the target folder.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Root" xml:space="preserve">
+    <value>Selection Sets root</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Created_Format" xml:space="preserve">
+    <value>Search Set created: {0}/{1}, {2} items found</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_Updated_Format" xml:space="preserve">
+    <value>Search Set updated: {0}/{1}, {2} items found</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_RequiredFields" xml:space="preserve">
+    <value>Enter a set name, category, and property.</value>
+  </data>
+  <data name="Panel_Colors_SearchSet_ValueRequired" xml:space="preserve">
+    <value>The selected operator requires a value.</value>
+  </data>
+  <data name="Panel_Colors_HistoryEntry_Format" xml:space="preserve">
+    <value>[{0:HH:mm:ss}] {1} items, {2} groups</value>
+  </data>
+  <data name="Panel_Colors_HistorySelectEntry" xml:space="preserve">
+    <value>Select a history entry.</value>
+  </data>
+  <data name="Panel_Colors_Property_NoValue" xml:space="preserve">
+    <value>— no value —</value>
+  </data>
+  <data name="Panel_Colors_Property_Unnamed_Format" xml:space="preserve">
+    <value>&lt;unnamed #{0}&gt;</value>
+  </data>
+  <data name="Panel_CommandPalette_ColorsByName_Title" xml:space="preserve">
+    <value>Colors By Name</value>
+  </data>
+  <data name="Panel_CommandPalette_ColorsByName_Description" xml:space="preserve">
+    <value>Color items from a name;R,G,B[;transparency] list</value>
+  </data>
+  <data name="Panel_CommandPalette_OverridePdms_Title" xml:space="preserve">
+    <value>Override PDMS</value>
+  </data>
+  <data name="Panel_CommandPalette_OverridePdms_Description" xml:space="preserve">
+    <value>Disable or hide items matching a PDMS list</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColor_Title" xml:space="preserve">
+    <value>Match Color</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColor_Description" xml:space="preserve">
+    <value>Read the first selected item color and apply it to the selection</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColorRead_Title" xml:space="preserve">
+    <value>Match Color: Read</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColorRead_Description" xml:space="preserve">
+    <value>Read the selected item color</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColorApply_Title" xml:space="preserve">
+    <value>Match Color: Apply</value>
+  </data>
+  <data name="Panel_CommandPalette_MatchColorApply_Description" xml:space="preserve">
+    <value>Apply the sampled color to the current selection</value>
+  </data>
+  <data name="Panel_CommandPalette_ColorByProperty_Title" xml:space="preserve">
+    <value>Color by Property</value>
+  </data>
+  <data name="Panel_CommandPalette_ColorByProperty_Description" xml:space="preserve">
+    <value>Automatically color the selection by property values</value>
+  </data>
+  <data name="Panel_CommandPalette_ResetOverrides_Title" xml:space="preserve">
+    <value>Reset all overrides</value>
+  </data>
+  <data name="Panel_CommandPalette_ResetOverrides_Description" xml:space="preserve">
+    <value>Reset all color and transparency overrides</value>
+  </data>
+  <data name="Panel_CommandPalette_ExportColors_Title" xml:space="preserve">
+    <value>Export colors</value>
+  </data>
+  <data name="Panel_CommandPalette_ExportColors_Description" xml:space="preserve">
+    <value>Export selection colors and transparency to separate files</value>
+  </data>
+  <data name="Panel_CommandPalette_ImportColors_Title" xml:space="preserve">
+    <value>Import colors</value>
+  </data>
+  <data name="Panel_CommandPalette_ImportColors_Description" xml:space="preserve">
+    <value>Load colors from files and apply them to the selection</value>
+  </data>
+  <data name="Panel_CommandPalette_AiColoring_Title" xml:space="preserve">
+    <value>AI coloring</value>
+  </data>
+  <data name="Panel_CommandPalette_AiColoring_Description" xml:space="preserve">
+    <value>Apply AI colors using the selected scheme and model</value>
+  </data>
+  <data name="Panel_CommandPalette_CopyNames_Title" xml:space="preserve">
+    <value>Copy names</value>
+  </data>
+  <data name="Panel_CommandPalette_CopyNames_Description" xml:space="preserve">
+    <value>Copy DisplayName values of selected items</value>
+  </data>
+  <data name="Panel_CommandPalette_FilterByList_Title" xml:space="preserve">
+    <value>Filter by list</value>
+  </data>
+  <data name="Panel_CommandPalette_FilterByList_Description" xml:space="preserve">
+    <value>Filter the model using a list of names from a file</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectByProperty_Title" xml:space="preserve">
+    <value>Select by Property Value</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectByProperty_Description" xml:space="preserve">
+    <value>Select items matching a property value from the selection</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveSearchSet_Title" xml:space="preserve">
+    <value>Save search set</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveSearchSet_Description" xml:space="preserve">
+    <value>Create a folder and save a dynamic Search Set</value>
+  </data>
+  <data name="Panel_CommandPalette_Parent_Title" xml:space="preserve">
+    <value>Parent</value>
+  </data>
+  <data name="Panel_CommandPalette_Parent_Description" xml:space="preserve">
+    <value>Select parent items for the current selection</value>
+  </data>
+  <data name="Panel_CommandPalette_Child_Title" xml:space="preserve">
+    <value>Child</value>
+  </data>
+  <data name="Panel_CommandPalette_Child_Description" xml:space="preserve">
+    <value>Select child items</value>
+  </data>
+  <data name="Panel_CommandPalette_Sibling_Title" xml:space="preserve">
+    <value>Sibling</value>
+  </data>
+  <data name="Panel_CommandPalette_Sibling_Description" xml:space="preserve">
+    <value>Select sibling items at the same level</value>
+  </data>
+  <data name="Panel_CommandPalette_Leaf_Title" xml:space="preserve">
+    <value>Leaf</value>
+  </data>
+  <data name="Panel_CommandPalette_Leaf_Description" xml:space="preserve">
+    <value>Select leaf nodes</value>
+  </data>
+  <data name="Panel_CommandPalette_AllUnder_Title" xml:space="preserve">
+    <value>All Under</value>
+  </data>
+  <data name="Panel_CommandPalette_AllUnder_Description" xml:space="preserve">
+    <value>Select all descendants of selected items</value>
+  </data>
+  <data name="Panel_CommandPalette_InvertSelection_Title" xml:space="preserve">
+    <value>Invert Selection</value>
+  </data>
+  <data name="Panel_CommandPalette_InvertSelection_Description" xml:space="preserve">
+    <value>Invert the current selection</value>
+  </data>
+  <data name="Panel_CommandPalette_Isolate_Title" xml:space="preserve">
+    <value>Isolate</value>
+  </data>
+  <data name="Panel_CommandPalette_Isolate_Description" xml:space="preserve">
+    <value>Hide everything except the current selection</value>
+  </data>
+  <data name="Panel_CommandPalette_UnhideAll_Title" xml:space="preserve">
+    <value>Unhide All</value>
+  </data>
+  <data name="Panel_CommandPalette_UnhideAll_Description" xml:space="preserve">
+    <value>Show all items</value>
+  </data>
+  <data name="Panel_CommandPalette_RememberSelection_Title" xml:space="preserve">
+    <value>Remember selection</value>
+  </data>
+  <data name="Panel_CommandPalette_RememberSelection_Description" xml:space="preserve">
+    <value>Save the current selection in a memory slot</value>
+  </data>
+  <data name="Panel_CommandPalette_RestoreSelection_Title" xml:space="preserve">
+    <value>Restore selection</value>
+  </data>
+  <data name="Panel_CommandPalette_RestoreSelection_Description" xml:space="preserve">
+    <value>Restore the selection from a memory slot</value>
+  </data>
+  <data name="Panel_CommandPalette_MarkupViewpoint_Title" xml:space="preserve">
+    <value>Markup Viewpoint</value>
+  </data>
+  <data name="Panel_CommandPalette_MarkupViewpoint_Description" xml:space="preserve">
+    <value>Mark selected items with ellipses in the current view</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightMarks_Title" xml:space="preserve">
+    <value>Height Marks</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightMarks_Description" xml:space="preserve">
+    <value>Open the Max Z elevation and dimension-line table</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightGraphics_Title" xml:space="preserve">
+    <value>Height Marks: Graphics</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightGraphics_Description" xml:space="preserve">
+    <value>Show temporary Graphics.Text2D markers for the current selection</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightScreenshot_Title" xml:space="preserve">
+    <value>Height Marks: Screenshot</value>
+  </data>
+  <data name="Panel_CommandPalette_HeightScreenshot_Description" xml:space="preserve">
+    <value>Save an image of the current view</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewSection_Title" xml:space="preserve">
+    <value>Top View + Section</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewSection_Description" xml:space="preserve">
+    <value>Switch to top view, zoom to the selection, and enable sectioning</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewBounds_Title" xml:space="preserve">
+    <value>Top View Bounding Rect</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewBounds_Description" xml:space="preserve">
+    <value>Draw a bounding rectangle around the selection</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewHatch_Title" xml:space="preserve">
+    <value>Top View Bounding Hatch</value>
+  </data>
+  <data name="Panel_CommandPalette_TopViewHatch_Description" xml:space="preserve">
+    <value>Hatch the screen bounds of the selection in the current view</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionHatch_Title" xml:space="preserve">
+    <value>Selection Hatch Marker</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionHatch_Description" xml:space="preserve">
+    <value>Show a temporary polygon selection marker through the clash overlay</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionBoundsHatch_Title" xml:space="preserve">
+    <value>Selection Bounds Hatch Marker</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionBoundsHatch_Description" xml:space="preserve">
+    <value>Show a temporary bounds marker through the clash overlay</value>
+  </data>
+  <data name="Panel_CommandPalette_SortViewpoints_Title" xml:space="preserve">
+    <value>Sort Viewpoints</value>
+  </data>
+  <data name="Panel_CommandPalette_SortViewpoints_Description" xml:space="preserve">
+    <value>Sort saved viewpoints</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveViewpoints_Title" xml:space="preserve">
+    <value>Save Viewpoints</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveViewpoints_Description" xml:space="preserve">
+    <value>Save the viewpoint list</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionSectionBox_Title" xml:space="preserve">
+    <value>Selection Section Box</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionSectionBox_Description" xml:space="preserve">
+    <value>Set a Section Box and show context for the selection</value>
+  </data>
+  <data name="Panel_CommandPalette_ResetSectionBox_Title" xml:space="preserve">
+    <value>Reset Section Box</value>
+  </data>
+  <data name="Panel_CommandPalette_ResetSectionBox_Description" xml:space="preserve">
+    <value>Reset the Section Box and context transparency</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionBounds_Title" xml:space="preserve">
+    <value>Selection bounds</value>
+  </data>
+  <data name="Panel_CommandPalette_SelectionBounds_Description" xml:space="preserve">
+    <value>Show selection bounds and copy the values to the clipboard</value>
+  </data>
+  <data name="Panel_CommandPalette_CsvAttributes_Title" xml:space="preserve">
+    <value>CSV → attributes</value>
+  </data>
+  <data name="Panel_CommandPalette_CsvAttributes_Description" xml:space="preserve">
+    <value>Load attributes from CSV</value>
+  </data>
+  <data name="Panel_CommandPalette_ImportPsLists_Title" xml:space="preserve">
+    <value>Import PS lists</value>
+  </data>
+  <data name="Panel_CommandPalette_ImportPsLists_Description" xml:space="preserve">
+    <value>Import PS lists</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveHierarchy_Title" xml:space="preserve">
+    <value>Save hierarchy</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveHierarchy_Description" xml:space="preserve">
+    <value>Save the model tree</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveNwd2018_Title" xml:space="preserve">
+    <value>Save NWD 2018</value>
+  </data>
+  <data name="Panel_CommandPalette_SaveNwd2018_Description" xml:space="preserve">
+    <value>Export in Navisworks 2018 format</value>
+  </data>
+  <data name="Panel_CommandPalette_ExportProperties_Title" xml:space="preserve">
+    <value>Export properties to Excel</value>
+  </data>
+  <data name="Panel_CommandPalette_ExportProperties_Description" xml:space="preserve">
+    <value>Export properties of selected items</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashLoadTests_Title" xml:space="preserve">
+    <value>Clashes: Load tests</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashLoadTests_Description" xml:space="preserve">
+    <value>Load all clash tests</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashRunAll_Title" xml:space="preserve">
+    <value>Clashes: Run all tests</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashRunAll_Description" xml:space="preserve">
+    <value>Run all Clash Tests without saving a report or model</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashPreview_Title" xml:space="preserve">
+    <value>Clashes: Preview selected</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashPreview_Description" xml:space="preserve">
+    <value>Show the selected clash</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashViewpoint_Title" xml:space="preserve">
+    <value>Clashes: Clash viewpoint</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashViewpoint_Description" xml:space="preserve">
+    <value>Save a view of the selected clash</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashAssignTo_Title" xml:space="preserve">
+    <value>Clashes: Assign to</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashAssignTo_Description" xml:space="preserve">
+    <value>Assign the selected clash</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashSectionBox_Title" xml:space="preserve">
+    <value>Clashes: Section Box</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashSectionBox_Description" xml:space="preserve">
+    <value>Toggle Section Box for clash viewing</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashMarker_Title" xml:space="preserve">
+    <value>Clashes: Marker</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashMarker_Description" xml:space="preserve">
+    <value>Show or hide the clash marker</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashPlane_Title" xml:space="preserve">
+    <value>Clashes: Plane</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashPlane_Description" xml:space="preserve">
+    <value>Show or hide the selection plane</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashExportBcf_Title" xml:space="preserve">
+    <value>Clashes: Export BCF</value>
+  </data>
+  <data name="Panel_CommandPalette_ClashExportBcf_Description" xml:space="preserve">
+    <value>Export the selected clash to a BCF-like file</value>
+  </data>
+  <data name="Panel_CommandPalette_Settings_Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Panel_CommandPalette_Settings_Description" xml:space="preserve">
+    <value>Open the Settings tab</value>
+  </data>
+  <data name="Panel_CommandPalette_OpenLog_Title" xml:space="preserve">
+    <value>Open log</value>
+  </data>
+  <data name="Panel_CommandPalette_OpenLog_Description" xml:space="preserve">
+    <value>Open the NavisHelper log file</value>
+  </data>
+  <data name="Panel_CommandPalette_DevScripts_Title" xml:space="preserve">
+    <value>Dev: load DLL</value>
+  </data>
+  <data name="Panel_CommandPalette_DevScripts_Description" xml:space="preserve">
+    <value>Load a DLL containing IDevScript</value>
+  </data>
+  <data name="Panel_CommandPalette_About_Title" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="Panel_CommandPalette_About_Description" xml:space="preserve">
+    <value>Open the About dialog</value>
+  </data>
+  <data name="Panel_CommandPalette_CommandPalette_Title" xml:space="preserve">
+    <value>Command Palette</value>
+  </data>
+  <data name="Panel_CommandPalette_CommandPalette_Description" xml:space="preserve">
+    <value>Open the command palette</value>
+  </data>
+  <data name="Panel_CommandPalette_Title" xml:space="preserve">
+    <value>Command palette</value>
+  </data>
+  <data name="Panel_CommandPalette_NoCommands" xml:space="preserve">
+    <value>No commands are loaded.</value>
+  </data>
+  <data name="Panel_CommandPalette_Executed_Format" xml:space="preserve">
+    <value>Executed command: {0}</value>
+  </data>
+  <data name="Panel_Common_FileNotFound" xml:space="preserve"><value>File not found.</value></data>
+  <data name="Panel_Common_OpenFileFailed_Format" xml:space="preserve"><value>Could not open the file: {0}</value></data>
+  <data name="Panel_DevScripts_SelectDll_Title" xml:space="preserve"><value>Select a DLL containing Dev scripts</value></data>
+  <data name="Panel_DevScripts_NoneFound" xml:space="preserve"><value>No scripts were found in the DLL.</value></data>
+  <data name="Panel_DevScripts_NoneFound_Format" xml:space="preserve"><value>DLL loaded: {0} — no scripts found</value></data>
+  <data name="Panel_DevScripts_WindowTitle" xml:space="preserve"><value>Dev scripts</value></data>
+  <data name="Panel_DevScripts_Run_ToolTip_Format" xml:space="preserve"><value>Run script {0}</value></data>
+  <data name="Panel_DevScripts_Started_Format" xml:space="preserve"><value>Dev script started: {0}</value></data>
+  <data name="Panel_DevScripts_LoadFailed_Format" xml:space="preserve"><value>DLL load failed: {0}</value></data>
+  <data name="Panel_DevScripts_LoadFailed" xml:space="preserve"><value>DLL load failed</value></data>
+  <data name="Panel_Common_CopyFailed_Format" xml:space="preserve"><value>Could not copy: {0}</value></data>
+  <data name="Panel_Common_Millimetres_Format" xml:space="preserve"><value>{0} mm</value></data>
+  <data name="Panel_Clash_LoadTestsFirst" xml:space="preserve"><value>Load tests</value></data>
+  <data name="Panel_Clash_ViewReset" xml:space="preserve"><value>View reset</value></data>
+  <data name="Panel_Clash_OnlyPairEnabled" xml:space="preserve"><value>Only Pair mode is enabled. Double-click a clash.</value></data>
+  <data name="Panel_Clash_OnlyPairRestored" xml:space="preserve"><value>All branches temporarily hidden by Only Pair mode are visible</value></data>
+  <data name="Panel_Clash_GroupRenameManualOnly" xml:space="preserve"><value>Only manual groups can be renamed</value></data>
+  <data name="Panel_Clash_GroupNameRequired" xml:space="preserve"><value>Group name cannot be empty</value></data>
+  <data name="Panel_Clash_SavedGroupNotFound" xml:space="preserve"><value>Saved group was not found</value></data>
+  <data name="Panel_Clash_GroupNameDuplicate" xml:space="preserve"><value>A group with this name already exists</value></data>
+  <data name="Panel_Clash_GroupRenamed_Format" xml:space="preserve"><value>Group renamed: {0}</value></data>
+  <data name="Panel_Clash_GroupRenameFailed_Format" xml:space="preserve"><value>Could not rename group: {0}</value></data>
+  <data name="Panel_Clash_TreeNode_RightClickHint_Format" xml:space="preserve"><value>{0}&#xA;Right-click: select this object in the model</value></data>
+  <data name="Panel_Clash_TreeItemUnavailable" xml:space="preserve"><value>The tree object is no longer available in the active model</value></data>
+  <data name="Panel_Clash_TreeItemSelected_Format" xml:space="preserve"><value>Selected object {0}: {1}</value></data>
+  <data name="Panel_Clash_TreeItemSelectFailed_Format" xml:space="preserve"><value>Could not select object: {0}</value></data>
+  <data name="Panel_Clash_SelectTreeLevel" xml:space="preserve"><value>Select tree level A or B</value></data>
+  <data name="Panel_Clash_GroupCreating_Format" xml:space="preserve"><value>Creating group {0}: {1}</value></data>
+  <data name="Panel_Clash_GroupSearching_Format" xml:space="preserve"><value>Group {0}: finding clashes...</value></data>
+  <data name="Panel_Clash_GroupAdded_Format" xml:space="preserve"><value>Group added {0}: {1}</value></data>
+  <data name="Panel_Clash_GroupNoResults" xml:space="preserve"><value>No clashes were found for the selected level</value></data>
+  <data name="Panel_Clash_GroupExists_Message_Format" xml:space="preserve"><value>Group "{0}" already exists.&#xA;Update it with the current results?</value></data>
+  <data name="Panel_Clash_GroupExists_Title" xml:space="preserve"><value>Group already exists</value></data>
+  <data name="Panel_Clash_GroupOverlap_Message_Format" xml:space="preserve"><value>{0} of {1} clashes are already in other groups.&#xA;&#xA;Yes — move them to the new group.&#xA;No — keep them in their existing groups and add only ungrouped clashes.&#xA;Cancel — do not create a group.</value></data>
+  <data name="Panel_Clash_GroupOverlap_Title" xml:space="preserve"><value>Clashes are already grouped</value></data>
+  <data name="Panel_Clash_GroupNoMove" xml:space="preserve"><value>New group was not created: all clashes remain in their existing groups</value></data>
+  <data name="Panel_Clash_SelectTestForGroup" xml:space="preserve"><value>Select a Clash Test before saving the group</value></data>
+  <data name="Panel_Clash_GroupMoveInvariantFailed" xml:space="preserve"><value>ClashResultGroup was created, but results were not moved into it.</value></data>
+  <data name="Panel_Clash_GroupSaved_Format" xml:space="preserve"><value>Group saved: {0}; moved: {1}</value></data>
+  <data name="Panel_Clash_GroupSaveFailed_Format" xml:space="preserve"><value>Could not save group: {0}</value></data>
+  <data name="Panel_Clash_GroupingNone" xml:space="preserve"><value>Grouping: none</value></data>
+  <data name="Panel_Clash_DocumentChanged" xml:space="preserve"><value>Document changed — clash data was reset</value></data>
+  <data name="Panel_Clash_AssignedTo_Title" xml:space="preserve"><value>Assigned To</value></data>
+  <data name="Panel_Clash_AssignedTo_Prompt" xml:space="preserve"><value>Person responsible for the selected clashes:</value></data>
+  <data name="Panel_Clash_AssignedTo_Saved_Format" xml:space="preserve"><value>Assigned To: {0} ({1})</value></data>
+  <data name="Panel_Clash_NoSelectedResults" xml:space="preserve"><value>No clashes selected</value></data>
+  <data name="Panel_Clash_BulkStatus_Message_Format" xml:space="preserve"><value>Change the status of {0} clashes to {1}?</value></data>
+  <data name="Panel_Clash_BulkStatus_Title" xml:space="preserve"><value>Bulk status change</value></data>
+  <data name="Panel_Clash_StatusUpdated_Format" xml:space="preserve"><value>Status {0}: {1}</value></data>
+  <data name="Panel_Clash_SelectResultsForComment" xml:space="preserve"><value>Select clashes to comment on</value></data>
+  <data name="Panel_Clash_Comment_Prompt" xml:space="preserve"><value>Comment for the selected clashes:</value></data>
+  <data name="Panel_Clash_Comment_Title" xml:space="preserve"><value>Add comment</value></data>
+  <data name="Panel_Clash_CommentAdded_Format" xml:space="preserve"><value>Comment added: {0}</value></data>
+  <data name="Panel_Clash_WaitForRefresh" xml:space="preserve"><value>Wait for the Clash UI refresh to finish</value></data>
+  <data name="Panel_Clash_SelectOneTestAndResults" xml:space="preserve"><value>Select one Clash Test and one or more clashes</value></data>
+  <data name="Panel_Clash_GroupSelected_Prompt" xml:space="preserve"><value>New group name:</value></data>
+  <data name="Panel_Clash_GroupSelected_Title" xml:space="preserve"><value>Group selected clashes</value></data>
+  <data name="Panel_Clash_GroupSelected_Existing_Message" xml:space="preserve"><value>The group already exists. Rebuild it from the selected clashes?</value></data>
+  <data name="Panel_Clash_GroupSelected_TestChanged" xml:space="preserve"><value>The selected Clash Test changed before grouping.</value></data>
+  <data name="Panel_Clash_GroupSelected_Busy" xml:space="preserve"><value>Grouping selected clashes</value></data>
+  <data name="Panel_Clash_GroupSelected_SelectionChanged" xml:space="preserve"><value>The Clash Test or clash selection changed before grouping.</value></data>
+  <data name="Panel_Clash_GroupSelected_CountMismatch_Format" xml:space="preserve"><value>The group contains {0} of {1} selected clashes.</value></data>
+  <data name="Panel_Clash_GroupSelected_Failed_Format" xml:space="preserve"><value>Group was not created: {0}</value></data>
+  <data name="Panel_Clash_GroupSelected_Created_Format" xml:space="preserve"><value>Group created: {0}; clashes: {1}</value></data>
+  <data name="Panel_Clash_SelectGroupsInOneTest" xml:space="preserve"><value>Select groups within one Clash Test</value></data>
+  <data name="Panel_Clash_Ungroup_Title" xml:space="preserve"><value>Ungroup</value></data>
+  <data name="Panel_Clash_Ungroup_GroupsOnly" xml:space="preserve"><value>Ungrouping was cancelled: the selection must contain groups only.</value></data>
+  <data name="Panel_Clash_Ungroup_PersistedOnly" xml:space="preserve"><value>Only saved Clash groups can be ungrouped, not preview groups.</value></data>
+  <data name="Panel_Clash_Ungroup_Busy_Format" xml:space="preserve"><value>Ungrouping: {0}</value></data>
+  <data name="Panel_Clash_Ungroup_TestChanged" xml:space="preserve"><value>The selected Clash Test changed before ungrouping.</value></data>
+  <data name="Panel_Clash_Ungroup_CountMismatch" xml:space="preserve"><value>The number of released clashes did not match the ungrouping plan.</value></data>
+  <data name="Panel_Clash_Ungroup_Incomplete" xml:space="preserve"><value>The group could not be fully ungrouped.</value></data>
+  <data name="Panel_Clash_Ungroup_Failed_Format" xml:space="preserve"><value>Groups were not ungrouped: {0}</value></data>
+  <data name="Panel_Clash_Ungroup_Completed_Format" xml:space="preserve"><value>Groups ungrouped: {0}; clashes released: {1}</value></data>
+  <data name="Panel_Clash_RefreshFailedAfterMutation_Format" xml:space="preserve"><value>The operation completed, but the Clash UI did not refresh: {0}</value></data>
+  <data name="Panel_Clash_RefreshScheduleFailed_Format" xml:space="preserve"><value>The operation completed, but the Clash UI refresh could not be scheduled: {0}</value></data>
+  <data name="Panel_Clash_Ungroup_RowNotPersisted" xml:space="preserve"><value>A selected row is not connected to a saved ClashResultGroup.</value></data>
+  <data name="Panel_Clash_Ungroup_GroupOutsideTest" xml:space="preserve"><value>A selected group does not belong to the selected Clash Test.</value></data>
+  <data name="Panel_Clash_Marker_ShowResultFirst" xml:space="preserve"><value>Show a clash first</value></data>
+  <data name="Panel_Clash_Marker_Hidden" xml:space="preserve"><value>Marker hidden</value></data>
+  <data name="Panel_Clash_Marker_Error_Format" xml:space="preserve"><value>Marker error: {0}</value></data>
+  <data name="Panel_Clash_Marker_Enabled_Format" xml:space="preserve"><value>Marker ON: {0:F3}, {1:F3}, {2:F3} | r={3}</value></data>
+  <data name="Panel_Clash_Marker_Title" xml:space="preserve"><value>Clash marker</value></data>
+  <data name="Panel_Clash_Plane_Hidden" xml:space="preserve"><value>Plane hidden</value></data>
+  <data name="Panel_Clash_Plane_Error_Format" xml:space="preserve"><value>Plane error: {0}</value></data>
+  <data name="Panel_Clash_Plane_Enabled_Format" xml:space="preserve"><value>Plane: {0}</value></data>
+  <data name="Panel_Clash_Plane_Title" xml:space="preserve"><value>Plane</value></data>
+  <data name="Panel_Clash_RunAll_None" xml:space="preserve"><value>Clash Test: no tests to run</value></data>
+  <data name="Panel_Clash_RunAll_Progress" xml:space="preserve"><value>Clash Test: running all</value></data>
+  <data name="Panel_Clash_RunAll_Failed_Format" xml:space="preserve"><value>Could not run all tests: {0}</value></data>
+  <data name="Panel_Clash_RunAll_Completed_Format" xml:space="preserve"><value>Clash Test: completed ({0}/{1})</value></data>
+  <data name="Panel_Clash_DeleteZero_None" xml:space="preserve"><value>No zero-result Clash Tests found</value></data>
+  <data name="Panel_Clash_DeleteZero_Unrun_Message_Format" xml:space="preserve"><value>Nothing was deleted.&#xA;&#xA;Found {0} zero-result tests, but they appear not to have run because LastRun is missing.{1}&#xA;&#xA;Run the tests first, then try deleting zero-result tests again.</value></data>
+  <data name="Panel_Clash_DeleteZero_Unrun_Title" xml:space="preserve"><value>Zero-result tests were not deleted</value></data>
+  <data name="Panel_Clash_DeleteZero_Unrun_Status" xml:space="preserve"><value>Zero-result tests were not deleted: all found tests have not run</value></data>
+  <data name="Panel_Clash_DeleteZero_Skipped_Format" xml:space="preserve"><value>&#xA;&#xA;Skipped {0} unrun zero-result tests. They will not be deleted.</value></data>
+  <data name="Panel_Clash_DeleteZero_Confirm_Format" xml:space="preserve"><value>Delete only Clash Tests that ran and have 0 results: {0}?{1}{2}</value></data>
+  <data name="Panel_Clash_DeleteZero_Title" xml:space="preserve"><value>Delete zero-result Clash Tests</value></data>
+  <data name="Panel_Clash_Delete_None" xml:space="preserve"><value>No Clash Tests to delete</value></data>
+  <data name="Panel_Clash_Delete_Progress" xml:space="preserve"><value>Clash Test: deleting</value></data>
+  <data name="Panel_Clash_Delete_Completed_Format" xml:space="preserve"><value>Clash Test: deleted ({0})</value></data>
+  <data name="Panel_Clash_SelectTest" xml:space="preserve"><value>Select a Clash Test</value></data>
+  <data name="Panel_Clash_DeleteSelected_Message_Format" xml:space="preserve"><value>Delete selected Clash Tests: {0}?</value></data>
+  <data name="Panel_Clash_DeleteSelected_Title" xml:space="preserve"><value>Delete Clash Test</value></data>
+  <data name="Panel_Clash_UnknownOperation_Format" xml:space="preserve"><value>Unknown operation: {0}</value></data>
+  <data name="Panel_Clash_TestsRootUnavailable" xml:space="preserve"><value>Clash Detective tests root is unavailable.</value></data>
+  <data name="Panel_Clash_SelectedTestsNotFound" xml:space="preserve"><value>Selected Clash Tests could not be found in the tree.</value></data>
+  <data name="Panel_Clash_Rename_OneTestOnly" xml:space="preserve"><value>Select one Clash Test to rename</value></data>
+  <data name="Panel_Clash_Rename_Prompt" xml:space="preserve"><value>New test name:</value></data>
+  <data name="Panel_Clash_Rename_Title" xml:space="preserve"><value>Rename Clash Test</value></data>
+  <data name="Panel_Clash_Rename_Completed" xml:space="preserve"><value>Clash Test renamed</value></data>
+  <data name="Panel_Clash_SelectResults" xml:space="preserve"><value>Select clashes</value></data>
+  <data name="Panel_Clash_Viewpoints_AlreadyRunning" xml:space="preserve"><value>Viewpoint creation is already running</value></data>
+  <data name="Panel_Clash_Viewpoints_NoResults" xml:space="preserve"><value>No clashes available for viewpoint creation</value></data>
+  <data name="Panel_Clash_Viewpoints_Progress_Format" xml:space="preserve"><value>Creating viewpoints: {0} / {1}</value></data>
+  <data name="Panel_Clash_Viewpoints_ProgressTitle" xml:space="preserve"><value>Creating Clash viewpoints</value></data>
+  <data name="Panel_Clash_Viewpoints_Reset_Format" xml:space="preserve"><value>Creating reset viewpoint: {0}</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemPreview_Format" xml:space="preserve"><value>Viewpoint {0} / {1}: preview</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemMarkers_Format" xml:space="preserve"><value>Viewpoint {0} / {1}: markers</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemSave_Format" xml:space="preserve"><value>Viewpoint {0} / {1}: saving</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemMarkersSecond_Format" xml:space="preserve"><value>Viewpoint {0} / {1}: second markers</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemSaveSecond_Format" xml:space="preserve"><value>Viewpoint {0} / {1}: saving second</value></data>
+  <data name="Panel_Clash_Viewpoints_ItemError_Format" xml:space="preserve"><value>Viewpoint error: {0}</value></data>
+  <data name="Panel_Clash_Viewpoints_ErrorRecord_Format" xml:space="preserve"><value>#{0}/{1} {2}: {3}</value></data>
+  <data name="Panel_Clash_Viewpoints_FirstErrors_Format" xml:space="preserve"><value> | first errors: {0}</value></data>
+  <data name="Panel_Clash_Viewpoints_Completed_Format" xml:space="preserve"><value>Viewpoints created: {0}, errors: {1}, reset: {2}, elapsed: {3:0.0} s | reset {4:0.0} s, preview {5:0.0} s, markers {6:0.0} s, save {7:0.0} s, restore {8:0.0} s{9}</value></data>
+  <data name="Panel_Common_Seconds_Format" xml:space="preserve"><value>{0:0.0} s</value></data>
+  <data name="Panel_Common_MinutesSeconds_Format" xml:space="preserve"><value>{0} min {1} s</value></data>
+  <data name="Panel_Common_HoursMinutesSeconds_Format" xml:space="preserve"><value>{0} h {1} min {2} s</value></data>
+  <data name="Panel_Common_LabelHotkey_Format" xml:space="preserve"><value>{0}  ({1})</value></data>
+  <data name="Panel_Clash_Status_New" xml:space="preserve"><value>New</value></data>
+  <data name="Panel_Clash_Status_Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Panel_Clash_Status_Reviewed" xml:space="preserve"><value>Reviewed</value></data>
+  <data name="Panel_Clash_Status_Approved" xml:space="preserve"><value>Approved</value></data>
+  <data name="Panel_Clash_Status_Resolved" xml:space="preserve"><value>Resolved</value></data>
+  <data name="Panel_Clash_SelectionNotFound_Format" xml:space="preserve"><value>Selection: {0} was not found in the model tree</value></data>
+  <data name="Panel_Clash_SelectionCompleted_Format" xml:space="preserve"><value>Selection: {0} ({1})</value></data>
+  <data name="Panel_Clash_SelectionLabel_ItemA" xml:space="preserve"><value>item A</value></data>
+  <data name="Panel_Clash_SelectionLabel_ItemB" xml:space="preserve"><value>item B</value></data>
+  <data name="Panel_Clash_SelectionLabel_Both" xml:space="preserve"><value>items A+B</value></data>
+  <data name="Panel_Clash_SelectionLabel_Items" xml:space="preserve"><value>items</value></data>
+  <data name="Panel_Clash_GroupingDisabled" xml:space="preserve"><value>disabled</value></data>
+  <data name="Panel_Clash_GroupingChanged_Format" xml:space="preserve"><value>Grouping: {0}</value></data>
+  <data name="Panel_Clash_GroupingReset_SelectGroup" xml:space="preserve"><value>Select a group row to reset</value></data>
+  <data name="Panel_Clash_GroupingReset_Completed_Format" xml:space="preserve"><value>Preview group reset: {0}</value></data>
+  <data name="Panel_Clash_GridSummaryGrouped_Format" xml:space="preserve"><value>Clashes: {0}, groups: {1}, rows: {2}</value></data>
+  <data name="Panel_Clash_GridSummary_Format" xml:space="preserve"><value>Clashes: {0} / {1}</value></data>
+  <data name="Panel_Clash_GroupAbbreviation" xml:space="preserve"><value>Grp.</value></data>
+  <data name="Panel_Clash_ResultCountShort_Format" xml:space="preserve"><value>{0} pcs.</value></data>
+  <data name="Panel_Clash_GroupRowName_Format" xml:space="preserve"><value>{0}: {1} ({2})</value></data>
+  <data name="Panel_Clash_GroupRowNameWithoutSide_Format" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Panel_Clash_DefaultGroupA" xml:space="preserve"><value>Group A</value></data>
+  <data name="Panel_Clash_DefaultGroupB" xml:space="preserve"><value>Group B</value></data>
+  <data name="Panel_Clash_SavedViewpointsUnavailable" xml:space="preserve"><value>Saved Viewpoints are unavailable.</value></data>
+  <data name="Panel_Clash_SavedViewpointFolderFailed_Format" xml:space="preserve"><value>Could not create Saved Viewpoints folder: {0}</value></data>
+  <data name="Panel_Clash_Operation_Run" xml:space="preserve"><value>run</value></data>
+  <data name="Panel_Clash_Operation_Reset" xml:space="preserve"><value>reset</value></data>
+  <data name="Panel_Clash_Operation_Compact" xml:space="preserve"><value>compacted</value></data>
+  <data name="Panel_Clash_Operation_Delete" xml:space="preserve"><value>deleted</value></data>
+  <data name="Panel_Clash_RefreshCompleted_Format" xml:space="preserve"><value>Clash Detective refreshed: {0} tests</value></data>
+  <data name="Panel_Clash_RefreshFailed_Format" xml:space="preserve"><value>Could not refresh the Clash UI: {0}</value></data>
+  <data name="Panel_Clash_TestsLoaded_Format" xml:space="preserve"><value>Tests loaded: {0}</value></data>
+  <data name="Panel_Clash_ResultsLoadFailed_Format" xml:space="preserve"><value>Could not load clashes: {0}</value></data>
+  <data name="Panel_Clash_Preview_GroupShown_Format" xml:space="preserve"><value>Group shown: {0} ({1})</value></data>
+  <data name="Panel_Clash_Preview_ResultShown_Format" xml:space="preserve"><value>Clash shown: {0}</value></data>
+  <data name="Panel_Clash_Preview_Failed_Format" xml:space="preserve"><value>Could not show clash: {0}</value></data>
+  <data name="Panel_Clash_Preview_HiddenBranches_Format" xml:space="preserve"><value>hidden branches: {0}</value></data>
+  <data name="Panel_Clash_Preview_OnlyPair_Format" xml:space="preserve"><value>{0} | only pair: {1} in {2} ms</value></data>
+  <data name="Panel_Clash_Markers_NoPoints" xml:space="preserve"><value>No clash points for markers</value></data>
+  <data name="Panel_Clash_Markers_Completed_Format" xml:space="preserve"><value>Markers: {0}/{1}{2}</value></data>
+  <data name="Panel_Clash_Markers_ProjectPointNull_Detail" xml:space="preserve"><value> | ProjectPoint=null</value></data>
+  <data name="Panel_Clash_Markers_Debug_Detail_Format" xml:space="preserve"><value> | markers {0}/{1}</value></data>
+  <data name="Panel_Clash_Markers_Failed_Format" xml:space="preserve"><value>Marker error: {0}</value></data>
+  <data name="Panel_Clash_Viewpoint_NoActiveView" xml:space="preserve"><value>No active view for saving a viewpoint</value></data>
+  <data name="Panel_Clash_Viewpoint_Saved_Format" xml:space="preserve"><value>Viewpoint saved: {0}/{1}</value></data>
+  <data name="Panel_Clash_Viewpoint_Failed_Format" xml:space="preserve"><value>Viewpoint error: {0}</value></data>
+  <data name="Panel_Clash_Operation_Progress_Format" xml:space="preserve"><value>Clash Test: {0}</value></data>
+  <data name="Panel_Clash_Operation_Run_Completed_Format" xml:space="preserve"><value>Clash Test: run ({0})</value></data>
+  <data name="Panel_Clash_Operation_Reset_Completed_Format" xml:space="preserve"><value>Clash Test: reset ({0})</value></data>
+  <data name="Panel_Clash_Operation_Compact_Completed_Format" xml:space="preserve"><value>Clash Test: compacted ({0})</value></data>
+  <data name="Panel_Clash_Operation_Unknown_Completed_Format" xml:space="preserve"><value>Clash Test: operation completed ({0})</value></data>
+  <data name="Panel_Clash_Viewpoint_NoSelectedResult" xml:space="preserve"><value>No clash selected for the viewpoint</value></data>
+  <data name="Panel_Clash_Viewpoint_NoCenterSuffix" xml:space="preserve"><value> | no clash center</value></data>
+  <data name="Panel_Clash_Viewpoint_SavedNameEntry_Format" xml:space="preserve"><value>{0}{1}</value></data>
+  <data name="Panel_Clash_Viewpoint_SavedNames_Format" xml:space="preserve"><value>Viewpoint: {0}</value></data>
+  <data name="Panel_Clash_Camera_NoActiveDocument" xml:space="preserve"><value>No active document for CAM</value></data>
+  <data name="Panel_Clash_Camera_Saved_Format" xml:space="preserve"><value>CAM {0}: {1}</value></data>
+  <data name="Panel_Clash_Camera_Failed_Format" xml:space="preserve"><value>CAM error: {0}</value></data>
+  <data name="Panel_Clash_Bcf_SelectResult" xml:space="preserve"><value>Select a clash to export.</value></data>
+  <data name="Panel_Clash_Bcf_Title" xml:space="preserve"><value>Export BCF</value></data>
+  <data name="Panel_Clash_InvalidResult" xml:space="preserve"><value>Invalid clash entry.</value></data>
+  <data name="Panel_Clash_Bcf_SaveTitle" xml:space="preserve"><value>Export to BCF</value></data>
+  <data name="Panel_Clash_Bcf_FileFilter" xml:space="preserve"><value>BCF (*.bcf)|*.bcf|ZIP (*.zip)|*.zip|All files|*.*</value></data>
+  <data name="Panel_Clash_Bcf_Exported_Format" xml:space="preserve"><value>BCF exported: {0}</value></data>
+  <data name="Panel_Clash_Gif_NoPoint" xml:space="preserve"><value>No clash point for GIF</value></data>
+  <data name="Panel_Clash_Gif_SaveTitle" xml:space="preserve"><value>Save clash GIF</value></data>
+  <data name="Panel_Clash_Gif_FileFilter" xml:space="preserve"><value>GIF animation (*.gif)|*.gif</value></data>
+  <data name="Panel_Clash_Gif_Cancelled" xml:space="preserve"><value>GIF cancelled</value></data>
+  <data name="Panel_Clash_Gif_Progress" xml:space="preserve"><value>Creating clash GIF</value></data>
+  <data name="Panel_Clash_Gif_FrameFailed_Format" xml:space="preserve"><value>Frame {0}: {1}</value></data>
+  <data name="Panel_Clash_Gif_Created_Format" xml:space="preserve"><value>GIF created: {0}</value></data>
+  <data name="Panel_Clash_InteractiveBusy" xml:space="preserve"><value>Navisworks is busy with an interactive operation</value></data>
+  <data name="Panel_Clash_InteractiveBusy_Format" xml:space="preserve"><value>Navisworks is busy: {0}</value></data>
+  <data name="Panel_Clash_Transparency_Selection_Format" xml:space="preserve"><value>Transparency: {0} owners from selection{1}</value></data>
+  <data name="Panel_Clash_Transparency_Pair_Format" xml:space="preserve"><value>Transparency: {0} A/B owners{1}</value></data>
+  <data name="Panel_Color_None" xml:space="preserve"><value>No highlight</value></data>
+  <data name="Panel_Color_Red" xml:space="preserve"><value>Red</value></data>
+  <data name="Panel_Color_Blue" xml:space="preserve"><value>Blue</value></data>
+  <data name="Panel_Color_Green" xml:space="preserve"><value>Green</value></data>
+  <data name="Panel_Color_Orange" xml:space="preserve"><value>Orange</value></data>
+  <data name="Panel_Color_Yellow" xml:space="preserve"><value>Yellow</value></data>
+  <data name="Panel_Color_Purple" xml:space="preserve"><value>Purple</value></data>
+  <data name="Panel_Color_Cyan" xml:space="preserve"><value>Cyan</value></data>
+  <data name="Panel_Color_Pink" xml:space="preserve"><value>Pink</value></data>
+  <data name="Panel_Color_White" xml:space="preserve"><value>White</value></data>
+  <data name="Panel_Color_DarkRed" xml:space="preserve"><value>Dark red</value></data>
+  <data name="Panel_Color_DarkBlue" xml:space="preserve"><value>Dark blue</value></data>
+  <data name="Panel_Color_Teal" xml:space="preserve"><value>Teal</value></data>
+  <data name="Panel_Color_Lime" xml:space="preserve"><value>Lime</value></data>
+  <data name="Panel_Color_Brown" xml:space="preserve"><value>Brown</value></data>
+  <data name="Panel_Clash_Menu_Run" xml:space="preserve"><value>Run</value></data>
+  <data name="Panel_Clash_Menu_Reset" xml:space="preserve"><value>Reset</value></data>
+  <data name="Panel_Clash_Menu_Compact" xml:space="preserve"><value>Compact</value></data>
+  <data name="Panel_Clash_Menu_CreateViewpoints" xml:space="preserve"><value>Create viewpoints</value></data>
+  <data name="Panel_Clash_Menu_AllStatuses" xml:space="preserve"><value>Status of all clashes</value></data>
+  <data name="Panel_Clash_Menu_Rename" xml:space="preserve"><value>Rename</value></data>
+  <data name="Panel_Clash_Menu_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Panel_Clash_Menu_SelectA" xml:space="preserve"><value>Go to item A</value></data>
+  <data name="Panel_Clash_Menu_SelectB" xml:space="preserve"><value>Go to item B</value></data>
+  <data name="Panel_Clash_Menu_SelectBoth" xml:space="preserve"><value>Select both items</value></data>
+  <data name="Panel_Clash_Menu_GroupByA" xml:space="preserve"><value>Group by item A</value></data>
+  <data name="Panel_Clash_Menu_GroupByB" xml:space="preserve"><value>Group by item B</value></data>
+  <data name="Panel_Clash_Menu_ResetGrouping" xml:space="preserve"><value>Reset grouping</value></data>
+  <data name="Panel_Clash_Menu_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Panel_Clash_Menu_Assign" xml:space="preserve"><value>Assign…</value></data>
+  <data name="Panel_Clash_Menu_Comment" xml:space="preserve"><value>Add comment…</value></data>
+  <data name="Panel_Clash_Menu_GroupSelected" xml:space="preserve"><value>Group selected…</value></data>
+  <data name="Panel_Clash_Menu_Ungroup" xml:space="preserve"><value>Ungroup</value></data>
+  <data name="Panel_Clash_Menu_CreateSelectedViewpoints" xml:space="preserve"><value>Create viewpoints for selected clashes</value></data>
+  <data name="Panel_Clash_Result_Title" xml:space="preserve"><value>Clash Result</value></data>
+  <data name="Panel_Clash_Test_Title" xml:space="preserve"><value>Clash Test</value></data>
+  <data name="Panel_Clash_GroupingMatches_ToolTip_Format" xml:space="preserve"><value>Clashes found at the selected level: {0}. Already grouped results are handled separately.</value></data>
+  <data name="Panel_Clash_GroupCreateFailed" xml:space="preserve"><value>Could not create ClashResultGroup.</value></data>
+  <data name="Panel_Section_All" xml:space="preserve"><value>All</value></data>
+  <data name="Panel_HeightMarks_NoObjects" xml:space="preserve"><value>No objects</value></data>
+  <data name="Panel_HeightMarks_ItemUnavailable" xml:space="preserve"><value>Object unavailable</value></data>
+  <data name="Panel_Colors_Ai_ResponseFileFilter" xml:space="preserve"><value>Text file (*.txt)|*.txt|Markdown (*.md)|*.md</value></data>
+  <data name="Panel_Colors_SelectionSetFolderFailed_Format" xml:space="preserve"><value>Could not create Selection Sets folder: {0}</value></data>
+  <data name="Panel_Selection_ModelUnitScaleFailed" xml:space="preserve"><value>Could not determine the model unit scale.</value></data>
+  <data name="Panel_Clash_Item_None" xml:space="preserve"><value>(none)</value></data>
+  <data name="Panel_Clash_ItemFallback_Format" xml:space="preserve"><value>(item #{0})</value></data>
+  <data name="Panel_Colors_Match_Title" xml:space="preserve"><value>Match Color</value></data>
+  <data name="Panel_Colors_Property_Title" xml:space="preserve"><value>Color by Property</value></data>
+  <data name="Panel_Colors_Overrides_Title" xml:space="preserve"><value>Reset overrides</value></data>
+  <data name="Panel_Colors_SelectByProperty_Title" xml:space="preserve"><value>Select by Property Value</value></data>
+  <data name="Panel_Selection_Memory_Title" xml:space="preserve"><value>Selection Slot</value></data>
+  <data name="Panel_Selection_Invert_Title" xml:space="preserve"><value>Invert Selection</value></data>
+  <data name="Panel_Selection_Isolate_Title" xml:space="preserve"><value>Isolate</value></data>
+  <data name="Panel_Selection_Unhide_Title" xml:space="preserve"><value>Unhide All</value></data>
+  <data name="Panel_Selection_SectionBox_Title" xml:space="preserve"><value>Section Box</value></data>
+  <data name="Panel_Clash_Column_New" xml:space="preserve"><value>New</value></data>
+  <data name="Panel_Clash_Column_Active" xml:space="preserve"><value>Act</value></data>
+  <data name="SettingsAiKeyPlaceholder" xml:space="preserve"><value>YOUR_KEY</value></data>
+  <data name="Panel_DevScripts_DllFilter" xml:space="preserve"><value>DLL (*.dll)|*.dll</value></data>
+  <data name="Panel_DevScripts_DllLabel_Format" xml:space="preserve"><value>DLL: {0}</value></data>
+  <data name="Panel_Clash_Gif_DefaultName" xml:space="preserve"><value>Clash Orbit</value></data>
+  <data name="Panel_Clash_SelectionFailed_Format" xml:space="preserve"><value>Selection error: {0}</value></data>
+  <data name="Panel_Selection_NoSelectionOrSavedBox" xml:space="preserve"><value>No selected items or saved Section Box area.</value></data>
+  <data name="Panel_Selection_SectionBoxApplied_Format" xml:space="preserve"><value>Section box: {0} items; common expansion {1} mm, X/Y/Z addition {2}/{3}/{4} mm; shift {5}/{6}/{7} mm</value></data>
+  <data name="Panel_Selection_SectionBoxAppliedSaved_Format" xml:space="preserve"><value>Section box: {0} items (saved area); common expansion {1} mm, X/Y/Z addition {2}/{3}/{4} mm; shift {5}/{6}/{7} mm</value></data>
+  <data name="Panel_Clash_Preview_Failed" xml:space="preserve"><value>Could not show the clash.</value></data>
+  <data name="Panel_Clash_Preview_RestoreFailed" xml:space="preserve"><value>Could not restore the previous Only Pair mode.</value></data>
+  <data name="Panel_Clash_Preview_NoItems_Format" xml:space="preserve"><value>No items: {0}</value></data>
+  <data name="Panel_Clash_Preview_EmptyGroup" xml:space="preserve"><value>The group contains no clashes.</value></data>
+  <data name="Panel_Clash_PairIsolation_RestoreFailed_Format" xml:space="preserve"><value>could not restore visibility: {0}</value></data>
+  <data name="Panel_Clash_PairIsolation_SkippedInactiveModel" xml:space="preserve"><value>isolation skipped: A/B items do not belong to the active model</value></data>
+  <data name="Panel_Clash_PairIsolation_AppliedWithProxy_Format" xml:space="preserve"><value>hidden branches: {0}; skipped proxy items without visibility state: {1}</value></data>
+  <data name="Panel_Clash_Transparency_NoActiveDocument_Detail" xml:space="preserve"><value> | no active document</value></data>
+  <data name="Panel_Clash_Transparency_ZeroLevel_Detail" xml:space="preserve"><value> | transparency level is 0%</value></data>
+  <data name="Panel_Clash_Transparency_ClashItemsMissing_Detail" xml:space="preserve"><value> | clash items were not found</value></data>
+  <data name="Panel_Clash_Transparency_OwnersMissing_Detail" xml:space="preserve"><value> | owners were not found</value></data>
+  <data name="Panel_Clash_Transparency_Applied_Detail_Format" xml:space="preserve"><value> | owners: {0}, currently opaque: {1}</value></data>
+  <data name="Panel_Clash_Preview_DefaultGroupName" xml:space="preserve"><value>Clash group</value></data>
+</root>

@@ -8,7 +8,7 @@ For repository-level external review workflow rules, including the mandatory rea
 
 ## Project Overview
 
-NavisHelper is a C# plugin suite for Autodesk Navisworks Manage (2024/2025/2026/2027). It automates model manipulation tasks: bulk color assignment, attribute loading from CSV, clash detection, viewpoint management, and AI-driven object coloring via external API. The UI and documentation are in Russian.
+NavisHelper is a C# plugin suite for Autodesk Navisworks Manage (2024/2025/2026/2027). It automates model manipulation tasks: bulk color assignment, attribute loading from CSV, clash detection, viewpoint management, and AI-driven object coloring via external API. The active NavisHelperPanel and phase-one standalone UI surfaces use neutral English resources with matching Russian values in a satellite assembly; most end-user documentation remains Russian.
 
 ## Build Commands
 
@@ -38,7 +38,7 @@ dotnet test NavisHelper.McpServer.Tests/NavisHelper.McpServer.Tests.csproj /p:Co
 
 **Output:** `NavisHelper/bin/x64/<Configuration>/NavisHelper.dll`
 
-**Bundle copy:** `Debug2024`/`Release2024` copy the DLL to `NavisHelper.bundle/Contents/2024/NavisHelper.dll`. `Debug2025`/`Release2025` copy the DLL to `NavisHelper.bundle/Contents/2025/NavisHelper.dll`. `Debug`/`Release`/`Debug2026`/`Release2026` copy the DLL to `NavisHelper.bundle/Contents/2026/NavisHelper.dll`. `Debug2027`/`Release2027` copy the DLL to `NavisHelper.bundle/Contents/2027/NavisHelper.dll`. When creating packages or deployment artifacts, run the full build matrix first so local bundle assemblies exist for `2024`, `2025`, `2026`, and `2027`.
+**Bundle copy:** `Debug2024`/`Release2024` copy the DLL to `NavisHelper.bundle/Contents/2024/NavisHelper.dll`. `Debug2025`/`Release2025` copy the DLL to `NavisHelper.bundle/Contents/2025/NavisHelper.dll`. `Debug`/`Release`/`Debug2026`/`Release2026` copy the DLL to `NavisHelper.bundle/Contents/2026/NavisHelper.dll`. `Debug2027`/`Release2027` copy the DLL to `NavisHelper.bundle/Contents/2027/NavisHelper.dll`. Each configuration also copies `ru/NavisHelper.resources.dll` below its year directory. When creating packages or deployment artifacts, run the full build matrix first so local bundle assemblies and Russian satellites exist for `2024`, `2025`, `2026`, and `2027`.
 
 **Bundle binaries:** compiled DLL/PDB files under `NavisHelper.bundle/Contents/<version>/` are ignored build artifacts, not tracked source. Git keeps `PackageContents.xml`, `.dll.config`, `icons/`, and `ICONS.md`; release ZIPs/installers carry the compiled binaries from local build outputs.
 

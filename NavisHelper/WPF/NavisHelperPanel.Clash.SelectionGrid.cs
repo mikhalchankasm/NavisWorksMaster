@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using Microsoft.VisualBasic;
 using Path = System.IO.Path;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NavisHelper.Interfaces;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Agent.Services;
@@ -42,14 +43,14 @@ namespace NavisHelper.WPF
             var doc = NwApplication.ActiveDocument;
             if (doc == null || doc.IsClear)
             {
-                SetGlobalStatus("Нет активного документа", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Common_NoActiveDocument", Brushes.Orange);
                 return;
             }
 
             var results = GetClashResultsFromRow(_clashContextMenuItem ?? _clashGrid?.SelectedItem);
             if (results.Count == 0)
             {
-                SetGlobalStatus("Выберите коллизию", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_SelectResult", Brushes.Orange);
                 return;
             }
 
@@ -65,7 +66,10 @@ namespace NavisHelper.WPF
             if (selection.Count == 0)
             {
                 try { doc.CurrentSelection.Clear(); } catch { }
-                SetGlobalStatus($"Selection: {GetClashSelectionLabel(mode)} не найден в дереве модели", Brushes.Orange);
+                SetGlobalStatusResource(
+                    "Panel_Clash_SelectionNotFound_Format",
+                    Brushes.Orange,
+                    LocalizedStatusArgument(GetClashSelectionLabelResourceKey(mode)));
                 return;
             }
 
@@ -73,11 +77,15 @@ namespace NavisHelper.WPF
             {
                 doc.CurrentSelection.Clear();
                 doc.CurrentSelection.CopyFrom(selection);
-                SetGlobalStatus($"Selection: {GetClashSelectionLabel(mode)} ({selection.Count})", Brushes.DarkGreen);
+                SetGlobalStatusResource(
+                    "Panel_Clash_SelectionCompleted_Format",
+                    Brushes.DarkGreen,
+                    LocalizedStatusArgument(GetClashSelectionLabelResourceKey(mode)),
+                    selection.Count);
             }
             catch (Exception ex)
             {
-                SetGlobalStatus("Selection error: " + ex.Message, Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_SelectionFailed_Format", Brushes.Red, ex.Message);
             }
         }
 
@@ -140,18 +148,18 @@ namespace NavisHelper.WPF
             return null;
         }
 
-        private static string GetClashSelectionLabel(ClashResultSelectionMode mode)
+        private static string GetClashSelectionLabelResourceKey(ClashResultSelectionMode mode)
         {
             switch (mode)
             {
                 case ClashResultSelectionMode.ItemA:
-                    return "объект A";
+                    return "Panel_Clash_SelectionLabel_ItemA";
                 case ClashResultSelectionMode.ItemB:
-                    return "объект B";
+                    return "Panel_Clash_SelectionLabel_ItemB";
                 case ClashResultSelectionMode.Both:
-                    return "объекты A+B";
+                    return "Panel_Clash_SelectionLabel_Both";
                 default:
-                    return "объекты";
+                    return "Panel_Clash_SelectionLabel_Items";
             }
         }
 
@@ -168,7 +176,7 @@ namespace NavisHelper.WPF
             return null;
         }
 
-        /// <summary>Получить цвет из комбо. null = "без подсветки".</summary>
+        /// <summary>Gets the color from the combo; null means no highlight.</summary>
 
         private NwColor GetClashColor(ComboBox combo)
         {
@@ -280,10 +288,12 @@ namespace NavisHelper.WPF
             SaveActiveClashGroupsToCache();
             RefreshClashGridRows();
             UpdateClashGroupingTrees();
-            var label = side == ClashGroupingSide.ItemA
-                ? "A"
-                : side == ClashGroupingSide.ItemB ? "B" : "выключена";
-            SetGlobalStatus($"Группировка: {label}", Brushes.DarkGreen);
+            object label = side == ClashGroupingSide.ItemA
+                ? (object)"A"
+                : side == ClashGroupingSide.ItemB
+                    ? (object)"B"
+                    : LocalizedStatusArgument("Panel_Clash_GroupingDisabled");
+            SetGlobalStatusResource("Panel_Clash_GroupingChanged_Format", Brushes.DarkGreen, label);
         }
 
         private void ResetSelectedClashGrouping()
@@ -296,7 +306,7 @@ namespace NavisHelper.WPF
             }
             if (!row.IsGroup)
             {
-                SetGlobalStatus("Выберите строку-группу для сброса", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_GroupingReset_SelectGroup", Brushes.Orange);
                 return;
             }
             if (!row.VirtualGroupId.HasValue)
@@ -317,7 +327,10 @@ namespace NavisHelper.WPF
             RefreshClashGridRows();
             UpdateClashGroupingTrees();
             _clashContextMenuItem = null;
-            SetGlobalStatus("Группа предпросмотра сброшена: " + (virtualGroup.Label ?? row.GroupName ?? row.Name), Brushes.DarkGreen);
+            SetGlobalStatusResource(
+                "Panel_Clash_GroupingReset_Completed_Format",
+                Brushes.DarkGreen,
+                virtualGroup.Label ?? row.GroupName ?? row.Name);
         }
 
         private void RefreshClashGridRows()
@@ -339,11 +352,65 @@ namespace NavisHelper.WPF
             }
 
             var groupedCount = rows.Count(row => row.IsGroup);
-            var message = groupedCount > 0
-                ? $"Коллизий: {_loadedResults.Count}, групп: {groupedCount}, строк: {rows.Count}"
-                : $"Коллизий: {rows.Count} / {_loadedResults.Count}";
-            SetGlobalStatus(message, Brushes.DarkGreen);
+            if (groupedCount > 0)
+                SetGlobalStatusResource(
+                    "Panel_Clash_GridSummaryGrouped_Format",
+                    Brushes.DarkGreen,
+                    _loadedResults.Count,
+                    groupedCount,
+                    rows.Count);
+            else
+                SetGlobalStatusResource(
+                    "Panel_Clash_GridSummary_Format",
+                    Brushes.DarkGreen,
+                    rows.Count,
+                    _loadedResults.Count);
             UpdateClashGroupingStatusText();
+        }
+
+        private void RefreshClashGridLocalization()
+        {
+            if (_clashGrid?.ItemsSource == null)
+                return;
+
+            foreach (var row in _clashGrid.ItemsSource.OfType<ClashResultGridRow>())
+            {
+                if (!row.IsGroup)
+                    continue;
+
+                var groupName = row.GroupName;
+                if (row.VirtualGroupId.HasValue)
+                {
+                    var group = _virtualClashGroups.FirstOrDefault(item => item.Id == row.VirtualGroupId.Value);
+                    if (group != null && string.IsNullOrWhiteSpace(group.Label))
+                        groupName = GetDefaultClashGroupName(group.Side);
+                }
+                else if (row.GroupItem == null || string.IsNullOrWhiteSpace(row.GroupItem.DisplayName))
+                {
+                    groupName = GetDefaultClashGroupName(row.GroupingSide);
+                }
+
+                row.GroupName = groupName;
+                row.Status = PanelUi("Panel_Clash_GroupAbbreviation");
+                row.Distance = UiLocalizationService.Current.Format(
+                    "Panel_Clash_ResultCountShort_Format",
+                    row.Results?.Count ?? 0);
+                var prefix = row.GroupingSide == ClashGroupingSide.ItemA
+                    ? "A"
+                    : row.GroupingSide == ClashGroupingSide.ItemB ? "B" : string.Empty;
+                row.Name = string.IsNullOrWhiteSpace(prefix)
+                    ? UiLocalizationService.Current.Format(
+                        "Panel_Clash_GroupRowNameWithoutSide_Format",
+                        groupName,
+                        row.Results?.Count ?? 0)
+                    : UiLocalizationService.Current.Format(
+                        "Panel_Clash_GroupRowName_Format",
+                        prefix,
+                        groupName,
+                        row.Results?.Count ?? 0);
+            }
+
+            _clashGrid.Items.Refresh();
         }
 
         private static void ReplaceDataGridItemsSourcePreservingSort(
@@ -502,8 +569,8 @@ namespace NavisHelper.WPF
 
             foreach (var cb in _clashFilterPanel.Children.OfType<CheckBox>())
             {
-                var text = cb.Content as string;
-                if (string.Equals(text, label, StringComparison.OrdinalIgnoreCase))
+                var identity = cb.Tag as string;
+                if (string.Equals(identity, label, StringComparison.OrdinalIgnoreCase))
                     return cb.IsChecked == true;
             }
 
@@ -578,14 +645,20 @@ namespace NavisHelper.WPF
 
         private ClashResultGridRow CreateGroupedClashGridRow(ClashGroupBucket bucket, ClashGroupingSide groupingSide)
         {
-            var groupName = GetDisplayNameOrFallback(bucket.Ancestor, groupingSide == ClashGroupingSide.ItemA ? "Группа A" : "Группа B");
+            var groupName = GetDisplayNameOrFallback(bucket.Ancestor, GetDefaultClashGroupName(groupingSide));
             var prefix = groupingSide == ClashGroupingSide.ItemA ? "A" : "B";
             return new ClashResultGridRow
             {
-                Status = "Гр.",
-                Name = $"{prefix}: {groupName} ({bucket.Results.Count})",
+                Status = PanelUi("Panel_Clash_GroupAbbreviation"),
+                Name = UiLocalizationService.Current.Format(
+                    "Panel_Clash_GroupRowName_Format",
+                    prefix,
+                    groupName,
+                    bucket.Results.Count),
                 GroupName = groupName,
-                Distance = bucket.Results.Count.ToString(CultureInfo.InvariantCulture) + " шт.",
+                Distance = UiLocalizationService.Current.Format(
+                    "Panel_Clash_ResultCountShort_Format",
+                    bucket.Results.Count),
                 ItemA = groupingSide == ClashGroupingSide.ItemA ? groupName : FormatDistinctClashSideNames(bucket.Results, ClashGroupingSide.ItemA),
                 ItemB = groupingSide == ClashGroupingSide.ItemB ? groupName : FormatDistinctClashSideNames(bucket.Results, ClashGroupingSide.ItemB),
                 Result = bucket.Results.FirstOrDefault(),
@@ -599,7 +672,7 @@ namespace NavisHelper.WPF
         private ClashResultGridRow CreateVirtualClashGridRow(VirtualClashGroup group, IList<ClashResult> visibleResults = null)
         {
             var groupName = string.IsNullOrWhiteSpace(group.Label)
-                ? group.Side == ClashGroupingSide.ItemA ? "Группа A" : "Группа B"
+                ? GetDefaultClashGroupName(group.Side)
                 : GetUserClashGroupName(group.Label);
             var prefix = group.Side == ClashGroupingSide.ItemA
                 ? "A"
@@ -614,12 +687,21 @@ namespace NavisHelper.WPF
 
             return new ClashResultGridRow
             {
-                Status = "Гр.",
+                Status = PanelUi("Panel_Clash_GroupAbbreviation"),
                 Name = string.IsNullOrWhiteSpace(prefix)
-                    ? $"{groupName} ({results.Count})"
-                    : $"{prefix}: {groupName} ({results.Count})",
+                    ? UiLocalizationService.Current.Format(
+                        "Panel_Clash_GroupRowNameWithoutSide_Format",
+                        groupName,
+                        results.Count)
+                    : UiLocalizationService.Current.Format(
+                        "Panel_Clash_GroupRowName_Format",
+                        prefix,
+                        groupName,
+                        results.Count),
                 GroupName = groupName,
-                Distance = results.Count.ToString(CultureInfo.InvariantCulture) + " шт.",
+                Distance = UiLocalizationService.Current.Format(
+                    "Panel_Clash_ResultCountShort_Format",
+                    results.Count),
                 ItemA = group.Side == ClashGroupingSide.ItemA ? groupName : FormatDistinctClashSideNames(results, ClashGroupingSide.ItemA),
                 ItemB = group.Side == ClashGroupingSide.ItemB ? groupName : FormatDistinctClashSideNames(results, ClashGroupingSide.ItemB),
                 Result = results.FirstOrDefault(),
@@ -638,6 +720,14 @@ namespace NavisHelper.WPF
                 results.Select(result => side == ClashGroupingSide.ItemA
                     ? GetClashItemName(result.Selection1)
                     : GetClashItemName(result.Selection2)));
+        }
+
+        private static string GetDefaultClashGroupName(ClashGroupingSide side)
+        {
+            return UiLocalizationService.Current.GetString(
+                side == ClashGroupingSide.ItemA
+                    ? "Panel_Clash_DefaultGroupA"
+                    : "Panel_Clash_DefaultGroupB");
         }
 
         private static ModelItem ResolveClashGroupingAncestor(ClashResult result, ClashGroupingSide side, string selectedPath)

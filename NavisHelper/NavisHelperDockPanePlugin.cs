@@ -32,7 +32,9 @@ namespace NavisHelper
         {
             if (pane is ElementHost host)
             {
+                IDisposable child = host.Child as IDisposable;
                 host.Child = null;
+                child?.Dispose();
                 host.Dispose();
             }
 

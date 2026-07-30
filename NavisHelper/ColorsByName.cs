@@ -9,6 +9,7 @@ using System.Windows.Forms;
 using Application = Autodesk.Navisworks.Api.Application;
 using Color = System.Drawing.Color;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 
 
 namespace NavisHelper
@@ -48,7 +49,8 @@ namespace NavisHelper
                 // Лог времени
                 var startTime = DateTime.Now;
 
-                var progress = Autodesk.Navisworks.Api.Application.BeginProgress();
+                var progress = Autodesk.Navisworks.Api.Application.BeginProgress(
+                    UiLocalizationService.Current.GetString("ColorsByNameProgressCaption"));
                 try
                 {
                     for (int i = 0; i < lines.Count; i++)
@@ -110,11 +112,16 @@ namespace NavisHelper
         {
             if (parameters == null || parameters.Length == 0 || !File.Exists(parameters[0]))
             {
-                var openFileDialog = new OpenFileDialog() { Filter = "Текстовый файл|*.txt|Все файлы|*.*", RestoreDirectory = true };
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                    return openFileDialog.FileName;
-                else
-                    return null;
+                using (var openFileDialog = new OpenFileDialog
+                {
+                    Filter = UiLocalizationService.Current.GetString("CommonFileFilterTextAll"),
+                    RestoreDirectory = true
+                })
+                {
+                    return openFileDialog.ShowDialog() == DialogResult.OK
+                        ? openFileDialog.FileName
+                        : null;
+                }
             }
             else
             {

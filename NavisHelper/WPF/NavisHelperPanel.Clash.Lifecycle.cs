@@ -33,6 +33,8 @@ using WpfColor = System.Windows.Media.Color;
 using NwApplication = Autodesk.Navisworks.Api.Application;
 using NwColor = Autodesk.Navisworks.Api.Color;
 
+using NavisHelper.Core.Localization;
+
 namespace NavisHelper.WPF
 {
     public partial class NavisHelperPanel : UserControl
@@ -100,6 +102,8 @@ namespace NavisHelper.WPF
         {
             // Clear managed references first. Native wrappers from the outgoing
             // document may already be disposed when ActiveDocumentChanged fires.
+            _clashGroupContentsRowObject = null;
+            _clashGroupContentsResults = null;
             _pendingClashDataRefreshReason = null;
             _localClashMutationRefreshPending = false;
             _clashContextMenuItem = null;
@@ -162,12 +166,12 @@ namespace NavisHelper.WPF
             }
 
             if (_clashGroupContentsStatus != null)
-                _clashGroupContentsStatus.Text = "Выберите коллизию или группу";
+                _clashGroupContentsStatus.Text = PanelUi("Panel_Clash_SelectResultOrGroup");
             if (_clashGroupingStatus != null)
-                _clashGroupingStatus.Text = "Группировка: нет";
+                _clashGroupingStatus.Text = PanelUi("Panel_Clash_GroupingNone");
             try { SetClashGroupPanelVisible(false, save: false); } catch { }
             try { if (_clashSettingsToggle != null) _clashSettingsToggle.IsChecked = false; } catch { }
-            try { SetGlobalStatus("Документ изменён — данные коллизий сброшены", Brushes.Gray); } catch { }
+            try { SetGlobalStatusResource("Panel_Clash_DocumentChanged", Brushes.Gray); } catch { }
         }
 
         private void BeginInvokeForCurrentClashDocument(Action action, DispatcherPriority priority)
@@ -263,25 +267,34 @@ namespace NavisHelper.WPF
                 var clash = clashes.FirstOrDefault();
                 if (clash == null)
                 {
-                    MessageBox.Show("Выберите коллизию или группу.", "Assigned To");
+                    MessageBox.Show(
+                        PanelUi("Panel_Clash_SelectResultOrGroup"),
+                        PanelUi("Panel_Clash_AssignedTo_Title"));
                     return;
                 }
 
                 var currentValue = TryGetClashAssignedTo(clash);
-                var nextValue = Interaction.InputBox("Ответственный за выбранные коллизии:", "Assigned To", currentValue ?? string.Empty);
+                var nextValue = Interaction.InputBox(
+                    PanelUi("Panel_Clash_AssignedTo_Prompt"),
+                    PanelUi("Panel_Clash_AssignedTo_Title"),
+                    currentValue ?? string.Empty);
                 if (string.IsNullOrWhiteSpace(nextValue)) return;
                 nextValue = nextValue.Trim();
                 var doc = NwApplication.ActiveDocument;
                 var testsData = doc == null ? null : doc.GetClash()?.TestsData;
                 if (testsData == null)
-                    throw new InvalidOperationException("Clash Detective недоступен");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_EngineUnavailable"));
                 ClashWorkflowService.ApplyMetadata(testsData, clashes, nextValue, string.Empty);
                 LoadClashTests();
-                SetGlobalStatus($"Assigned To: {nextValue} ({clashes.Count})", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Clash_AssignedTo_Saved_Format", Brushes.DarkGreen, nextValue, clashes.Count);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Assigned To", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
+                    PanelUi("Panel_Clash_AssignedTo_Title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
         }
 
@@ -303,26 +316,26 @@ namespace NavisHelper.WPF
             var doc = NwApplication.ActiveDocument;
             var testsData = doc == null ? null : doc.GetClash()?.TestsData;
             if (testsData == null)
-                throw new InvalidOperationException("Clash Detective недоступен");
+                throw new InvalidOperationException(PanelUi("Panel_Clash_EngineUnavailable"));
 
             var results = testScope
                 ? GetSelectedClashTests().SelectMany(test => ClashWorkflowService.EnumerateResults(test)).Distinct().ToList()
                 : GetSelectedClashResults();
             if (results.Count == 0)
             {
-                SetGlobalStatus("Нет выбранных коллизий", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_NoSelectedResults", Brushes.Orange);
                 return;
             }
             if (results.Count > 500 && MessageBox.Show(
-                $"Изменить статус {results.Count} коллизий на {status}?",
-                "Массовое изменение статуса",
+                UiLocalizationService.Current.Format("Panel_Clash_BulkStatus_Message_Format", results.Count, status),
+                PanelUi("Panel_Clash_BulkStatus_Title"),
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning) != MessageBoxResult.Yes)
                 return;
 
             ClashWorkflowService.ApplyResultUpdates(testsData, results, status, string.Empty, string.Empty);
             LoadClashTests();
-            SetGlobalStatus($"Статус {status}: {results.Count}", Brushes.DarkGreen);
+            SetGlobalStatusResource("Panel_Clash_StatusUpdated_Format", Brushes.DarkGreen, status, results.Count);
         }
 
         private void AddClashCommentPrompt()
@@ -330,25 +343,28 @@ namespace NavisHelper.WPF
             var results = GetSelectedClashResults();
             if (results.Count == 0)
             {
-                SetGlobalStatus("Выберите коллизии для комментария", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_SelectResultsForComment", Brushes.Orange);
                 return;
             }
-            var comment = Interaction.InputBox("Комментарий для выбранных коллизий:", "Добавить комментарий", string.Empty);
+            var comment = Interaction.InputBox(
+                PanelUi("Panel_Clash_Comment_Prompt"),
+                PanelUi("Panel_Clash_Comment_Title"),
+                string.Empty);
             if (string.IsNullOrWhiteSpace(comment))
                 return;
             var doc = NwApplication.ActiveDocument;
             var testsData = doc == null ? null : doc.GetClash()?.TestsData;
             if (testsData == null)
-                throw new InvalidOperationException("Clash Detective недоступен");
+                throw new InvalidOperationException(PanelUi("Panel_Clash_EngineUnavailable"));
             ClashWorkflowService.ApplyMetadata(testsData, results, string.Empty, comment.Trim());
-            SetGlobalStatus($"Комментарий добавлен: {results.Count}", Brushes.DarkGreen);
+            SetGlobalStatusResource("Panel_Clash_CommentAdded_Format", Brushes.DarkGreen, results.Count);
         }
 
         private void GroupSelectedClashResultsPrompt()
         {
             if (_localClashMutationRefreshPending)
             {
-                SetGlobalStatus("Дождитесь завершения обновления Clash UI", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_WaitForRefresh", Brushes.Orange);
                 return;
             }
             if (RejectClashInteractiveBusy("Group selected Clash results"))
@@ -358,33 +374,36 @@ namespace NavisHelper.WPF
             var results = GetSelectedClashResults();
             if (tests.Count != 1 || results.Count == 0)
             {
-                SetGlobalStatus("Выберите один Clash Test и коллизии", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_SelectOneTestAndResults", Brushes.Orange);
                 return;
             }
-            var name = Interaction.InputBox("Имя новой группы:", "Сгруппировать выделенные", "Группа");
+            var name = Interaction.InputBox(
+                PanelUi("Panel_Clash_GroupSelected_Prompt"),
+                PanelUi("Panel_Clash_GroupSelected_Title"),
+                PersistedModelNames.ClashGroupDefault);
             if (string.IsNullOrWhiteSpace(name))
                 return;
             var doc = NwApplication.ActiveDocument;
             var testsData = doc == null ? null : doc.GetClash()?.TestsData;
             if (testsData == null)
-                throw new InvalidOperationException("Clash Detective недоступен");
+                throw new InvalidOperationException(PanelUi("Panel_Clash_EngineUnavailable"));
             var existing = ClashGroupMutationService.FindGroup(tests[0], name.Trim());
             if (existing != null && MessageBox.Show(
-                "Группа уже существует. Пересобрать её из выделенных коллизий?",
-                "Сгруппировать выделенные",
+                PanelUi("Panel_Clash_GroupSelected_Existing_Message"),
+                PanelUi("Panel_Clash_GroupSelected_Title"),
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning) != MessageBoxResult.Yes)
                 return;
 
             var selectedTests = CaptureSelectedClashTestSelections();
             if (selectedTests.Count != 1)
-                throw new InvalidOperationException("Выбранный Clash Test изменился перед группировкой.");
+                throw new InvalidOperationException(PanelUi("Panel_Clash_GroupSelected_TestChanged"));
             var selectedTestRow = _testGrid?.SelectedItem as ClashTestRow;
             if (selectedTestRow == null || selectedTestRow.TestIndex != selectedTests[0].TestIndex ||
                 !string.Equals(selectedTestRow.Name ?? string.Empty, selectedTests[0].Name ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
                 !object.ReferenceEquals(selectedTestRow.Test, tests[0]))
             {
-                throw new InvalidOperationException("Выбранный Clash Test изменился перед группировкой.");
+                throw new InvalidOperationException(PanelUi("Panel_Clash_GroupSelected_TestChanged"));
             }
 
             var previousCursor = Mouse.OverrideCursor;
@@ -394,7 +413,8 @@ namespace NavisHelper.WPF
             {
                 Mouse.OverrideCursor = Cursors.Wait;
                 SetClashInteractiveControlsEnabled(false);
-                SetGlobalBusy(true, "Группировка выбранных коллизий");
+                SetGlobalStatusResource("Panel_Clash_GroupSelected_Busy", Brushes.Orange);
+                SetGlobalBusy(true);
                 PumpDispatcherOnce();
 
                 var currentTestSelection = CaptureSelectedClashTestSelections();
@@ -408,7 +428,7 @@ namespace NavisHelper.WPF
                     currentResults.Count != results.Count ||
                     results.Any(result => !currentResults.Any(current => object.ReferenceEquals(current, result))))
                 {
-                    throw new InvalidOperationException("Выбор Clash Test или коллизий изменился перед группировкой.");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_GroupSelected_SelectionChanged"));
                 }
 
                 if (!BeginLocalClashMutationRefresh())
@@ -421,7 +441,11 @@ namespace NavisHelper.WPF
                     ClashGroupMutationService.RebuildGroup(testsData, tests[0], group, results);
                     var groupedCount = EnumerateClashResults(group.Children).Count();
                     if (groupedCount != results.Count)
-                        throw new InvalidOperationException($"Группа содержит {groupedCount} из {results.Count} выбранных коллизий.");
+                        throw new InvalidOperationException(
+                            UiLocalizationService.Current.Format(
+                                "Panel_Clash_GroupSelected_CountMismatch_Format",
+                                groupedCount,
+                                results.Count));
                     transaction.Commit();
                 }
             }
@@ -430,8 +454,12 @@ namespace NavisHelper.WPF
                 if (ownsLocalRefresh && _localClashMutationRefreshPending)
                     CancelLocalClashMutationRefresh();
                 Logger.Error("Failed to group selected Clash results: " + ex, "ClashUI");
-                SetGlobalStatus("Группа не создана: " + ex.Message, Brushes.Red);
-                MessageBox.Show("Группа не создана: " + ex.Message, "Сгруппировать выделенные", MessageBoxButton.OK, MessageBoxImage.Error);
+                SetGlobalStatusResource("Panel_Clash_GroupSelected_Failed_Format", Brushes.Red, ex.Message);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format("Panel_Clash_GroupSelected_Failed_Format", ex.Message),
+                    PanelUi("Panel_Clash_GroupSelected_Title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
                 return;
             }
             finally
@@ -445,7 +473,9 @@ namespace NavisHelper.WPF
 
             ScheduleLocalClashMutationRefresh(
                 selectedTests,
-                $"Создана группа: {name.Trim()}, коллизий: {results.Count}");
+                "Panel_Clash_GroupSelected_Created_Format",
+                name.Trim(),
+                results.Count);
         }
 
         private void UngroupSelectedClashGroup()
@@ -457,7 +487,7 @@ namespace NavisHelper.WPF
         {
             if (_localClashMutationRefreshPending)
             {
-                SetGlobalStatus("Дождитесь завершения обновления Clash UI", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_WaitForRefresh", Brushes.Orange);
                 return;
             }
             if (RejectClashInteractiveBusy("Ungroup selected Clash groups"))
@@ -480,22 +510,21 @@ namespace NavisHelper.WPF
 
             if (tests.Count != 1 || selectedRows.Count == 0)
             {
-                SetGlobalStatus("Выберите группы в одном Clash Test", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_SelectGroupsInOneTest", Brushes.Orange);
                 return;
             }
 
             if (selectedRows.Any(row => row == null || !row.IsGroup))
             {
-                const string message = "Разгруппировка отменена: выделение должно содержать только группы.";
-                SetGlobalStatus(message, Brushes.Orange);
-                MessageBox.Show(message, "Разгруппировать", MessageBoxButton.OK, MessageBoxImage.Information);
+                var message = PanelUi("Panel_Clash_Ungroup_GroupsOnly");
+                SetGlobalStatusResource("Panel_Clash_Ungroup_GroupsOnly", Brushes.Orange);
+                MessageBox.Show(message, PanelUi("Panel_Clash_Ungroup_Title"), MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             if (selectedRows.Any(row => ResolvePersistentClashGroup(row) == null))
             {
-                const string message = "Разгруппировка доступна только для сохранённых Clash-групп, а не для группировки предпросмотра.";
-                SetGlobalStatus(message, Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_Ungroup_PersistedOnly", Brushes.Orange);
                 return;
             }
 
@@ -510,24 +539,25 @@ namespace NavisHelper.WPF
             {
                 Mouse.OverrideCursor = Cursors.Wait;
                 SetClashInteractiveControlsEnabled(false);
-                SetGlobalBusy(true, $"Разгруппировка: {selectedRows.Count}");
+                SetGlobalStatusResource("Panel_Clash_Ungroup_Busy_Format", Brushes.Orange, selectedRows.Count);
+                SetGlobalBusy(true);
                 PumpDispatcherOnce();
 
                 var doc = NwApplication.ActiveDocument;
                 var testsData = doc == null ? null : doc.GetClash()?.TestsData;
                 if (testsData == null)
-                    throw new InvalidOperationException("Clash Detective недоступен");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_EngineUnavailable"));
 
                 selectedTests = CaptureSelectedClashTestSelections();
                 if (selectedTests.Count != 1)
-                    throw new InvalidOperationException("Выбранный Clash Test изменился перед разгруппировкой.");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_Ungroup_TestChanged"));
                 var testSelection = selectedTests[0];
                 var selectedTestRow = _testGrid?.SelectedItem as ClashTestRow;
                 if (selectedTestRow == null || selectedTestRow.TestIndex != testSelection.TestIndex ||
                     !string.Equals(selectedTestRow.Name ?? string.Empty, testSelection.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
                     !object.ReferenceEquals(selectedTestRow.Test, tests[0]))
                 {
-                    throw new InvalidOperationException("Выбранный Clash Test изменился перед разгруппировкой.");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_Ungroup_TestChanged"));
                 }
 
                 targets = BuildClashUngroupTargets(tests[0], selectedRows);
@@ -544,12 +574,12 @@ namespace NavisHelper.WPF
                         var target = targets.First(value => string.Equals(value.Candidate.GroupKey, item.GroupKey, StringComparison.Ordinal));
                         var movedForGroup = ClashGroupMutationService.UngroupGroup(testsData, tests[0], target.Group);
                         if (movedForGroup != item.ResultCount)
-                            throw new InvalidOperationException("Количество освобождённых коллизий не совпало с планом разгруппировки.");
+                            throw new InvalidOperationException(PanelUi("Panel_Clash_Ungroup_CountMismatch"));
                         moved += movedForGroup;
                         Autodesk.Navisworks.Api.GroupItem ignoredParent;
                         int ignoredIndex;
                         if (TryFindSavedItemLocation(tests[0], target.Group, out ignoredParent, out ignoredIndex))
-                            throw new InvalidOperationException("Не удалось полностью расформировать группу.");
+                            throw new InvalidOperationException(PanelUi("Panel_Clash_Ungroup_Incomplete"));
                     }
 
                     transaction.Commit();
@@ -560,8 +590,12 @@ namespace NavisHelper.WPF
                 if (ownsLocalRefresh && _localClashMutationRefreshPending)
                     CancelLocalClashMutationRefresh();
                 Logger.Error("Failed to ungroup selected Clash groups: " + ex, "ClashUI");
-                SetGlobalStatus("Группы не расформированы: " + ex.Message, Brushes.Red);
-                MessageBox.Show("Группы не расформированы: " + ex.Message, "Разгруппировать", MessageBoxButton.OK, MessageBoxImage.Error);
+                SetGlobalStatusResource("Panel_Clash_Ungroup_Failed_Format", Brushes.Red, ex.Message);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format("Panel_Clash_Ungroup_Failed_Format", ex.Message),
+                    PanelUi("Panel_Clash_Ungroup_Title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
                 return;
             }
             finally
@@ -584,14 +618,16 @@ namespace NavisHelper.WPF
 
             ScheduleLocalClashMutationRefresh(
                 selectedTests,
-                $"Расформировано групп: {plan.Groups.Count}, освобождено коллизий: {moved}");
+                "Panel_Clash_Ungroup_Completed_Format",
+                plan.Groups.Count,
+                moved);
         }
 
         private bool BeginLocalClashMutationRefresh()
         {
             if (_localClashMutationRefreshPending)
             {
-                SetGlobalStatus("Дождитесь завершения обновления Clash UI", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_WaitForRefresh", Brushes.Orange);
                 return false;
             }
 
@@ -610,7 +646,8 @@ namespace NavisHelper.WPF
 
         private void ScheduleLocalClashMutationRefresh(
             ICollection<ClashTestSelection> selectedTests,
-            string successMessage)
+            string successResourceKey,
+            params object[] successArguments)
         {
             var scheduledDocumentGeneration = _clashDocumentGeneration;
             try
@@ -626,13 +663,13 @@ namespace NavisHelper.WPF
                         RestoreClashTestSelectionByIdentity(selectedTests);
                         OnClashTestSelected();
                         _clashContextMenuItem = null;
-                        SetGlobalStatus(successMessage, Brushes.DarkGreen);
+                        SetGlobalStatusResource(successResourceKey, Brushes.DarkGreen, successArguments);
                     }
                     catch (Exception ex)
                     {
                         AttachCurrentClashTestsDataChanged();
                         Logger.Error("Clash mutation committed but UI refresh failed: " + ex, "ClashUI");
-                        SetGlobalStatus("Операция выполнена, но Clash UI не обновлён: " + ex.Message, Brushes.Red);
+                        SetGlobalStatusResource("Panel_Clash_RefreshFailedAfterMutation_Format", Brushes.Red, ex.Message);
                     }
                     finally
                     {
@@ -650,7 +687,7 @@ namespace NavisHelper.WPF
             {
                 CancelLocalClashMutationRefresh();
                 Logger.Error("Failed to schedule Clash UI refresh after committed mutation: " + ex, "ClashUI");
-                SetGlobalStatus("Операция выполнена, но обновление Clash UI не запланировано: " + ex.Message, Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_RefreshScheduleFailed_Format", Brushes.Red, ex.Message);
             }
         }
 
@@ -666,12 +703,12 @@ namespace NavisHelper.WPF
                 var group = ResolvePersistentClashGroup(row);
 
                 if (group == null)
-                    throw new InvalidOperationException("Одна из выбранных строк не связана с сохранённой ClashResultGroup.");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_Ungroup_RowNotPersisted"));
 
                 Autodesk.Navisworks.Api.GroupItem parent;
                 int index;
                 if (!TryFindSavedItemLocation(selectedTest, group, out parent, out index))
-                    throw new InvalidOperationException("Одна из выбранных групп не принадлежит выбранному Clash Test.");
+                    throw new InvalidOperationException(PanelUi("Panel_Clash_Ungroup_GroupOutsideTest"));
 
                 var groupGuid = TryGetSavedItemGuid(group);
                 var existing = targets.FirstOrDefault(target =>
@@ -768,14 +805,14 @@ namespace NavisHelper.WPF
             {
                 if (_clashMgr.LastClashCenter == null)
                 {
-                    SetGlobalStatus("Сначала покажите коллизию", Brushes.Orange);
+                    SetGlobalStatusResource("Panel_Clash_Marker_ShowResultFirst", Brushes.Orange);
                     return;
                 }
 
                 if (ClashMarkerTool.IsActive)
                 {
                     ClashMarkerTool.Hide();
-                    SetGlobalStatus("Маркер скрыт", Brushes.Gray);
+                    SetGlobalStatusResource("Panel_Clash_Marker_Hidden", Brushes.Gray);
                     return;
                 }
 
@@ -792,15 +829,25 @@ namespace NavisHelper.WPF
                 ClashMarkerTool.Show(_clashMgr.LastClashCenter, radius);
                 if (ClashMarkerTool.LastError != null)
                 {
-                    SetGlobalStatus($"Маркер ошибка: {ClashMarkerTool.LastError}", Brushes.Red);
+                    SetGlobalStatusResource("Panel_Clash_Marker_Error_Format", Brushes.Red, ClashMarkerTool.LastError);
                     return;
                 }
 
-                SetGlobalStatus($"Маркер ON: {_clashMgr.LastClashCenter.X:F3}, {_clashMgr.LastClashCenter.Y:F3}, {_clashMgr.LastClashCenter.Z:F3} | r={radius}", Brushes.DarkGreen);
+                SetGlobalStatusResource(
+                    "Panel_Clash_Marker_Enabled_Format",
+                    Brushes.DarkGreen,
+                    _clashMgr.LastClashCenter.X,
+                    _clashMgr.LastClashCenter.Y,
+                    _clashMgr.LastClashCenter.Z,
+                    radius);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Clash marker", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
+                    PanelUi("Panel_Clash_Marker_Title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
         }
 
@@ -811,7 +858,7 @@ namespace NavisHelper.WPF
                 if (SelectionPlaneTool.IsActive)
                 {
                     SelectionPlaneTool.Hide();
-                    SetGlobalStatus("Плоскость скрыта", Brushes.Gray);
+                    SetGlobalStatusResource("Panel_Clash_Plane_Hidden", Brushes.Gray);
                     return;
                 }
 
@@ -820,15 +867,19 @@ namespace NavisHelper.WPF
 
                 if (!SelectionPlaneTool.ShowFromCurrentSelection())
                 {
-                    SetGlobalStatus($"Плоскость ошибка: {SelectionPlaneTool.LastError}", Brushes.Red);
+                    SetGlobalStatusResource("Panel_Clash_Plane_Error_Format", Brushes.Red, SelectionPlaneTool.LastError);
                     return;
                 }
 
-                SetGlobalStatus(SelectionPlaneTool.PlaneInfo, Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Clash_Plane_Enabled_Format", Brushes.DarkGreen, SelectionPlaneTool.PlaneInfo);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Plane", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
+                    PanelUi("Panel_Clash_Plane_Title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
         }
     }

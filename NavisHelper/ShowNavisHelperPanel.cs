@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using Autodesk.Navisworks.Api.Plugins;
+using NavisHelper.Core.Localization;
 
 namespace NavisHelper
 {
@@ -10,6 +11,7 @@ namespace NavisHelper
     public class ShowNavisHelperPanel : AddInPlugin
     {
         private static Form _panelForm;
+        private static UiLocalizationBindingRegistry _localizationBindings;
 
         public override int Execute(params string[] parameters)
         {
@@ -30,6 +32,10 @@ namespace NavisHelper
                 ShowInTaskbar = false,
                 Font = new Font("Segoe UI", 9f)
             };
+            _localizationBindings = new UiLocalizationBindingRegistry();
+            _panelForm.FormClosed += OnPanelFormClosed;
+            _panelForm.Disposed += OnPanelFormDisposed;
+            SubscribeToLanguageChanges();
 
             var panel = new FlowLayoutPanel
             {
@@ -41,67 +47,67 @@ namespace NavisHelper
             };
 
             // === Инструменты ===
-            panel.Controls.Add(CreateGroupLabel("Инструменты"));
-            panel.Controls.Add(CreateButton("Colors By Name", "ColorsByName.CBC"));
-            panel.Controls.Add(CreateButton("Override PDMS Colors", "HideItems.CBC"));
-            panel.Controls.Add(CreateButton("Пометить выделенное", "MarkupViewpoint.CBC"));
-            panel.Controls.Add(CreateButton("Метки высот Z", "ShortestDistanceMarker.CBC"));
-            panel.Controls.Add(CreateButton("Вид сверху + сечение", "TopViewSection.CBC"));
-            panel.Controls.Add(CreateButton("Габаритный прям.", "TopViewBoundingRect.CBC"));
-            panel.Controls.Add(CreateButton("Заштриховать габарит", "TopViewBoundingHatch.CBC"));
-            panel.Controls.Add(CreateGroupLabel("Маркеры выделения"));
-            panel.Controls.Add(CreateButton("Точки центров", "SelectionCenterDotMarker.CBC"));
-            panel.Controls.Add(CreateButton("Маркер центров", "SelectionHatchMarker.CBC"));
-            panel.Controls.Add(CreateButton("Маркер габаритов", "SelectionHatchBoundsMarker.CBC"));
-            panel.Controls.Add(CreateButton("Копировать имена", "CopySelectedNames.CBC"));
+            panel.Controls.Add(CreateGroupLabel("PanelGroupTools"));
+            panel.Controls.Add(CreateButton("PanelButtonColorsByName", "ColorsByName.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonOverridePdmsColors", "HideItems.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonMarkupSelection", "MarkupViewpoint.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonHeightMarks", "ShortestDistanceMarker.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonTopSection", "TopViewSection.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonBoundingRect", "TopViewBoundingRect.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonBoundingHatch", "TopViewBoundingHatch.CBC"));
+            panel.Controls.Add(CreateGroupLabel("PanelGroupSelectionMarkers"));
+            panel.Controls.Add(CreateButton("PanelButtonCenterPoints", "SelectionCenterDotMarker.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonCenterMarker", "SelectionHatchMarker.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonBoundsMarker", "SelectionHatchBoundsMarker.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonCopyNames", "CopySelectedNames.CBC"));
 
             panel.Controls.Add(CreateSeparator());
 
             // === Перенос цветов ===
-            panel.Controls.Add(CreateGroupLabel("Перенос цветов"));
-            panel.Controls.Add(CreateButton("Выгрузить цвета", "ExportColors.CBC"));
-            panel.Controls.Add(CreateButton("Загрузить цвета", "ImportColors.CBC"));
+            panel.Controls.Add(CreateGroupLabel("PanelGroupColorTransfer"));
+            panel.Controls.Add(CreateButton("PanelButtonExportColors", "ExportColors.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonImportColors", "ImportColors.CBC"));
 
             panel.Controls.Add(CreateSeparator());
 
             // === AI Цвета ===
-            panel.Controls.Add(CreateGroupLabel("AI Цвета"));
-            panel.Controls.Add(CreateButton("AI Окраска", "AIColorObjects.CBC"));
-            panel.Controls.Add(CreateButton("Цветовая схема", "AIColorSchemeSelector.CBC"));
+            panel.Controls.Add(CreateGroupLabel("PanelGroupAiColors"));
+            panel.Controls.Add(CreateButton("PanelButtonAiColoring", "AIColorObjects.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonColorScheme", "AIColorSchemeSelector.CBC"));
 
             panel.Controls.Add(CreateSeparator());
 
             // === Фильтрация ===
-            panel.Controls.Add(CreateGroupLabel("Фильтрация"));
-            panel.Controls.Add(CreateButton("Фильтр по списку из файла", "FilterModels.COMPANY"));
+            panel.Controls.Add(CreateGroupLabel("PanelGroupFiltering"));
+            panel.Controls.Add(CreateButton("PanelButtonFilterList", "FilterModels.COMPANY"));
 
             panel.Controls.Add(CreateSeparator());
 
             // === Импорт / Экспорт ===
-            panel.Controls.Add(CreateGroupLabel("Импорт / Экспорт"));
-            panel.Controls.Add(CreateButton("Загрузка атрибутов из CSV", "CsvAttributeLoader.CSVL"));
-            panel.Controls.Add(CreateButton("Импорт PS-листов", "ImportPslists.CBC"));
-            panel.Controls.Add(CreateButton("Сохранить иерархию", "SaveHierarhy.COMPANY"));
-            panel.Controls.Add(CreateButton("Сохранить точки обзора", "SaveViewpiontList.COMPANY"));
-            panel.Controls.Add(CreateButton("Сохранить как NWC 2018", "SaveAsNavis2018.MS"));
+            panel.Controls.Add(CreateGroupLabel("PanelGroupImportExport"));
+            panel.Controls.Add(CreateButton("PanelButtonLoadCsv", "CsvAttributeLoader.CSVL"));
+            panel.Controls.Add(CreateButton("PanelButtonImportPsLists", "ImportPslists.CBC"));
+            panel.Controls.Add(CreateButton("PanelButtonSaveHierarchy", "SaveHierarhy.COMPANY"));
+            panel.Controls.Add(CreateButton("PanelButtonSaveViewpoints", "SaveViewpiontList.COMPANY"));
+            panel.Controls.Add(CreateButton("PanelButtonSaveNwc2018", "SaveAsNavis2018.MS"));
 
             panel.Controls.Add(CreateSeparator());
 
             // === Точки обзора ===
-            panel.Controls.Add(CreateGroupLabel("Точки обзора"));
-            panel.Controls.Add(CreateButton("Сортировка точек обзора", "SortViewpoints.COMPANY"));
+            panel.Controls.Add(CreateGroupLabel("PanelGroupViewpoints"));
+            panel.Controls.Add(CreateButton("PanelButtonSortViewpoints", "SortViewpoints.COMPANY"));
 
             panel.Controls.Add(CreateSeparator());
 
             // === Коллизии ===
-            panel.Controls.Add(CreateGroupLabel("Коллизии"));
-            panel.Controls.Add(CreateButton("Проверка всех коллизий", "RunSaveClashReport.MS"));
+            panel.Controls.Add(CreateGroupLabel("PanelGroupClashes"));
+            panel.Controls.Add(CreateButton("PanelButtonRunClashes", "RunSaveClashReport.MS"));
 
             panel.Controls.Add(CreateSeparator());
 
             // === Справка ===
-            panel.Controls.Add(CreateGroupLabel("Справка"));
-            panel.Controls.Add(CreateButton("О программе", "AboutNavisHelper.CBC"));
+            panel.Controls.Add(CreateGroupLabel("PanelGroupHelp"));
+            panel.Controls.Add(CreateButton("PanelButtonAbout", "AboutNavisHelper.CBC"));
 
             _panelForm.Controls.Add(panel);
             _panelForm.Show();
@@ -110,23 +116,81 @@ namespace NavisHelper
             return 0;
         }
 
-        private Label CreateGroupLabel(string text)
+        private Label CreateGroupLabel(string resourceKey)
         {
-            return new Label
+            var label = new Label
             {
-                Text = text,
                 Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0x33, 0x33, 0x33),
                 AutoSize = true,
                 Margin = new Padding(0, 6, 0, 4)
             };
+            BindControlText(label, resourceKey);
+            return label;
         }
 
-        private Button CreateButton(string text, string pluginId)
+        private static string Text(string resourceKey)
+        {
+            return UiLocalizationService.Current.GetString(resourceKey);
+        }
+
+        private static void SubscribeToLanguageChanges()
+        {
+            UiLocalizationService.Current.LanguageChanged += OnLanguageChanged;
+        }
+
+        private static void OnLanguageChanged(object sender, EventArgs e)
+        {
+            Form form = _panelForm;
+            UiLocalizationBindingRegistry bindings = _localizationBindings;
+            if (form == null || form.IsDisposed || bindings == null)
+                return;
+
+            Action update = bindings.Refresh;
+
+            if (form.InvokeRequired)
+                form.BeginInvoke(update);
+            else
+                update();
+        }
+
+        private static void OnPanelFormClosed(object sender, FormClosedEventArgs e)
+        {
+            ReleasePanelLocalization(sender as Form);
+        }
+
+        private static void OnPanelFormDisposed(object sender, EventArgs e)
+        {
+            ReleasePanelLocalization(sender as Form);
+        }
+
+        private static void ReleasePanelLocalization(Form form)
+        {
+            if (form == null || !ReferenceEquals(_panelForm, form))
+                return;
+
+            UiLocalizationService.Current.LanguageChanged -= OnLanguageChanged;
+            _localizationBindings?.Dispose();
+            _localizationBindings = null;
+            _panelForm = null;
+        }
+
+        private static void BindControlText(Control control, string resourceKey)
+        {
+            UiLocalizationBindingRegistry bindings = _localizationBindings;
+            if (bindings == null)
+                throw new InvalidOperationException("Panel localization registry is unavailable.");
+
+            bindings.Register(
+                control,
+                "Text",
+                () => control.Text = Text(resourceKey));
+        }
+
+        private Button CreateButton(string resourceKey, string pluginId)
         {
             var btn = new Button
             {
-                Text = text,
                 Tag = pluginId,
                 Width = 250,
                 Height = 32,
@@ -137,6 +201,7 @@ namespace NavisHelper
                 Cursor = Cursors.Hand,
                 BackColor = Color.White
             };
+            BindControlText(btn, resourceKey);
             btn.FlatAppearance.BorderColor = Color.FromArgb(0xCC, 0xCC, 0xCC);
             btn.Click += OnButtonClick;
             return btn;
@@ -173,7 +238,7 @@ namespace NavisHelper
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    "Ошибка: " + ex.Message,
+                    UiLocalizationService.Current.Format("CommonErrorMessageFormat", ex.Message),
                     "NavisHelper",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);

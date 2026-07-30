@@ -11,6 +11,7 @@ using Autodesk.Navisworks.Api.Plugins;
 using Application = Autodesk.Navisworks.Api.Application;
 using Color = Autodesk.Navisworks.Api.Color;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 
 namespace NavisHelper
 {
@@ -36,7 +37,7 @@ namespace NavisHelper
             {
                 var label = new Label
                 {
-                    Text = "Путь к папке (можно вставить Ctrl+V):",
+                    Text = UiLocalizationService.Current.GetString("FolderPickerPathLabel"),
                     Dock = DockStyle.Top,
                     Height = 22,
                     Padding = new Padding(8, 4, 0, 0),
@@ -61,9 +62,23 @@ namespace NavisHelper
                     Padding = new Padding(8, 4, 8, 4)
                 };
 
-                var btnOk = new Button { Text = "OK", Width = 80, DialogResult = DialogResult.OK };
-                var btnCancel = new Button { Text = "Отмена", Width = 80, DialogResult = DialogResult.Cancel };
-                var btnBrowse = new Button { Text = "Обзор...", Width = 80 };
+                var btnOk = new Button
+                {
+                    Text = UiLocalizationService.Current.GetString("CommonOk"),
+                    Width = 80,
+                    DialogResult = DialogResult.OK
+                };
+                var btnCancel = new Button
+                {
+                    Text = UiLocalizationService.Current.GetString("CommonCancel"),
+                    Width = 80,
+                    DialogResult = DialogResult.Cancel
+                };
+                var btnBrowse = new Button
+                {
+                    Text = UiLocalizationService.Current.GetString("CommonBrowse"),
+                    Width = 80
+                };
 
                 btnBrowse.Click += (s, e) =>
                 {
@@ -96,7 +111,9 @@ namespace NavisHelper
 
                     // Если папки нет — предложим создать
                     var create = MessageBox.Show(
-                        "Папка не существует. Создать?\n" + path,
+                        UiLocalizationService.Current.Format(
+                            "FolderPickerMissingPromptFormat",
+                            path),
                         title, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                     if (create == DialogResult.Yes)
                     {
@@ -131,13 +148,17 @@ namespace NavisHelper
 
                 if (selection.Count == 0)
                 {
-                    MessageBox.Show("Выделите объекты в дереве модели.",
-                        "Выгрузить цвета", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(
+                        UiLocalizationService.Current.GetString("ExportColorsSelectObjects"),
+                        UiLocalizationService.Current.GetString("ExportColorsTitle"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
                     return 0;
                 }
 
                 // Выбор папки через форму с текстовым полем
-                string folder = FolderPicker.Show("Выберите папку для сохранения файлов цветов");
+                string folder = FolderPicker.Show(
+                    UiLocalizationService.Current.GetString("ExportColorsChooseFolder"));
                 if (folder == null) return 0;
 
                 // Спросить про перезапись
@@ -146,9 +167,10 @@ namespace NavisHelper
                 if (existingFiles.Length > 0)
                 {
                     var answer = MessageBox.Show(
-                        string.Format("В папке уже есть {0} .txt файлов.\n\nПерезаписывать существующие файлы?",
+                        UiLocalizationService.Current.Format(
+                            "ExportColorsOverwritePromptFormat",
                             existingFiles.Length),
-                        "Выгрузить цвета",
+                        UiLocalizationService.Current.GetString("ExportColorsTitle"),
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question);
                     overwrite = (answer == DialogResult.Yes);
@@ -158,8 +180,10 @@ namespace NavisHelper
                 int totalColors = 0;
                 int skippedExisting = 0;
                 var errors = new List<string>();
+                var logErrors = new List<string>();
 
-                var progressForm = CreateProgressForm("Выгрузка цветов");
+                var progressForm = CreateProgressForm(
+                    UiLocalizationService.Current.GetString("ExportColorsProgressTitle"));
                 progressForm.Show();
                 System.Windows.Forms.Application.DoEvents();
 
@@ -175,7 +199,10 @@ namespace NavisHelper
                         string itemName = selectedItem.DisplayName;
                         if (string.IsNullOrWhiteSpace(itemName))
                         {
-                            errors.Add(string.Format("#{0}: пустое имя, пропущен", selIndex));
+                            errors.Add(UiLocalizationService.Current.Format(
+                                "ExportColorsEmptyNameErrorFormat",
+                                selIndex));
+                            logErrors.Add(string.Format("#{0}: пустое имя, пропущен", selIndex));
                             continue;
                         }
 
@@ -219,8 +246,12 @@ namespace NavisHelper
                         if (collectTimedOut)
                         {
                             // === Попытка 2: только MAX_DEPTH_FALLBACK уровней ===
-                            progressLabel.Text = string.Format("[{0}/{1}] Повтор ({2} ур.): {3}",
-                                selIndex, selection.Count, MAX_DEPTH_FALLBACK, itemName);
+                            progressLabel.Text = UiLocalizationService.Current.Format(
+                                "ExportColorsRetryProgressFormat",
+                                selIndex,
+                                selection.Count,
+                                MAX_DEPTH_FALLBACK,
+                                itemName);
                             System.Windows.Forms.Application.DoEvents();
 
                             lines.Clear();
@@ -233,7 +264,14 @@ namespace NavisHelper
 
                             if (collect2TimedOut)
                             {
-                                errors.Add(string.Format("{0} — таймаут на сборе ({1} ур.), пропущен", itemName, MAX_DEPTH_FALLBACK));
+                                errors.Add(UiLocalizationService.Current.Format(
+                                    "ExportColorsCollectTimeoutErrorFormat",
+                                    itemName,
+                                    MAX_DEPTH_FALLBACK));
+                                logErrors.Add(string.Format(
+                                    "{0} — таймаут на сборе ({1} ур.), пропущен",
+                                    itemName,
+                                    MAX_DEPTH_FALLBACK));
                                 continue;
                             }
 
@@ -250,13 +288,29 @@ namespace NavisHelper
 
                             if (export2TimedOut)
                             {
-                                errors.Add(string.Format("{0} — таймаут на выгрузке ({1} ур. > {2} сек), пропущен",
-                                    itemName, MAX_DEPTH_FALLBACK, TIMEOUT_LIMITED_SEC));
+                                errors.Add(UiLocalizationService.Current.Format(
+                                    "ExportColorsApplyTimeoutErrorFormat",
+                                    itemName,
+                                    MAX_DEPTH_FALLBACK,
+                                    TIMEOUT_LIMITED_SEC));
+                                logErrors.Add(string.Format(
+                                    "{0} — таймаут на выгрузке ({1} ур. > {2} сек), пропущен",
+                                    itemName,
+                                    MAX_DEPTH_FALLBACK,
+                                    TIMEOUT_LIMITED_SEC));
                                 continue;
                             }
 
-                            errors.Add(string.Format("{0} — выгружено {1} ур. (полная > {2} сек)",
-                                itemName, MAX_DEPTH_FALLBACK, TIMEOUT_FULL_SEC));
+                            errors.Add(UiLocalizationService.Current.Format(
+                                "ExportColorsLimitedDepthWarningFormat",
+                                itemName,
+                                MAX_DEPTH_FALLBACK,
+                                TIMEOUT_FULL_SEC));
+                            logErrors.Add(string.Format(
+                                "{0} — выгружено {1} ур. (полная > {2} сек)",
+                                itemName,
+                                MAX_DEPTH_FALLBACK,
+                                TIMEOUT_FULL_SEC));
                         }
 
                         File.WriteAllLines(filePath, lines, Encoding.UTF8);
@@ -278,28 +332,39 @@ namespace NavisHelper
                 logLines.Add(string.Format("Создано файлов: {0}", totalFiles));
                 logLines.Add(string.Format("Пропущено (уже есть): {0}", skippedExisting));
                 logLines.Add(string.Format("Всего строк цветов: {0}", totalColors));
-                if (errors.Count > 0)
+                if (logErrors.Count > 0)
                 {
                     logLines.Add("");
                     logLines.Add("--- Предупреждения ---");
-                    foreach (var err in errors) logLines.Add(err);
+                    foreach (var err in logErrors) logLines.Add(err);
                 }
                 string logPath = Path.Combine(folder, "_export_log.txt");
                 File.WriteAllLines(logPath, logLines, Encoding.UTF8);
 
-                var msg = string.Format(
-                    "Готово!\nСоздано файлов: {0}\nПропущено (уже есть): {1}\nВсего строк цветов: {2}\nПапка: {3}",
+                var msg = UiLocalizationService.Current.Format(
+                    "ExportColorsCompleteFormat",
                     totalFiles, skippedExisting, totalColors, folder);
                 if (errors.Count > 0)
-                    msg += string.Format("\n\nПредупреждения ({0}):\n{1}\n\nЛог: {2}",
+                    msg += UiLocalizationService.Current.Format(
+                        "ExportColorsWarningsFormat",
                         errors.Count, string.Join("\n", errors.Take(10)), logPath);
 
-                MessageBox.Show(msg, "Выгрузить цвета", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(
+                    msg,
+                    UiLocalizationService.Current.GetString("ExportColorsTitle"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message + "\n" + ex.StackTrace,
-                    "Выгрузить цвета", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format(
+                        "OperationErrorDetailsFormat",
+                        ex.Message,
+                        ex.StackTrace),
+                    UiLocalizationService.Current.GetString("ExportColorsTitle"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
             finally
             {
@@ -406,7 +471,7 @@ namespace NavisHelper
             var label = new Label
             {
                 Name = "progressLabel",
-                Text = "Подготовка...",
+                Text = UiLocalizationService.Current.GetString("ProgressPreparing"),
                 Dock = DockStyle.Top,
                 Height = 30,
                 TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
@@ -449,13 +514,17 @@ namespace NavisHelper
 
                 if (selection.Count == 0)
                 {
-                    MessageBox.Show("Выделите объекты в дереве модели, куда применить цвета.",
-                        "Загрузить цвета", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(
+                        UiLocalizationService.Current.GetString("ImportColorsSelectObjects"),
+                        UiLocalizationService.Current.GetString("ImportColorsTitle"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
                     return 0;
                 }
 
                 // Выбор папки через форму с текстовым полем
-                string folder = FolderPicker.Show("Выберите папку с файлами цветов");
+                string folder = FolderPicker.Show(
+                    UiLocalizationService.Current.GetString("ImportColorsChooseFolder"));
                 if (folder == null) return 0;
 
                 // Индексируем все .txt файлы в папке
@@ -468,7 +537,9 @@ namespace NavisHelper
 
                 if (colorFiles.Count == 0)
                 {
-                    MessageBox.Show("В папке нет .txt файлов.", "Загрузить цвета",
+                    MessageBox.Show(
+                        UiLocalizationService.Current.GetString("ImportColorsNoTextFiles"),
+                        UiLocalizationService.Current.GetString("ImportColorsTitle"),
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return 0;
                 }
@@ -480,7 +551,8 @@ namespace NavisHelper
                 var unmatchedItems = new List<string>();
                 var itemLogs = new List<string>();
 
-                var progressForm = ExportColors.CreateProgressForm("Загрузка цветов");
+                var progressForm = ExportColors.CreateProgressForm(
+                    UiLocalizationService.Current.GetString("ImportColorsProgressTitle"));
                 progressForm.Show();
                 System.Windows.Forms.Application.DoEvents();
 
@@ -650,15 +722,25 @@ namespace NavisHelper
                 string logPath = Path.Combine(folder, "_import_log.txt");
                 File.WriteAllLines(logPath, logLines, Encoding.UTF8);
 
-                var msg = string.Format(
-                    "Готово!\nСовпало файлов: {0} из {1}\nПрименено к объектам: {2}\nНе найдено файлов: {3}\n\nЛог: {4}",
+                var msg = UiLocalizationService.Current.Format(
+                    "ImportColorsCompleteFormat",
                     totalMatched, selection.Count, totalApplied, totalNotFound, logPath);
-                MessageBox.Show(msg, "Загрузить цвета", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(
+                    msg,
+                    UiLocalizationService.Current.GetString("ImportColorsTitle"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message + "\n" + ex.StackTrace,
-                    "Загрузить цвета", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format(
+                        "OperationErrorDetailsFormat",
+                        ex.Message,
+                        ex.StackTrace),
+                    UiLocalizationService.Current.GetString("ImportColorsTitle"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
             finally
             {

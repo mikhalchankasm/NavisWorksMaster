@@ -1,4 +1,5 @@
 using Autodesk.Navisworks.Api.Plugins;
+using NavisHelper.Core.Localization;
 
 namespace NavisHelper
 {
@@ -7,7 +8,8 @@ namespace NavisHelper
     public sealed class SelectionHatchBoundsMarker : SelectionHatchMarker
     {
         protected override bool UseObjectBoundingCorners => true;
-        protected override string CommandTitle => "Маркер габаритов";
+        protected override string CommandTitle =>
+            UiLocalizationService.Current.GetString("SelectionBoundsMarkerTitle");
 
         public override int Execute(params string[] parameters)
         {

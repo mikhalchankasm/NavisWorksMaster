@@ -9,6 +9,7 @@ using System.Text;
 using System.Windows.Forms;
 using Application = Autodesk.Navisworks.Api.Application;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 
 namespace NavisHelper
 {
@@ -23,7 +24,8 @@ namespace NavisHelper
                 return 0;
 
             Document doc = Application.ActiveDocument;
-            var progress = Application.BeginProgress("Загрузка атрибутов");
+            var progress = Application.BeginProgress(
+                UiLocalizationService.Current.GetString("CsvAttributeProgressCaption"));
 
             try
             {
@@ -96,8 +98,8 @@ namespace NavisHelper
 
             using (var openFileDialog = new OpenFileDialog
             {
-                Filter = "CSV файлы|*.csv|Текстовый файл|*.txt|Все файлы|*.*",
-                Title = "Выберите CSV файл с атрибутами",
+                Filter = UiLocalizationService.Current.GetString("CommonFileFilterCsvTextAll"),
+                Title = UiLocalizationService.Current.GetString("CsvAttributeDialogTitle"),
                 RestoreDirectory = true
             })
             {

@@ -40,12 +40,21 @@ Rules:
 
 ## Project Overview
 
-NavisHelper is a C# plugin suite for Autodesk Navisworks Manage (2024/2025/2026/2027). It automates model manipulation tasks: bulk color assignment, attribute loading from CSV, clash detection, viewpoint management, and AI-driven object coloring via external API. The UI and documentation are in Russian.
+NavisHelper is a C# plugin suite for Autodesk Navisworks Manage (2024/2025/2026/2027). It automates model manipulation tasks: bulk color assignment, attribute loading from CSV, clash detection, viewpoint management, and AI-driven object coloring via external API. The active NavisHelperPanel and phase-one standalone UI surfaces use neutral English resources with matching Russian values in a satellite assembly; most end-user documentation remains Russian.
 
 ## Documentation Language Policy
 
-- Code comments, protocol contracts, MCP tool descriptions, `docs/MCP_*`, and agent-facing docs should be written in English.
-- User-facing README sections, UI strings, prompts, release notes, and end-user workflow documentation should be written in Russian unless an existing file clearly uses English.
+- Neutral UI resources are written in English; matching values in
+  `Properties/Resources.ru.resx` are written in Russian.
+- New hard-coded user-facing UI strings are prohibited except for invariant
+  product names and technical identifiers.
+- MCP, protocol, and agent contracts keep their existing language and are not
+  changed as part of UI localization work.
+- Code comments, MCP tool descriptions, `docs/MCP_*`, and new agent-facing
+  documents are written in English by default.
+- Existing documents do not need to be translated in bulk. User-facing README
+  sections, prompts, release notes, and end-user workflow documentation remain
+  Russian unless an existing file clearly uses English.
 
 ## Structural Ratchets
 

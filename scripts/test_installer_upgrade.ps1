@@ -102,6 +102,7 @@ try {
     foreach ($year in @("2024", "2025", "2026", "2027")) {
         Assert-File (Join-Path $bundleRoot "Contents\$year\NavisHelper.dll") "Installed NavisHelper $year assembly"
         Assert-File (Join-Path $bundleRoot "Contents\$year\NavisHelper.Contracts.dll") "Installed NavisHelper.Contracts $year assembly"
+        Assert-File (Join-Path $bundleRoot "Contents\$year\ru\NavisHelper.resources.dll") "Installed NavisHelper Russian $year satellite assembly"
     }
     Assert-File (Join-Path $appRoot "LICENSE") "Installed project license"
     Assert-File (Join-Path $appRoot "THIRD-PARTY-NOTICES.md") "Installed third-party notices"

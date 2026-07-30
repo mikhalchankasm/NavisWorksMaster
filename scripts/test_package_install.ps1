@@ -89,6 +89,11 @@ try {
     Assert-File $server "Versioned MCP server executable"
     Assert-File $configurator "MCP configurator executable"
     Assert-File (Join-Path $bundle "PackageContents.xml") "Installed bundle manifest"
+    foreach ($year in @("2024", "2025", "2026", "2027")) {
+        Assert-File (
+            Join-Path $bundle "Contents\$year\ru\NavisHelper.resources.dll"
+        ) "Installed NavisHelper Russian $year satellite assembly"
+    }
     Assert-DirectoryMissing $unversionedServer "Unexpected unversioned MCP server directory"
 
     # Simulate the stale folder left by v2.6.3.0 and verify that only a managed

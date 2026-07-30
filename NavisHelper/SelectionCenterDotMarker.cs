@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
+using NavisHelper.Core.Localization;
 using Application = Autodesk.Navisworks.Api.Application;
 
 namespace NavisHelper
@@ -13,12 +14,16 @@ namespace NavisHelper
     {
         public override int Execute(params string[] parameters)
         {
-            const string title = "Точки центров";
+            string title = UiLocalizationService.Current.GetString("SelectionCenterDotsTitle");
             var document = Application.ActiveDocument;
             var selection = document == null || document.CurrentSelection == null ? null : document.CurrentSelection.SelectedItems;
             if (selection == null || selection.Count == 0)
             {
-                MessageBox.Show("Нет выделенных элементов.", title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(
+                    UiLocalizationService.Current.GetString("CommonNoSelection"),
+                    title,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
                 return 0;
             }
 
@@ -38,7 +43,11 @@ namespace NavisHelper
 
             if (visuals.Count == 0)
             {
-                MessageBox.Show("Не удалось определить центры выделенных элементов.", title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    UiLocalizationService.Current.GetString("SelectionCentersUnavailable"),
+                    title,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return 0;
             }
 
@@ -46,7 +55,13 @@ namespace NavisHelper
                 ClashMarkerTool.Hide();
             ClashMarkerTool.ShowMany(visuals, ClashMarkerTool.CenterDotStyle, 14);
             if (!string.IsNullOrWhiteSpace(ClashMarkerTool.LastError))
-                MessageBox.Show("Не удалось включить маркеры: " + ClashMarkerTool.LastError, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format(
+                        "SelectionMarkersEnableFailedFormat",
+                        ClashMarkerTool.LastError),
+                    title,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             return 0;
         }
     }

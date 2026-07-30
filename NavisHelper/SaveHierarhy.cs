@@ -1,6 +1,7 @@
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,13 +20,17 @@ namespace NavisHelper
             Document document = Autodesk.Navisworks.Api.Application.ActiveDocument;
             if (document == null)
             {
-                ShowMessage("Нет активного документа Navisworks.", MessageBoxIcon.Warning);
+                ShowMessage(
+                    UiLocalizationService.Current.GetString("HierarchyNoDocument"),
+                    MessageBoxIcon.Warning);
                 return -1;
             }
 
             if (string.IsNullOrWhiteSpace(document.FileName))
             {
-                ShowMessage("Сначала сохраните документ Navisworks, чтобы определить папку экспорта.", MessageBoxIcon.Warning);
+                ShowMessage(
+                    UiLocalizationService.Current.GetString("HierarchySaveDocumentFirst"),
+                    MessageBoxIcon.Warning);
                 return -1;
             }
 
@@ -44,7 +49,9 @@ namespace NavisHelper
                 int itemCount = ExportModelHierarchy(document, temporaryPath, out canceled);
                 if (canceled)
                 {
-                    ShowMessage("Экспорт иерархии отменён. Исходный файл не изменён.", MessageBoxIcon.Information);
+                    ShowMessage(
+                        UiLocalizationService.Current.GetString("HierarchyCanceled"),
+                        MessageBoxIcon.Information);
                     return 0;
                 }
 
@@ -57,14 +64,19 @@ namespace NavisHelper
                     document.FileName);
 
                 ShowMessage(
-                    string.Format("Иерархия модели сохранена.\n\nЭлементов: {0}\nФайл: {1}", itemCount, outputPath),
+                    UiLocalizationService.Current.Format(
+                        "HierarchyCompletedFormat",
+                        itemCount,
+                        outputPath),
                     MessageBoxIcon.Information);
                 return 1;
             }
             catch (Exception ex)
             {
                 Logger.Error("Ошибка экспорта иерархии: " + ex, "SaveHierarhy", document.FileName);
-                ShowMessage("Не удалось сохранить иерархию.\n\n" + ex.Message, MessageBoxIcon.Error);
+                ShowMessage(
+                    UiLocalizationService.Current.Format("HierarchyFailedFormat", ex.Message),
+                    MessageBoxIcon.Error);
                 return -1;
             }
             finally
@@ -80,8 +92,8 @@ namespace NavisHelper
 
             using (var dialog = new SaveFileDialog
             {
-                Title = "Сохранить иерархию модели",
-                Filter = "Текстовый файл (*.txt)|*.txt|Все файлы (*.*)|*.*",
+                Title = UiLocalizationService.Current.GetString("HierarchySaveDialogTitle"),
+                Filter = UiLocalizationService.Current.GetString("CommonFileFilterTextAll"),
                 DefaultExt = "txt",
                 AddExtension = true,
                 OverwritePrompt = true,
@@ -104,7 +116,8 @@ namespace NavisHelper
             Autodesk.Navisworks.Api.Progress progress = null;
             try
             {
-                progress = Autodesk.Navisworks.Api.Application.BeginProgress("Экспорт иерархии модели");
+                progress = Autodesk.Navisworks.Api.Application.BeginProgress(
+                    UiLocalizationService.Current.GetString("HierarchyProgressCaption"));
                 using (var writer = new StreamWriter(outputPath, false, new UTF8Encoding(true)))
                 {
                     foreach (Model model in document.Models)
@@ -222,7 +235,11 @@ namespace NavisHelper
 
         private static void ShowMessage(string message, MessageBoxIcon icon)
         {
-            MessageBox.Show(message, "Сохранить иерархию", MessageBoxButtons.OK, icon);
+            MessageBox.Show(
+                message,
+                UiLocalizationService.Current.GetString("HierarchyTitle"),
+                MessageBoxButtons.OK,
+                icon);
         }
     }
 }

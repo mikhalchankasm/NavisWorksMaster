@@ -1,0 +1,25 @@
+# Exact literal | classification | reason
+Система|native-property-name|Navisworks model property display name used for search
+Элемент|native-property-name|Navisworks model category/property display name used for search
+Спец|native-property-name|Navisworks model property display name used for search
+Специализация|native-property-name|Navisworks model property display name used for search
+Отметка|native-property-name|Navisworks model property display name used for search
+Имя|native-property-name|Navisworks host property display name selected from CurrentUICulture
+имя|native-property-name|Normalized Navisworks host property display name used for matching
+элемент|native-property-name|Normalized Navisworks host category display name used for matching
+Index|data-binding-path|Property name used by a DataGrid binding
+ItemA|data-binding-path|Property name used by a DataGrid binding
+ItemB|data-binding-path|Property name used by a DataGrid binding
+New|data-binding-path|Property name used by a DataGrid binding
+Active|data-binding-path|Property name used by a DataGrid binding
+run|workflow-identifier|Internal Clash operation identifier
+reset|workflow-identifier|Internal Clash operation identifier
+compact|workflow-identifier|Internal Clash operation identifier
+delete|workflow-identifier|Internal Clash operation identifier
+Text|binding-slot|Explicit localization registry slot identity
+Content|binding-slot|Explicit localization registry slot identity
+Header|binding-slot|Explicit localization registry slot identity
+ToolTip|binding-slot|Explicit localization registry slot identity
+Text:|binding-slot|Explicit localization registry slot prefix
+\#B11A1A · #80B11A1A · 177,26,26 · RAL 3000|technical-example|Color input syntax example, not prose or model data
+Segoe UI|technical-font|Invariant installed font family name

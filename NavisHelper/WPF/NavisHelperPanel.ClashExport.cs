@@ -5,6 +5,8 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 
+using NavisHelper.Core.Localization;
+
 namespace NavisHelper.WPF
 {
     public partial class NavisHelperPanel
@@ -16,7 +18,9 @@ namespace NavisHelper.WPF
                 var row = _clashGrid?.SelectedItem;
                 if (row == null)
                 {
-                    MessageBox.Show("Выберите коллизию для экспорта.", "Export BCF");
+                    MessageBox.Show(
+                        PanelUi("Panel_Clash_Bcf_SelectResult"),
+                        PanelUi("Panel_Clash_Bcf_Title"));
                     return;
                 }
 
@@ -25,7 +29,9 @@ namespace NavisHelper.WPF
                 var clash = clashes.FirstOrDefault();
                 if (clash == null)
                 {
-                    MessageBox.Show("Неверная запись коллизии.", "Export BCF");
+                    MessageBox.Show(
+                        PanelUi("Panel_Clash_InvalidResult"),
+                        PanelUi("Panel_Clash_Bcf_Title"));
                     return;
                 }
 
@@ -36,8 +42,8 @@ namespace NavisHelper.WPF
 
                 var dlg = new Microsoft.Win32.SaveFileDialog
                 {
-                    Title = "Экспорт в BCF",
-                    Filter = "BCF (*.bcf)|*.bcf|ZIP (*.zip)|*.zip|Все файлы|*.*",
+                    Title = PanelUi("Panel_Clash_Bcf_SaveTitle"),
+                    Filter = PanelUi("Panel_Clash_Bcf_FileFilter"),
                     FileName = $"{SanitizeFileName(name)}.bcf",
                     DefaultExt = ".bcf"
                 };
@@ -80,11 +86,15 @@ namespace NavisHelper.WPF
                     }
                 }
 
-                SetGlobalStatus($"BCF экспортирован: {dlg.FileName}", Brushes.DarkGreen);
+                SetGlobalStatusResource("Panel_Clash_Bcf_Exported_Format", Brushes.DarkGreen, dlg.FileName);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Export BCF", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
+                    PanelUi("Panel_Clash_Bcf_Title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
         }
     }

@@ -23,6 +23,46 @@
   <ItemGroup>
     <Compile Include="..\NavisHelper\Agent\Services\ClashReportOperationTracker.cs"
              Link="HostServices\ClashReportOperationTracker.cs" />
+    <Compile Include="..\NavisHelper\Core\ClashOperationProtocolReason.cs"
+             Link="Core\ClashOperationProtocolReason.cs" />
+    <Compile Include="..\NavisHelper\Core\PersistedModelNames.cs"
+             Link="Core\PersistedModelNames.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\PreviewManagerUiOutcome.cs"
+             Link="Localization\PreviewManagerUiOutcome.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\ClashViewpointErrorRecord.cs"
+             Link="Localization\ClashViewpointErrorRecord.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\UiLanguage.cs"
+             Link="Localization\UiLanguage.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\UiLanguageResolver.cs"
+             Link="Localization\UiLanguageResolver.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\UiLanguageRadioState.cs"
+             Link="Localization\UiLanguageRadioState.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\UiLanguageSettingsStore.cs"
+             Link="Localization\UiLanguageSettingsStore.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\UiLocalizedArgument.cs"
+             Link="Localization\UiLocalizedArgument.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\UiLocalizationService.cs"
+             Link="Localization\UiLocalizationService.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\UiLocalizationBindingRegistry.cs"
+             Link="Localization\UiLocalizationBindingRegistry.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\UiStatusResourceException.cs"
+             Link="Localization\UiStatusResourceException.cs" />
+    <Compile Include="..\NavisHelper\Core\Logger.cs"
+             Link="Core\Logger.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\RibbonIds.cs"
+             Link="Localization\RibbonIds.cs" />
+    <Compile Include="..\NavisHelper\Core\Localization\ColorSchemeUiText.cs"
+             Link="Localization\ColorSchemeUiText.cs" />
+    <Compile Include="..\NavisHelper\ColorSchemes.cs"
+             Link="Localization\ColorSchemes.cs" />
+    <Compile Include="..\NavisHelper\Properties\Resources.Designer.cs"
+             Link="Properties\Resources.Designer.cs" />
+    <EmbeddedResource Include="..\NavisHelper\Properties\Resources.resx"
+                      Link="Properties\Resources.resx"
+                      LogicalName="NavisHelper.Properties.Resources.resources" />
+    <EmbeddedResource Include="..\NavisHelper\Properties\Resources.ru.resx"
+                      Link="Properties\Resources.ru.resx"
+                      LogicalName="NavisHelper.Properties.Resources.ru.resources" />
   </ItemGroup>
 
 </Project>

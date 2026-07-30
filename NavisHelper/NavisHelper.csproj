@@ -620,6 +620,20 @@
     <Compile Include="ColorSchemes.cs" />
     <Compile Include="ColorsByNameHandler.cs" />
     <Compile Include="Core\ColorParser.cs" />
+    <Compile Include="Core\ClashOperationProtocolReason.cs" />
+    <Compile Include="Core\PersistedModelNames.cs" />
+    <Compile Include="Core\Localization\ColorSchemeUiText.cs" />
+    <Compile Include="Core\Localization\ClashViewpointErrorRecord.cs" />
+    <Compile Include="Core\Localization\PreviewManagerUiOutcome.cs" />
+    <Compile Include="Core\Localization\RibbonIds.cs" />
+    <Compile Include="Core\Localization\UiLanguage.cs" />
+    <Compile Include="Core\Localization\UiLanguageResolver.cs" />
+    <Compile Include="Core\Localization\UiLanguageRadioState.cs" />
+    <Compile Include="Core\Localization\UiLanguageSettingsStore.cs" />
+    <Compile Include="Core\Localization\UiLocalizedArgument.cs" />
+    <Compile Include="Core\Localization\UiLocalizationService.cs" />
+    <Compile Include="Core\Localization\UiLocalizationBindingRegistry.cs" />
+    <Compile Include="Core\Localization\UiStatusResourceException.cs" />
     <Compile Include="Core\RalColors.cs" />
     <Compile Include="CsvAttributeLoader.cs" />
     <Compile Include="FilterNavisModels.cs" />
@@ -637,7 +651,13 @@
     <Compile Include="Core\Logger.cs" />
     <Compile Include="NavisSaveUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Include="RibbonLoader.cs" />
+    <Compile Include="RibbonCommandMessages.cs" />
     <Compile Include="RunSaveClashReport.cs" />
     <Compile Include="SaveAsNavis2018.cs" />
     <Compile Include="SaveHierarhy.cs" />
@@ -672,6 +692,7 @@
     <Compile Include="WPF\NavisHelperPanel.ClashExport.cs" />
     <Compile Include="WPF\NavisHelperPanel.ClashOrbitExport.cs" />
     <Compile Include="WPF\NavisHelperPanel.Resources.cs" />
+    <Compile Include="WPF\PanelLocalizationBindings.cs" />
     <Compile Include="WPF\UiTheme.cs" />
     <Compile Include="WPF\NavisHelperSettingsTabBuilder.cs" />
     <Compile Include="CopySelectedNames.cs" />
@@ -724,6 +745,15 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="CustomRibbon.xaml" />
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.ru.resx">
+      <DependentUpon>Resources.resx</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
     <EmbeddedResource Include="Resources\ColorsByName.ico" />
     <EmbeddedResource Include="Resources\ColorsByName_16.png" />
     <EmbeddedResource Include="Resources\ColorsByName_32.png" />
@@ -755,8 +785,12 @@
     <ItemGroup>
       <BundleDependencyFiles Include="@(ReferenceCopyLocalPaths)" />
       <BundleDependencyFiles Include="$(TargetDir)$(TargetFileName).config" Condition="Exists('$(TargetDir)$(TargetFileName).config')" />
+      <BundleRussianSatellite Include="$(TargetDir)ru\NavisHelper.resources.dll"
+                              Condition="Exists('$(TargetDir)ru\NavisHelper.resources.dll')" />
     </ItemGroup>
     <MakeDir Directories="$(BundleTargetDir)" />
+    <Error Condition="'@(BundleRussianSatellite)' == ''"
+           Text="Russian satellite assembly was not produced for $(Configuration)." />
     <Copy SourceFiles="$(TargetPath)"
           DestinationFiles="$(BundleTargetDir)\NavisHelper.dll"
           SkipUnchangedFiles="true" />
@@ -764,6 +798,12 @@
           DestinationFolder="$(BundleTargetDir)"
           SkipUnchangedFiles="true"
           Condition="'@(BundleDependencyFiles)' != ''" />
+    <MakeDir Directories="$(BundleTargetDir)\ru"
+             Condition="'@(BundleRussianSatellite)' != ''" />
+    <Copy SourceFiles="@(BundleRussianSatellite)"
+          DestinationFolder="$(BundleTargetDir)\ru"
+          SkipUnchangedFiles="true"
+          Condition="'@(BundleRussianSatellite)' != ''" />
     <MakeDir Directories="$(BundleTargetDir)\icons" Condition="'$(BundleVersion)' == '2024' Or '$(BundleVersion)' == '2025' Or '$(BundleVersion)' == '2027'" />
     <Copy SourceFiles="@(BundleIconFiles)"
           DestinationFolder="$(BundleTargetDir)\icons\%(RecursiveDir)"

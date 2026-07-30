@@ -5,6 +5,7 @@ using System.Windows.Media;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Clash;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 using NwApplication = Autodesk.Navisworks.Api.Application;
 
 namespace NavisHelper.WPF
@@ -16,7 +17,7 @@ namespace NavisHelper.WPF
             var doc = NwApplication.ActiveDocument;
             if (doc == null || doc.IsClear || doc.CurrentViewpoint == null)
             {
-                SetGlobalStatus("Нет активного документа для CAM", Brushes.Orange);
+                SetGlobalStatusResource("Panel_Clash_Camera_NoActiveDocument", Brushes.Orange);
                 return;
             }
 
@@ -47,11 +48,15 @@ namespace NavisHelper.WPF
                 var path = Path.Combine(_clashCameraDiagDir, "camera_" + _clashCameraDiagIndex.ToString("000", CultureInfo.InvariantCulture) + ".json");
                 File.WriteAllText(path, BuildClashCameraDiagnosticJson(row, clash, viewpoint, center, projected, focalEstimate, cameraJson), System.Text.Encoding.UTF8);
 
-                SetGlobalStatus($"CAM {_clashCameraDiagIndex}: {path}", Brushes.DarkGreen);
+                SetGlobalStatusResource(
+                    "Panel_Clash_Camera_Saved_Format",
+                    Brushes.DarkGreen,
+                    _clashCameraDiagIndex,
+                    path);
             }
             catch (Exception ex)
             {
-                SetGlobalStatus("CAM error: " + ex.Message, Brushes.Red);
+                SetGlobalStatusResource("Panel_Clash_Camera_Failed_Format", Brushes.Red, ex.Message);
             }
         }
 
