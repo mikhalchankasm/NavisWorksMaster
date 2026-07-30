@@ -900,6 +900,43 @@ public sealed class LocalizationTests
     }
 
     [Fact]
+    public void ClashDocumentChangeResetClearsLocalizedGroupContentsCachesBeforeUiWork()
+    {
+        string repoRoot = FindRepositoryRoot();
+        string source = File.ReadAllText(Path.Combine(
+            repoRoot,
+            "NavisHelper",
+            "WPF",
+            "NavisHelperPanel.Clash.Lifecycle.cs"));
+        Match reset = Regex.Match(
+            source,
+            @"private void ResetClashUiForDocumentChange\(\)\s*\{(?<body>.*?)\n\s*\}\s*\n\s*private void BeginInvokeForCurrentClashDocument",
+            RegexOptions.Singleline);
+
+        Assert.True(reset.Success);
+        string body = reset.Groups["body"].Value;
+        int rowObjectClear = body.IndexOf(
+            "_clashGroupContentsRowObject = null;",
+            StringComparison.Ordinal);
+        int resultsClear = body.IndexOf(
+            "_clashGroupContentsResults = null;",
+            StringComparison.Ordinal);
+        int existingManagedStateClear = body.IndexOf(
+            "_pendingClashDataRefreshReason = null;",
+            StringComparison.Ordinal);
+
+        Assert.True(rowObjectClear >= 0);
+        Assert.True(resultsClear >= 0);
+        Assert.True(existingManagedStateClear >= 0);
+        Assert.True(rowObjectClear < existingManagedStateClear);
+        Assert.True(resultsClear < existingManagedStateClear);
+        Assert.Contains("_clashGroupContentsGrid.ItemsSource = null;", body);
+        Assert.Contains(
+            "_clashGroupContentsStatus.Text = PanelUi(\"Panel_Clash_SelectResultOrGroup\");",
+            body);
+    }
+
+    [Fact]
     public void ManagerDiagnosticStatusesRemainBaselineAgentInputs()
     {
         string repoRoot = FindRepositoryRoot();

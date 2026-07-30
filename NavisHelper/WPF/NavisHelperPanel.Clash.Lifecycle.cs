@@ -102,6 +102,8 @@ namespace NavisHelper.WPF
         {
             // Clear managed references first. Native wrappers from the outgoing
             // document may already be disposed when ActiveDocumentChanged fires.
+            _clashGroupContentsRowObject = null;
+            _clashGroupContentsResults = null;
             _pendingClashDataRefreshReason = null;
             _localClashMutationRefreshPending = false;
             _clashContextMenuItem = null;
