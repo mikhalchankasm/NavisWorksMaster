@@ -6,9 +6,9 @@
     <Nullable>disable</Nullable>
     <AssemblyName>NavisHelper.AiWorker</AssemblyName>
     <RootNamespace>NavisHelper.AI</RootNamespace>
-    <Version>2.8.9.0</Version>
-    <AssemblyVersion>2.8.9.0</AssemblyVersion>
-    <FileVersion>2.8.9.0</FileVersion>
+    <Version>2.9.0.0</Version>
+    <AssemblyVersion>2.9.0.0</AssemblyVersion>
+    <FileVersion>2.9.0.0</FileVersion>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <UseAppHost>true</UseAppHost>
