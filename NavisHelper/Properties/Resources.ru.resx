@@ -107,7 +107,7 @@
     <value>NavisHelper</value>
   </data>
   <data name="SettingsLanguageSectionTitle" xml:space="preserve">
-    <value>Язык интерфейса / Interface language</value>
+    <value>Язык интерфейса</value>
   </data>
   <data name="SettingsLanguageFieldLabel" xml:space="preserve">
     <value>Язык / Language:</value>
@@ -2509,4 +2509,120 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Panel_Clash_Transparency_OwnersMissing_Detail" xml:space="preserve"><value> | владельцы не найдены</value></data>
   <data name="Panel_Clash_Transparency_Applied_Detail_Format" xml:space="preserve"><value> | владельцев: {0}, текущих непрозрачных: {1}</value></data>
   <data name="Panel_Clash_Preview_DefaultGroupName" xml:space="preserve"><value>Группа коллизий</value></data>
+  <data name="Settings_Ai_Provider_Label" xml:space="preserve"><value>Провайдер:</value></data>
+  <data name="Settings_Ai_Provider_Value" xml:space="preserve"><value>OpenRouter</value></data>
+  <data name="Settings_Ai_Key_Label" xml:space="preserve"><value>API-ключ OpenRouter:</value></data>
+  <data name="Settings_Ai_Connect_Action" xml:space="preserve"><value>Подключить</value></data>
+  <data name="Settings_Ai_Connect_ToolTip" xml:space="preserve"><value>Проверить ключ через OpenRouter и сохранить его для текущего пользователя Windows</value></data>
+  <data name="Settings_Ai_Disconnect_Action" xml:space="preserve"><value>Отключить</value></data>
+  <data name="Settings_Ai_Disconnect_ToolTip" xml:space="preserve"><value>Удалить ключ OpenRouter у текущего пользователя Windows и из текущего процесса</value></data>
+  <data name="Settings_Ai_GetKey_Link" xml:space="preserve"><value>Получить ключ OpenRouter</value></data>
+  <data name="Settings_Ai_Status_Disconnected" xml:space="preserve"><value>Не подключено</value></data>
+  <data name="Settings_Ai_Status_Checking" xml:space="preserve"><value>Проверка ключа через OpenRouter…</value></data>
+  <data name="Settings_Ai_Status_Connected" xml:space="preserve"><value>Подключено. Загрузите совместимые модели и выберите одну, чтобы включить AI-раскраску.</value></data>
+  <data name="Settings_Ai_Status_KeyRequired" xml:space="preserve"><value>Требуется API-ключ.</value></data>
+  <data name="Settings_Ai_Status_InvalidKey" xml:space="preserve"><value>OpenRouter отклонил авторизацию (HTTP 401/403). Введённый ключ не сохранён.</value></data>
+  <data name="Settings_Ai_Status_StorageFailed" xml:space="preserve"><value>Windows не удалось обновить пользовательский ключ. Подробности записаны в журнал.</value></data>
+  <data name="Settings_Ai_Model_ConnectFirst" xml:space="preserve"><value>Подключите OpenRouter, чтобы проверить выбранную модель.</value></data>
+  <data name="Settings_Ai_Model_Checking" xml:space="preserve"><value>Загрузка каталога моделей OpenRouter…</value></data>
+  <data name="Settings_Ai_Model_CatalogUnavailable" xml:space="preserve"><value>Каталог моделей OpenRouter недоступен. AI-раскраска отключена.</value></data>
+  <data name="Settings_Ai_Model_CatalogTimeout" xml:space="preserve"><value>OpenRouter подключён, но время загрузки каталога моделей истекло. AI-раскраска недоступна, пока команда «Обновить модели» не завершится успешно.</value></data>
+  <data name="Settings_Ai_Model_CatalogNetworkUnavailable" xml:space="preserve"><value>OpenRouter подключён, но каталог моделей недоступен по сети. AI-раскраска недоступна, пока команда «Обновить модели» не завершится успешно.</value></data>
+  <data name="Settings_Ai_Model_CatalogWorkerFailure" xml:space="preserve"><value>OpenRouter подключён, но worker каталога моделей завершился с ошибкой. AI-раскраска недоступна, пока команда «Обновить модели» не завершится успешно.</value></data>
+  <data name="Settings_Ai_Model_NotFound" xml:space="preserve"><value>Выбранный ID модели не найден в текущем каталоге OpenRouter.</value></data>
+  <data name="Settings_Ai_Model_InvalidFormat" xml:space="preserve"><value>Введите полный ID модели OpenRouter в формате provider/model.</value></data>
+  <data name="Settings_Ai_Model_VerifiedReasoning" xml:space="preserve"><value>Модель проверена. Поддержка reasoning подтверждена.</value></data>
+  <data name="Settings_Ai_Model_VerifiedNoReasoning" xml:space="preserve"><value>Модель проверена. Reasoning не поддерживается.</value></data>
+  <data name="Settings_Ai_Reasoning_Unconfirmed_ToolTip" xml:space="preserve"><value>Reasoning отключён, пока каталог моделей не подтвердит его поддержку.</value></data>
+  <data name="Settings_Ai_Reasoning_ModelNotFound_ToolTip" xml:space="preserve"><value>Reasoning отключён, потому что этот ID модели не найден.</value></data>
+  <data name="Settings_Ai_Reasoning_Supported_ToolTip" xml:space="preserve"><value>OpenRouter сообщает, что модель поддерживает унифицированный параметр reasoning.</value></data>
+  <data name="Settings_Ai_Reasoning_Unsupported_ToolTip" xml:space="preserve"><value>OpenRouter не сообщает о поддержке reasoning этой моделью.</value></data>
+  <data name="Settings_Ai_OpenKeysFailed" xml:space="preserve"><value>Не удалось открыть страницу ключей OpenRouter.</value></data>
+  <data name="Panel_Colors_Ai_NoSelection" xml:space="preserve"><value>Перед AI-раскраской выберите объекты модели.</value></data>
+  <data name="Panel_Colors_Ai_NoColorableObjects" xml:space="preserve"><value>В выборке нет объектов, цвет которых можно изменить.</value></data>
+  <data name="Panel_Colors_Ai_NoObjectNames" xml:space="preserve"><value>В выборке не найдены подходящие имена объектов.</value></data>
+  <data name="Panel_Colors_Ai_KeyRequired" xml:space="preserve"><value>Перед AI-раскраской подключите OpenRouter на вкладке «Настройки».</value></data>
+  <data name="Panel_Colors_Ai_InvalidResponse" xml:space="preserve"><value>OpenRouter вернул неполный или некорректный ответ с цветами. Локальный fallback не применялся.</value></data>
+  <data name="Panel_Colors_Ai_RequestFailed" xml:space="preserve"><value>Запрос AI-раскраски к OpenRouter завершился ошибкой. Локальный fallback не применялся. Проверьте подключение и журнал.</value></data>
+  <data name="Panel_Colors_Ai_NavisworksError" xml:space="preserve"><value>Navisworks не удалось применить результат AI-раскраски.</value></data>
+  <data name="Panel_Colors_Ai_InvalidModelId" xml:space="preserve"><value>На вкладке «Настройки» выберите полный ID модели OpenRouter в формате provider/model.</value></data>
+  <data name="Panel_Colors_Ai_LocalPalette_Action" xml:space="preserve"><value>Применить локальную палитру</value></data>
+  <data name="Panel_Colors_Ai_LocalPalette_ToolTip" xml:space="preserve"><value>Применить выбранную палитру локально без отправки данных в OpenRouter</value></data>
+  <data name="Panel_Colors_Ai_DataNotice" xml:space="preserve"><value>При раскраске через OpenRouter туда передаются отображаемые имена выделенных объектов.</value></data>
+  <data name="Panel_Colors_Ai_Starting_Semantic_Format" xml:space="preserve"><value>Запуск раскраски через OpenRouter…
+Модель: {0}
+Схема: {1}
+Уникальных имён: {2}</value></data>
+  <data name="Panel_Colors_Ai_Source_Format" xml:space="preserve"><value>Источник: {0}</value></data>
+  <data name="Panel_Colors_Ai_Source_OpenRouter" xml:space="preserve"><value>OpenRouter</value></data>
+  <data name="Panel_Colors_Ai_Source_LocalPalette" xml:space="preserve"><value>Локальная палитра</value></data>
+  <data name="Panel_Colors_Ai_Model_Format" xml:space="preserve"><value>Модель: {0}</value></data>
+  <data name="Panel_Colors_Ai_Model_NotApplicable" xml:space="preserve"><value>не применяется</value></data>
+  <data name="Panel_Colors_Ai_ModelUnavailable" xml:space="preserve"><value>Выбранной модели нет в текущем каталоге OpenRouter. Запрос раскраски не отправлялся.</value></data>
+  <data name="Panel_Colors_Ai_Unauthorized" xml:space="preserve"><value>OpenRouter отклонил авторизацию (HTTP 401/403). Подключите действующий ключ.</value></data>
+  <data name="Panel_Colors_Ai_RateLimited" xml:space="preserve"><value>OpenRouter ограничил частоту запросов (HTTP 429). Повторите позже.</value></data>
+  <data name="Panel_Colors_Ai_Timeout" xml:space="preserve"><value>Время операции OpenRouter истекло. Локальная палитра не применялась.</value></data>
+  <data name="Panel_Colors_Ai_Cancelled" xml:space="preserve"><value>Операция OpenRouter отменена. Локальная палитра не применялась.</value></data>
+  <data name="Panel_Colors_Ai_NetworkError" xml:space="preserve"><value>Не удалось связаться с OpenRouter из-за сетевой ошибки. Локальная палитра не применялась.</value></data>
+  <data name="Panel_Colors_Ai_ServiceUnavailable" xml:space="preserve"><value>OpenRouter недоступен или отклонил запрос. Локальная палитра не применялась.</value></data>
+  <data name="Panel_Colors_Ai_AlreadyRunning" xml:space="preserve"><value>Операция раскраски через OpenRouter уже выполняется.</value></data>
+  <data name="Panel_Colors_Ai_DocumentChanged" xml:space="preserve"><value>Активный документ изменился, поэтому операция отменена без применения цветов.</value></data>
+  <data name="Panel_Colors_Ai_WorkerMissing" xml:space="preserve"><value>Worker OpenRouter отсутствует в bundle NavisHelper. Переустановите NavisHelper.</value></data>
+  <data name="Panel_Colors_Ai_WorkerRuntimeMissing" xml:space="preserve"><value>Для worker OpenRouter требуется .NET 9 Runtime. Установите runtime и повторите попытку.</value></data>
+  <data name="Panel_Colors_Ai_WorkerStartupFailed" xml:space="preserve"><value>Не удалось запустить worker OpenRouter.</value></data>
+  <data name="Panel_Colors_Ai_WorkerFailed" xml:space="preserve"><value>Worker OpenRouter неожиданно завершился. Цвета не применялись.</value></data>
+  <data name="Panel_Colors_Ai_ProtocolMismatch" xml:space="preserve"><value>Версии протокола плагина NavisHelper и worker OpenRouter не совпадают. Переустановите NavisHelper.</value></data>
+  <data name="Settings_Ai_Status_WorkerMissing" xml:space="preserve"><value>Worker OpenRouter отсутствует. Переустановите NavisHelper.</value></data>
+  <data name="Settings_Ai_Status_WorkerRuntimeMissing" xml:space="preserve"><value>Отсутствует .NET 9 Runtime, необходимый для worker OpenRouter.</value></data>
+  <data name="Settings_Ai_Status_WorkerStartupFailed" xml:space="preserve"><value>Не удалось запустить worker OpenRouter.</value></data>
+  <data name="Settings_Ai_Status_WorkerFailed" xml:space="preserve"><value>Worker OpenRouter неожиданно завершился.</value></data>
+  <data name="Settings_Ai_Status_ProtocolMismatch" xml:space="preserve"><value>Несовпадение протокола worker OpenRouter. Переустановите NavisHelper.</value></data>
+  <data name="Settings_Ai_Status_RateLimited" xml:space="preserve"><value>OpenRouter ограничил частоту проверки (HTTP 429). Повторите позже.</value></data>
+  <data name="Settings_Ai_Status_Timeout" xml:space="preserve"><value>Истекло время проверки ключа OpenRouter. Введённый ключ не сохранён.</value></data>
+  <data name="Settings_Ai_Status_Cancelled" xml:space="preserve"><value>Проверка ключа OpenRouter отменена.</value></data>
+  <data name="Settings_Ai_Status_NetworkUnavailable" xml:space="preserve"><value>Не удалось связаться с OpenRouter. Проверьте сеть и повторите попытку.</value></data>
+  <data name="Settings_Ai_Status_Ready" xml:space="preserve"><value>Готово к AI-раскраске</value></data>
+  <data name="Settings_Ai_RefreshModels_Action" xml:space="preserve"><value>Обновить модели</value></data>
+  <data name="Settings_Ai_RefreshModels_ToolTip" xml:space="preserve"><value>Повторно загрузить из OpenRouter совместимые модели со structured output</value></data>
+  <data name="Settings_Ai_Model_Choose" xml:space="preserve"><value>Выберите модель.</value></data>
+  <data name="Settings_Ai_Model_Incompatible" xml:space="preserve"><value>Выбранная модель не поддерживает structured output для AI-раскраски.</value></data>
+  <data name="Settings_Ai_Model_Ready" xml:space="preserve"><value>Выбранная модель поддерживает structured output и готова к работе.</value></data>
+  <data name="Settings_Ai_Status_WorkerInternalFailure" xml:space="preserve"><value>Внутренняя ошибка worker OpenRouter.</value></data>
+  <data name="Panel_Colors_Ai_CatalogUnavailable" xml:space="preserve"><value>Каталог моделей OpenRouter недоступен. Платный запрос раскраски не отправлялся.</value></data>
+  <data name="Panel_Colors_Ai_ModelNotSelected" xml:space="preserve"><value>Выберите совместимую модель на вкладке «Настройки». Платный запрос раскраски не отправлялся.</value></data>
+  <data name="Panel_Colors_Ai_ModelIncompatible" xml:space="preserve"><value>Выбранная модель не поддерживает structured output. Платный запрос раскраски не отправлялся.</value></data>
+  <data name="Panel_Colors_Ai_TooManyObjects" xml:space="preserve"><value>В выделении больше 200 уникальных имён объектов. Уменьшите выделение; платный запрос не отправлялся.</value></data>
+  <data name="Panel_Colors_Ai_InsufficientOutputBudget" xml:space="preserve"><value>Подтверждённый лимит ответа provider недостаточен для полного структурированного набора цветов. Платный запрос не отправлялся.</value></data>
+  <data name="Panel_Colors_Ai_InsufficientOutputBudgetSuggestion" xml:space="preserve"><value>Уменьшите выделение или выберите модель с большим подтверждённым лимитом ответа, затем запустите запрос вручную.</value></data>
+  <data name="Panel_Colors_Ai_UnsupportedReasoningPolicy" xml:space="preserve"><value>NavisHelper не может сформировать безопасную политику рассуждения по метаданным выбранной модели. Платный запрос не отправлялся.</value></data>
+  <data name="Panel_Colors_Ai_UnsupportedReasoningPolicySuggestion" xml:space="preserve"><value>Выберите другую совместимую модель, каталог которой предоставляет безопасное управление рассуждением, затем запустите запрос вручную.</value></data>
+  <data name="Panel_Colors_Ai_ZeroApplied" xml:space="preserve"><value>Применено цветов: 0</value></data>
+  <data name="Panel_Colors_Ai_FailureSuggestion" xml:space="preserve"><value>Выберите другую совместимую модель или уменьшите выделение, затем запустите запрос вручную.</value></data>
+  <data name="Settings_Ai_Model_Search_ToolTip" xml:space="preserve"><value>Фильтр по имени модели или полному ID provider/model</value></data>
+  <data name="Settings_Ai_Model_Search_Count_Format" xml:space="preserve"><value>Найдено: {0}</value></data>
+  <data name="Settings_Ai_Model_Search_Label" xml:space="preserve"><value>Поиск моделей</value></data>
+  <data name="Settings_Ai_Model_Capability_Text" xml:space="preserve"><value>Текст</value></data>
+  <data name="Settings_Ai_Model_Capability_Image" xml:space="preserve"><value>Изображения</value></data>
+  <data name="Settings_Ai_Model_Capability_Audio" xml:space="preserve"><value>Аудио</value></data>
+  <data name="Settings_Ai_Model_Capability_Files" xml:space="preserve"><value>Файлы</value></data>
+  <data name="Settings_Ai_Model_Capability_Video" xml:space="preserve"><value>Видео</value></data>
+  <data name="Settings_Ai_Model_Capability_Multimodal" xml:space="preserve"><value>Мультимодальная</value></data>
+  <data name="Settings_Ai_Model_Capability_StructuredOutput" xml:space="preserve"><value>Структурированный ответ</value></data>
+  <data name="Settings_Ai_Model_Capability_ReasoningOptional" xml:space="preserve"><value>Рассуждение необязательно</value></data>
+  <data name="Settings_Ai_Model_Capability_ReasoningRequired" xml:space="preserve"><value>Требуется рассуждение</value></data>
+  <data name="Settings_Ai_Model_Capability_Context_Format" xml:space="preserve"><value>Контекст: {0}</value></data>
+  <data name="Settings_Ai_Model_Capability_Flow_Format" xml:space="preserve"><value>{0} → {1}</value></data>
+  <data name="Panel_Colors_Ai_BadRequest" xml:space="preserve"><value>OpenRouter отклонил параметры запроса (HTTP 400/422). Цвета не применялись.</value></data>
+  <data name="Panel_Colors_Ai_ResponseRefused" xml:space="preserve"><value>Выбранная модель отказалась сформировать ответ раскраски. Цвета не применялись.</value></data>
+  <data name="Panel_Colors_Ai_MissingAssistantContent" xml:space="preserve"><value>OpenRouter не вернул содержимое ответа модели. Цвета не применялись.</value></data>
+  <data name="Panel_Colors_Ai_TruncatedResponse" xml:space="preserve"><value>Ответ модели был обрезан до возврата всех цветов. Цвета не применялись.</value></data>
+  <data name="Panel_Colors_Ai_StructuredPayloadInvalid" xml:space="preserve"><value>Модель вернула некорректный structured payload цветов. Цвета не применялись.</value></data>
+  <data name="Panel_Colors_Ai_IncompleteObjectSet" xml:space="preserve"><value>Ответ модели пропустил, продублировал или добавил имена объектов. Цвета не применялись.</value></data>
+  <data name="Panel_Colors_Ai_WorkerInternalFailure" xml:space="preserve"><value>Внутренняя ошибка worker OpenRouter. Цвета не применялись.</value></data>
+  <data name="Settings_Ai_Status_Connected_Compact" xml:space="preserve"><value>Подключено</value></data>
+  <data name="Settings_Ai_Connected_Summary" xml:space="preserve"><value>OpenRouter подключён</value></data>
+  <data name="Settings_Ai_Key_Storage_Help" xml:space="preserve"><value>Ключ проверяется до сохранения и хранится только для текущего пользователя Windows. В файлы конфигурации NavisHelper он не записывается.</value></data>
+  <data name="Settings_Service_Developers_Expander" xml:space="preserve"><value>Для разработчиков</value></data>
+  <data name="Settings_Ai_Status_Error_Compact" xml:space="preserve"><value>Ошибка</value></data>
+  <data name="Settings_Ai_Status_Connecting_Compact" xml:space="preserve"><value>Подключение…</value></data>
 </root>

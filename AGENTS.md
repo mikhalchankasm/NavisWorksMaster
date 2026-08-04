@@ -126,7 +126,7 @@ The ribbon UI is defined in `CustomRibbon.xaml` (embedded resource) using Autode
 ### Key Plugins (each is an `AddInPlugin` with its own `.addin` manifest)
 
 - **ColorsByName** (`ColorsByName.cs`) — Core plugin. Reads a text file with `name;R,G,B;transparency` lines and applies colors to matching model items. Uses a 3-tier search fallback: internal property name → display name property → recursive display name matching.
-- **AIColorObjects** (`AIColorObjects.cs`) — Colors selected objects using AI API. Delegates to `LocalColorBridge` which launches `ColorService.exe` (separate .NET 9.0 project in `ColorService/`) as a subprocess, communicating via JSON temp files in `%TEMP%`.
+- **AIColorObjects** (`AIColorObjects.cs`) — Thin plugin entry point for OpenRouter-powered coloring. It delegates to `AIColorWorkflow`, which uses the separate .NET 9 `NavisHelper.AiWorker` process for OpenRouter HTTPS; failed API calls never return local fallback colors as AI results.
 - **AIColorSchemeSelector** (`AIColorSchemeSelector.cs`) — UI for selecting from 10 predefined color schemes defined in `ColorSchemes.cs`.
 - **CsvAttributeLoader** (`CsvAttributeLoader.cs`) — Bulk loads attributes from semicolon-delimited CSV files. Builds an indexed lookup via `SearchCondition`-based queries.
 - **MarkupViewpoint** (`MarkupViewpoint.cs`) — Creates a saved viewpoint with red ellipse markups around each selected element from the current orthographic or perspective camera. It reuses the MCP `MarkupSelection` workflow and `View.ProjectPoint()` projection. Prompts for viewpoint name via WinForms dialog (with clipboard auto-fill).
@@ -137,7 +137,7 @@ The ribbon UI is defined in `CustomRibbon.xaml` (embedded resource) using Autode
 
 ### AI Integration Layer
 
-`AIColorObjects` uses OpenRouter as a bring-your-own-key integration. The key is read only from `OPEN_ROUTER_NW_KEY` and is never serialized to `%APPDATA%\NavisHelper\ai_config.json`. The command can launch an external `ColorService.exe` process through file-based IPC, but that executable is not included in the current installer or distribution. Without it, `AIColorObjects` uses the local `ColorSchemes` fallback. Registered MCP tools do not use this external AI path.
+`AIColorObjects` uses OpenRouter as a bring-your-own-key integration. The Settings tab validates the key through the .NET 9 `NavisHelper.AiWorker` before storing it in the user-scoped `OPEN_ROUTER_NW_KEY`, then updates the current process and runtime key provider so no restart is needed. `OpenRouterKeyStore` is the sole runtime key source; the key is never serialized to `%APPDATA%\NavisHelper\ai_config.json`. NavisHelper passes it only through the child worker environment; protocol JSON, arguments, diagnostics, and temporary files never contain the key. The command is single-flight and asynchronous: Navisworks data is captured on the UI thread, worker IPC/HTTPS runs off-thread with timeout/cancellation, and application returns through the dispatcher only after an active-document identity guard. A user-filtered dynamic catalog must confirm the selected exact full ID and `structured_outputs` support before chat; an unavailable catalog blocks the paid request. Color requests use strict JSON Schema without reasoning or automatic retry. Failures never invoke a silent fallback. Local palette coloring is a separate explicit action with typed provenance. `ColorService.exe` and temporary-file IPC are absent from the active compiled path; the retained `ColorService/` source project is legacy reference material outside the solution. Registered MCP tools do not use this external AI path.
 
 ### Core Utilities
 
@@ -199,7 +199,7 @@ Section enable command: `LcRmFrameworkInterface.ExecuteCommand("RoamerGUI_OM_SEC
 ### Solution Structure
 
 - `NavisHelper/` — Main plugin DLL project (.NET Framework 4.8.1)
-- `ColorService/` — Standalone .NET 9.0 console app for AI API calls
+- `ColorService/` — Legacy standalone source project retained outside the solution; it is not part of the active compiled, installer, or distribution path
 - `docs/research/navisworks-api-notes.md` — distilled Navisworks API notes from Autodesk SDK samples
 - `NavisHelper.bundle/` — Bundle resources for deployment
 

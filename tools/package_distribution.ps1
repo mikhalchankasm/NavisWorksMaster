@@ -90,6 +90,8 @@ if ([string]::IsNullOrWhiteSpace($PackageName)) {
 $packageDir = Join-Path $OutputRoot $PackageName
 $mcpOutputRoot = Join-Path $OutputRoot "_mcp-publish"
 $bundleSource = Join-Path $repoRoot "NavisHelper.bundle"
+$aiWorkerProject = Join-Path $repoRoot "NavisHelper.AiWorker\NavisHelper.AiWorker.csproj"
+$aiWorkerBundleDir = Join-Path $bundleSource "Contents\AiWorker"
 $bundleDest = Join-Path $packageDir "NavisHelper.bundle"
 $mcpDest = Join-Path $packageDir "McpServer"
 $configuratorDest = Join-Path $packageDir "McpConfigurator"
@@ -116,6 +118,19 @@ if (-not $SkipBuild) {
     Invoke-NativeCommand $msbuild @($solution, "/p:Configuration=Release2025", "/p:Platform=x64", "/m", "/v:m")
     Invoke-NativeCommand $msbuild @($solution, "/p:Configuration=Release2026", "/p:Platform=x64", "/m", "/v:m")
     Invoke-NativeCommand $msbuild @($solution, "/p:Configuration=Release2027", "/p:Platform=x64", "/m", "/v:m")
+
+    Remove-DirectorySafely $aiWorkerBundleDir (Join-Path $bundleSource "Contents")
+    $workerPublishArguments = @(
+        "publish",
+        $aiWorkerProject,
+        "--configuration", "Release",
+        "--runtime", $Runtime,
+        "--self-contained", ([bool]$SelfContained).ToString().ToLowerInvariant(),
+        "--output", $aiWorkerBundleDir,
+        "/p:DebugType=None",
+        "/p:DebugSymbols=false"
+    )
+    Invoke-NativeCommand "dotnet" $workerPublishArguments
 }
 
 $bundle2024 = Join-Path $bundleSource "Contents\2024\NavisHelper.dll"
@@ -131,6 +146,11 @@ $bundleRussian2025 = Join-Path $bundleSource "Contents\2025\ru\NavisHelper.resou
 $bundleRussian2026 = Join-Path $bundleSource "Contents\2026\ru\NavisHelper.resources.dll"
 $bundleRussian2027 = Join-Path $bundleSource "Contents\2027\ru\NavisHelper.resources.dll"
 $packageContents = Join-Path $bundleSource "PackageContents.xml"
+$aiWorkerExe = Join-Path $aiWorkerBundleDir "NavisHelper.AiWorker.exe"
+$aiWorkerDll = Join-Path $aiWorkerBundleDir "NavisHelper.AiWorker.dll"
+$aiWorkerDeps = Join-Path $aiWorkerBundleDir "NavisHelper.AiWorker.deps.json"
+$aiWorkerRuntimeConfig = Join-Path $aiWorkerBundleDir "NavisHelper.AiWorker.runtimeconfig.json"
+$aiWorkerJson = Join-Path $aiWorkerBundleDir "Newtonsoft.Json.dll"
 foreach ($required in @(
     $bundle2024,
     $bundle2025,
@@ -144,7 +164,12 @@ foreach ($required in @(
     $bundleRussian2025,
     $bundleRussian2026,
     $bundleRussian2027,
-    $packageContents
+    $packageContents,
+    $aiWorkerExe,
+    $aiWorkerDll,
+    $aiWorkerDeps,
+    $aiWorkerRuntimeConfig,
+    $aiWorkerJson
 )) {
     if (-not (Test-Path -LiteralPath $required)) {
         throw "Required bundle artifact is missing: $required. Run the full NavisHelper build matrix (Release2024, Release2025, Release2026, Release2027 with Platform=x64) before packaging, or rerun this script without -SkipBuild."
@@ -327,7 +352,8 @@ function Test-PackageRequiresDotNet9 {
 
     try {
         $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-        return [bool]$manifest.mcp_server.framework_dependent
+        return [bool]$manifest.mcp_server.framework_dependent -or
+               [bool]$manifest.ai_worker.framework_dependent
     } catch {
         return $true
     }
@@ -356,7 +382,7 @@ function Assert-DotNet9Runtime {
         return
     }
 
-    throw ".NET 9 Runtime is required for this framework-dependent NavisHelper MCP server package. Install it from https://dotnet.microsoft.com/download/dotnet/9.0/runtime, then run this script again; or use a self-contained NavisHelper package."
+    throw ".NET 9 Runtime is required for this framework-dependent NavisHelper package. Install it from https://dotnet.microsoft.com/download/dotnet/9.0/runtime, then run this script again; or use a self-contained NavisHelper package."
 }
 
 function Get-PackageVersion {
@@ -447,14 +473,14 @@ if (-not $SkipMcp) {
     Assert-CopyDestinationSafe $sourceMcpConfigurator $destinationMcpConfigurator
 }
 
-if (-not $SkipMcp) {
-    Assert-DotNet9Runtime
-}
+Assert-DotNet9Runtime
 
 Assert-NoLegacyMachineWideInstall
 Assert-NavisworksClosed
 Copy-DirectoryFresh $sourceBundle $destinationBundle
 Assert-InstalledFile (Join-Path $destinationBundle "PackageContents.xml") "NavisHelper bundle manifest"
+Assert-InstalledFile (Join-Path $destinationBundle "Contents\AiWorker\NavisHelper.AiWorker.exe") "OpenRouter AI worker executable"
+Assert-InstalledFile (Join-Path $destinationBundle "Contents\AiWorker\NavisHelper.AiWorker.runtimeconfig.json") "OpenRouter AI worker runtime configuration"
 Write-Host "Installed bundle to $destinationBundle"
 
 if (-not $SkipMcp) {
@@ -640,6 +666,11 @@ $manifest = [ordered]@{
     mcp_server = [ordered]@{
         path = "McpServer\NavisHelper.McpServer.exe"
         framework_dependent = -not [bool]$SelfContained
+    }
+    ai_worker = [ordered]@{
+        path = "NavisHelper.bundle\Contents\AiWorker\NavisHelper.AiWorker.exe"
+        framework_dependent = -not [bool]$SelfContained
+        protocol_version = 3
     }
     mcp_configurator = [ordered]@{
         path = "McpConfigurator\NavisHelper.McpConfigurator.exe"

@@ -63,9 +63,12 @@ namespace NavisHelper
         /// <param name="selection">Выделение</param>
         /// <param name="colors">Словарь имя объекта -> RGB цвет</param>
         /// <returns>Количество примененных цветов</returns>
-        public static int ApplyColorsToObjects(ModelItemCollection selection, Dictionary<string, string> colors)
+        public static int ApplyColorsToObjects(
+            Document document,
+            ModelItemCollection selection,
+            Dictionary<string, string> colors)
         {
-            if (selection == null || colors == null || colors.Count == 0)
+            if (document == null || selection == null || colors == null || colors.Count == 0)
                 return 0;
 
             int appliedCount = 0;
@@ -86,7 +89,7 @@ namespace NavisHelper
                                 continue;
 
                             var colorString = colors[displayName];
-                            if (ApplyColorToModelItem(modelItem, colorString))
+                            if (ApplyColorToModelItem(document, modelItem, colorString))
                             {
                                 appliedCount++;
                             }
@@ -113,9 +116,12 @@ namespace NavisHelper
         /// <param name="modelItem">Объект модели</param>
         /// <param name="colorString">RGB цвет в формате "R,G,B"</param>
         /// <returns>true если цвет применен успешно</returns>
-        public static bool ApplyColorToModelItem(ModelItem modelItem, string colorString)
+        public static bool ApplyColorToModelItem(
+            Document document,
+            ModelItem modelItem,
+            string colorString)
         {
-            if (modelItem == null || string.IsNullOrWhiteSpace(colorString))
+            if (document == null || modelItem == null || string.IsNullOrWhiteSpace(colorString))
                 return false;
 
             try
@@ -128,7 +134,7 @@ namespace NavisHelper
                 
                 // Применение цвета к объекту
                 var items = new ModelItemCollection { modelItem };
-                Application.ActiveDocument.Models.OverridePermanentColor(items, navisColor);
+                document.Models.OverridePermanentColor(items, navisColor);
                 
                 Logger.Info($"Применен цвет {colorString} к объекту {GetModelItemDisplayName(modelItem)}", "AIColorUtils");
                 return true;

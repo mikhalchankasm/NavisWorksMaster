@@ -163,7 +163,7 @@ namespace NavisHelper.WPF
             topStack.Children.Add(CreateSeparator());
 
             // --- Кнопка запуска ---
-            var applyBtn = new Button
+            _aiApplyButton = new Button
             {
                 Content = MakeLocalizedButtonContent(
                     "ai_color",
@@ -175,10 +175,41 @@ namespace NavisHelper.WPF
                 Style = UiTheme.ButtonStyle(ButtonKind.Primary)
             };
             _panelLocalizationBindings.BindToolTip(
-                applyBtn,
+                _aiApplyButton,
                 "Panel_Colors_Ai_Apply_ToolTip");
-            applyBtn.Click += OnApplyColorScheme;
-            topStack.Children.Add(applyBtn);
+            _aiApplyButton.Click += OnApplyColorScheme;
+            topStack.Children.Add(_aiApplyButton);
+
+            _localPaletteButton = new Button
+            {
+                Height = 32,
+                FontSize = 12,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 6),
+                Cursor = Cursors.Hand,
+                Style = UiTheme.ButtonStyle(ButtonKind.Neutral)
+            };
+            _panelLocalizationBindings.BindContent(
+                _localPaletteButton,
+                "Panel_Colors_Ai_LocalPalette_Action");
+            _panelLocalizationBindings.BindToolTip(
+                _localPaletteButton,
+                "Panel_Colors_Ai_LocalPalette_ToolTip");
+            _localPaletteButton.Click += OnApplyLocalPalette;
+            topStack.Children.Add(_localPaletteButton);
+
+            var dataNotice = new TextBlock
+            {
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(
+                    WpfColor.FromRgb(120, 120, 120)),
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            _panelLocalizationBindings.BindText(
+                dataNotice,
+                "Panel_Colors_Ai_DataNotice");
+            topStack.Children.Add(dataNotice);
 
             topStack.Children.Add(CreateSeparator());
 
@@ -274,6 +305,10 @@ namespace NavisHelper.WPF
                 Background = new SolidColorBrush(WpfColor.FromRgb(245, 245, 245)),
                 BorderBrush = new SolidColorBrush(WpfColor.FromRgb(200, 200, 200)),
             };
+            _panelLocalizationBindings.BindAction(
+                _aiResponseLog,
+                "Colors.AiOutcome",
+                RefreshAIResponseOutcome);
             Grid.SetRow(_aiResponseLog, 1);
             grid.Children.Add(_aiResponseLog);
 

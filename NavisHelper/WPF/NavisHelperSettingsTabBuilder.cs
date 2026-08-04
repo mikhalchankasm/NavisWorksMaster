@@ -1,24 +1,65 @@
 using System;
-using System.IO;
-using System.Net.Http;
-using System.Net.Http.Headers;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Navigation;
 using System.Windows.Threading;
+using NavisHelper.AI;
 using NavisHelper.Core.Localization;
 
 namespace NavisHelper.WPF
 {
+    internal sealed class DispatcherAISettingsUiBoundary :
+        IAISettingsUiBoundary
+    {
+        private readonly Dispatcher _dispatcher;
+
+        internal DispatcherAISettingsUiBoundary(Dispatcher dispatcher)
+        {
+            _dispatcher = dispatcher ??
+                          throw new ArgumentNullException(nameof(dispatcher));
+        }
+
+        public Task RunAsync(Action action)
+        {
+            if (action == null)
+                throw new ArgumentNullException(nameof(action));
+            if (_dispatcher.HasShutdownStarted ||
+                _dispatcher.HasShutdownFinished)
+                return Task.CompletedTask;
+            if (_dispatcher.CheckAccess())
+            {
+                action();
+                return Task.CompletedTask;
+            }
+            var completion = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            _dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    action();
+                    completion.TrySetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    completion.TrySetException(ex);
+                }
+            }));
+            return completion.Task;
+        }
+    }
+
     /// <summary>
     /// Builds the standalone Settings tab without expanding NavisHelperPanel's
     /// compatibility partial surface.
     /// </summary>
-    internal sealed class NavisHelperSettingsTabBuilder
+    internal sealed class NavisHelperSettingsTabBuilder : IDisposable
     {
-        private const string AiKeyEnvVar = "OPEN_ROUTER_NW_KEY";
-
         private readonly Action<string, Brush, object[]> _setStatusResource;
         private readonly Action<string> _openFile;
         private readonly Func<string> _getLogPath;
@@ -27,13 +68,28 @@ namespace NavisHelper.WPF
         private readonly Dispatcher _dispatcher;
         private readonly UiLocalizationService _localization;
         private readonly PanelLocalizationBindings _bindings;
-
-        private Border _aiKeyChip;
-        private TextBlock _aiKeyChipLabel;
-        private TextBlock _aiTestResultText;
-        private int _aiTestGeneration;
-        private AiTestDisplayState _aiTestDisplayState;
-        private string _aiTestErrorDetail;
+        private readonly AISettingsOperationLifetime _aiOperationLifetime =
+            new AISettingsOperationLifetime();
+        private readonly IAISettingsInfrastructureExecutor _infrastructure;
+        private readonly IAISettingsUiBoundary _uiBoundary;
+        private readonly AISettingsUiMutationGate _uiMutationGate;
+        private PasswordBox _aiKeyInput;
+        private Button _aiConnectButton;
+        private Button _aiDisconnectButton;
+        private Button _aiRefreshModelsButton;
+        private TextBlock _aiModelStatusText;
+        private TextBox _aiModelSearch;
+        private TextBlock _aiModelCountText;
+        private OpenRouterConnectionPanel _aiConnectionPanel;
+        private OpenRouterModelSelector _aiModelSelector;
+        private readonly OpenRouterModelPicker _aiModelPicker =
+            new OpenRouterModelPicker();
+        private OpenRouterCatalogResult _aiCatalog;
+        private AiConnectionDisplayState _aiConnectionState;
+        private bool _hasConnectedKey;
+        private bool _isCatalogLoading;
+        private bool _updatingAiModelUi;
+        private bool _isDisposed;
 
         public NavisHelperSettingsTabBuilder(
             Action<string, Brush, object[]> setStatusResource,
@@ -53,36 +109,46 @@ namespace NavisHelper.WPF
             _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
             _bindings = bindings ?? throw new ArgumentNullException(nameof(bindings));
             _localization = UiLocalizationService.Current;
+            _infrastructure = AISettingsInfrastructureExecutor.CreateDefault(
+                Thread.CurrentThread.ManagedThreadId);
+            _uiBoundary = new DispatcherAISettingsUiBoundary(dispatcher);
+            _uiMutationGate = new AISettingsUiMutationGate(_uiBoundary);
         }
 
         public ComboBox ModelCombo { get; private set; }
-        public CheckBox ThinkingCheck { get; private set; }
 
-        private static string AiConfigJsonPath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "NavisHelper", "ai_config.json");
+        internal void ResumeAfterLoad()
+        {
+            if (!_isDisposed)
+                VerifyExistingKey();
+        }
+
+        internal void CancelPendingOperations()
+        {
+            _aiOperationLifetime.CancelPendingOperations();
+        }
+
+        public void Dispose()
+        {
+            if (_isDisposed)
+                return;
+            _isDisposed = true;
+            _aiOperationLifetime.Dispose();
+        }
 
         public TabItem Build()
         {
             var stack = new StackPanel { Margin = new Thickness(8) };
-            stack.Children.Add(UiTheme.SectionCard(
-                string.Empty,
-                BuildLanguageSettingsSection()));
             stack.Children.Add(BuildLocalizedSection("AI", BuildAiSettingsSection()));
             stack.Children.Add(BuildLocalizedSection(
                 "Settings_Service_Section",
                 BuildServiceSection()));
             stack.Children.Add(BuildLocalizedSection(
+                "SettingsLanguageSectionTitle",
+                BuildLanguageSettingsSection()));
+            stack.Children.Add(BuildLocalizedSection(
                 "Settings_About_Section",
                 BuildAboutSection()));
-            stack.Children.Add(new TextBlock
-            {
-                Text = $"NavisHelper {NavisHelper.AppVersion.VersionString}",
-                FontSize = UiTheme.FontCaption,
-                Foreground = UiTheme.TextMuted,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 4, 0, 8)
-            });
 
             var tab = new TabItem
             {
@@ -101,31 +167,19 @@ namespace NavisHelper.WPF
         {
             var radioState = new UiLanguageRadioState(_localization.CurrentLanguage);
             var stack = new StackPanel();
-            var sectionTitle = new TextBlock
-            {
-                FontSize = UiTheme.FontSmall,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = UiTheme.TextSecondary,
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-            var fieldLabel = new TextBlock
-            {
-                FontSize = UiTheme.FontBody,
-                Margin = new Thickness(0, 0, 0, 4)
-            };
             var languageRow = new StackPanel
             {
                 Orientation = Orientation.Horizontal
             };
-            stack.Children.Add(sectionTitle);
-            stack.Children.Add(fieldLabel);
 
             var russianRadio = new RadioButton
             {
                 Content = _localization.GetString("SettingsLanguageRussianName"),
                 GroupName = "NavisHelper.InterfaceLanguage",
                 FontSize = UiTheme.FontBody,
-                Margin = new Thickness(0, 0, 18, 0),
+                Style = UiTheme.SegmentedRadioStyle(),
+                MinWidth = 84,
+                Margin = new Thickness(0, 0, 2, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
             var englishRadio = new RadioButton
@@ -133,6 +187,8 @@ namespace NavisHelper.WPF
                 Content = _localization.GetString("SettingsLanguageEnglishName"),
                 GroupName = "NavisHelper.InterfaceLanguage",
                 FontSize = UiTheme.FontBody,
+                Style = UiTheme.SegmentedRadioStyle(),
+                MinWidth = 84,
                 VerticalAlignment = VerticalAlignment.Center
             };
             languageRow.Children.Add(russianRadio);
@@ -141,8 +197,6 @@ namespace NavisHelper.WPF
 
             Action refreshLanguageSection = () =>
             {
-                sectionTitle.Text = _localization.GetString("SettingsLanguageSectionTitle");
-                fieldLabel.Text = _localization.GetString("SettingsLanguageFieldLabel");
                 russianRadio.Content = _localization.GetString("SettingsLanguageRussianName");
                 englishRadio.Content = _localization.GetString("SettingsLanguageEnglishName");
                 radioState.Refresh(
@@ -247,259 +301,836 @@ namespace NavisHelper.WPF
 
         private UIElement BuildAiSettingsSection()
         {
-            var stack = new StackPanel();
-            var keyRow = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 0, 0, 4)
-            };
-            _aiKeyChip = UiTheme.Chip(string.Empty, true, out _aiKeyChipLabel);
-            keyRow.Children.Add(_aiKeyChip);
-            var refreshButton = LocalizedToolButton(
-                "Panel_Refresh",
-                "Settings_Ai_RefreshKey_ToolTip",
-                RefreshAiKeyStatus);
-            refreshButton.Margin = new Thickness(8, 0, 0, 0);
-            keyRow.Children.Add(refreshButton);
-            stack.Children.Add(keyRow);
+            _aiConnectionPanel = new OpenRouterConnectionPanel(
+                _bindings,
+                _localization,
+                ConnectOpenRouter,
+                DisconnectOpenRouter,
+                OpenOpenRouterKeysPage);
+            _aiKeyInput = _aiConnectionPanel.KeyInput;
+            _aiConnectButton = _aiConnectionPanel.ConnectButton;
+            _aiDisconnectButton = _aiConnectionPanel.DisconnectButton;
+
+            _aiModelSelector = new OpenRouterModelSelector(
+                _bindings,
+                _localization,
+                RefreshModels);
+            _aiModelSearch = _aiModelSelector.SearchBox;
+            _aiModelSearch.TextChanged += (sender, args) => ApplyModelFilter();
+            _aiModelCountText = _aiModelSelector.CountText;
             _bindings.BindAction(
-                _aiKeyChip,
-                "Settings.AiKeyStatus",
-                RefreshAiKeyStatus);
+                _aiModelCountText,
+                "Settings.AiModelCount",
+                () => UpdateModelCount(
+                    _aiModelPicker.Filter(_aiModelSearch?.Text).Count));
+            ModelCombo = _aiModelSelector.ModelCombo;
+            ModelCombo.SelectionChanged +=
+                (sender, args) => CommitSelectedModel();
+            _bindings.BindAction(
+                ModelCombo,
+                "Settings.AiModelCapabilities",
+                RefreshModelChoiceLocalization);
+            _aiRefreshModelsButton = _aiModelSelector.RefreshButton;
+            _aiModelStatusText = _aiModelSelector.StatusText;
+            _bindings.BindAction(
+                _aiModelStatusText,
+                "Settings.AiModelState",
+                RefreshAiModelDisplay);
 
-            var helpText = new TextBlock
-            {
-                FontSize = UiTheme.FontSmall,
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = UiTheme.TextSecondary,
-                Margin = new Thickness(0, 4, 0, 4),
-            };
-            _bindings.BindText(helpText, "Settings_Ai_KeyHelp");
-            var helpStack = new StackPanel();
-            helpStack.Children.Add(helpText);
-            helpStack.Children.Add(LocalizedToolButton(
-                "Panel_CopyCommand",
-                "Settings_Ai_CopyCommand_ToolTip",
-                () =>
-                {
-                    Clipboard.SetText(
-                        "setx " + AiKeyEnvVar + " " +
-                        _localization.GetString("SettingsAiKeyPlaceholder"));
-                    _setStatusResource(
-                        "Settings_Ai_CommandCopied_Status",
-                        UiTheme.Success,
-                        new object[0]);
-                }));
-            var helpExpander = new Expander
-            {
-                FontSize = UiTheme.FontSmall,
-                IsExpanded = false,
-                Margin = new Thickness(0, 0, 0, 6),
-                Content = helpStack
-            };
-            _bindings.BindHeader(helpExpander, "Settings_Ai_KeyHelp_Title");
-            stack.Children.Add(helpExpander);
+            _aiConnectionPanel.SetModelContent(_aiModelSelector.Root);
+            _bindings.BindAction(
+                _aiConnectionPanel.Root,
+                "Settings.AiConnectionState",
+                RefreshAiConnectionDisplay);
 
-            var modelLabel = new TextBlock
+            RefreshAiConnectionDisplay();
+            RefreshAiModelDisplay();
+            return _aiConnectionPanel.Root;
+        }
+
+        private async void ConnectOpenRouter()
+        {
+            try
             {
-                FontSize = UiTheme.FontBody,
-                Margin = new Thickness(0, 0, 0, 4)
-            };
-            _bindings.BindText(modelLabel, "Settings_Ai_Model_Label");
-            stack.Children.Add(modelLabel);
-            var modelRow = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-            ModelCombo = new ComboBox { Width = 170, Height = 24, FontSize = UiTheme.FontSmall };
-            var currentModel = AIConfig.Instance.ModelName;
-            var selectedIndex = 0;
-            for (var index = 0; index < AIModels.Available.Length; index++)
-            {
-                ModelCombo.Items.Add(AIModels.Available[index].DisplayName);
-                if (AIModels.Available[index].DisplayName == currentModel)
-                    selectedIndex = index;
+                await AISettingsAsyncBoundary.RunAsync(
+                    ConnectOpenRouterAsync,
+                    ex => HandleUnexpectedConnectionErrorAsync(null, ex));
             }
-            ModelCombo.SelectedIndex = selectedIndex;
-            ModelCombo.SelectionChanged += (sender, args) =>
+            catch
             {
-                AIConfig.Instance.ModelName =
-                    ModelCombo.SelectedItem as string ?? AIModels.Available[0].DisplayName;
-                AIConfig.Instance.SaveConfig();
-            };
-            modelRow.Children.Add(ModelCombo);
-
-            ThinkingCheck = new CheckBox
-            {
-                IsChecked = AIConfig.Instance.EnableThinking,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(10, 0, 0, 0),
-                FontSize = UiTheme.FontSmall
-            };
-            _bindings.BindContent(ThinkingCheck, "Panel_Thinking");
-            _bindings.BindToolTip(
-                ThinkingCheck,
-                "Settings_Ai_Thinking_ToolTip");
-            ThinkingCheck.Checked += (sender, args) =>
-            {
-                AIConfig.Instance.EnableThinking = true;
-                AIConfig.Instance.SaveConfig();
-            };
-            ThinkingCheck.Unchecked += (sender, args) =>
-            {
-                AIConfig.Instance.EnableThinking = false;
-                AIConfig.Instance.SaveConfig();
-            };
-            modelRow.Children.Add(ThinkingCheck);
-            stack.Children.Add(modelRow);
-
-            var testRow = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 0, 0, 4)
-            };
-            testRow.Children.Add(LocalizedToolButton(
-                "Panel_Check",
-                "Settings_Ai_Test_ToolTip",
-                TestAiApiAccess));
-            _aiTestResultText = new TextBlock
-            {
-                FontSize = UiTheme.FontSmall,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(8, 0, 0, 0),
-                TextTrimming = TextTrimming.CharacterEllipsis
-            };
-            _bindings.BindAction(
-                _aiTestResultText,
-                "Settings.AiTestResult",
-                RefreshAiTestResult);
-            testRow.Children.Add(_aiTestResultText);
-            stack.Children.Add(testRow);
-            stack.Children.Add(LocalizedToolButton(
-                "Settings_Ai_OpenConfig_Action",
-                "Settings_Ai_OpenConfig_ToolTip",
-                () => _openFile(AiConfigJsonPath)));
-            return stack;
+                // The WPF event boundary must never propagate an exception.
+            }
         }
 
-        private void RefreshAiKeyStatus()
+        private async Task ConnectOpenRouterAsync()
         {
-            var hasKey = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(AiKeyEnvVar));
-            UiTheme.SetChipState(
-                _aiKeyChip,
-                _aiKeyChipLabel,
-                _localization.GetString(
-                    hasKey
-                        ? "Settings_Ai_KeyFound"
-                        : "Settings_Ai_KeyMissing"),
-                hasKey);
-        }
-
-        private void TestAiApiAccess()
-        {
-            var generation = ++_aiTestGeneration;
-            var key = Environment.GetEnvironmentVariable(AiKeyEnvVar);
-            if (string.IsNullOrEmpty(key))
+            var enteredKey = (_aiKeyInput.Password ?? string.Empty).Trim();
+            if (!AISettingsConnectInputPolicy.MayStartConnection(enteredKey))
             {
-                _aiTestDisplayState = AiTestDisplayState.NoKey;
-                RefreshAiTestResult();
+                _hasConnectedKey = false;
+                _aiConnectionState = AiConnectionDisplayState.MissingKey;
+                RefreshAiConnectionDisplay();
                 return;
             }
 
-            var modelsUrl = AIConfig.Instance.ApiUrl.Replace("/chat/completions", "/models");
-            _aiTestDisplayState = AiTestDisplayState.Checking;
-            RefreshAiTestResult();
+            var operation = _aiOperationLifetime.Begin(-1);
+            if (operation == null)
+                return;
+            _aiConnectionState = AiConnectionDisplayState.Checking;
+            RefreshAiConnectionDisplay();
+            await ConnectWithKeyAsync(
+                    enteredKey,
+                    true,
+                    operation)
+                .ConfigureAwait(false);
+        }
 
-            _ = Task.Run(async () =>
+        private async void VerifyExistingKey()
+        {
+            try
             {
-                AiTestDisplayState displayState;
-                string errorDetail = null;
-                bool ok;
-                try
-                {
-                    using (var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) })
-                    {
-                        client.DefaultRequestHeaders.Authorization =
-                            new AuthenticationHeaderValue("Bearer", key);
-                        var response = await client.GetAsync(modelsUrl).ConfigureAwait(false);
-                        ok = response.IsSuccessStatusCode;
-                        displayState = ok
-                            ? AiTestDisplayState.Success
-                            : AiTestDisplayState.Error;
-                        if (!ok)
-                            errorDetail =
-                                ((int)response.StatusCode) + " " + response.ReasonPhrase;
-                    }
-                }
-                catch (TaskCanceledException)
-                {
-                    ok = false;
-                    displayState = AiTestDisplayState.Timeout;
-                }
-                catch (Exception ex)
-                {
-                    ok = false;
-                    displayState = AiTestDisplayState.Error;
-                    errorDetail = ex.Message;
-                }
+                await AISettingsAsyncBoundary.RunAsync(
+                    VerifyExistingKeyAsync,
+                    ex => HandleUnexpectedConnectionErrorAsync(null, ex));
+            }
+            catch
+            {
+                // ResumeAfterLoad must not launch an unobserved faulted Task.
+            }
+        }
 
-                _ = _dispatcher.BeginInvoke(new Action(() =>
+        private async Task VerifyExistingKeyAsync()
+        {
+            var operation = _aiOperationLifetime.Begin(-1);
+            if (operation == null)
+                return;
+            await ConnectWithKeyAsync(
+                    string.Empty,
+                    false,
+                    operation)
+                .ConfigureAwait(false);
+        }
+
+        private async Task ConnectWithKeyAsync(
+            string enteredKey,
+            bool persist,
+            AISettingsOperationLease operation)
+        {
+            var cancellationToken = operation.CancellationToken;
+            OpenRouterKeySnapshot keySnapshot;
+            try
+            {
+                keySnapshot = await _infrastructure.CaptureKeyStateAsync(
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                await HandleUnexpectedConnectionErrorAsync(operation, ex)
+                    .ConfigureAwait(false);
+                return;
+            }
+            if (!_aiOperationLifetime.IsCurrent(operation))
+                return;
+            var key = persist ? enteredKey : keySnapshot.Key;
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                await ApplyOnUiThreadAsync(operation, () =>
                 {
-                    if (generation != _aiTestGeneration)
+                    _hasConnectedKey = false;
+                    _aiConnectionState = AiConnectionDisplayState.MissingKey;
+                    RefreshAiConnectionDisplay();
+                }).ConfigureAwait(false);
+                return;
+            }
+
+            OpenRouterValidationResult validation;
+            bool validationTimedOut;
+            bool validationCancelled;
+            try
+            {
+                using (var validationTimeout =
+                           new CancellationTokenSource(
+                               AISettingsOperationPolicy.KeyValidationTimeout))
+                {
+                    try
+                    {
+                        validation = await _infrastructure.ValidateKeyAsync(
+                                key,
+                                cancellationToken,
+                                validationTimeout.Token)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        var failure =
+                            AISettingsOperationPolicy.EffectiveFailure(
+                                OpenRouterFailureKind.Cancelled,
+                                validationTimeout.Token,
+                                cancellationToken);
+                        await ApplyOnUiThreadAsync(operation, () =>
+                        {
+                            _aiConnectionState = MapConnectionFailure(
+                                failure,
+                                cancellationToken.IsCancellationRequested,
+                                validationTimeout.IsCancellationRequested);
+                            RefreshAiConnectionDisplay();
+                        }).ConfigureAwait(false);
                         return;
-                    _aiTestDisplayState = displayState;
-                    _aiTestErrorDetail = errorDetail;
-                    RefreshAiTestResult();
-                }));
+                    }
+                    validationTimedOut =
+                        validationTimeout.IsCancellationRequested;
+                    validationCancelled =
+                        cancellationToken.IsCancellationRequested;
+                    var effectiveValidationFailure =
+                        AISettingsOperationPolicy.EffectiveFailure(
+                            validation.FailureKind,
+                            validationTimeout.Token,
+                            cancellationToken);
+                    validation = effectiveValidationFailure ==
+                                 validation.FailureKind
+                        ? validation
+                        : OpenRouterValidationResult.Failure(
+                            effectiveValidationFailure,
+                            validation.HttpStatus);
+                }
+            }
+            catch (Exception ex)
+            {
+                await HandleUnexpectedConnectionErrorAsync(operation, ex)
+                    .ConfigureAwait(false);
+                return;
+            }
+
+            var validationFailure = AISettingsOperationPolicy.EffectiveFailure(
+                validation.FailureKind,
+                validationTimedOut,
+                validationCancelled);
+            if (!_aiOperationLifetime.IsCurrent(operation))
+                return;
+            if (!AISettingsOperationPolicy.MayMutateKey(
+                    validation,
+                    validationTimedOut,
+                    validationCancelled))
+            {
+                await ApplyOnUiThreadAsync(operation, () =>
+                {
+                    _aiConnectionState = MapConnectionFailure(
+                        validationFailure,
+                        validationCancelled,
+                        validationTimedOut);
+                    RefreshAiConnectionDisplay();
+                }).ConfigureAwait(false);
+                return;
+            }
+
+            KeyStoreMutationResult mutation;
+            try
+            {
+                mutation = await _infrastructure.PersistKeyAsync(
+                        key,
+                        persist,
+                        keySnapshot.Generation,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                await HandleUnexpectedConnectionErrorAsync(operation, ex)
+                    .ConfigureAwait(false);
+                return;
+            }
+            if (!_aiOperationLifetime.IsCurrent(operation) ||
+                !mutation.GenerationMatched)
+                return;
+            if (!mutation.IsSuccess ||
+                (persist && !mutation.IsFullyConnected) ||
+                (!persist &&
+                 (!mutation.HasProcessValue ||
+                  !mutation.HasRuntimeValue)))
+            {
+                await ApplyOnUiThreadAsync(operation, () =>
+                {
+                    _aiConnectionState = AiConnectionDisplayState.StorageFailed;
+                    RefreshAiConnectionDisplay();
+                }).ConfigureAwait(false);
+                return;
+            }
+
+            await ApplyOnUiThreadAsync(operation, () =>
+            {
+                _hasConnectedKey = true;
+                _aiKeyInput.Clear();
+                _aiConnectionState = AiConnectionDisplayState.Connected;
+                RefreshAiConnectionDisplay();
+            }).ConfigureAwait(false);
+            if (!_aiOperationLifetime.IsCurrent(operation))
+                return;
+            await RefreshModelCatalogAsync(
+                    key,
+                    operation,
+                    mutation.Generation)
+                .ConfigureAwait(false);
+        }
+
+        private async Task RefreshModelCatalogAsync(
+            string key,
+            AISettingsOperationLease operation,
+            int keyGeneration)
+        {
+            await ApplyOnUiThreadAsync(operation, () =>
+            {
+                _isCatalogLoading = true;
+                _aiCatalog = null;
+                ClearModelChoices();
+                _aiConnectionState = AiConnectionDisplayState.Connected;
+                RefreshAiConnectionDisplay();
+                RefreshAiModelDisplay();
+            }).ConfigureAwait(false);
+            if (!_aiOperationLifetime.IsCurrent(operation))
+                return;
+            OpenRouterCatalogResult catalog;
+            bool catalogTimedOut;
+            bool catalogCancelled;
+            try
+            {
+                using (var catalogTimeout =
+                           new CancellationTokenSource(
+                               AISettingsOperationPolicy.ModelCatalogTimeout))
+                {
+                    try
+                    {
+                        catalog = await _infrastructure.LoadModelsAsync(
+                                key,
+                                operation.CancellationToken,
+                                catalogTimeout.Token)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        var failure =
+                            AISettingsOperationPolicy.EffectiveFailure(
+                                OpenRouterFailureKind.Cancelled,
+                                catalogTimeout.Token,
+                                operation.CancellationToken);
+                        if (!_aiOperationLifetime.IsCurrent(operation))
+                            return;
+                        catalog = OpenRouterCatalogResult.Unavailable(failure);
+                    }
+                    catalogTimedOut = catalogTimeout.IsCancellationRequested;
+                    catalogCancelled =
+                        operation.CancellationToken.IsCancellationRequested;
+                    catalog = AISettingsOperationPolicy.NormalizeCatalog(
+                        catalog,
+                        catalogTimedOut,
+                        catalogCancelled);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!_aiOperationLifetime.IsCurrent(operation))
+                    return;
+                await HandleUnexpectedCatalogErrorAsync(operation, ex)
+                    .ConfigureAwait(false);
+                catalog = OpenRouterCatalogResult.Unavailable(
+                    OpenRouterFailureKind.Network);
+            }
+
+            if (!_aiOperationLifetime.IsCurrent(operation))
+                return;
+            AISettingsModelBinding binding;
+            try
+            {
+                binding = await _infrastructure.PrepareModelBindingAsync(
+                        catalog,
+                        operation.CancellationToken)
+                    .ConfigureAwait(false);
+                if (!await _infrastructure.IsKeyGenerationCurrentAsync(
+                            keyGeneration,
+                            operation.CancellationToken)
+                        .ConfigureAwait(false))
+                    return;
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            if (!_aiOperationLifetime.IsCurrent(operation))
+                return;
+            bool catalogReplaced;
+            if (!_aiOperationLifetime.TryExecuteCurrent(
+                    operation,
+                    () =>
+                    {
+                        _infrastructure.ReplaceCatalog(
+                            keyGeneration,
+                            catalog);
+                        return true;
+                    },
+                    out catalogReplaced) ||
+                !catalogReplaced)
+                return;
+            await ApplyOnUiThreadAsync(operation, () =>
+            {
+                var bindWatch = Stopwatch.StartNew();
+                _isCatalogLoading = false;
+                _aiCatalog = catalog;
+                BindModelChoices(binding);
+                _aiConnectionState =
+                    AISettingsOperationPolicy.CatalogCompletionState(
+                        catalog,
+                        binding.SelectedChoice != null);
+                RefreshAiConnectionDisplay();
+                RefreshAiModelDisplay();
+                _infrastructure.ReportPhase(
+                    AISettingsOperationStage.BindModels,
+                    OpenRouterFailureKind.None,
+                    catalog.HttpStatus,
+                    bindWatch.ElapsedMilliseconds,
+                    false);
+            }).ConfigureAwait(false);
+        }
+
+        private async void RefreshModels()
+        {
+            try
+            {
+                await AISettingsAsyncBoundary.RunAsync(
+                    RefreshModelsSafelyAsync,
+                    ex => HandleUnexpectedCatalogErrorAsync(null, ex));
+            }
+            catch
+            {
+                // The WPF event boundary must never propagate an exception.
+            }
+        }
+
+        private async Task RefreshModelsSafelyAsync()
+        {
+            var operation = _aiOperationLifetime.Begin(-1);
+            if (operation == null)
+                return;
+            OpenRouterKeySnapshot keySnapshot;
+            try
+            {
+                keySnapshot = await _infrastructure.CaptureKeyStateAsync(
+                        operation.CancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            if (!_aiOperationLifetime.IsCurrent(operation))
+                return;
+            if (string.IsNullOrWhiteSpace(keySnapshot.Key))
+            {
+                await ApplyOnUiThreadAsync(operation, () =>
+                {
+                    _isCatalogLoading = false;
+                    _hasConnectedKey = false;
+                    _aiConnectionState = AiConnectionDisplayState.MissingKey;
+                    RefreshAiConnectionDisplay();
+                }).ConfigureAwait(false);
+                return;
+            }
+
+            await ApplyOnUiThreadAsync(operation, () =>
+            {
+                _hasConnectedKey = true;
+                _aiConnectionState = AiConnectionDisplayState.Connected;
+                RefreshAiConnectionDisplay();
+            }).ConfigureAwait(false);
+            try
+            {
+                await RefreshModelCatalogAsync(
+                    keySnapshot.Key,
+                    operation,
+                    keySnapshot.Generation);
+            }
+            catch (OperationCanceledException)
+            {
+                await ApplyOnUiThreadAsync(operation, () =>
+                {
+                    _aiConnectionState = AiConnectionDisplayState.Connected;
+                    RefreshAiConnectionDisplay();
+                    RefreshAiModelDisplay();
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                if (_aiOperationLifetime.IsCurrent(operation))
+                {
+                    await HandleUnexpectedCatalogErrorAsync(operation, ex)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async void DisconnectOpenRouter()
+        {
+            try
+            {
+                await AISettingsAsyncBoundary.RunAsync(
+                    DisconnectOpenRouterAsync,
+                    ex => HandleUnexpectedConnectionErrorAsync(null, ex));
+            }
+            catch
+            {
+                // The WPF event boundary must never propagate an exception.
+            }
+        }
+
+        private async Task DisconnectOpenRouterAsync()
+        {
+            AIColorOperationCoordinator.Current.CancelCurrent();
+            CancelPendingOperations();
+            var operation = _aiOperationLifetime.Begin(-1);
+            if (operation == null)
+                return;
+            _hasConnectedKey = false;
+            _isCatalogLoading = false;
+            _aiKeyInput.Clear();
+            _aiCatalog = null;
+            ClearModelChoices();
+            _aiConnectionState = AiConnectionDisplayState.Disconnected;
+            RefreshAiConnectionDisplay();
+            RefreshAiModelDisplay();
+            var disconnectTask = _infrastructure.DisconnectAsync();
+            var invalidateTask = _infrastructure.InvalidateCatalogAsync();
+            KeyStoreMutationResult mutation;
+            try
+            {
+                await Task.WhenAll(disconnectTask, invalidateTask)
+                    .ConfigureAwait(false);
+                mutation = await disconnectTask
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                await HandleUnexpectedConnectionErrorAsync(operation, ex)
+                    .ConfigureAwait(false);
+                return;
+            }
+            if (!mutation.IsFullyDisconnected)
+            {
+                await ApplyOnUiThreadAsync(operation, () =>
+                {
+                    _aiConnectionState = AiConnectionDisplayState.StorageFailed;
+                    RefreshAiConnectionDisplay();
+                }).ConfigureAwait(false);
+            }
+        }
+
+        private async void CommitSelectedModel()
+        {
+            try
+            {
+                await AISettingsAsyncBoundary.RunAsync(
+                    CommitSelectedModelAsync,
+                    ex => HandleUnexpectedCatalogErrorAsync(null, ex));
+            }
+            catch
+            {
+                // The WPF event boundary must never propagate an exception.
+            }
+        }
+
+        private async Task CommitSelectedModelAsync()
+        {
+            if (_updatingAiModelUi)
+                return;
+            var choice = ModelCombo.SelectedItem as OpenRouterModelChoice;
+            var selectedModelId = choice?.Id ?? string.Empty;
+            if (choice != null)
+                _aiModelPicker.Select(choice.Id);
+            _infrastructure.UpdateSelectedModelRuntime(selectedModelId);
+            _aiConnectionState = choice == null
+                ? AiConnectionDisplayState.Connected
+                : AiConnectionDisplayState.Ready;
+            RefreshAiConnectionDisplay();
+            RefreshAiModelDisplay();
+            await _infrastructure.SaveSelectedModelAsync()
+                .ConfigureAwait(false);
+        }
+
+        private void ClearModelChoices()
+        {
+            if (ModelCombo == null)
+                return;
+            _updatingAiModelUi = true;
+            try
+            {
+                ModelCombo.ItemsSource = Array.Empty<OpenRouterModelChoice>();
+                ModelCombo.SelectedItem = null;
+                _aiModelPicker.Replace(
+                    Array.Empty<OpenRouterModelChoice>(),
+                    string.Empty);
+                UpdateModelCount(0);
+            }
+            finally
+            {
+                _updatingAiModelUi = false;
+            }
+        }
+
+        private void BindModelChoices(AISettingsModelBinding binding)
+        {
+            if (ModelCombo == null || binding == null)
+                return;
+            _updatingAiModelUi = true;
+            try
+            {
+                _aiModelPicker.Replace(
+                    binding.Choices,
+                    binding.SelectedChoice?.Id);
+                RelocalizeModelChoices();
+                ApplyModelFilterCore();
+            }
+            finally
+            {
+                _updatingAiModelUi = false;
+            }
+        }
+
+        private void RefreshModelChoiceLocalization()
+        {
+            if (ModelCombo == null)
+                return;
+            _updatingAiModelUi = true;
+            try
+            {
+                RelocalizeModelChoices();
+                ApplyModelFilterCore();
+            }
+            finally
+            {
+                _updatingAiModelUi = false;
+            }
+        }
+
+        private void RelocalizeModelChoices()
+        {
+            _aiModelPicker.Relocalize(
+                key => _localization.GetString(key),
+                (key, args) => _localization.Format(key, args));
+        }
+
+        private void ApplyModelFilter()
+        {
+            if (_updatingAiModelUi || ModelCombo == null)
+                return;
+            _updatingAiModelUi = true;
+            try
+            {
+                ApplyModelFilterCore();
+            }
+            finally
+            {
+                _updatingAiModelUi = false;
+            }
+        }
+
+        private void ApplyModelFilterCore()
+        {
+            var filtered = _aiModelPicker.Filter(_aiModelSearch?.Text);
+            ModelCombo.ItemsSource = filtered;
+            ModelCombo.SelectedItem = filtered.FirstOrDefault(choice =>
+                string.Equals(
+                    choice.Id,
+                    _aiModelPicker.SelectedModelId,
+                    StringComparison.OrdinalIgnoreCase));
+            UpdateModelCount(filtered.Count);
+        }
+
+        private void UpdateModelCount(int count)
+        {
+            if (_aiModelCountText == null)
+                return;
+            _aiModelCountText.Text = _localization.Format(
+                "Settings_Ai_Model_Search_Count_Format",
+                count);
+        }
+
+        private void RefreshAiConnectionDisplay()
+        {
+            if (_aiConnectionPanel == null)
+                return;
+
+            var presentation = AISettingsConnectionPresentation.Evaluate(
+                _aiConnectionState,
+                _hasConnectedKey,
+                _isCatalogLoading);
+            var detail = string.IsNullOrEmpty(presentation.DetailResource)
+                ? string.Empty
+                : _localization.GetString(presentation.DetailResource);
+            _aiConnectionPanel.Apply(
+                presentation,
+                _localization.GetString(presentation.HeadlineResource),
+                detail);
+            if (_aiRefreshModelsButton != null)
+                _aiRefreshModelsButton.IsEnabled = presentation.RefreshEnabled;
+        }
+
+        private static AiConnectionDisplayState MapConnectionFailure(
+            OpenRouterFailureKind failure,
+            bool userCancelled,
+            bool timedOut)
+        {
+            if (userCancelled)
+                return AiConnectionDisplayState.Cancelled;
+            if (timedOut)
+                return AiConnectionDisplayState.Timeout;
+            switch (failure)
+            {
+                case OpenRouterFailureKind.MissingKey:
+                    return AiConnectionDisplayState.MissingKey;
+                case OpenRouterFailureKind.Unauthorized:
+                    return AiConnectionDisplayState.Unauthorized;
+                case OpenRouterFailureKind.RateLimited:
+                    return AiConnectionDisplayState.RateLimited;
+                case OpenRouterFailureKind.Timeout:
+                    return AiConnectionDisplayState.Timeout;
+                case OpenRouterFailureKind.Cancelled:
+                    return AiConnectionDisplayState.Cancelled;
+                case OpenRouterFailureKind.WorkerMissing:
+                    return AiConnectionDisplayState.WorkerMissing;
+                case OpenRouterFailureKind.WorkerRuntimeMissing:
+                    return AiConnectionDisplayState.WorkerRuntimeMissing;
+                case OpenRouterFailureKind.WorkerStartupFailed:
+                    return AiConnectionDisplayState.WorkerStartupFailed;
+                case OpenRouterFailureKind.WorkerFailed:
+                    return AiConnectionDisplayState.WorkerFailed;
+                case OpenRouterFailureKind.WorkerInternalFailure:
+                    return AiConnectionDisplayState.WorkerInternalFailure;
+                case OpenRouterFailureKind.ProtocolMismatch:
+                    return AiConnectionDisplayState.ProtocolMismatch;
+                default:
+                    return AiConnectionDisplayState.NetworkUnavailable;
+            }
+        }
+
+        private void RefreshAiModelDisplay()
+        {
+            if (_aiModelStatusText == null)
+                return;
+
+            var choice = ModelCombo?.SelectedItem as OpenRouterModelChoice;
+            var modelId = choice?.Id ?? _aiModelPicker.SelectedModelId;
+            var display = AiModelStatusMapper.Evaluate(
+                _aiConnectionState == AiConnectionDisplayState.Connected ||
+                _aiConnectionState == AiConnectionDisplayState.Ready,
+                _aiCatalog,
+                modelId);
+
+            _aiModelStatusText.Text =
+                _localization.GetString(display.StatusResource);
+            _aiModelStatusText.Foreground = display.IsReady
+                ? UiTheme.Success
+                : UiTheme.TextSecondary;
+        }
+
+        private void OpenOpenRouterKeysPage(
+            object sender,
+            RequestNavigateEventArgs args)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://openrouter.ai/settings/keys",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                global::NavisHelper.Core.Logger.Error(
+                    "OpenRouter keys page exception: " +
+                    ex.GetType().Name,
+                    "NavisHelperSettingsTabBuilder.OpenRouterKeys");
+                _setStatusResource(
+                    "Settings_Ai_OpenKeysFailed",
+                    UiTheme.Warning,
+                    new object[0]);
+            }
+        }
+
+        private Task HandleUnexpectedConnectionErrorAsync(
+            AISettingsOperationLease operation,
+            Exception ex)
+        {
+            return ApplyOnUiThreadAsync(operation, () =>
+            {
+                _aiConnectionState =
+                    AiConnectionDisplayState.NetworkUnavailable;
+                RefreshAiConnectionDisplay();
             });
         }
 
-        private void RefreshAiTestResult()
+        private Task HandleUnexpectedCatalogErrorAsync(
+            AISettingsOperationLease operation,
+            Exception ex)
         {
-            switch (_aiTestDisplayState)
+            return ApplyOnUiThreadAsync(operation, () =>
             {
-                case AiTestDisplayState.NoKey:
-                    _aiTestResultText.Text = _localization.GetString("Settings_Ai_NoApiKey");
-                    _aiTestResultText.Foreground = UiTheme.Error;
-                    break;
-                case AiTestDisplayState.Checking:
-                    _aiTestResultText.Text = _localization.GetString("Panel_Checking");
-                    _aiTestResultText.Foreground = UiTheme.TextMuted;
-                    break;
-                case AiTestDisplayState.Success:
-                    _aiTestResultText.Text = _localization.GetString("Settings_Ai_ApiAvailable");
-                    _aiTestResultText.Foreground = UiTheme.Success;
-                    break;
-                case AiTestDisplayState.Timeout:
-                    _aiTestResultText.Text =
-                        _localization.GetString("Settings_Ai_Timeout");
-                    _aiTestResultText.Foreground = UiTheme.Error;
-                    break;
-                case AiTestDisplayState.Error:
-                    _aiTestResultText.Text =
-                        _localization.Format("Panel_Error0", _aiTestErrorDetail ?? string.Empty);
-                    _aiTestResultText.Foreground = UiTheme.Error;
-                    break;
-                default:
-                    _aiTestResultText.Text = string.Empty;
-                    _aiTestResultText.Foreground = UiTheme.TextMuted;
-                    break;
-            }
+                _isCatalogLoading = false;
+                _aiCatalog = OpenRouterCatalogResult.Unavailable(
+                    OpenRouterFailureKind.Network);
+                _aiConnectionState = AiConnectionDisplayState.Connected;
+                RefreshAiConnectionDisplay();
+                RefreshAiModelDisplay();
+            });
+        }
+
+        private Task ApplyOnUiThreadAsync(
+            AISettingsOperationLease operation,
+            Action action)
+        {
+            return _uiMutationGate.RunAsync(
+                () => !_isDisposed &&
+                      (operation == null ||
+                       _aiOperationLifetime.IsCurrent(operation)),
+                action);
         }
 
         private UIElement BuildServiceSection()
         {
-            var row = new WrapPanel();
-            row.Children.Add(LocalizedToolButton(
+            var stack = new StackPanel();
+            var actions = new WrapPanel();
+            actions.Children.Add(LocalizedToolButton(
                 "Panel_OpenLog",
                 "Settings_Ai_OpenLog_ToolTip",
                 () => _openFile(_getLogPath())));
-            row.Children.Add(LocalizedToolButton(
+            stack.Children.Add(actions);
+
+            var developerActions = new WrapPanel
+            {
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            developerActions.Children.Add(LocalizedToolButton(
                 "Panel_DevScripts_Load_Action",
                 "Panel_DevScripts_Load_ToolTip",
                 _openDevScripts));
-            return row;
+            var developers = new Expander
+            {
+                IsExpanded = false,
+                Content = developerActions,
+                Margin = new Thickness(0, 6, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            _bindings.BindHeader(
+                developers,
+                "Settings_Service_Developers_Expander");
+            stack.Children.Add(developers);
+            return stack;
         }
 
         private UIElement BuildAboutSection()
@@ -519,21 +1150,14 @@ namespace NavisHelper.WPF
                 Foreground = UiTheme.TextMuted,
                 Margin = new Thickness(0, 0, 0, 6)
             });
-            stack.Children.Add(LocalizedToolButton(
+            var moreButton = LocalizedToolButton(
                 "Panel_More",
                 "Settings_About_Open_ToolTip",
-                () => _executePlugin("AboutNavisHelper.CBC")));
+                () => _executePlugin("AboutNavisHelper.CBC"));
+            moreButton.HorizontalAlignment = HorizontalAlignment.Left;
+            stack.Children.Add(moreButton);
             return stack;
         }
 
-        private enum AiTestDisplayState
-        {
-            None,
-            NoKey,
-            Checking,
-            Success,
-            Timeout,
-            Error
-        }
     }
 }

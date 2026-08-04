@@ -42,6 +42,7 @@
 - `Release2027` копирует DLL в `Contents/2027`
 - `NavisHelper.Contracts.dll` копируется рядом с `NavisHelper.dll`, потому что основной плагин и MCP-сервер используют общий контрактный проект `NavisHelper.Contracts`
 - русская satellite assembly копируется в `Contents/<version>/ru/NavisHelper.resources.dll`
+- общий .NET 9 worker OpenRouter размещается один раз в `Contents/AiWorker`; его нельзя дублировать по каталогам версий Navisworks
 
 Важно: сборка обновляет только bundle внутри репозитория: `NavisHelper.bundle`. NavisHelper поддерживает только пользовательскую установку, поэтому Navisworks должен загружать bundle из `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle`. После локальной сборки нужно отдельно выполнить install/update шага, иначе Navisworks продолжит грузить старую установленную DLL. Старая системная копия в `ProgramData` или `Program Files` должна быть удалена перед установкой.
 

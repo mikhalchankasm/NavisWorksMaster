@@ -20,6 +20,7 @@ using Microsoft.VisualBasic;
 using Path = System.IO.Path;
 using NavisHelper.Core;
 using NavisHelper.Core.Localization;
+using NavisHelper.AI;
 using NavisHelper.Interfaces;
 using NavisHelper.Agent.Services;
 using Autodesk.Navisworks.Api;
@@ -47,9 +48,16 @@ namespace NavisHelper.WPF
 
         private ComboBox _modelCombo;
 
-        private CheckBox _thinkingCheck;
+        private NavisHelperSettingsTabBuilder _settingsTabBuilder;
+
 
         private TextBox _aiResponseLog;
+
+        private Button _aiApplyButton;
+
+        private Button _localPaletteButton;
+
+        private AiPanelOutcome _aiPanelOutcome = AiPanelOutcome.None;
 
         private ListBox _historyListBox;
 
@@ -409,7 +417,7 @@ namespace NavisHelper.WPF
 
         private TabItem CreateSettingsTab()
         {
-            var builder = new NavisHelperSettingsTabBuilder(
+            _settingsTabBuilder = new NavisHelperSettingsTabBuilder(
                 (resourceKey, color, arguments) =>
                     SetGlobalStatusResource(resourceKey, color, arguments),
                 OpenFileInShell,
@@ -418,9 +426,8 @@ namespace NavisHelper.WPF
                 ExecutePlugin,
                 Dispatcher,
                 _panelLocalizationBindings);
-            _settingsTab = builder.Build();
-            _modelCombo = builder.ModelCombo;
-            _thinkingCheck = builder.ThinkingCheck;
+            _settingsTab = _settingsTabBuilder.Build();
+            _modelCombo = _settingsTabBuilder.ModelCombo;
             return _settingsTab;
         }
 
@@ -519,6 +526,7 @@ namespace NavisHelper.WPF
         {
             Current = this;
             _panelLocalizationBindings.Attach();
+            _settingsTabBuilder?.ResumeAfterLoad();
             try
             {
                 Logger.Info("NavisHelperPanel loaded.", "AgentHost");
@@ -551,6 +559,8 @@ namespace NavisHelper.WPF
 
         private void OnPanelUnloaded(object sender, RoutedEventArgs e)
         {
+            AIColorOperationCoordinator.Current.CancelCurrent();
+            _settingsTabBuilder?.CancelPendingOperations();
             _panelLocalizationBindings.Detach();
             try
             {
@@ -593,6 +603,9 @@ namespace NavisHelper.WPF
             if (_isDisposed)
                 return;
 
+            AIColorOperationCoordinator.Current.CancelCurrent();
+            _settingsTabBuilder?.Dispose();
+            _settingsTabBuilder = null;
             Loaded -= OnPanelLoaded;
             Unloaded -= OnPanelUnloaded;
             _panelLocalizationBindings.Dispose();

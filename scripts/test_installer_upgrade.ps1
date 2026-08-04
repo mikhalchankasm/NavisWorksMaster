@@ -99,6 +99,9 @@ try {
     }
 
     Assert-File (Join-Path $bundleRoot "PackageContents.xml") "Installed bundle manifest"
+    Assert-File (Join-Path $bundleRoot "Contents\AiWorker\NavisHelper.AiWorker.exe") "Installed OpenRouter AI worker executable"
+    Assert-File (Join-Path $bundleRoot "Contents\AiWorker\NavisHelper.AiWorker.runtimeconfig.json") "Installed OpenRouter AI worker runtime configuration"
+    Assert-File (Join-Path $bundleRoot "Contents\AiWorker\Newtonsoft.Json.dll") "Installed OpenRouter AI worker JSON dependency"
     foreach ($year in @("2024", "2025", "2026", "2027")) {
         Assert-File (Join-Path $bundleRoot "Contents\$year\NavisHelper.dll") "Installed NavisHelper $year assembly"
         Assert-File (Join-Path $bundleRoot "Contents\$year\NavisHelper.Contracts.dll") "Installed NavisHelper.Contracts $year assembly"
