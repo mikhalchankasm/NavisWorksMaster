@@ -2509,4 +2509,120 @@ Values in the selection: {0}</value>
   <data name="Panel_Clash_Transparency_OwnersMissing_Detail" xml:space="preserve"><value> | owners were not found</value></data>
   <data name="Panel_Clash_Transparency_Applied_Detail_Format" xml:space="preserve"><value> | owners: {0}, currently opaque: {1}</value></data>
   <data name="Panel_Clash_Preview_DefaultGroupName" xml:space="preserve"><value>Clash group</value></data>
+  <data name="Settings_Ai_Provider_Label" xml:space="preserve"><value>Provider:</value></data>
+  <data name="Settings_Ai_Provider_Value" xml:space="preserve"><value>OpenRouter</value></data>
+  <data name="Settings_Ai_Key_Label" xml:space="preserve"><value>OpenRouter API key:</value></data>
+  <data name="Settings_Ai_Connect_Action" xml:space="preserve"><value>Connect</value></data>
+  <data name="Settings_Ai_Connect_ToolTip" xml:space="preserve"><value>Validate the key with OpenRouter and save it for this Windows user</value></data>
+  <data name="Settings_Ai_Disconnect_Action" xml:space="preserve"><value>Disconnect</value></data>
+  <data name="Settings_Ai_Disconnect_ToolTip" xml:space="preserve"><value>Remove the OpenRouter key from this Windows user and the current process</value></data>
+  <data name="Settings_Ai_GetKey_Link" xml:space="preserve"><value>Get an OpenRouter key</value></data>
+  <data name="Settings_Ai_Status_Disconnected" xml:space="preserve"><value>Not connected</value></data>
+  <data name="Settings_Ai_Status_Checking" xml:space="preserve"><value>Checking the key with OpenRouter…</value></data>
+  <data name="Settings_Ai_Status_Connected" xml:space="preserve"><value>Connected. Load compatible models and choose one to enable AI coloring.</value></data>
+  <data name="Settings_Ai_Status_KeyRequired" xml:space="preserve"><value>API key is required.</value></data>
+  <data name="Settings_Ai_Status_InvalidKey" xml:space="preserve"><value>OpenRouter rejected authorization (HTTP 401/403). The entered key was not saved.</value></data>
+  <data name="Settings_Ai_Status_StorageFailed" xml:space="preserve"><value>Windows could not update the user key. Check the log for details.</value></data>
+  <data name="Settings_Ai_Model_ConnectFirst" xml:space="preserve"><value>Connect OpenRouter to verify the selected model.</value></data>
+  <data name="Settings_Ai_Model_Checking" xml:space="preserve"><value>Loading the OpenRouter model catalog…</value></data>
+  <data name="Settings_Ai_Model_CatalogUnavailable" xml:space="preserve"><value>The OpenRouter model catalog is unavailable. AI coloring is disabled.</value></data>
+  <data name="Settings_Ai_Model_CatalogTimeout" xml:space="preserve"><value>OpenRouter is connected, but loading the model catalog timed out. AI coloring is unavailable until Refresh models succeeds.</value></data>
+  <data name="Settings_Ai_Model_CatalogNetworkUnavailable" xml:space="preserve"><value>OpenRouter is connected, but the model catalog could not be reached. AI coloring is unavailable until Refresh models succeeds.</value></data>
+  <data name="Settings_Ai_Model_CatalogWorkerFailure" xml:space="preserve"><value>OpenRouter is connected, but the model-catalog worker failed. AI coloring is unavailable until Refresh models succeeds.</value></data>
+  <data name="Settings_Ai_Model_NotFound" xml:space="preserve"><value>The selected model ID was not found in the current OpenRouter catalog.</value></data>
+  <data name="Settings_Ai_Model_InvalidFormat" xml:space="preserve"><value>Enter a full OpenRouter model ID in provider/model format.</value></data>
+  <data name="Settings_Ai_Model_VerifiedReasoning" xml:space="preserve"><value>Model verified. Reasoning support is confirmed.</value></data>
+  <data name="Settings_Ai_Model_VerifiedNoReasoning" xml:space="preserve"><value>Model verified. Reasoning is not supported.</value></data>
+  <data name="Settings_Ai_Reasoning_Unconfirmed_ToolTip" xml:space="preserve"><value>Reasoning stays disabled until the model catalog confirms support.</value></data>
+  <data name="Settings_Ai_Reasoning_ModelNotFound_ToolTip" xml:space="preserve"><value>Reasoning is disabled because this model ID was not found.</value></data>
+  <data name="Settings_Ai_Reasoning_Supported_ToolTip" xml:space="preserve"><value>OpenRouter reports that this model supports the unified reasoning parameter.</value></data>
+  <data name="Settings_Ai_Reasoning_Unsupported_ToolTip" xml:space="preserve"><value>OpenRouter does not report reasoning support for this model.</value></data>
+  <data name="Settings_Ai_OpenKeysFailed" xml:space="preserve"><value>Could not open the OpenRouter keys page.</value></data>
+  <data name="Panel_Colors_Ai_NoSelection" xml:space="preserve"><value>Select model objects before running AI coloring.</value></data>
+  <data name="Panel_Colors_Ai_NoColorableObjects" xml:space="preserve"><value>The selection contains no objects that can be colored.</value></data>
+  <data name="Panel_Colors_Ai_NoObjectNames" xml:space="preserve"><value>No usable object names were found in the selection.</value></data>
+  <data name="Panel_Colors_Ai_KeyRequired" xml:space="preserve"><value>Connect OpenRouter on the Settings tab before running AI coloring.</value></data>
+  <data name="Panel_Colors_Ai_InvalidResponse" xml:space="preserve"><value>OpenRouter returned an incomplete or invalid color response. No local fallback was applied.</value></data>
+  <data name="Panel_Colors_Ai_RequestFailed" xml:space="preserve"><value>The OpenRouter color request failed. No local fallback was applied. Check the connection and log.</value></data>
+  <data name="Panel_Colors_Ai_NavisworksError" xml:space="preserve"><value>Navisworks could not apply the AI coloring result.</value></data>
+  <data name="Panel_Colors_Ai_InvalidModelId" xml:space="preserve"><value>Choose a full OpenRouter model ID in provider/model format on the Settings tab.</value></data>
+  <data name="Panel_Colors_Ai_LocalPalette_Action" xml:space="preserve"><value>Apply local palette</value></data>
+  <data name="Panel_Colors_Ai_LocalPalette_ToolTip" xml:space="preserve"><value>Apply the selected palette locally without sending data to OpenRouter</value></data>
+  <data name="Panel_Colors_Ai_DataNotice" xml:space="preserve"><value>OpenRouter coloring sends the display names of the selected objects to OpenRouter.</value></data>
+  <data name="Panel_Colors_Ai_Starting_Semantic_Format" xml:space="preserve"><value>Starting OpenRouter coloring…
+Model: {0}
+Scheme: {1}
+Unique names: {2}</value></data>
+  <data name="Panel_Colors_Ai_Source_Format" xml:space="preserve"><value>Source: {0}</value></data>
+  <data name="Panel_Colors_Ai_Source_OpenRouter" xml:space="preserve"><value>OpenRouter</value></data>
+  <data name="Panel_Colors_Ai_Source_LocalPalette" xml:space="preserve"><value>Local palette</value></data>
+  <data name="Panel_Colors_Ai_Model_Format" xml:space="preserve"><value>Model: {0}</value></data>
+  <data name="Panel_Colors_Ai_Model_NotApplicable" xml:space="preserve"><value>not applicable</value></data>
+  <data name="Panel_Colors_Ai_ModelUnavailable" xml:space="preserve"><value>The selected model is not present in the current OpenRouter catalog. No color request was sent.</value></data>
+  <data name="Panel_Colors_Ai_Unauthorized" xml:space="preserve"><value>OpenRouter rejected authorization (HTTP 401/403). Reconnect with a valid key.</value></data>
+  <data name="Panel_Colors_Ai_RateLimited" xml:space="preserve"><value>OpenRouter rate-limited the request (HTTP 429). Try again later.</value></data>
+  <data name="Panel_Colors_Ai_Timeout" xml:space="preserve"><value>The OpenRouter operation timed out. No local palette was applied.</value></data>
+  <data name="Panel_Colors_Ai_Cancelled" xml:space="preserve"><value>The OpenRouter operation was cancelled. No local palette was applied.</value></data>
+  <data name="Panel_Colors_Ai_NetworkError" xml:space="preserve"><value>OpenRouter could not be reached because of a network error. No local palette was applied.</value></data>
+  <data name="Panel_Colors_Ai_ServiceUnavailable" xml:space="preserve"><value>OpenRouter is unavailable or rejected the request. No local palette was applied.</value></data>
+  <data name="Panel_Colors_Ai_AlreadyRunning" xml:space="preserve"><value>An OpenRouter coloring operation is already running.</value></data>
+  <data name="Panel_Colors_Ai_DocumentChanged" xml:space="preserve"><value>The active document changed, so the coloring operation was cancelled without applying colors.</value></data>
+  <data name="Panel_Colors_Ai_WorkerMissing" xml:space="preserve"><value>The OpenRouter worker is missing from the NavisHelper bundle. Reinstall NavisHelper.</value></data>
+  <data name="Panel_Colors_Ai_WorkerRuntimeMissing" xml:space="preserve"><value>The OpenRouter worker requires the .NET 9 Runtime. Install the runtime and try again.</value></data>
+  <data name="Panel_Colors_Ai_WorkerStartupFailed" xml:space="preserve"><value>The OpenRouter worker could not be started.</value></data>
+  <data name="Panel_Colors_Ai_WorkerFailed" xml:space="preserve"><value>The OpenRouter worker stopped unexpectedly. No colors were applied.</value></data>
+  <data name="Panel_Colors_Ai_ProtocolMismatch" xml:space="preserve"><value>The NavisHelper plugin and OpenRouter worker protocol versions do not match. Reinstall NavisHelper.</value></data>
+  <data name="Settings_Ai_Status_WorkerMissing" xml:space="preserve"><value>OpenRouter worker is missing. Reinstall NavisHelper.</value></data>
+  <data name="Settings_Ai_Status_WorkerRuntimeMissing" xml:space="preserve"><value>.NET 9 Runtime required by the OpenRouter worker is missing.</value></data>
+  <data name="Settings_Ai_Status_WorkerStartupFailed" xml:space="preserve"><value>OpenRouter worker startup failed.</value></data>
+  <data name="Settings_Ai_Status_WorkerFailed" xml:space="preserve"><value>OpenRouter worker stopped unexpectedly.</value></data>
+  <data name="Settings_Ai_Status_ProtocolMismatch" xml:space="preserve"><value>OpenRouter worker protocol mismatch. Reinstall NavisHelper.</value></data>
+  <data name="Settings_Ai_Status_RateLimited" xml:space="preserve"><value>OpenRouter rate-limited validation (HTTP 429). Try again later.</value></data>
+  <data name="Settings_Ai_Status_Timeout" xml:space="preserve"><value>OpenRouter key validation timed out. The entered key was not saved.</value></data>
+  <data name="Settings_Ai_Status_Cancelled" xml:space="preserve"><value>OpenRouter key validation was cancelled.</value></data>
+  <data name="Settings_Ai_Status_NetworkUnavailable" xml:space="preserve"><value>OpenRouter could not be reached. Check the network and try again.</value></data>
+  <data name="Settings_Ai_Status_Ready" xml:space="preserve"><value>Ready for AI coloring</value></data>
+  <data name="Settings_Ai_RefreshModels_Action" xml:space="preserve"><value>Refresh models</value></data>
+  <data name="Settings_Ai_RefreshModels_ToolTip" xml:space="preserve"><value>Reload compatible structured-output models from OpenRouter</value></data>
+  <data name="Settings_Ai_Model_Choose" xml:space="preserve"><value>Choose a model.</value></data>
+  <data name="Settings_Ai_Model_Incompatible" xml:space="preserve"><value>The selected model does not support structured outputs for AI coloring.</value></data>
+  <data name="Settings_Ai_Model_Ready" xml:space="preserve"><value>The selected model supports structured outputs and is ready.</value></data>
+  <data name="Settings_Ai_Status_WorkerInternalFailure" xml:space="preserve"><value>The OpenRouter worker encountered an internal failure.</value></data>
+  <data name="Panel_Colors_Ai_CatalogUnavailable" xml:space="preserve"><value>The OpenRouter model catalog is unavailable. No paid color request was sent.</value></data>
+  <data name="Panel_Colors_Ai_ModelNotSelected" xml:space="preserve"><value>Choose a compatible model on the Settings tab. No paid color request was sent.</value></data>
+  <data name="Panel_Colors_Ai_ModelIncompatible" xml:space="preserve"><value>The selected model does not support structured outputs. No paid color request was sent.</value></data>
+  <data name="Panel_Colors_Ai_TooManyObjects" xml:space="preserve"><value>The selection contains more than 200 unique object names. Reduce the selection; no paid color request was sent.</value></data>
+  <data name="Panel_Colors_Ai_InsufficientOutputBudget" xml:space="preserve"><value>The confirmed provider output limit cannot fit the complete structured color response. No paid request was sent.</value></data>
+  <data name="Panel_Colors_Ai_InsufficientOutputBudgetSuggestion" xml:space="preserve"><value>Reduce the selection or choose a model with a larger confirmed output limit, then start the request manually.</value></data>
+  <data name="Panel_Colors_Ai_UnsupportedReasoningPolicy" xml:space="preserve"><value>NavisHelper cannot form a safe reasoning policy from the selected model metadata. No paid request was sent.</value></data>
+  <data name="Panel_Colors_Ai_UnsupportedReasoningPolicySuggestion" xml:space="preserve"><value>Choose another compatible model whose catalog metadata exposes a safe reasoning control, then start the request manually.</value></data>
+  <data name="Panel_Colors_Ai_ZeroApplied" xml:space="preserve"><value>Colors applied: 0</value></data>
+  <data name="Panel_Colors_Ai_FailureSuggestion" xml:space="preserve"><value>Choose another compatible model or reduce the selection, then start the request manually.</value></data>
+  <data name="Settings_Ai_Model_Search_ToolTip" xml:space="preserve"><value>Filter by model name or full provider/model ID</value></data>
+  <data name="Settings_Ai_Model_Search_Count_Format" xml:space="preserve"><value>Found: {0}</value></data>
+  <data name="Settings_Ai_Model_Search_Label" xml:space="preserve"><value>Search models</value></data>
+  <data name="Settings_Ai_Model_Capability_Text" xml:space="preserve"><value>Text</value></data>
+  <data name="Settings_Ai_Model_Capability_Image" xml:space="preserve"><value>Image</value></data>
+  <data name="Settings_Ai_Model_Capability_Audio" xml:space="preserve"><value>Audio</value></data>
+  <data name="Settings_Ai_Model_Capability_Files" xml:space="preserve"><value>Files</value></data>
+  <data name="Settings_Ai_Model_Capability_Video" xml:space="preserve"><value>Video</value></data>
+  <data name="Settings_Ai_Model_Capability_Multimodal" xml:space="preserve"><value>Multimodal</value></data>
+  <data name="Settings_Ai_Model_Capability_StructuredOutput" xml:space="preserve"><value>Structured output</value></data>
+  <data name="Settings_Ai_Model_Capability_ReasoningOptional" xml:space="preserve"><value>Reasoning optional</value></data>
+  <data name="Settings_Ai_Model_Capability_ReasoningRequired" xml:space="preserve"><value>Reasoning required</value></data>
+  <data name="Settings_Ai_Model_Capability_Context_Format" xml:space="preserve"><value>Context: {0}</value></data>
+  <data name="Settings_Ai_Model_Capability_Flow_Format" xml:space="preserve"><value>{0} → {1}</value></data>
+  <data name="Panel_Colors_Ai_BadRequest" xml:space="preserve"><value>OpenRouter rejected the request parameters (HTTP 400/422). No colors were applied.</value></data>
+  <data name="Panel_Colors_Ai_ResponseRefused" xml:space="preserve"><value>The selected model refused the color response. No colors were applied.</value></data>
+  <data name="Panel_Colors_Ai_MissingAssistantContent" xml:space="preserve"><value>OpenRouter returned no assistant content. No colors were applied.</value></data>
+  <data name="Panel_Colors_Ai_TruncatedResponse" xml:space="preserve"><value>The model response was truncated before all colors were returned. No colors were applied.</value></data>
+  <data name="Panel_Colors_Ai_StructuredPayloadInvalid" xml:space="preserve"><value>The model returned an invalid structured color payload. No colors were applied.</value></data>
+  <data name="Panel_Colors_Ai_IncompleteObjectSet" xml:space="preserve"><value>The model response omitted, duplicated, or added object names. No colors were applied.</value></data>
+  <data name="Panel_Colors_Ai_WorkerInternalFailure" xml:space="preserve"><value>The OpenRouter worker encountered an internal failure. No colors were applied.</value></data>
+  <data name="Settings_Ai_Status_Connected_Compact" xml:space="preserve"><value>Connected</value></data>
+  <data name="Settings_Ai_Connected_Summary" xml:space="preserve"><value>OpenRouter connected</value></data>
+  <data name="Settings_Ai_Key_Storage_Help" xml:space="preserve"><value>The key is validated before saving and stored only for the current Windows user. It is never written to NavisHelper configuration files.</value></data>
+  <data name="Settings_Service_Developers_Expander" xml:space="preserve"><value>For developers</value></data>
+  <data name="Settings_Ai_Status_Error_Compact" xml:space="preserve"><value>Error</value></data>
+  <data name="Settings_Ai_Status_Connecting_Compact" xml:space="preserve"><value>Connecting…</value></data>
 </root>

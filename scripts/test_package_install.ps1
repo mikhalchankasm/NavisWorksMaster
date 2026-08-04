@@ -61,6 +61,9 @@ try {
     Assert-File (Join-Path $unpackedRoot "LICENSE") "Packaged project license"
     Assert-File (Join-Path $unpackedRoot "THIRD-PARTY-NOTICES.md") "Packaged third-party notices"
     Assert-File (Join-Path $unpackedRoot "licenses\dotnet-runtime-9.0.18-THIRD-PARTY-NOTICES.TXT") "Packaged .NET runtime notices"
+    Assert-File (Join-Path $unpackedRoot "NavisHelper.bundle\Contents\AiWorker\NavisHelper.AiWorker.exe") "Packaged OpenRouter AI worker executable"
+    Assert-File (Join-Path $unpackedRoot "NavisHelper.bundle\Contents\AiWorker\NavisHelper.AiWorker.runtimeconfig.json") "Packaged OpenRouter AI worker runtime configuration"
+    Assert-File (Join-Path $unpackedRoot "NavisHelper.bundle\Contents\AiWorker\Newtonsoft.Json.dll") "Packaged OpenRouter AI worker JSON dependency"
     $autodeskInterop = @(Get-ChildItem -LiteralPath (Join-Path $unpackedRoot "NavisHelper.bundle\Contents") -Recurse -File -Filter "Autodesk.Navisworks.Interop.ComApi.dll")
     if ($autodeskInterop.Count -gt 0) {
         throw "Packaged bundle contains Autodesk.Navisworks.Interop.ComApi.dll: $($autodeskInterop.FullName -join ', ')"
@@ -89,6 +92,9 @@ try {
     Assert-File $server "Versioned MCP server executable"
     Assert-File $configurator "MCP configurator executable"
     Assert-File (Join-Path $bundle "PackageContents.xml") "Installed bundle manifest"
+    Assert-File (Join-Path $bundle "Contents\AiWorker\NavisHelper.AiWorker.exe") "Installed OpenRouter AI worker executable"
+    Assert-File (Join-Path $bundle "Contents\AiWorker\NavisHelper.AiWorker.runtimeconfig.json") "Installed OpenRouter AI worker runtime configuration"
+    Assert-File (Join-Path $bundle "Contents\AiWorker\Newtonsoft.Json.dll") "Installed OpenRouter AI worker JSON dependency"
     foreach ($year in @("2024", "2025", "2026", "2027")) {
         Assert-File (
             Join-Path $bundle "Contents\$year\ru\NavisHelper.resources.dll"

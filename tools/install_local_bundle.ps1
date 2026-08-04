@@ -63,6 +63,9 @@ function Copy-DirectoryFresh([string]$Source, [string]$Destination) {
 
 function Assert-BundleHashesMatch([string]$Source, [string]$Destination) {
     $sourceFiles = @(Get-ChildItem -LiteralPath $Source -Recurse -File | Where-Object {
+        $_.FullName.StartsWith(
+            (Join-Path (Get-FullPath $Source) "Contents\AiWorker"),
+            [System.StringComparison]::OrdinalIgnoreCase) -or
         $_.Name -in @(
             "PackageContents.xml",
             "NavisHelper.dll",
@@ -101,6 +104,18 @@ foreach ($year in @("2024", "2025", "2026", "2027")) {
     $satellitePath = Join-Path $SourceBundle "Contents\$year\ru\NavisHelper.resources.dll"
     if (-not (Test-Path -LiteralPath $satellitePath -PathType Leaf)) {
         throw "Source bundle is missing the Russian $year satellite assembly: $satellitePath"
+    }
+}
+foreach ($workerFile in @(
+    "NavisHelper.AiWorker.exe",
+    "NavisHelper.AiWorker.dll",
+    "NavisHelper.AiWorker.deps.json",
+    "NavisHelper.AiWorker.runtimeconfig.json",
+    "Newtonsoft.Json.dll"
+)) {
+    $workerPath = Join-Path $SourceBundle "Contents\AiWorker\$workerFile"
+    if (-not (Test-Path -LiteralPath $workerPath -PathType Leaf)) {
+        throw "Source bundle is missing the OpenRouter AI worker file: $workerPath"
     }
 }
 Copy-DirectoryFresh $SourceBundle $destinationBundle

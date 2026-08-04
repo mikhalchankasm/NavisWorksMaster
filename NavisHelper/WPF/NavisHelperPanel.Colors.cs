@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using Microsoft.VisualBasic;
 using Path = System.IO.Path;
 using NavisHelper.Core;
+using NavisHelper.AI;
 using NavisHelper.Core.Localization;
 using NavisHelper.Interfaces;
 using NavisHelper.Agent.Services;
@@ -123,35 +124,63 @@ namespace NavisHelper.WPF
                 }
                 var scheme = (ColorSchemeType)selected.Tag;
                 AIConfig.Instance.SetColorScheme((int)scheme);
-
-                if (_aiResponseLog != null)
-                {
-                    var model = _modelCombo?.SelectedItem as string ?? AIConfig.Instance.ModelName;
-                    var thinking = _thinkingCheck?.IsChecked == true;
-                    _aiResponseLog.Text = UiLocalizationService.Current.Format(
-                        "Panel_Colors_Ai_Starting_Format",
-                        model,
-                        thinking
-                            ? PanelUi("Panel_Common_Enabled")
-                            : PanelUi("Panel_Common_Disabled"),
-                        ColorSchemeUiText.GetName(
-                            UiLocalizationService.Current,
-                            scheme));
-                }
-
                 NwApplication.Plugins.ExecuteAddInPlugin("AIColorObjects.CBC");
             }
             catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
-        /// <summary>
-        /// Обновляет лог ответа AI на панели. Вызывается из AIColorObjects после получения результата.
-        /// </summary>
-
-        public void UpdateAIResponseLog(Dictionary<string, string> colors, string rawResponse = null)
+        private void OnApplyLocalPalette(object sender, RoutedEventArgs e)
         {
-            if (_aiResponseLog == null) return;
-            _aiResponseLog.Text = FormatAIResult(colors);
+            try
+            {
+                var selected = _schemeListBox.SelectedItem as ListBoxItem;
+                if (selected == null)
+                {
+                    MessageBox.Show(
+                        PanelUi("Panel_Colors_SelectScheme"),
+                        PanelUi("Panel_Colors_Ai_Title"));
+                    return;
+                }
+                AIConfig.Instance.SetColorScheme(
+                    (int)(ColorSchemeType)selected.Tag);
+                AIColorOperationCoordinator.Current.TryApplyLocalPalette();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(
+                    ex.ToString(),
+                    "NavisHelperPanel.ApplyLocalPalette");
+                SetAIOutcome(AiPanelOutcome.Failure(
+                    AiColorOutcomeKind.NavisworksError));
+            }
+        }
+
+        internal void SetAIOperationBusy(bool isBusy)
+        {
+            if (_aiApplyButton != null)
+                _aiApplyButton.IsEnabled = !isBusy;
+            if (_localPaletteButton != null)
+                _localPaletteButton.IsEnabled = !isBusy;
+        }
+
+        internal void SetAIOutcome(AiPanelOutcome outcome)
+        {
+            _aiPanelOutcome = outcome ?? AiPanelOutcome.None;
+            RefreshAIResponseOutcome();
+        }
+
+        private void RefreshAIResponseOutcome()
+        {
+            if (_aiResponseLog == null)
+                return;
+            _aiResponseLog.Text = AiPanelOutcomeFormatter.Format(
+                _aiPanelOutcome,
+                key => UiLocalizationService.Current.GetString(key),
+                (key, args) =>
+                    UiLocalizationService.Current.Format(key, args),
+                scheme => ColorSchemeUiText.GetName(
+                    UiLocalizationService.Current,
+                    (ColorSchemeType)scheme));
             _aiResponseLog.ScrollToEnd();
         }
 

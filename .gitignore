@@ -12,6 +12,7 @@ obj/
 NavisHelper.bundle/Contents/**/*.dll
 NavisHelper.bundle/Contents/**/*.pdb
 !NavisHelper.bundle/Contents/**/*.dll.config
+NavisHelper.bundle/Contents/AiWorker/*
 
 # NuGet
 packages/

@@ -40,8 +40,8 @@ Navisworks Manage plugin and local MCP server for design engineers and BIM coord
 | Declared package dependencies | MCP server: `Microsoft.Extensions.Hosting` 8.0.1 and `ModelContextProtocol` 1.2.0. Plugin: `Microsoft.Toolkit.Uwp.Notifications` 7.1.3, `Newtonsoft.Json` 13.0.3, Windows SDK Contracts 10.0.19041.1, `System.Runtime.WindowsRuntime` 4.6.0, `System.Runtime.WindowsRuntime.UI.Xaml` 4.6.0, `System.ValueTuple` 4.5.0, and reference-assembly packages. |
 | Optional script dependencies | Python is used only by some smoke/check scripts, not by the MCP runtime. The minimum Python and PowerShell versions are not specified. <!-- TODO: уточнить --> |
 | HTTP bridge port | None. The MCP client starts the server over stdio; the server connects to the Navisworks plugin through a local Windows named pipe. |
-| LLM API access | Not required for the 100 registered MCP tools. The separate `AIColorObjects` plugin function requires a user-provided OpenRouter API key in `OPEN_ROUTER_NW_KEY`; API billing depends on the selected model. |
-| AI data egress | `AIColorObjects` sends selected object names to the external OpenRouter API under the user’s key. Account for this when working with NDA-controlled models. The registered MCP tool path remains local. |
+| LLM API access | Not required for the 100 registered MCP tools. The separate `AIColorObjects` function connects a user-provided OpenRouter key from the Settings tab and stores it in the user-scoped `OPEN_ROUTER_NW_KEY`; API billing depends on the selected model. |
+| AI data egress | The OpenRouter action sends selected objects’ display names to the external OpenRouter API under the user’s key. The separate **Apply local palette** action sends nothing. Account for this when working with NDA-controlled models. The registered MCP tool path remains local. |
 
 ## Installation
 
@@ -274,8 +274,9 @@ The current server registers 100 tools. Parameter types, required markers, and d
 - Direct DevExpress 25.1 references remain in the 2026/2027 project configuration although related UI imports are commented out. Whether these references are required for a public build is unresolved. <!-- TODO: уточнить -->
 - GitHub-hosted CI cannot build the complete Navisworks matrix because Autodesk SDK assemblies are unavailable on hosted runners; the full matrix and installer are built locally.
 - No public, sanitized Navisworks test model is tracked in the repository. Live smoke testing requires a user-provided test model. <!-- TODO: уточнить -->
-- `AIColorObjects` retains a legacy file-IPC path that looks for `ColorService.exe`, but that executable is not included in the solution, installer, or distribution package; the current shipped AI configuration is OpenRouter/BYOK. <!-- TODO: уточнить -->
-- The plugin UI (ribbon, dialogs, log messages) is currently Russian-only. English localization is planned as a separate follow-up, not yet implemented.
+- `AIColorObjects` starts an asynchronous OpenRouter operation through the bundled .NET 9 `NavisHelper.AiWorker` and returns immediately. Navisworks performs no OpenRouter HTTPS itself. Document access stays on the UI dispatcher, the active document is guarded across the request, and timeout/cancellation terminates only that request's worker without a silent fallback.
+- Local palette coloring is a separate explicit button and is reported with `Local palette` provenance. The worker protocol uses redirected stdin/stdout; the API key is passed only in the child environment. `ColorService.exe` and temporary-file IPC are not part of the active compiled, installer, or distribution path.
+- The active panel and phase-one standalone UI surfaces use neutral English resources with matching Russian satellite resources.
 
 This project is maintained at low activity. PRs are welcome; responses to issues are not guaranteed.
 

@@ -96,6 +96,11 @@ $requiredFiles = @(
     "NavisHelper.bundle/Contents/2027/NavisHelper.dll",
     "NavisHelper.bundle/Contents/2027/NavisHelper.Contracts.dll",
     "NavisHelper.bundle/Contents/2027/ru/NavisHelper.resources.dll",
+    "NavisHelper.bundle/Contents/AiWorker/NavisHelper.AiWorker.exe",
+    "NavisHelper.bundle/Contents/AiWorker/NavisHelper.AiWorker.dll",
+    "NavisHelper.bundle/Contents/AiWorker/NavisHelper.AiWorker.deps.json",
+    "NavisHelper.bundle/Contents/AiWorker/NavisHelper.AiWorker.runtimeconfig.json",
+    "NavisHelper.bundle/Contents/AiWorker/Newtonsoft.Json.dll",
     "McpServer/NavisHelper.McpServer.exe",
     "McpServer/NavisHelper.McpServer.dll",
     "McpConfigurator/NavisHelper.McpConfigurator.exe",
@@ -136,11 +141,17 @@ if ([string]::IsNullOrWhiteSpace([string]$manifest.package_name) -or [string]::I
 if ($null -eq $manifest.mcp_server -or $null -eq $manifest.mcp_server.framework_dependent) {
     throw "Distribution manifest must declare mcp_server.framework_dependent."
 }
+if ($null -eq $manifest.ai_worker -or
+    $null -eq $manifest.ai_worker.framework_dependent -or
+    [int]$manifest.ai_worker.protocol_version -ne 3) {
+    throw "Distribution manifest must declare ai_worker framework mode and protocol version 2."
+}
 
 $serverVersion = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $packageRoot "McpServer\NavisHelper.McpServer.dll")).Version.ToString()
 $configuratorVersion = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $packageRoot "McpConfigurator\NavisHelper.McpConfigurator.dll")).Version.ToString()
-if ($serverVersion -ne $bundleVersion -or $configuratorVersion -ne $bundleVersion) {
-    throw "Distribution version mismatch. Bundle=$bundleVersion McpServer=$serverVersion McpConfigurator=$configuratorVersion"
+$workerVersion = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $packageRoot "NavisHelper.bundle\Contents\AiWorker\NavisHelper.AiWorker.dll")).Version.ToString()
+if ($serverVersion -ne $bundleVersion -or $configuratorVersion -ne $bundleVersion -or $workerVersion -ne $bundleVersion) {
+    throw "Distribution version mismatch. Bundle=$bundleVersion McpServer=$serverVersion McpConfigurator=$configuratorVersion AiWorker=$workerVersion"
 }
 
 $checksumEntries = Get-ChecksumEntries (Join-Path $packageRoot "checksums.sha256")

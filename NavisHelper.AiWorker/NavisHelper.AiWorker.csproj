@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AssemblyName>NavisHelper.AiWorker</AssemblyName>
+    <RootNamespace>NavisHelper.AI</RootNamespace>
+    <Version>2.8.9.0</Version>
+    <AssemblyVersion>2.8.9.0</AssemblyVersion>
+    <FileVersion>2.8.9.0</FileVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <UseAppHost>true</UseAppHost>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <OutputPath>..\NavisHelper.bundle\Contents\AiWorker\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\NavisHelper\AI\AiWorkerProtocol.cs" Link="Shared\AiWorkerProtocol.cs" />
+    <Compile Include="..\NavisHelper\AI\IOpenRouterTransport.cs" Link="Shared\IOpenRouterTransport.cs" />
+    <Compile Include="..\NavisHelper\AI\OpenRouterContracts.cs" Link="Shared\OpenRouterContracts.cs" />
+    <Compile Include="..\NavisHelper\AI\OpenRouterModelSelection.cs" Link="Shared\OpenRouterModelSelection.cs" />
+  </ItemGroup>
+</Project>

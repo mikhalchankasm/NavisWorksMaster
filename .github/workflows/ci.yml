@@ -50,6 +50,17 @@ jobs:
       - name: Run MCP helper tests
         run: dotnet test NavisHelper.McpServer.Tests/NavisHelper.McpServer.Tests.csproj -c Release --no-restore
 
+      - name: Publish OpenRouter AI worker for distribution smoke
+        shell: powershell
+        run: |
+          dotnet publish NavisHelper.AiWorker/NavisHelper.AiWorker.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -o NavisHelper.bundle/Contents/AiWorker `
+            /p:DebugType=None `
+            /p:DebugSymbols=false
+
       - name: Smoke test final distribution ZIP installer
         shell: powershell
         run: |
