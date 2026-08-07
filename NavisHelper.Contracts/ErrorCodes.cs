@@ -15,6 +15,10 @@ namespace NavisHelper.Agent.Contracts
         public const string QueryTooAmbiguous = "query_too_ambiguous";
         public const string EmptyMatchHandles = "empty_match_handles";
         public const string NoSelection = "no_selection";
+        public const string SectionBoxNotEnabled = "section_box_not_enabled";
+        public const string SectionBoxModeUnsupported = "section_box_mode_unsupported";
+        public const string SectionBoxPayloadUnsupported = "section_box_payload_unsupported";
+        public const string SectionBoxUnitsMismatch = "section_box_units_mismatch";
         public const string SelectionSetNotFound = "selection_set_not_found";
         public const string SavedViewpointNotFound = "saved_viewpoint_not_found";
         public const string SavedItemAmbiguous = "saved_item_ambiguous";

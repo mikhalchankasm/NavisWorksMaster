@@ -1130,6 +1130,7 @@ internal sealed class ScenarioLibraryService
             ["model_color_scheme"] = CreateToolDescriptor(typeof(NavisworksModelColorSchemeTools), nameof(NavisworksModelColorSchemeTools.ModelColorScheme), 1, true, false, Array.Empty<string>()),
             ["select_selection_set"] = CreateToolDescriptor(nameof(NavisworksTools.SelectSelectionSet), 1, false, false, new[] { "pathOrName" }),
             ["isolate_selected"] = CreateToolDescriptor(nameof(NavisworksTools.IsolateSelected), 1, true, false, Array.Empty<string>()),
+            ["isolate_by_box"] = CreateToolDescriptor(typeof(NavisworksSectionBoxTools), nameof(NavisworksSectionBoxTools.IsolateByBox), 1, true, false, new[] { "box" }),
             ["zoom_to_selection"] = CreateToolDescriptor(nameof(NavisworksTools.ZoomToSelection), 1, false, false, Array.Empty<string>()),
             ["clash_list_tests"] = CreateToolDescriptor(typeof(NavisworksClashTools), nameof(NavisworksClashTools.ClashListTests), 1, false, false, Array.Empty<string>()),
             ["clash_list_results"] = CreateToolDescriptor(typeof(NavisworksClashTools), nameof(NavisworksClashTools.ClashListResults), 1, false, false, Array.Empty<string>()),

@@ -41,6 +41,8 @@ namespace NavisHelper.Agent.Host
         private readonly DocumentCommandService _commandService = new DocumentCommandService();
         private readonly ClashIsolationService _clashIsolationService = new ClashIsolationService();
         private readonly ModelColorSchemeService _modelColorSchemeService = new ModelColorSchemeService();
+        private readonly SectionBoxCaptureService _sectionBoxCaptureService = new SectionBoxCaptureService();
+        private readonly BoxIsolationService _boxIsolationService = new BoxIsolationService();
         private readonly ClashTestsFromSetsService _clashTestsFromSetsService = new ClashTestsFromSetsService();
         private readonly ClashBatchRunService _clashBatchRunService;
         private readonly NavisworksApplicationCloseService _applicationCloseService;

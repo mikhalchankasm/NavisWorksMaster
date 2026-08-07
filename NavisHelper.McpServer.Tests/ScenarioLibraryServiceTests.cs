@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using NavisHelper.Agent.Contracts;
 using NavisHelper.McpServer.Services;
 using Xunit;
 
@@ -776,6 +777,42 @@ public sealed class ScenarioLibraryServiceTests : IDisposable
         Assert.Empty(body.ApplyArgumentOverrides);
     }
 
+    [Fact]
+    public void SectionBoxReplay_IsAllowlistedAsMutatingApplyTool_ButCaptureIsNot()
+    {
+        var capabilities = _service.GetCapabilities();
+
+        Assert.Contains(capabilities.AllowedTools, tool =>
+            tool.Tool == "isolate_by_box" && tool.MutatesModel && tool.HasApply);
+        Assert.DoesNotContain(capabilities.AllowedTools, tool => tool.Tool == "get_current_section_box");
+
+        var captureDraft = CreateSectionBoxExactReplayDraft();
+        captureDraft.Steps[0].Tool = "get_current_section_box";
+        captureDraft.Steps[0].Arguments.Clear();
+        Assert.Contains(
+            _service.ValidateDraft(captureDraft).Errors,
+            error => error.Contains("not scenario-allowlisted", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SectionBoxExactReplay_StoresLiteralGeometryAndResolvesWithoutCaptureOrRuntimeHandles()
+    {
+        var draft = CreateSectionBoxExactReplayDraft();
+        var serialized = JsonSerializer.Serialize(draft);
+        var saved = Save(draft, exact: true);
+        var resolved = _service.Resolve(saved.ScenarioId, null, "exact_replay", "2027", null, "");
+
+        Assert.DoesNotContain("get_current_section_box", serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain("$stepResult", serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain("matchHandle", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.True(resolved.Ok, resolved.ErrorMessage);
+        var step = Assert.Single(resolved.Steps);
+        Assert.Equal("isolate_by_box", step.Tool);
+        Assert.Equal("document_global", step.PreviewArguments["box"].GetProperty("coordinateSpace").GetString());
+        Assert.False(step.PreviewArguments["apply"].GetBoolean());
+        Assert.True(step.ApplyArgumentOverrides["apply"].GetBoolean());
+    }
+
     private ScenarioMutationResponse Save(ScenarioDraft draft, bool exact = false)
     {
         var response = _service.Save(draft, "", "", true, true, exact);
@@ -846,6 +883,68 @@ public sealed class ScenarioLibraryServiceTests : IDisposable
             },
         };
         return draft;
+    }
+
+    private static ScenarioDraft CreateSectionBoxExactReplayDraft()
+    {
+        var geometry = new SectionBoxGeometry
+        {
+            FormatVersion = 1,
+            CoordinateSpace = "document_global",
+            DocumentUnits = "meters",
+            Center = new BoxVector3 { X = 10, Y = 20, Z = 30 },
+            HalfExtents = new BoxVector3 { X = 4, Y = 3, Z = 2 },
+            Axes = new List<BoxVector3>
+            {
+                new() { X = 0.7071067811865476, Y = 0.7071067811865475, Z = 0 },
+                new() { X = -0.7071067811865475, Y = 0.7071067811865476, Z = 0 },
+                new() { X = 0, Y = 0, Z = 1 },
+            },
+        };
+        return new ScenarioDraft
+        {
+            SchemaVersion = 2,
+            ExecutionMode = "exactReplay",
+            Name = "Literal section box replay",
+            Description = "Replays isolation from captured literal oriented-box geometry.",
+            Context = new ScenarioContext { NavisworksVersions = new List<string> { "2027" } },
+            Parameters = new List<ScenarioParameterDefinition>(),
+            Steps = new List<ScenarioStepDefinition>
+            {
+                new()
+                {
+                    StepId = "isolateCapturedBox",
+                    Tool = "isolate_by_box",
+                    ScenarioContractVersion = 1,
+                    Arguments = new Dictionary<string, JsonElement>
+                    {
+                        ["box"] = JsonSerializer.SerializeToElement(
+                            geometry,
+                            new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+                        ["maxScannedItems"] = Element(100000),
+                        ["previewLimit"] = Element(10),
+                    },
+                },
+            },
+            ExactReplay = new ScenarioExactReplayDefinition
+            {
+                FixedParameters = new Dictionary<string, JsonElement>(),
+                ContextPolicy = "strict",
+                WritePolicy = "repeatReviewedWrites",
+                SafetyEnvelope = new ScenarioSafetyEnvelope
+                {
+                    PreviewFingerprint = "sha256:" + new string('a', 64),
+                    StepLimits = new Dictionary<string, ScenarioStepSafetyLimit>
+                    {
+                        ["isolateCapturedBox"] = new()
+                        {
+                            MaxMatchedItems = 100000,
+                            MaxModelWrites = 100000,
+                        },
+                    },
+                },
+            },
+        };
     }
 
     private static ScenarioDraft CreateMatrixScenarioV2()

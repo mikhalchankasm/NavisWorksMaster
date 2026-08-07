@@ -89,6 +89,8 @@ namespace NavisHelper.Agent.Contracts
         public const string UnhideSelected = "unhide_selected";
         public const string RevealSelected = "reveal_selected";
         public const string IsolateSelected = "isolate_selected";
+        public const string GetCurrentSectionBox = "get_current_section_box";
+        public const string IsolateByBox = "isolate_by_box";
         public const string ShowAll = "show_all";
         public const string CreateSelectionSet = "create_selection_set";
         public const string CreateViewpoint = "create_viewpoint";

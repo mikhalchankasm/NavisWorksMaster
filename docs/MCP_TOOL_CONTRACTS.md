@@ -940,3 +940,32 @@ Inputs: `scenarioId`, `expectedSha256`, `apply`, and `confirmDelete`. It preview
 Inputs: `scenarioId`, optional template `parameterValues`, `executionIntent=preview|exact_replay`, and optional context hints. It returns ordered existing-tool preview arguments, apply overrides, per-step plan hashes, planned write categories, and an `agentInstruction`; it never calls Navisworks itself.
 
 `exact_replay` is valid only after a direct current user request. It rejects parameter overrides and requires a strong strict-context match. A normal preview of an exact scenario returns no apply override and explicitly forbids execution. The initial operation allowlist is `selection_export_properties`, `selection_sets_build_viewpoints`, `clash_generate_report`, and `clash_save_viewpoints`.
+## `get_current_section_box`
+
+Read-only capture of the enabled Section/Clip Box in the active view. The host strictly parses the `View.GetClippingPlanes()` `ClipPlaneSet` payload and accepts only enabled `OrientedBox3D` version 1 data. Disabled boxes, plane mode, malformed JSON, non-finite values, and unsupported versions return typed MCP errors. The tool does not change the viewpoint, clipping state, selection, or visibility and never exposes raw clipping JSON as its executable contract.
+
+The returned `box` is canonical replay geometry:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `formatVersion` | int | Currently `1`. |
+| `coordinateSpace` | string | Always `document_global`. |
+| `documentUnits` | string | Normalized active-document units. |
+| `center` | vector3 | Absolute world center in document units. |
+| `halfExtents` | vector3 | Positive half sizes in document units. |
+| `axes[3]` | vector3[] | Right-handed orthonormal world axes. Navisworks converts the source Euler rotation before these axes are returned. |
+
+## `isolate_by_box`
+
+Classifies every scanned `ModelItem` by intersection between its world axis-aligned bounding box and the explicit oriented volume. The test uses the full 15-axis separating-axis theorem; touching the boundary counts as intersection. Matching items and all ancestors required to keep matching descendants visible remain visible, while other items are hidden.
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `box` | `SectionBoxGeometry` | required | Literal canonical geometry; units must match the active document. |
+| `apply` | bool | `false` | Preview only unless true. |
+| `maxScannedItems` | int | `100000` | Clamped to `1..500000`; reaching it before traversal finishes marks the result partial. |
+| `previewLimit` | int | `10` | Hidden-item preview limit, maximum 50. |
+
+The full classification is calculated before any visibility write. If traversal times out, is truncated, or any bounding box cannot be classified, `apply=true` is rejected with `applyRejected=true` and no visibility mutation. Replay never reads or changes the active Section Box and preserves the current selection. Repeated successful apply calls converge on the same visibility result regardless of prior hidden state.
+
+For Scenario Library exact replay: call `get_current_section_box` before authoring, preview/apply `isolate_by_box`, then save only `isolate_by_box` with the returned `box` embedded as a literal. Do not store capture, `$stepResult`, match handles, selection dependencies, or a fallback to the current Section Box. `get_current_section_box` is intentionally absent from the scenario allowlist; `isolate_by_box` is an allowlisted mutating tool with `apply`.

@@ -384,6 +384,18 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<IsolateSelectedRequest>,
             (document, request) => _commandService.IsolateSelected(document, request));
 
+        router.Register<GetCurrentSectionBoxRequest>(
+            HostCommandNames.GetCurrentSectionBox,
+            true,
+            DeserializePayload<GetCurrentSectionBoxRequest>,
+            (document, request) => _sectionBoxCaptureService.Capture(document, request));
+
+        router.Register<IsolateByBoxRequest>(
+            HostCommandNames.IsolateByBox,
+            true,
+            DeserializePayload<IsolateByBoxRequest>,
+            (document, request) => _boxIsolationService.Isolate(document, request));
+
         router.Register<ShowAllRequest>(
             HostCommandNames.ShowAll,
             true,
