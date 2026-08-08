@@ -144,7 +144,7 @@ if ($null -eq $manifest.mcp_server -or $null -eq $manifest.mcp_server.framework_
 if ($null -eq $manifest.ai_worker -or
     $null -eq $manifest.ai_worker.framework_dependent -or
     [int]$manifest.ai_worker.protocol_version -ne 3) {
-    throw "Distribution manifest must declare ai_worker framework mode and protocol version 2."
+    throw "Distribution manifest must declare ai_worker framework mode and protocol version 3."
 }
 
 $serverVersion = [System.Reflection.AssemblyName]::GetAssemblyName((Join-Path $packageRoot "McpServer\NavisHelper.McpServer.dll")).Version.ToString()
