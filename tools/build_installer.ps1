@@ -1,7 +1,7 @@
 param(
     [string]$Runtime = "win-x64",
     [switch]$SelfContained,
-    [string]$AppVersion = "2.8.9.0",
+    [string]$AppVersion = "2.9.0.0",
     [string]$PackageName = "",
     [string]$OutputRoot = ""
 )

@@ -1,4 +1,4 @@
-<ApplicationPackage SchemaVersion="1.0" AutodeskProduct="Navisworks" Name="NavisHelper" AppVersion="2.8.9.0">
+<ApplicationPackage SchemaVersion="1.0" AutodeskProduct="Navisworks" Name="NavisHelper" AppVersion="2.9.0.0">
   <Components>
     <ComponentEntry AppName="NavisHelper" ModuleName="./NavisHelper.dll" AppType="Application" />
     <ComponentEntry AppName="NavisHelperRibbon" ModuleName="./CustomRibbon.xaml" AppType="Ribbon" />

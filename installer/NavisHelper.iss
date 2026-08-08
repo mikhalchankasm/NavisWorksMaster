@@ -1,9 +1,9 @@
 #define AppName "NavisHelper"
 #ifndef AppVersion
-#define AppVersion "2.8.9.0"
+#define AppVersion "2.9.0.0"
 #endif
 #ifndef SourceDir
-#define SourceDir "..\artifacts\distribution\NavisHelper-full-win-x64-framework-dependent-2.8.9.0"
+#define SourceDir "..\artifacts\distribution\NavisHelper-full-win-x64-framework-dependent-installer-source"
 #endif
 #ifndef BundleInstallDir
 #define BundleInstallDir "{userappdata}\Autodesk\ApplicationPlugins\NavisHelper.bundle"
