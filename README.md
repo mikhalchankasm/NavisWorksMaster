@@ -54,6 +54,7 @@ The installer places the plugin and MCP runtime in the current user's profile an
 | Requirement | Current scope |
 |---|---|
 | Host | Autodesk Navisworks Manage 2024, 2025, 2026, or 2027 on Windows x64. |
+| Runtime | .NET 9 Runtime for the framework-dependent MCP server included by the current package. |
 | Installation | Current-user profile; administrator rights are not required for the packaged installer. |
 | MCP client | A client that can start a local stdio MCP server. The packaged configurator supports the clients listed in the distribution guide. |
 | Active work | Most model tools require a running Navisworks host and an open model; view tools also require an active view. |
@@ -61,7 +62,7 @@ The installer places the plugin and MCP runtime in the current user's profile an
 
 ## Product part one: plugin suite
 
-The plugin runs inside Navisworks Manage and adds a NavisHelper ribbon and panel. Its main workflows include:
+The compile inventory finds **30 compiled `[Plugin]` registrations**. They run inside Navisworks Manage and add a NavisHelper ribbon and panel. Main workflows include:
 
 - model search, selection, visibility, color overrides, and CSV attribute loading;
 - selection and search sets, saved viewpoints, section-box views, and persistent markups;
@@ -75,7 +76,7 @@ The bundle manifest declares Windows x64 support for Navisworks Manage **2024–
 
 The MCP client starts `NavisHelper.McpServer.exe` over stdio. The server discovers the in-process Navisworks host and communicates through a local Windows named pipe; it does not expose an HTTP port.
 
-The source registers **100 MCP tools**. The count was re-measured from `[McpServerTool]` declarations and confirmed by the repository catalog guard on **2026-08-08**.
+The source registers **100 distinct MCP tools**. `scripts/check_mcp_command_catalog.py` derives their snake_case names from the 100 `[McpServerTool]` methods and verifies the generated 100-row index on **2026-08-08**. The separate curated status table is a smaller guide, not the registered-tool count: it currently contains 51 `implemented`, 16 live-`validated`, 15 `planned`, and one `deprecated alias` rows.
 
 ### Tool families
 

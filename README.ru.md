@@ -54,6 +54,7 @@ Installer размещает плагин и MCP runtime в профиле те�
 | Требование | Текущий охват |
 |---|---|
 | Host | Autodesk Navisworks Manage 2024, 2025, 2026 или 2027 под Windows x64. |
+| Runtime | .NET 9 Runtime для framework-dependent MCP-сервера в текущем пакете. |
 | Установка | Профиль текущего пользователя; packaged installer не требует прав администратора. |
 | MCP client | Клиент, который умеет запускать локальный stdio MCP server. Поддерживаемые configurator-клиенты перечислены в distribution guide. |
 | Активная работа | Большинству model tools нужен запущенный Navisworks и открытая модель; view tools также требуют active view. |
@@ -61,7 +62,7 @@ Installer размещает плагин и MCP runtime в профиле те�
 
 ## Часть первая: набор плагинов
 
-Плагин работает внутри Navisworks Manage и добавляет ribbon и панель NavisHelper. Основные сценарии:
+Compile inventory находит **30 скомпилированных регистраций `[Plugin]`**. Они работают внутри Navisworks Manage и добавляют ribbon и панель NavisHelper. Основные сценарии:
 
 - поиск по модели, выделение, видимость, цветовые overrides и загрузка атрибутов из CSV;
 - selection/search sets, saved viewpoints, section-box виды и постоянная разметка;
@@ -75,7 +76,7 @@ Bundle manifest объявляет Windows x64 поддержку Navisworks Man
 
 MCP-клиент запускает `NavisHelper.McpServer.exe` по stdio. Сервер находит хост внутри Navisworks и связывается с ним через локальный Windows named pipe; HTTP-порт не открывается.
 
-В исходниках зарегистрировано **100 MCP-инструментов**. Число повторно измерено по `[McpServerTool]` и подтверждено catalog guard **2026-08-08**.
+В исходниках зарегистрировано **100 разных MCP-инструментов**. `scripts/check_mcp_command_catalog.py` выводит их snake_case-имена из 100 методов `[McpServerTool]` и проверяет сгенерированный индекс из 100 строк на **2026-08-08**. Отдельная курируемая таблица статусов — меньший справочник, а не счётчик зарегистрированных tools: сейчас в ней 51 строка `implemented`, 16 проверенных на живой модели `validated`, 15 `planned` и одна `deprecated alias`.
 
 ### Семейства инструментов
 
