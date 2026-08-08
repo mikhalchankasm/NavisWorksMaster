@@ -426,14 +426,29 @@ public sealed class AIColorArchitectureTests
             "NavisHelper",
             "AI",
             "AiWorkerProcessRunner.cs"));
-        var registration = runner.IndexOf(
+        var lfRunner = runner
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n');
+
+        AssertWorkerCancellationCallbackDoesNotTerminateProcessInline(lfRunner);
+        AssertWorkerCancellationCallbackDoesNotTerminateProcessInline(
+            lfRunner.Replace("\n", "\r\n", StringComparison.Ordinal));
+    }
+
+    private static void AssertWorkerCancellationCallbackDoesNotTerminateProcessInline(
+        string runner)
+    {
+        var normalizedRunner = runner
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n');
+        var registration = normalizedRunner.IndexOf(
             "cancellationToken.Register",
             StringComparison.Ordinal);
-        var callbackEnd = runner.IndexOf(
+        var callbackEnd = normalizedRunner.IndexOf(
             "\n                {\n                    try",
             registration,
             StringComparison.Ordinal);
-        var completed = runner.IndexOf(
+        var completed = normalizedRunner.IndexOf(
             "var completed = await Task.WhenAny",
             callbackEnd,
             StringComparison.Ordinal);
@@ -441,13 +456,13 @@ public sealed class AIColorArchitectureTests
             registration >= 0 &&
             callbackEnd > registration &&
             completed > callbackEnd);
-        var callbackPath = runner.Substring(
+        var callbackPath = normalizedRunner.Substring(
             registration,
             callbackEnd - registration);
 
         Assert.Contains("cancelled.TrySetResult(true)", callbackPath);
         Assert.DoesNotContain("TryKill(process)", callbackPath);
-        Assert.Contains("TryKill(process)", runner.Substring(completed));
+        Assert.Contains("TryKill(process)", normalizedRunner.Substring(completed));
     }
 
     [Fact]
