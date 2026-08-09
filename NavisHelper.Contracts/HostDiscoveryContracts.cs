@@ -95,6 +95,9 @@ namespace NavisHelper.Agent.Contracts
     public sealed class StartNavisworksResponse
     {
         public bool Started { get; set; }
+        public bool ProcessCreated { get; set; }
+        public bool ProcessExited { get; set; }
+        public int? ExitCode { get; set; }
         public int? ProcessId { get; set; }
         public string NavisworksVersion { get; set; }
         public string RoamerPath { get; set; }
@@ -104,10 +107,21 @@ namespace NavisHelper.Agent.Contracts
         public bool WaitedForHost { get; set; }
         public bool HostReady { get; set; }
         public NavisworksHostInfo Host { get; set; }
+        public string Outcome { get; set; }
+        public string FailureReason { get; set; }
+        public long StartupElapsedMs { get; set; }
         public long ElapsedMs { get; set; }
         public string ElapsedHuman { get; set; }
         public string Message { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
+    }
+
+    public static class StartNavisworksOutcomes
+    {
+        public const string ProcessCreated = "process_created";
+        public const string HostReady = "host_ready";
+        public const string ProcessExited = "process_exited";
+        public const string HostTimeout = "host_timeout";
     }
 
     public sealed class McpTaskTimerStartResponse

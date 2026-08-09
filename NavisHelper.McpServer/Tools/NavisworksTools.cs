@@ -124,13 +124,14 @@ internal sealed class NavisworksTools : NavisworksToolBase
         return response;
     }
 
-    private static bool AreCompatibleVersionStrings(string left, string right)
+    internal static bool AreCompatibleVersionStrings(string left, string right)
     {
         if (Version.TryParse(left, out var leftVersion) && Version.TryParse(right, out var rightVersion))
         {
             return leftVersion.Major == rightVersion.Major &&
                    leftVersion.Minor == rightVersion.Minor &&
-                   NormalizeVersionPart(leftVersion.Build) == NormalizeVersionPart(rightVersion.Build);
+                   NormalizeVersionPart(leftVersion.Build) == NormalizeVersionPart(rightVersion.Build) &&
+                   NormalizeVersionPart(leftVersion.Revision) == NormalizeVersionPart(rightVersion.Revision);
         }
 
         return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);

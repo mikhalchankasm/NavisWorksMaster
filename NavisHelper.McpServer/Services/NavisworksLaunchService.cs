@@ -9,6 +9,9 @@ internal sealed class NavisworksLaunchService
     private readonly HostBridgeClient _hostBridgeClient;
     private readonly McpCallLogger _callLogger;
     private readonly NavisworksRecentFilesService _recentFilesService;
+    private readonly NavisworksProcessStartInfoFactory _startInfoFactory;
+    private readonly INavisworksProcessLauncher _processLauncher;
+    private readonly NavisworksStartupMonitor _startupMonitor;
 
     public NavisworksLaunchService(
         HostBridgeClient hostBridgeClient,
@@ -18,6 +21,9 @@ internal sealed class NavisworksLaunchService
         _hostBridgeClient = hostBridgeClient;
         _callLogger = callLogger;
         _recentFilesService = recentFilesService;
+        _startInfoFactory = new NavisworksProcessStartInfoFactory();
+        _processLauncher = new SystemNavisworksProcessLauncher();
+        _startupMonitor = new NavisworksStartupMonitor();
     }
 
     public async Task<StartNavisworksResponse> StartAsync(
@@ -70,124 +76,141 @@ internal sealed class NavisworksLaunchService
         response.RoamerPath = roamerPath;
         response.FilePath = effectiveFilePath;
 
-        using var process = StartRoamer(roamerPath, effectiveFilePath);
+        var startInfoBuild = _startInfoFactory.Create(roamerPath, effectiveFilePath);
+        var startupStopwatch = Stopwatch.StartNew();
+        using var process = _processLauncher.Start(startInfoBuild.StartInfo);
+        response.ProcessCreated = true;
         response.Started = true;
-        response.ProcessId = process == null ? null : process.Id;
+        response.ProcessId = process.Id;
 
+        NavisworksStartupMonitorResult startupResult;
         if (waitForHost)
         {
-            var host = await WaitForHostAsync(
-                version,
-                effectiveFilePath,
-                response.ProcessId,
-                beforePids,
-                waitTimeoutSeconds,
+            startupResult = await _startupMonitor.WaitForHostAsync(
+                process,
+                excludedProcessId => FindHost(
+                    version,
+                    effectiveFilePath,
+                    response.ProcessId,
+                    beforePids,
+                    excludedProcessId),
+                TimeSpan.FromSeconds(ClampWaitTimeoutSeconds(waitTimeoutSeconds)),
                 cancellationToken).ConfigureAwait(false);
-
-            if (host != null)
-            {
-                response.HostReady = true;
-                response.Host = host;
-            }
-            else
-            {
-                response.Warnings.Add("Navisworks was started, but the MCP host did not appear before the wait timeout.");
-            }
+        }
+        else
+        {
+            startupResult = _startupMonitor.ObserveWithoutWait(process);
         }
 
+        ApplyStartupResult(response, startupResult, waitForHost);
+
+        startupStopwatch.Stop();
         stopwatch.Stop();
+        response.StartupElapsedMs = startupStopwatch.ElapsedMilliseconds;
         response.ElapsedMs = stopwatch.ElapsedMilliseconds;
         response.ElapsedHuman = ElapsedTimeFormatter.Format(response.ElapsedMs);
-        response.Message = response.HostReady
-            ? "Navisworks started and MCP host is ready."
-            : "Navisworks start command was issued.";
-
-        _callLogger.Log(new
-        {
-            event_name = "start_navisworks",
-            timestamp_utc = DateTime.UtcNow,
-            status = "ok",
-            elapsed_ms = response.ElapsedMs,
-            elapsed_human = response.ElapsedHuman,
-            navisworks_version = response.NavisworksVersion,
-            roamer_path = response.RoamerPath,
-            file_path = response.FilePath,
-            opened_recent_file = response.OpenedRecentFile,
-            wait_for_host = waitForHost,
-            host_ready = response.HostReady,
-            process_id = response.ProcessId,
-            instance_id = response.Host == null ? null : response.Host.InstanceId,
-        });
+        _callLogger.LogStartNavisworks(response, startInfoBuild.EnvironmentFacts);
 
         return response;
     }
 
-    private static Process StartRoamer(string roamerPath, string filePath)
+    internal static void ApplyStartupResult(
+        StartNavisworksResponse response,
+        NavisworksStartupMonitorResult startupResult,
+        bool waitedForHost)
     {
-        var startInfo = new ProcessStartInfo
+        response.Outcome = startupResult.Outcome;
+        response.ProcessExited = startupResult.ProcessExited;
+        response.ExitCode = startupResult.ExitCode;
+        response.Host = startupResult.Host;
+        response.HostReady = startupResult.Host != null;
+
+        if (response.HostReady)
         {
-            FileName = roamerPath,
-            UseShellExecute = false,
-        };
+            response.Started = true;
+            response.Message = startupResult.ProcessExited
+                ? "Navisworks launcher handed off to a ready MCP host."
+                : "Navisworks started and MCP host is ready.";
+            return;
+        }
 
-        if (!string.IsNullOrWhiteSpace(filePath))
-            startInfo.ArgumentList.Add(filePath);
+        if (startupResult.ProcessExited)
+        {
+            response.Started = false;
+            response.FailureReason = startupResult.Outcome == StartNavisworksOutcomes.HostTimeout
+                ? "Navisworks launcher exited cleanly, but no handed-off MCP host appeared before the wait timeout."
+                : "Navisworks exited during startup before the MCP host became ready.";
+            response.Warnings.Add(response.FailureReason);
+            response.Message = startupResult.Outcome == StartNavisworksOutcomes.HostTimeout
+                ? "Navisworks launcher handoff timed out."
+                : "Navisworks process exited during startup.";
+            return;
+        }
 
-        return Process.Start(startInfo);
+        if (waitedForHost)
+        {
+            response.FailureReason = "Navisworks remained running, but the MCP host did not appear before the wait timeout.";
+            response.Warnings.Add(response.FailureReason);
+            response.Message = "Navisworks is running, but MCP host startup timed out.";
+            return;
+        }
+
+        response.Message = "Navisworks process was created; MCP host readiness was not requested.";
     }
 
-    private async Task<NavisworksHostInfo> WaitForHostAsync(
+    private NavisworksHostInfo FindHost(
         string navisworksVersion,
         string filePath,
         int? processId,
         HashSet<int> beforePids,
-        int timeoutSeconds,
-        CancellationToken cancellationToken)
+        int? excludedProcessId)
     {
-        if (timeoutSeconds < 1)
-            timeoutSeconds = 1;
-        if (timeoutSeconds > 300)
-            timeoutSeconds = 300;
-
-        var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
         var expectedTitle = string.IsNullOrWhiteSpace(filePath) ? string.Empty : Path.GetFileName(filePath);
-        while (DateTime.UtcNow < deadline)
+        var hosts = _hostBridgeClient.ListNavisworksHosts().Hosts
+            .Where(host => string.Equals(host.NavisworksVersion, navisworksVersion, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return SelectHost(hosts, expectedTitle, processId, beforePids, excludedProcessId);
+    }
+
+    internal static NavisworksHostInfo SelectHost(
+        IReadOnlyList<NavisworksHostInfo> hosts,
+        string expectedTitle,
+        int? processId,
+        HashSet<int> beforePids,
+        int? excludedProcessId)
+    {
+        hosts ??= Array.Empty<NavisworksHostInfo>();
+        beforePids ??= new HashSet<int>();
+        var candidates = excludedProcessId.HasValue
+            ? hosts.Where(host => host.Pid != excludedProcessId.Value).ToList()
+            : hosts.ToList();
+
+        if (processId.HasValue)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var hosts = _hostBridgeClient.ListNavisworksHosts().Hosts
-                .Where(host => string.Equals(host.NavisworksVersion, navisworksVersion, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            if (processId.HasValue)
-            {
-                var byPid = hosts.FirstOrDefault(host => host.Pid == processId.Value);
-                if (byPid != null && HostDocumentMatches(byPid, expectedTitle))
-                    return byPid;
-            }
-
-            var newHost = hosts
-                .Where(host => !beforePids.Contains(host.Pid))
-                .Where(host => HostDocumentMatches(host, expectedTitle))
-                .OrderByDescending(host => host.StartedAtUtc)
-                .FirstOrDefault();
-            if (newHost != null)
-                return newHost;
-
-            if (!string.IsNullOrWhiteSpace(expectedTitle))
-            {
-                var byTitle = hosts
-                    .Where(host => HostDocumentMatches(host, expectedTitle))
-                    .OrderByDescending(host => host.StartedAtUtc)
-                    .FirstOrDefault();
-                if (byTitle != null)
-                    return byTitle;
-            }
-
-            await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+            var byPid = candidates.FirstOrDefault(host => host.Pid == processId.Value);
+            if (byPid != null && HostDocumentMatches(byPid, expectedTitle))
+                return byPid;
         }
 
-        return null;
+        var newHost = candidates
+            .Where(host => !beforePids.Contains(host.Pid))
+            .Where(host => HostDocumentMatches(host, expectedTitle))
+            .OrderByDescending(host => host.StartedAtUtc)
+            .FirstOrDefault();
+        if (newHost != null)
+            return newHost;
+
+        if (string.IsNullOrWhiteSpace(expectedTitle))
+            return null;
+
+        return candidates
+            .Where(host => HostDocumentMatches(host, expectedTitle))
+            .OrderByDescending(host => host.StartedAtUtc)
+            .FirstOrDefault();
     }
+
+    private static int ClampWaitTimeoutSeconds(int timeoutSeconds) => Math.Clamp(timeoutSeconds, 1, 300);
 
     private static bool HostDocumentMatches(NavisworksHostInfo host, string expectedTitle)
     {
