@@ -1,4 +1,6 @@
 using NavisHelper.McpServer.Services;
+using NavisHelper.Agent.Contracts;
+using System.Text.Json;
 using Xunit;
 
 namespace NavisHelper.McpServer.Tests;
@@ -32,6 +34,56 @@ public sealed class McpCallLoggerTests : IDisposable
 
         Assert.True(File.Exists(expectedCurrentLogPath));
         Assert.False(File.Exists(expiredLogPath));
+    }
+
+    [Theory]
+    [InlineData(StartNavisworksOutcomes.HostReady, true, "ok")]
+    [InlineData(StartNavisworksOutcomes.ProcessExited, false, "process_exited")]
+    [InlineData(StartNavisworksOutcomes.HostTimeout, false, "host_timeout")]
+    [InlineData(StartNavisworksOutcomes.ProcessCreated, false, "process_created")]
+    public void LogStartNavisworks_UsesOutcomeStatusAndSafeEnvironmentFacts(
+        string outcome,
+        bool hostReady,
+        string expectedStatus)
+    {
+        var logger = new McpCallLogger();
+        logger.LogStartNavisworks(
+            new StartNavisworksResponse
+            {
+                Outcome = outcome,
+                HostReady = hostReady,
+                ProcessCreated = true,
+                ProcessExited = outcome == StartNavisworksOutcomes.ProcessExited,
+                ExitCode = outcome == StartNavisworksOutcomes.ProcessExited ? -1 : null,
+                ProcessId = 123,
+                RoamerPath = @"C:\Program Files\Autodesk\Navisworks Manage 2027\Roamer.exe",
+                FilePath = @"D:\Example Project\sample model.nwd",
+                WaitedForHost = outcome != StartNavisworksOutcomes.ProcessCreated,
+                FailureReason = hostReady ? null : "test failure",
+                StartupElapsedMs = 25,
+                ElapsedMs = 25,
+                ElapsedHuman = "25 ms",
+            },
+            new WindowsLaunchEnvironmentFacts
+            {
+                ProcessWindirPresent = false,
+                ProcessWindirValid = false,
+                WindirSource = "machine",
+                ProcessSystemRootPresent = true,
+                ProcessSystemRootValid = true,
+                SystemRootSource = "process",
+                FontsUriValid = true,
+                WorkingDirectorySet = true,
+            });
+
+        using var document = JsonDocument.Parse(File.ReadLines(logger.LogFilePath).Last());
+        var root = document.RootElement;
+        Assert.Equal(expectedStatus, root.GetProperty("status").GetString());
+        Assert.Equal(outcome, root.GetProperty("outcome").GetString());
+        Assert.Equal("sample model.nwd", root.GetProperty("file_name").GetString());
+        Assert.False(root.TryGetProperty("file_path", out _));
+        Assert.Equal("machine", root.GetProperty("environment").GetProperty("windir_source").GetString());
+        Assert.True(root.GetProperty("environment").GetProperty("fonts_uri_valid").GetBoolean());
     }
 
     public void Dispose()

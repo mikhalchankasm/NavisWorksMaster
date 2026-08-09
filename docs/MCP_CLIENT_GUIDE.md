@@ -20,6 +20,16 @@ Use `open_latest_navisworks_file` for the common prompt "start Navisworks and op
 
 After launch, use the returned `host.instanceId` for follow-up tools when more than one Navisworks process may be running.
 
+Inspect `outcome` before continuing. `host_ready` is the only result that
+confirms the in-process plugin is ready. `process_exited` includes `exitCode`
+and stops the startup wait early; do not retry repeatedly before inspecting
+`failureReason` and `mcp_recent_calls`. `host_timeout` means Navisworks was still
+running but its host did not register before the timeout. When
+`waitForHost=false`, `process_created` is only an immediate process snapshot and
+does not confirm host readiness. The server normalizes the child `windir` and
+`SystemRoot` values and logs only their safe source/validity facts, never the
+complete child environment.
+
 If `NAVISHELPER_INSTANCE_ID` is set, the MCP server treats it as a strict target and fails with `instance_not_found` when that host is absent. `NAVISHELPER_INSTANCES_DIR` is honored by both the Navisworks plugin host and MCP server; set it in both processes only for isolated test runs.
 
 ## Task Timing

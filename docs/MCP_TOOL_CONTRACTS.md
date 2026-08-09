@@ -224,10 +224,25 @@ Outputs:
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `started`, `processId`, `navisworksVersion`, `roamerPath`, `filePath` | scalar | Launch result and selected executable/file. |
+| `started`, `processCreated`, `processExited`, `exitCode`, `processId` | scalar | Process result. `started=false` when an early exit is confirmed; `processCreated` remains true to show that `Process.Start` succeeded. |
+| `navisworksVersion`, `roamerPath`, `filePath` | scalar | Selected executable and file. |
 | `openedRecentFile`, `recentFile` | scalar/object | Present when the file came from Recent File List. |
 | `waitedForHost`, `hostReady`, `host` | scalar/object | `host.instanceId` should be used for follow-up tools when multiple hosts may exist. |
-| `elapsedMs`, `elapsedHuman`, `message`, `warnings[]` | scalar/array | Launch timing and non-fatal warnings. |
+| `outcome`, `failureReason` | scalar | `host_ready`, `process_exited`, `host_timeout`, or `process_created`. `process_created` is the immediate snapshot used when `waitForHost=false`; it does not claim later host readiness. |
+| `startupElapsedMs`, `elapsedMs`, `elapsedHuman`, `message`, `warnings[]` | scalar/array | `startupElapsedMs` covers process creation and monitoring; legacy `elapsedMs` also includes request preparation such as version/file resolution. |
+
+With the default `waitForHost=true`, the server monitors both host discovery and
+the child process. An early process exit returns `process_exited` and `exitCode`
+without waiting for the full host timeout. `host_timeout` means the process was
+still alive at the timeout but its NavisHelper host was not discoverable. Check
+`mcp_recent_calls` for safe environment-source facts; the log intentionally
+records only the model file name, not its full path. If the process starts but
+health reports different MCP server and plugin versions, reinstall both from
+the same NavisHelper package before using write tools.
+
+A normal zero-exit launcher handoff to a different Navisworks PID remains
+`host_ready`; in that case `processExited=true` and `exitCode=0` describe the
+short-lived launcher while `host` identifies the live target process.
 
 ### `close_navisworks`
 

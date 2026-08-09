@@ -22,7 +22,7 @@ internal sealed class NavisworksStartupTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Starts Navisworks Manage. Pass filePath to open a specific .nwd/.nwf/.nwc, or set openLatestRecentFile=true to open the latest existing file from Navisworks Recent File List. Optionally waits until the NavisHelper MCP host appears and returns instanceId for follow-up tools.")]
+    [Description("Starts Navisworks Manage. Pass filePath to open a specific .nwd/.nwf/.nwc, or set openLatestRecentFile=true to open the latest existing file from Navisworks Recent File List. When waiting, distinguishes host_ready, process_exited, and host_timeout; returns instanceId only when the MCP host is ready.")]
     public Task<StartNavisworksResponse> StartNavisworks(
         [Description("Optional Navisworks version: 2024, 2025, 2026, or 2027. Empty means latest installed version, or the recent file's version when openLatestRecentFile=true.")] string navisworksVersion = "",
         [Description("Optional explicit .nwd/.nwf/.nwc file path to open. Leave empty when using openLatestRecentFile=true.")] string filePath = "",
@@ -41,7 +41,7 @@ internal sealed class NavisworksStartupTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Convenience tool for the user request: 'start Navisworks and open the last file'. It opens the latest existing file from Navisworks Recent File List and waits for the NavisHelper MCP host by default.")]
+    [Description("Convenience tool for the user request: 'start Navisworks and open the last file'. It opens the latest existing file from Navisworks Recent File List and waits for the NavisHelper MCP host by default, reporting an early process exit without waiting for the full timeout.")]
     public Task<StartNavisworksResponse> OpenLatestNavisworksFile(
         [Description("Optional Navisworks version: 2024, 2025, 2026, or 2027. Empty means all supported versions and opens the globally latest recent file.")] string navisworksVersion = "",
         [Description("Wait until the NavisHelper in-process MCP host is discoverable after launch. Default is true.")] bool waitForHost = true,

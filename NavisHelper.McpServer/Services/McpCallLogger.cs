@@ -97,6 +97,48 @@ internal sealed class McpCallLogger
         });
     }
 
+    public void LogStartNavisworks(StartNavisworksResponse response, WindowsLaunchEnvironmentFacts environmentFacts)
+    {
+        if (response == null)
+            throw new ArgumentNullException(nameof(response));
+        if (environmentFacts == null)
+            throw new ArgumentNullException(nameof(environmentFacts));
+
+        Log(new
+        {
+            event_name = "start_navisworks",
+            timestamp_utc = DateTime.UtcNow,
+            status = response.HostReady ? "ok" : response.Outcome,
+            outcome = response.Outcome,
+            elapsed_ms = response.ElapsedMs,
+            elapsed_human = response.ElapsedHuman,
+            startup_elapsed_ms = response.StartupElapsedMs,
+            navisworks_version = response.NavisworksVersion,
+            roamer_file_name = string.IsNullOrWhiteSpace(response.RoamerPath) ? null : Path.GetFileName(response.RoamerPath),
+            file_name = string.IsNullOrWhiteSpace(response.FilePath) ? null : Path.GetFileName(response.FilePath),
+            opened_recent_file = response.OpenedRecentFile,
+            wait_for_host = response.WaitedForHost,
+            host_ready = response.HostReady,
+            process_created = response.ProcessCreated,
+            process_exited = response.ProcessExited,
+            process_id = response.ProcessId,
+            exit_code = response.ExitCode,
+            failure_reason = response.FailureReason,
+            instance_id = response.Host == null ? null : response.Host.InstanceId,
+            environment = new
+            {
+                process_windir_present = environmentFacts.ProcessWindirPresent,
+                process_windir_valid = environmentFacts.ProcessWindirValid,
+                windir_source = environmentFacts.WindirSource,
+                process_system_root_present = environmentFacts.ProcessSystemRootPresent,
+                process_system_root_valid = environmentFacts.ProcessSystemRootValid,
+                system_root_source = environmentFacts.SystemRootSource,
+                fonts_uri_valid = environmentFacts.FontsUriValid,
+                working_directory_set = environmentFacts.WorkingDirectorySet,
+            },
+        });
+    }
+
     public void Log(object entry)
     {
         try
