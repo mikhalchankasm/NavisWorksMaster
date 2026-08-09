@@ -47,7 +47,7 @@ if (Get-Process Roamer -ErrorAction SilentlyContinue) {
 Start-Process $installer -Wait
 ```
 
-Installer размещает плагин и MCP runtime в профиле текущего пользователя и настраивает поддерживаемые MCP-клиенты. После установки перезапустите MCP-клиент. Другие варианты описаны в [distribution guide](docs/MCP_DISTRIBUTION_PLAN.md) и [agent setup guide](docs/MCP_AGENT_SETUP.md).
+Installer всегда размещает плагин и MCP binaries в профиле текущего пользователя. Необязательное действие настройки MCP-клиентов на странице завершения по умолчанию выключено. Если его выбрать, installer может создать или обновить файл конфигурации в существующем пользовательском каталоге каждого обнаруженного клиента; отсутствующие приложения и их корневые каталоги конфигурации будут пропущены. Перезапускайте только тот клиент, конфигурация которого была изменена. Поздняя или намеренная настройка с `--create-missing` описана в разделе [Client Config](docs/MCP_DISTRIBUTION_PLAN.md#client-config). Другие варианты приведены в [distribution guide](docs/MCP_DISTRIBUTION_PLAN.md) и [agent setup guide](docs/MCP_AGENT_SETUP.md).
 
 ### Требования
 
@@ -123,13 +123,18 @@ MCP-клиент запускает `NavisHelper.McpServer.exe` по stdio. Се
 
 ## Снимок проверки
 
-Локальное измерение commit `e19c9cf` от **2026-08-08**:
+Проверка этого изменения на основе commit `main` `b54f8e3` выполнена **2026-08-09**:
 
 - source inventory guard: passed; **207** tracked C# files, **205** реальных compile entries и **2** явных исключения;
 - MCP catalog guard: passed и покрывает все **100** зарегистрированных tools;
 - host router guard: passed; **83** command names и **76** typed routes;
-- automated MCP-server tests: **1 304 passed, 1 failed, 1 305 total**; существующий source-structure test `WorkerCancellationCallback_DoesNotTerminateProcessInline` не нашёл newline-sensitive фрагмент;
-- live Navisworks smoke, release build matrix, запуск installer, deployment и публикация release: **не выполнялись** для этой docs-only задачи.
+- automated MCP-server tests: baseline `main` после исправления newline-sensitive source-structure regression — **1 305 passed, 0 failed, 1 305 total**; в этом изменении после добавления трёх installer-semantics regressions — **1 308 passed, 0 failed, 1 308 total**;
+- release build matrix: `Release2024`, `Release2025`, `Release2026` и `Release2027` для x64 прошли; все 12 обязательных bundle assemblies имеют version `2.9.0.0`;
+- distribution validation, ZIP fresh/reinstall/legacy-upgrade smoke, Inno Setup compilation и изолированный installer bundle-upgrade smoke: прошли;
+- публичный installer `v2.9.0.0`: SHA-256 скачанного файла совпал с опубликованными checksum-файлами и GitHub asset digest; установка с выключенной настройкой MCP сохранила SHA пяти проверенных клиентских конфигов, а проверенные установленные NavisHelper bundle/MCP assemblies имели version `2.9.0.0`;
+- live smoke публичной установки в Navisworks Manage 2027: пользователь подтвердил ribbon и панель NavisHelper; прошли проверка контекста активной модели и типовые операции с subtree, отчётом свойств, сводкой distinct values, preview цветов и временными CSV/XLSX exports; присутствовали все 100 MCP tools и обязательный subset; в тестовой модели не было clash tests в проверяемом scope.
+
+Эта runtime-проверка относится только к Navisworks Manage 2027. Targets 2024–2026 здесь проверены сборкой, но не runtime-smoke. Release assets этим изменением не заменялись.
 
 Automated helper tests не заменяют проверку внутри Autodesk Navisworks Manage. Большая часть host-поведения зависит от Autodesk runtime и пользовательской модели.
 
