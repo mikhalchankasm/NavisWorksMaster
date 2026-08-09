@@ -16,7 +16,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            () => null,
+            _ => null,
             TimeSpan.FromSeconds(5),
             CancellationToken.None);
 
@@ -48,7 +48,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            () => null,
+            _ => null,
             TimeSpan.FromSeconds(5),
             CancellationToken.None);
 
@@ -65,7 +65,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            () => null,
+            _ => null,
             TimeSpan.FromMilliseconds(30),
             CancellationToken.None);
 
@@ -85,7 +85,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            () => ++probes >= 2 ? expectedHost : null,
+            _ => ++probes >= 2 ? expectedHost : null,
             TimeSpan.FromSeconds(1),
             CancellationToken.None);
 
@@ -106,7 +106,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            () => new NavisworksHostInfo { InstanceId = "stale-record" },
+            _ => new NavisworksHostInfo { InstanceId = "stale-record" },
             TimeSpan.FromSeconds(1),
             CancellationToken.None);
 
@@ -124,7 +124,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            () => handedOffHost,
+            _ => handedOffHost,
             TimeSpan.FromSeconds(1),
             CancellationToken.None);
 
@@ -135,7 +135,54 @@ public sealed class NavisworksStartupMonitorTests
     }
 
     [Fact]
-    public async Task WaitForHostAsync_ZeroExitWithSamePidRejectsStaleHostRecord()
+    public async Task WaitForHostAsync_CleanExitPollsUntilDelayedHandoffAppears()
+    {
+        using var process = new FakeProcess { HasExitedValue = true, ExitCodeValue = 0 };
+        var handedOffHost = new NavisworksHostInfo { InstanceId = "delayed-handoff", Pid = process.Id + 1 };
+        var monitor = new NavisworksStartupMonitor(TimeSpan.FromMilliseconds(5));
+        var probes = 0;
+        var excludedProcessIds = new List<int?>();
+
+        var result = await monitor.WaitForHostAsync(
+            process,
+            excludedProcessId =>
+            {
+                excludedProcessIds.Add(excludedProcessId);
+                return ++probes >= 3 ? handedOffHost : null;
+            },
+            TimeSpan.FromSeconds(1),
+            CancellationToken.None);
+
+        Assert.True(probes >= 3);
+        Assert.All(excludedProcessIds, excludedProcessId => Assert.Equal(process.Id, excludedProcessId));
+        Assert.Equal(StartNavisworksOutcomes.HostReady, result.Outcome);
+        Assert.True(result.ProcessExited);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Same(handedOffHost, result.Host);
+    }
+
+    [Fact]
+    public async Task WaitForHostAsync_CleanExitWithoutHandoffReturnsHostTimeoutAfterRemainingWait()
+    {
+        using var process = new FakeProcess { HasExitedValue = true, ExitCodeValue = 0 };
+        var monitor = new NavisworksStartupMonitor(TimeSpan.FromMilliseconds(5));
+        var probes = 0;
+
+        var result = await monitor.WaitForHostAsync(
+            process,
+            _ => { probes++; return null; },
+            TimeSpan.FromMilliseconds(35),
+            CancellationToken.None);
+
+        Assert.True(probes >= 2);
+        Assert.Equal(StartNavisworksOutcomes.HostTimeout, result.Outcome);
+        Assert.True(result.ProcessExited);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Null(result.Host);
+    }
+
+    [Fact]
+    public async Task WaitForHostAsync_CleanExitIgnoresSamePidStaleRecordUntilTimeout()
     {
         using var process = new FakeProcess { HasExitedValue = true, ExitCodeValue = 0 };
         var staleHost = new NavisworksHostInfo { InstanceId = "stale", Pid = process.Id };
@@ -143,12 +190,34 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            () => staleHost,
+            _ => staleHost,
+            TimeSpan.FromMilliseconds(25),
+            CancellationToken.None);
+
+        Assert.Equal(StartNavisworksOutcomes.HostTimeout, result.Outcome);
+        Assert.True(result.ProcessExited);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Null(result.Host);
+    }
+
+    [Fact]
+    public async Task WaitForHostAsync_NonzeroExitDoesNotEnterHandoffPolling()
+    {
+        using var process = new FakeProcess { HasExitedValue = true, ExitCodeValue = 5 };
+        var monitor = new NavisworksStartupMonitor(TimeSpan.FromMilliseconds(5));
+        var probes = 0;
+        var stopwatch = Stopwatch.StartNew();
+
+        var result = await monitor.WaitForHostAsync(
+            process,
+            _ => { probes++; return null; },
             TimeSpan.FromSeconds(1),
             CancellationToken.None);
 
+        Assert.Equal(0, probes);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromMilliseconds(250));
         Assert.Equal(StartNavisworksOutcomes.ProcessExited, result.Outcome);
-        Assert.Null(result.Host);
+        Assert.Equal(5, result.ExitCode);
     }
 
     [Fact]
@@ -159,13 +228,81 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            () => null,
+            _ => null,
             TimeSpan.FromSeconds(1),
             CancellationToken.None);
 
         Assert.Equal(StartNavisworksOutcomes.ProcessExited, result.Outcome);
         Assert.True(result.ProcessExited);
         Assert.Null(result.ExitCode);
+    }
+
+    [Fact]
+    public async Task WaitForHostAsync_CancellationStopsCleanExitHandoffPolling()
+    {
+        using var process = new FakeProcess { HasExitedValue = true, ExitCodeValue = 0 };
+        var monitor = new NavisworksStartupMonitor(TimeSpan.FromMilliseconds(5));
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => monitor.WaitForHostAsync(
+            process,
+            _ => null,
+            TimeSpan.FromSeconds(5),
+            cancellation.Token));
+    }
+
+    [Fact]
+    public void SelectHost_ExcludingExitedLauncherPidAllowsDifferentPidHandoff()
+    {
+        var staleLauncherHost = new NavisworksHostInfo
+        {
+            InstanceId = "launcher",
+            Pid = 100,
+            DocumentTitle = "model.nwd",
+            StartedAtUtc = DateTime.UtcNow,
+        };
+        var handedOffHost = new NavisworksHostInfo
+        {
+            InstanceId = "handoff",
+            Pid = 200,
+            DocumentTitle = "model.nwd",
+            StartedAtUtc = DateTime.UtcNow.AddSeconds(1),
+        };
+
+        var selected = NavisworksLaunchService.SelectHost(
+            new[] { staleLauncherHost, handedOffHost },
+            expectedTitle: "model.nwd",
+            processId: 100,
+            beforePids: new HashSet<int>(),
+            excludedProcessId: 100);
+
+        Assert.Same(handedOffHost, selected);
+    }
+
+    [Fact]
+    public void SelectHost_ActiveLauncherPidKeepsExactPidPriority()
+    {
+        var launcherHost = new NavisworksHostInfo
+        {
+            InstanceId = "launcher",
+            Pid = 100,
+            DocumentTitle = "model.nwd",
+        };
+        var otherHost = new NavisworksHostInfo
+        {
+            InstanceId = "other",
+            Pid = 200,
+            DocumentTitle = "model.nwd",
+        };
+
+        var selected = NavisworksLaunchService.SelectHost(
+            new[] { otherHost, launcherHost },
+            expectedTitle: "model.nwd",
+            processId: 100,
+            beforePids: new HashSet<int>(),
+            excludedProcessId: null);
+
+        Assert.Same(launcherHost, selected);
     }
 
     [Fact]
@@ -260,6 +397,24 @@ public sealed class NavisworksStartupMonitorTests
         Assert.Same(host, response.Host);
         Assert.Equal(StartNavisworksOutcomes.HostReady, response.Outcome);
         Assert.Null(response.FailureReason);
+    }
+
+    [Fact]
+    public void ApplyStartupResult_CleanHandoffTimeoutUsesTimeoutOutcomeAndExitFacts()
+    {
+        var response = new StartNavisworksResponse { Started = true, ProcessCreated = true };
+
+        NavisworksLaunchService.ApplyStartupResult(
+            response,
+            NavisworksStartupMonitorResult.HostTimeout(processExited: true, exitCode: 0),
+            waitedForHost: true);
+
+        Assert.False(response.Started);
+        Assert.True(response.ProcessExited);
+        Assert.Equal(0, response.ExitCode);
+        Assert.False(response.HostReady);
+        Assert.Equal(StartNavisworksOutcomes.HostTimeout, response.Outcome);
+        Assert.Contains("exited cleanly", response.FailureReason, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class FakeProcess : INavisworksProcess

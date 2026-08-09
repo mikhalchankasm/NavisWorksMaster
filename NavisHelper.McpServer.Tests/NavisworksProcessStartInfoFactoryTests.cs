@@ -23,7 +23,7 @@ public sealed class NavisworksProcessStartInfoFactoryTests : IDisposable
     }
 
     [Fact]
-    public void Create_MissingProcessWindir_UsesMachineWindirAndSetsWorkingDirectory()
+    public void Create_MissingProcessWindir_UsesValidatedProcessSystemRootAndSetsWorkingDirectory()
     {
         var source = new FakeEnvironmentSource(
             processWindir: null,
@@ -36,8 +36,10 @@ public sealed class NavisworksProcessStartInfoFactoryTests : IDisposable
 
         Assert.False(result.EnvironmentFacts.ProcessWindirPresent);
         Assert.False(result.EnvironmentFacts.ProcessWindirValid);
-        Assert.Equal("machine", result.EnvironmentFacts.WindirSource);
-        Assert.Equal(_machineWindowsDirectory, result.StartInfo.Environment["windir"]);
+        Assert.Equal("process", result.EnvironmentFacts.WindirSource);
+        Assert.Equal("process", result.EnvironmentFacts.SystemRootSource);
+        Assert.Equal(_processWindowsDirectory, result.StartInfo.Environment["windir"]);
+        Assert.Equal(_processWindowsDirectory, result.StartInfo.Environment["SystemRoot"]);
         Assert.Equal(Path.GetDirectoryName(_roamerPath), result.StartInfo.WorkingDirectory);
         Assert.True(result.EnvironmentFacts.WorkingDirectorySet);
         Assert.True(result.EnvironmentFacts.FontsUriValid);
@@ -46,7 +48,7 @@ public sealed class NavisworksProcessStartInfoFactoryTests : IDisposable
     }
 
     [Fact]
-    public void Create_InvalidProcessVariables_FallBackToMachineAndOs()
+    public void Create_InvalidProcessVariables_FallBackToSingleMachineRoot()
     {
         var source = new FakeEnvironmentSource(
             processWindir: "not-an-absolute-path",
@@ -60,8 +62,132 @@ public sealed class NavisworksProcessStartInfoFactoryTests : IDisposable
         Assert.True(result.EnvironmentFacts.ProcessWindirPresent);
         Assert.False(result.EnvironmentFacts.ProcessWindirValid);
         Assert.Equal("machine", result.EnvironmentFacts.WindirSource);
-        Assert.Equal("os", result.EnvironmentFacts.SystemRootSource);
+        Assert.Equal("machine", result.EnvironmentFacts.SystemRootSource);
         Assert.Equal(_machineWindowsDirectory, result.StartInfo.Environment["windir"]);
+        Assert.Equal(_machineWindowsDirectory, result.StartInfo.Environment["SystemRoot"]);
+    }
+
+    [Fact]
+    public void Create_ExistingNonWindowsDirectory_FallsBackToValidatedMachineRoots()
+    {
+        var nonWindowsDirectory = Path.Combine(_tempDirectory, "existing-but-not-windows");
+        Directory.CreateDirectory(nonWindowsDirectory);
+        var source = new FakeEnvironmentSource(
+            processWindir: nonWindowsDirectory,
+            processSystemRoot: nonWindowsDirectory,
+            machineWindir: _machineWindowsDirectory,
+            machineSystemRoot: _machineWindowsDirectory,
+            osWindowsDirectory: _osWindowsDirectory);
+
+        var result = new NavisworksProcessStartInfoFactory(source).Create(_roamerPath, string.Empty);
+
+        Assert.True(result.EnvironmentFacts.ProcessWindirPresent);
+        Assert.False(result.EnvironmentFacts.ProcessWindirValid);
+        Assert.False(result.EnvironmentFacts.ProcessSystemRootValid);
+        Assert.Equal("machine", result.EnvironmentFacts.WindirSource);
+        Assert.Equal("machine", result.EnvironmentFacts.SystemRootSource);
+        Assert.Equal(_machineWindowsDirectory, result.StartInfo.Environment["windir"]);
+        Assert.Equal(_machineWindowsDirectory, result.StartInfo.Environment["SystemRoot"]);
+    }
+
+    [Fact]
+    public void Create_WindirWithoutFonts_UsesValidatedProcessSystemRootForBothVariables()
+    {
+        var rootWithoutFonts = Path.Combine(_tempDirectory, "windows-without-fonts");
+        Directory.CreateDirectory(Path.Combine(rootWithoutFonts, "System32"));
+        var source = new FakeEnvironmentSource(
+            processWindir: rootWithoutFonts,
+            processSystemRoot: _processWindowsDirectory,
+            machineWindir: _machineWindowsDirectory,
+            machineSystemRoot: _machineWindowsDirectory,
+            osWindowsDirectory: _osWindowsDirectory);
+
+        var result = new NavisworksProcessStartInfoFactory(source).Create(_roamerPath, string.Empty);
+
+        Assert.False(result.EnvironmentFacts.ProcessWindirValid);
+        Assert.True(result.EnvironmentFacts.ProcessSystemRootValid);
+        Assert.Equal("process", result.EnvironmentFacts.WindirSource);
+        Assert.Equal("process", result.EnvironmentFacts.SystemRootSource);
+        Assert.Equal(_processWindowsDirectory, result.StartInfo.Environment["windir"]);
+        Assert.Equal(_processWindowsDirectory, result.StartInfo.Environment["SystemRoot"]);
+    }
+
+    [Fact]
+    public void Create_SystemRootWithoutSystem32_UsesValidatedProcessWindirForBothVariables()
+    {
+        var rootWithoutSystem32 = Path.Combine(_tempDirectory, "windows-without-system32");
+        Directory.CreateDirectory(Path.Combine(rootWithoutSystem32, "Fonts"));
+        var source = new FakeEnvironmentSource(
+            processWindir: _processWindowsDirectory,
+            processSystemRoot: rootWithoutSystem32,
+            machineWindir: _machineWindowsDirectory,
+            machineSystemRoot: _machineWindowsDirectory,
+            osWindowsDirectory: _osWindowsDirectory);
+
+        var result = new NavisworksProcessStartInfoFactory(source).Create(_roamerPath, string.Empty);
+
+        Assert.False(result.EnvironmentFacts.ProcessSystemRootValid);
+        Assert.Equal("process", result.EnvironmentFacts.WindirSource);
+        Assert.Equal("process", result.EnvironmentFacts.SystemRootSource);
+        Assert.Equal(_processWindowsDirectory, result.StartInfo.Environment["windir"]);
+        Assert.Equal(_processWindowsDirectory, result.StartInfo.Environment["SystemRoot"]);
+    }
+
+    [Fact]
+    public void Create_MismatchedValidProcessRoots_FallsBackJointlyToMachineRoot()
+    {
+        var source = new FakeEnvironmentSource(
+            processWindir: _processWindowsDirectory,
+            processSystemRoot: _osWindowsDirectory,
+            machineWindir: _machineWindowsDirectory,
+            machineSystemRoot: _machineWindowsDirectory,
+            osWindowsDirectory: _osWindowsDirectory);
+
+        var result = new NavisworksProcessStartInfoFactory(source).Create(_roamerPath, string.Empty);
+
+        Assert.True(result.EnvironmentFacts.ProcessWindirValid);
+        Assert.True(result.EnvironmentFacts.ProcessSystemRootValid);
+        Assert.Equal("machine", result.EnvironmentFacts.WindirSource);
+        Assert.Equal("machine", result.EnvironmentFacts.SystemRootSource);
+        Assert.Equal(_machineWindowsDirectory, result.StartInfo.Environment["windir"]);
+        Assert.Equal(_machineWindowsDirectory, result.StartInfo.Environment["SystemRoot"]);
+    }
+
+    [Fact]
+    public void Create_SystemRootWithoutFonts_IsNotLoggedAsUsableJointRoot()
+    {
+        var systemRootWithoutFonts = Path.Combine(_tempDirectory, "system-root-without-fonts");
+        Directory.CreateDirectory(Path.Combine(systemRootWithoutFonts, "System32"));
+        var source = new FakeEnvironmentSource(
+            processWindir: _processWindowsDirectory,
+            processSystemRoot: systemRootWithoutFonts,
+            machineWindir: _machineWindowsDirectory,
+            machineSystemRoot: _machineWindowsDirectory,
+            osWindowsDirectory: _osWindowsDirectory);
+
+        var result = new NavisworksProcessStartInfoFactory(source).Create(_roamerPath, string.Empty);
+
+        Assert.False(result.EnvironmentFacts.ProcessSystemRootValid);
+        Assert.Equal("process", result.EnvironmentFacts.WindirSource);
+        Assert.Equal(_processWindowsDirectory, result.StartInfo.Environment["windir"]);
+        Assert.Equal(_processWindowsDirectory, result.StartInfo.Environment["SystemRoot"]);
+    }
+
+    [Fact]
+    public void Create_MismatchedValidMachineRoots_FallsBackJointlyToOsRoot()
+    {
+        var source = new FakeEnvironmentSource(
+            processWindir: "invalid",
+            processSystemRoot: "invalid",
+            machineWindir: _machineWindowsDirectory,
+            machineSystemRoot: _processWindowsDirectory,
+            osWindowsDirectory: _osWindowsDirectory);
+
+        var result = new NavisworksProcessStartInfoFactory(source).Create(_roamerPath, string.Empty);
+
+        Assert.Equal("os", result.EnvironmentFacts.WindirSource);
+        Assert.Equal("os", result.EnvironmentFacts.SystemRootSource);
+        Assert.Equal(_osWindowsDirectory, result.StartInfo.Environment["windir"]);
         Assert.Equal(_osWindowsDirectory, result.StartInfo.Environment["SystemRoot"]);
     }
 
@@ -152,6 +278,7 @@ public sealed class NavisworksProcessStartInfoFactoryTests : IDisposable
     {
         var path = Path.Combine(_tempDirectory, name);
         Directory.CreateDirectory(Path.Combine(path, "Fonts"));
+        Directory.CreateDirectory(Path.Combine(path, "System32"));
         return path;
     }
 

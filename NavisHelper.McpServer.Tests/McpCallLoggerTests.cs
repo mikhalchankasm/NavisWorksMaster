@@ -86,6 +86,41 @@ public sealed class McpCallLoggerTests : IDisposable
         Assert.True(root.GetProperty("environment").GetProperty("fonts_uri_valid").GetBoolean());
     }
 
+    [Fact]
+    public void LogStartNavisworks_CleanHandoffTimeoutPreservesTimeoutAndExitFacts()
+    {
+        var logger = new McpCallLogger();
+        logger.LogStartNavisworks(
+            new StartNavisworksResponse
+            {
+                Outcome = StartNavisworksOutcomes.HostTimeout,
+                ProcessCreated = true,
+                ProcessExited = true,
+                ExitCode = 0,
+                ProcessId = 123,
+                WaitedForHost = true,
+                FailureReason = "Clean handoff timed out.",
+                StartupElapsedMs = 1000,
+                ElapsedMs = 1001,
+                ElapsedHuman = "1.001 s",
+            },
+            new WindowsLaunchEnvironmentFacts
+            {
+                WindirSource = "process",
+                SystemRootSource = "process",
+                FontsUriValid = true,
+                WorkingDirectorySet = true,
+            });
+
+        using var document = JsonDocument.Parse(File.ReadLines(logger.LogFilePath).Last());
+        var root = document.RootElement;
+        Assert.Equal("host_timeout", root.GetProperty("status").GetString());
+        Assert.Equal("host_timeout", root.GetProperty("outcome").GetString());
+        Assert.True(root.GetProperty("process_exited").GetBoolean());
+        Assert.Equal(0, root.GetProperty("exit_code").GetInt32());
+        Assert.Equal(1000, root.GetProperty("startup_elapsed_ms").GetInt64());
+    }
+
     public void Dispose()
     {
         Environment.SetEnvironmentVariable("NAVISHELPER_MCP_LOG_DIR", _previousLogDir);

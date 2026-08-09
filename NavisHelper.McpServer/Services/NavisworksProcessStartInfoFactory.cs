@@ -38,27 +38,22 @@ internal sealed class NavisworksProcessStartInfoFactory
         var processWindir = _environmentSource.GetProcessVariable("windir");
         var processSystemRoot = _environmentSource.GetProcessVariable("SystemRoot");
         var processWindirValid = TryValidateWindowsDirectory(processWindir, requireFontsUri: true, out _);
-        var processSystemRootValid = TryValidateWindowsDirectory(processSystemRoot, requireFontsUri: false, out _);
+        var processSystemRootValid = TryValidateWindowsDirectory(processSystemRoot, requireFontsUri: true, out _);
+        var machineWindir = _environmentSource.GetMachineVariable("windir");
+        var machineSystemRoot = _environmentSource.GetMachineVariable("SystemRoot");
+        var osWindowsDirectory = _environmentSource.GetOsWindowsDirectory();
 
-        var windir = ResolveValue(
+        var windowsRoot = ResolveWindowsRoot(
             processWindir,
-            processWindirValid,
-            _environmentSource.GetMachineVariable("windir"),
-            requireFontsUri: true,
-            _environmentSource.GetOsWindowsDirectory(),
-            "windir");
-        var systemRoot = ResolveValue(
             processSystemRoot,
-            processSystemRootValid,
-            _environmentSource.GetMachineVariable("SystemRoot"),
-            requireFontsUri: false,
-            _environmentSource.GetOsWindowsDirectory(),
-            "SystemRoot");
+            machineWindir,
+            machineSystemRoot,
+            osWindowsDirectory);
 
-        SetEnvironmentValue(startInfo.Environment, "windir", windir.Value);
-        SetEnvironmentValue(startInfo.Environment, "SystemRoot", systemRoot.Value);
+        SetEnvironmentValue(startInfo.Environment, "windir", windowsRoot.Value);
+        SetEnvironmentValue(startInfo.Environment, "SystemRoot", windowsRoot.Value);
 
-        var fontsUriValid = TryValidateWindowsDirectory(windir.Value, requireFontsUri: true, out _);
+        var fontsUriValid = TryValidateWindowsDirectory(windowsRoot.Value, requireFontsUri: true, out _);
         if (!fontsUriValid)
             throw new InvalidOperationException("The normalized Windows directory does not produce a valid absolute Fonts URI.");
 
@@ -68,10 +63,10 @@ internal sealed class NavisworksProcessStartInfoFactory
             {
                 ProcessWindirPresent = !string.IsNullOrWhiteSpace(processWindir),
                 ProcessWindirValid = processWindirValid,
-                WindirSource = windir.Source,
+                WindirSource = windowsRoot.Source,
                 ProcessSystemRootPresent = !string.IsNullOrWhiteSpace(processSystemRoot),
                 ProcessSystemRootValid = processSystemRootValid,
-                SystemRootSource = systemRoot.Source,
+                SystemRootSource = windowsRoot.Source,
                 FontsUriValid = fontsUriValid,
                 WorkingDirectorySet = !string.IsNullOrWhiteSpace(startInfo.WorkingDirectory),
             });
@@ -80,13 +75,17 @@ internal sealed class NavisworksProcessStartInfoFactory
     internal static bool TryValidateWindowsDirectory(string value, bool requireFontsUri, out Uri fontsUri)
     {
         fontsUri = null;
-        if (string.IsNullOrWhiteSpace(value) || !Path.IsPathFullyQualified(value))
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        value = value.Trim();
+        if (!Path.IsPathFullyQualified(value))
             return false;
 
         string fullPath;
         try
         {
-            fullPath = Path.GetFullPath(value.Trim());
+            fullPath = Path.GetFullPath(value);
         }
         catch
         {
@@ -96,31 +95,77 @@ internal sealed class NavisworksProcessStartInfoFactory
         if (!Directory.Exists(fullPath))
             return false;
 
+        if (!Directory.Exists(Path.Combine(fullPath, "System32")))
+            return false;
+
         if (!requireFontsUri)
             return true;
+
+        var fontsDirectory = Path.Combine(fullPath, "Fonts");
+        if (!Directory.Exists(fontsDirectory))
+            return false;
 
         var candidate = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + "\\Fonts\\";
         return Uri.TryCreate(candidate, UriKind.Absolute, out fontsUri) && fontsUri.IsAbsoluteUri;
     }
 
-    private static ResolvedEnvironmentValue ResolveValue(
-        string processValue,
-        bool processValueValid,
-        string machineValue,
-        bool requireFontsUri,
-        string osValue,
-        string variableName)
+    private static ResolvedEnvironmentValue ResolveWindowsRoot(
+        string processWindir,
+        string processSystemRoot,
+        string machineWindir,
+        string machineSystemRoot,
+        string osWindowsDirectory)
     {
-        if (processValueValid)
-            return new ResolvedEnvironmentValue(Path.GetFullPath(processValue.Trim()), "process");
+        if (TrySelectConsistentWindowsRoot(processWindir, processSystemRoot, out var processRoot))
+            return new ResolvedEnvironmentValue(processRoot, "process");
 
-        if (TryValidateWindowsDirectory(machineValue, requireFontsUri, out _))
-            return new ResolvedEnvironmentValue(Path.GetFullPath(machineValue.Trim()), "machine");
+        if (TrySelectConsistentWindowsRoot(machineWindir, machineSystemRoot, out var machineRoot))
+            return new ResolvedEnvironmentValue(machineRoot, "machine");
 
-        if (TryValidateWindowsDirectory(osValue, requireFontsUri, out _))
-            return new ResolvedEnvironmentValue(Path.GetFullPath(osValue.Trim()), "os");
+        if (TrySelectConsistentWindowsRoot(osWindowsDirectory, osWindowsDirectory, out var osRoot))
+            return new ResolvedEnvironmentValue(osRoot, "os");
 
-        throw new InvalidOperationException("A valid Windows directory could not be resolved for " + variableName + ".");
+        throw new InvalidOperationException("A valid and consistent Windows root could not be resolved for windir and SystemRoot.");
+    }
+
+    private static bool TrySelectConsistentWindowsRoot(string windir, string systemRoot, out string selectedRoot)
+    {
+        selectedRoot = null;
+        var windirValid = TryGetFullWindowsRoot(windir, out var fullWindir);
+        var systemRootValid = TryGetFullWindowsRoot(systemRoot, out var fullSystemRoot);
+
+        if (windirValid && systemRootValid)
+        {
+            if (!string.Equals(fullWindir, fullSystemRoot, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            selectedRoot = fullWindir;
+            return true;
+        }
+
+        if (windirValid)
+        {
+            selectedRoot = fullWindir;
+            return true;
+        }
+
+        if (systemRootValid)
+        {
+            selectedRoot = fullSystemRoot;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetFullWindowsRoot(string value, out string fullPath)
+    {
+        fullPath = null;
+        if (!TryValidateWindowsDirectory(value, requireFontsUri: true, out _))
+            return false;
+
+        fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(value.Trim()));
+        return true;
     }
 
     private static void SetEnvironmentValue(IDictionary<string, string> environment, string name, string value)

@@ -22,7 +22,7 @@ internal sealed class NavisworksStartupMonitor
 
     public async Task<NavisworksStartupMonitorResult> WaitForHostAsync(
         INavisworksProcess process,
-        Func<NavisworksHostInfo> findHost,
+        Func<int?, NavisworksHostInfo> findHost,
         TimeSpan timeout,
         CancellationToken cancellationToken)
     {
@@ -38,26 +38,54 @@ internal sealed class NavisworksStartupMonitor
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (process.HasExited)
-                return ResolveExitedProcess(process, findHost());
+            {
+                var exitCode = process.TryGetExitCode();
+                if (exitCode != 0)
+                    return NavisworksStartupMonitorResult.Exited(exitCode);
 
-            var host = findHost();
+                var handedOffHost = findHost(process.Id);
+                if (IsReadyHandoff(process, handedOffHost))
+                    return NavisworksStartupMonitorResult.HostReady(handedOffHost, processExited: true, exitCode);
+
+                await DelayUntilNextProbeAsync(stopwatch, timeout, cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            var host = findHost(null);
             if (host != null)
             {
                 if (process.HasExited)
-                    return ResolveExitedProcess(process, host);
+                {
+                    var exitCode = process.TryGetExitCode();
+                    if (exitCode == 0 && IsReadyHandoff(process, host))
+                        return NavisworksStartupMonitorResult.HostReady(host, processExited: true, exitCode);
+
+                    if (exitCode != 0)
+                        return NavisworksStartupMonitorResult.Exited(exitCode);
+
+                    await DelayUntilNextProbeAsync(stopwatch, timeout, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
 
                 return NavisworksStartupMonitorResult.HostReady(host);
             }
 
-            var remaining = timeout - stopwatch.Elapsed;
-            if (remaining <= TimeSpan.Zero)
-                break;
-
-            await Task.Delay(remaining < _pollInterval ? remaining : _pollInterval, cancellationToken).ConfigureAwait(false);
+            await DelayUntilNextProbeAsync(stopwatch, timeout, cancellationToken).ConfigureAwait(false);
         }
 
         if (process.HasExited)
-            return ResolveExitedProcess(process, findHost());
+        {
+            var exitCode = process.TryGetExitCode();
+            if (exitCode == 0)
+            {
+                var handedOffHost = findHost(process.Id);
+                return IsReadyHandoff(process, handedOffHost)
+                    ? NavisworksStartupMonitorResult.HostReady(handedOffHost, processExited: true, exitCode)
+                    : NavisworksStartupMonitorResult.HostTimeout(processExited: true, exitCode);
+            }
+
+            return NavisworksStartupMonitorResult.Exited(exitCode);
+        }
 
         return NavisworksStartupMonitorResult.HostTimeout();
     }
@@ -72,16 +100,20 @@ internal sealed class NavisworksStartupMonitor
             : NavisworksStartupMonitorResult.ProcessCreated();
     }
 
-    private static NavisworksStartupMonitorResult ResolveExitedProcess(
-        INavisworksProcess process,
-        NavisworksHostInfo host)
+    private async Task DelayUntilNextProbeAsync(
+        Stopwatch stopwatch,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
     {
-        var exitCode = process.TryGetExitCode();
-        if (exitCode == 0 && host != null && host.Pid != process.Id)
-            return NavisworksStartupMonitorResult.HostReady(host, processExited: true, exitCode);
+        var remaining = timeout - stopwatch.Elapsed;
+        if (remaining <= TimeSpan.Zero)
+            return;
 
-        return NavisworksStartupMonitorResult.Exited(exitCode);
+        await Task.Delay(remaining < _pollInterval ? remaining : _pollInterval, cancellationToken).ConfigureAwait(false);
     }
+
+    private static bool IsReadyHandoff(INavisworksProcess process, NavisworksHostInfo host) =>
+        host != null && host.Pid != process.Id;
 }
 
 internal sealed record NavisworksStartupMonitorResult(
@@ -99,8 +131,10 @@ internal sealed record NavisworksStartupMonitorResult(
     public static NavisworksStartupMonitorResult Exited(int? exitCode) =>
         new(StartNavisworksOutcomes.ProcessExited, true, exitCode, null);
 
-    public static NavisworksStartupMonitorResult HostTimeout() =>
-        new(StartNavisworksOutcomes.HostTimeout, false, null, null);
+    public static NavisworksStartupMonitorResult HostTimeout(
+        bool processExited = false,
+        int? exitCode = null) =>
+        new(StartNavisworksOutcomes.HostTimeout, processExited, exitCode, null);
 
     public static NavisworksStartupMonitorResult ProcessCreated() =>
         new(StartNavisworksOutcomes.ProcessCreated, false, null, null);

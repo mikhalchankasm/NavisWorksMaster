@@ -88,7 +88,12 @@ internal sealed class NavisworksLaunchService
         {
             startupResult = await _startupMonitor.WaitForHostAsync(
                 process,
-                () => FindHost(version, effectiveFilePath, response.ProcessId, beforePids),
+                excludedProcessId => FindHost(
+                    version,
+                    effectiveFilePath,
+                    response.ProcessId,
+                    beforePids,
+                    excludedProcessId),
                 TimeSpan.FromSeconds(ClampWaitTimeoutSeconds(waitTimeoutSeconds)),
                 cancellationToken).ConfigureAwait(false);
         }
@@ -132,9 +137,13 @@ internal sealed class NavisworksLaunchService
         if (startupResult.ProcessExited)
         {
             response.Started = false;
-            response.FailureReason = "Navisworks exited during startup before the MCP host became ready.";
+            response.FailureReason = startupResult.Outcome == StartNavisworksOutcomes.HostTimeout
+                ? "Navisworks launcher exited cleanly, but no handed-off MCP host appeared before the wait timeout."
+                : "Navisworks exited during startup before the MCP host became ready.";
             response.Warnings.Add(response.FailureReason);
-            response.Message = "Navisworks process exited during startup.";
+            response.Message = startupResult.Outcome == StartNavisworksOutcomes.HostTimeout
+                ? "Navisworks launcher handoff timed out."
+                : "Navisworks process exited during startup.";
             return;
         }
 
@@ -153,21 +162,38 @@ internal sealed class NavisworksLaunchService
         string navisworksVersion,
         string filePath,
         int? processId,
-        HashSet<int> beforePids)
+        HashSet<int> beforePids,
+        int? excludedProcessId)
     {
         var expectedTitle = string.IsNullOrWhiteSpace(filePath) ? string.Empty : Path.GetFileName(filePath);
         var hosts = _hostBridgeClient.ListNavisworksHosts().Hosts
             .Where(host => string.Equals(host.NavisworksVersion, navisworksVersion, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+        return SelectHost(hosts, expectedTitle, processId, beforePids, excludedProcessId);
+    }
+
+    internal static NavisworksHostInfo SelectHost(
+        IReadOnlyList<NavisworksHostInfo> hosts,
+        string expectedTitle,
+        int? processId,
+        HashSet<int> beforePids,
+        int? excludedProcessId)
+    {
+        hosts ??= Array.Empty<NavisworksHostInfo>();
+        beforePids ??= new HashSet<int>();
+        var candidates = excludedProcessId.HasValue
+            ? hosts.Where(host => host.Pid != excludedProcessId.Value).ToList()
+            : hosts.ToList();
+
         if (processId.HasValue)
         {
-            var byPid = hosts.FirstOrDefault(host => host.Pid == processId.Value);
+            var byPid = candidates.FirstOrDefault(host => host.Pid == processId.Value);
             if (byPid != null && HostDocumentMatches(byPid, expectedTitle))
                 return byPid;
         }
 
-        var newHost = hosts
+        var newHost = candidates
             .Where(host => !beforePids.Contains(host.Pid))
             .Where(host => HostDocumentMatches(host, expectedTitle))
             .OrderByDescending(host => host.StartedAtUtc)
@@ -178,7 +204,7 @@ internal sealed class NavisworksLaunchService
         if (string.IsNullOrWhiteSpace(expectedTitle))
             return null;
 
-        return hosts
+        return candidates
             .Where(host => HostDocumentMatches(host, expectedTitle))
             .OrderByDescending(host => host.StartedAtUtc)
             .FirstOrDefault();

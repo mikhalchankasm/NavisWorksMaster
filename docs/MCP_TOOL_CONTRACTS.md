@@ -232,9 +232,11 @@ Outputs:
 | `startupElapsedMs`, `elapsedMs`, `elapsedHuman`, `message`, `warnings[]` | scalar/array | `startupElapsedMs` covers process creation and monitoring; legacy `elapsedMs` also includes request preparation such as version/file resolution. |
 
 With the default `waitForHost=true`, the server monitors both host discovery and
-the child process. An early process exit returns `process_exited` and `exitCode`
-without waiting for the full host timeout. `host_timeout` means the process was
-still alive at the timeout but its NavisHelper host was not discoverable. Check
+the child process. A nonzero or unavailable early process exit returns
+`process_exited` without waiting for the full host timeout (`exitCode` is
+included when available). `host_timeout` means no
+NavisHelper host was discoverable at the timeout; the process may still be alive,
+or a clean zero-exit launcher may have failed to complete its handoff. Check
 `mcp_recent_calls` for safe environment-source facts; the log intentionally
 records only the model file name, not its full path. If the process starts but
 health reports different MCP server and plugin versions, reinstall both from
@@ -242,7 +244,11 @@ the same NavisHelper package before using write tools.
 
 A normal zero-exit launcher handoff to a different Navisworks PID remains
 `host_ready`; in that case `processExited=true` and `exitCode=0` describe the
-short-lived launcher while `host` identifies the live target process.
+short-lived launcher while `host` identifies the live target process. After a
+clean launcher exit, host discovery continues for the remaining requested wait
+timeout so delayed handoff registration is not reported as a crash. If no host
+appears, the full remaining wait is consumed and the result is `host_timeout`
+with `processExited=true` and `exitCode=0`.
 
 ### `close_navisworks`
 
