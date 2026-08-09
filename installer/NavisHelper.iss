@@ -37,6 +37,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [InstallDelete]
 Type: filesandordirs; Name: "{#BundleInstallDir}"
+Type: files; Name: "{group}\Configure MCP clients.lnk"
+Type: files; Name: "{group}\Configure detected MCP clients.lnk"
+Type: files; Name: "{group}\Настроить обнаруженные MCP-клиенты.lnk"
+Type: files; Name: "{group}\Detect MCP clients.lnk"
+Type: files; Name: "{group}\Обнаружить MCP-клиенты.lnk"
 
 [Files]
 Source: "{#SourceDir}\McpServer\*"; DestDir: "{app}\McpServer"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -54,12 +59,12 @@ Source: "{#SourceDir}\mcp-client-config.example.json"; DestDir: "{app}"; Flags: 
 Source: "{#SourceDir}\NavisHelper.bundle\*"; DestDir: "{#BundleInstallDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Configure MCP clients"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients all --create-missing --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
-Name: "{group}\Detect MCP clients"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--detect --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
+Name: "{group}\{cm:ConfigureMcpShortcut}"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients all --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
+Name: "{group}\{cm:DetectMcpShortcut}"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--detect --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
 
 [Run]
 #ifndef InstallerSmokeTest
-Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients all --create-missing --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""; Description: "{cm:ConfigureMcpClients}"; Flags: postinstall
+Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients all --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""; Description: "{cm:ConfigureMcpClients}"; Flags: postinstall unchecked skipifsilent
 #endif
 
 [UninstallRun]
@@ -176,11 +181,15 @@ begin
 end;
 
 [CustomMessages]
-english.ConfigureMcpClients=Configure MCP clients
+english.ConfigureMcpClients=Optional: configure detected MCP client configs
+english.ConfigureMcpShortcut=Configure detected MCP clients
+english.DetectMcpShortcut=Detect MCP clients
 english.CloseNavisworksBeforeInstall=Close Autodesk Navisworks before installing. The Navisworks process is still running.
 english.DotNet9RuntimeRequired=NavisHelper requires .NET 9 Runtime for its MCP server. Open the official Microsoft download page now? After installation, run this installer again. Choose No to cancel and install it later.
 english.LegacyMachineWideInstallDetected=A previous machine-wide NavisHelper installation was found in Program Files or ProgramData. This installer supports per-user folders only and cannot safely remove protected legacy files. From the release ZIP or repository, run tools\remove_machinewide_bundle.ps1 -Force in an elevated PowerShell, then run this installer again.
-russian.ConfigureMcpClients=Настроить MCP-клиенты
+russian.ConfigureMcpClients=Необязательно: настроить конфиги обнаруженных MCP-клиентов
+russian.ConfigureMcpShortcut=Настроить обнаруженные MCP-клиенты
+russian.DetectMcpShortcut=Обнаружить MCP-клиенты
 russian.CloseNavisworksBeforeInstall=Перед установкой нужно закрыть Autodesk Navisworks. Сейчас процесс Navisworks ещё запущен.
 russian.DotNet9RuntimeRequired=Для MCP-сервера NavisHelper нужен .NET 9 Runtime. Открыть официальную страницу Microsoft для скачивания? После установки запустите этот installer заново. Нажмите «Нет», чтобы отменить установку и поставить Runtime позже.
 russian.LegacyMachineWideInstallDetected=Обнаружена предыдущая системная установка NavisHelper в Program Files или ProgramData. Этот installer поддерживает только пользовательские папки и не может безопасно удалить защищённые старые файлы. В elevated PowerShell из release ZIP или репозитория выполните tools\remove_machinewide_bundle.ps1 -Force, затем запустите installer ещё раз.

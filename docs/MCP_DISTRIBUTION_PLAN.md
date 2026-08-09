@@ -56,7 +56,7 @@ For local MCP server verification after a build, use `tools\install_local_mcp_se
 The first user-facing installer target is Inno Setup:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1 -AppVersion 2.8.4.0
+powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1 -AppVersion 2.9.0.0
 ```
 
 This script:
@@ -65,7 +65,13 @@ This script:
 - compiles `installer\NavisHelper.iss`;
 - installs the Autodesk bundle into `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle`;
 - installs MCP binaries into `%LOCALAPPDATA%\NavisHelper`;
-- runs `McpConfigurator --create-missing` after installation for the current user.
+- offers an unchecked Finish-page action to configure detected MCP clients for the current user.
+
+The plugin and MCP binaries are fully installed when that action remains unchecked. If the user selects it, the installer runs `McpConfigurator --configure --clients all` without `--create-missing`: it may create or update a config file inside each detected client's existing user directory, while missing client applications and their config roots are skipped. The same safe command is available later from the `Configure detected MCP clients` Start-menu shortcut. Creating missing client config roots requires this deliberate manual command:
+
+```powershell
+& "$env:LOCALAPPDATA\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe" --configure --clients all --create-missing
+```
 
 Inno Setup 6 must be installed on the release machine. Longer term, a WiX/MSI package is still the better enterprise target, but Inno is the fastest native Windows `.exe` path for the first external users.
 

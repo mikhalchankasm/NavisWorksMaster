@@ -47,7 +47,7 @@ if (Get-Process Roamer -ErrorAction SilentlyContinue) {
 Start-Process $installer -Wait
 ```
 
-The installer places the plugin and MCP runtime in the current user's profile and configures supported MCP clients. Restart the MCP client after installation. For package, manual, and recovery paths, see the [distribution guide](docs/MCP_DISTRIBUTION_PLAN.md) and [agent setup guide](docs/MCP_AGENT_SETUP.md).
+The installer always places the plugin and MCP binaries in the current user's profile. Its optional Finish-page action for MCP client configuration is unchecked by default. Selecting it may create or update a config file inside each detected client's existing user directory; missing client applications and their config roots are skipped. Restart only a client whose configuration was changed. For later or deliberate `--create-missing` setup, see [Client Config](docs/MCP_DISTRIBUTION_PLAN.md#client-config). Package, manual, and recovery paths are covered by the [distribution guide](docs/MCP_DISTRIBUTION_PLAN.md) and [agent setup guide](docs/MCP_AGENT_SETUP.md).
 
 ### Requirements
 
@@ -123,13 +123,15 @@ Primary comparison sources: the [Aitology architecture, prerequisites, and tool 
 
 ## Verification snapshot
 
-Measured locally from commit `e19c9cf` on **2026-08-08**:
+Measured locally from this task branch, based on `main` commit `b54f8e3`, on **2026-08-09**:
 
 - source inventory guard: passed; **207** tracked C# files, **205** real compile entries, and **2** explicit non-compile exceptions;
 - MCP catalog guard: passed and covers all **100** registered tools;
 - host router guard: passed; **83** command names and **76** typed routes;
-- automated MCP-server test run: **1,304 passed, 1 failed, 1,305 total**; the existing source-structure test `WorkerCancellationCallback_DoesNotTerminateProcessInline` failed while locating a newline-sensitive source fragment;
-- live Navisworks smoke, release build matrix, installer execution, deployment, and release publication: **not run** for this documentation-only change.
+- automated MCP-server test run: the `main` baseline is **1,305 passed, 0 failed, 1,305 total** after the newline-sensitive source-structure fix; this branch is **1,308 passed, 0 failed, 1,308 total** after adding three installer-semantics regressions;
+- release build matrix: `Release2024`, `Release2025`, `Release2026`, and `Release2027` passed for x64; all 12 required bundle assemblies report version `2.9.0.0`;
+- distribution validation, ZIP fresh/reinstall/legacy-upgrade smoke, Inno Setup compilation, and isolated installer bundle-upgrade smoke: passed;
+- public `v2.9.0.0` installer download: SHA-256 matched both published checksum files and the GitHub asset digest; installation with MCP configuration unchecked preserved five sampled client config hashes, and the inspected installed NavisHelper bundle/MCP assemblies were version `2.9.0.0`; live Navisworks smoke and release-asset replacement are not claimed here.
 
 Automated helper tests do not replace validation inside Autodesk Navisworks Manage. Most host behavior depends on the Autodesk runtime and a user-provided model.
 
