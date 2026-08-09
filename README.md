@@ -123,15 +123,18 @@ Primary comparison sources: the [Aitology architecture, prerequisites, and tool 
 
 ## Verification snapshot
 
-Measured locally from this task branch, based on `main` commit `b54f8e3`, on **2026-08-09**:
+Measured on **2026-08-09** against this change, based on `main` commit `b54f8e3`:
 
 - source inventory guard: passed; **207** tracked C# files, **205** real compile entries, and **2** explicit non-compile exceptions;
 - MCP catalog guard: passed and covers all **100** registered tools;
 - host router guard: passed; **83** command names and **76** typed routes;
-- automated MCP-server test run: the `main` baseline is **1,305 passed, 0 failed, 1,305 total** after the newline-sensitive source-structure fix; this branch is **1,308 passed, 0 failed, 1,308 total** after adding three installer-semantics regressions;
+- automated MCP-server test run: the `main` baseline is **1,305 passed, 0 failed, 1,305 total** after the newline-sensitive source-structure fix; this change is **1,308 passed, 0 failed, 1,308 total** after adding three installer-semantics regressions;
 - release build matrix: `Release2024`, `Release2025`, `Release2026`, and `Release2027` passed for x64; all 12 required bundle assemblies report version `2.9.0.0`;
 - distribution validation, ZIP fresh/reinstall/legacy-upgrade smoke, Inno Setup compilation, and isolated installer bundle-upgrade smoke: passed;
-- public `v2.9.0.0` installer download: SHA-256 matched both published checksum files and the GitHub asset digest; installation with MCP configuration unchecked preserved five sampled client config hashes, and the inspected installed NavisHelper bundle/MCP assemblies were version `2.9.0.0`; live Navisworks smoke and release-asset replacement are not claimed here.
+- public `v2.9.0.0` installer download: SHA-256 matched both published checksum files and the GitHub asset digest; installation with MCP configuration unchecked preserved five sampled client config hashes, and the inspected installed NavisHelper bundle/MCP assemblies were version `2.9.0.0`;
+- public-install live smoke in Navisworks Manage 2027: the user confirmed the NavisHelper ribbon and panel; active-model context and representative subtree, property-report, distinct-value, color-preview, and temporary CSV/XLSX export operations passed; all 100 MCP tools and the required subset were present; the test model contained no clash tests in scope.
+
+That runtime evidence covers Navisworks Manage 2027 only. The 2024–2026 targets are build-validated here, not runtime-smoked. No release asset was replaced by this change.
 
 Automated helper tests do not replace validation inside Autodesk Navisworks Manage. Most host behavior depends on the Autodesk runtime and a user-provided model.
 
