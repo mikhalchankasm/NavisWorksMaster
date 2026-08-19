@@ -383,6 +383,11 @@ internal static class ResponseSummaryFormatter
             summary["candidate_pair_count"] = clashBboxPairPlan.CandidatePairCount;
             summary["skipped_pair_count"] = clashBboxPairPlan.SkippedPairCount;
             summary["output_path"] = clashBboxPairPlan.OutputPath;
+            summary["calculated_output_path"] = clashBboxPairPlan.CalculatedOutputPath;
+            summary["output_written"] = clashBboxPairPlan.OutputWritten;
+            summary["artifact_status"] = clashBboxPairPlan.ArtifactStatus;
+            summary["bytes_written"] = clashBboxPairPlan.BytesWritten;
+            summary["unmatched_root_name_count"] = clashBboxPairPlan.UnmatchedRootNames.Count;
             summary["elapsed_ms"] = clashBboxPairPlan.ElapsedMs;
             return summary;
         }
@@ -584,6 +589,35 @@ internal static class ResponseSummaryFormatter
             summary["created_test_count"] = clashTestsFromSets.CreatedTestCount;
             summary["conflict_test_count"] = clashTestsFromSets.ConflictTestCount;
             summary["run_operation_id"] = clashTestsFromSets.RunOperationId;
+            return summary;
+        }
+
+        var clashTestsExport = response as ClashTestsExportResponse;
+        if (clashTestsExport != null)
+        {
+            summary["applied"] = clashTestsExport.Applied;
+            summary["found_test_count"] = clashTestsExport.FoundTestCount;
+            summary["exportable_test_count"] = clashTestsExport.ExportableTestCount;
+            summary["unsupported_test_count"] = clashTestsExport.UnsupportedTestCount;
+            summary["output_written"] = clashTestsExport.OutputWritten;
+            summary["artifact_status"] = clashTestsExport.ArtifactStatus;
+            summary["output_path"] = clashTestsExport.OutputPath;
+            summary["bytes_written"] = clashTestsExport.BytesWritten;
+            return summary;
+        }
+
+        var clashBatchtestImport = response as ClashBatchtestImportResponse;
+        if (clashBatchtestImport != null)
+        {
+            summary["applied"] = clashBatchtestImport.Applied;
+            summary["found_test_count"] = clashBatchtestImport.FoundTestCount;
+            summary["supported_test_count"] = clashBatchtestImport.SupportedTestCount;
+            summary["unsupported_test_count"] = clashBatchtestImport.UnsupportedTestCount;
+            summary["planned_test_count"] = clashBatchtestImport.PlannedTestCount;
+            summary["created_test_count"] = clashBatchtestImport.CreatedTestCount;
+            summary["replaced_test_count"] = clashBatchtestImport.ReplacedTestCount;
+            summary["rolled_back_test_count"] = clashBatchtestImport.RolledBackTestCount;
+            summary["failed_test_count"] = clashBatchtestImport.FailedTestCount;
             return summary;
         }
 

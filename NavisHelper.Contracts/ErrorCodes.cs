@@ -25,5 +25,9 @@ namespace NavisHelper.Agent.Contracts
         public const string RequestTimeout = "request_timeout";
         public const string TransportConnectFailed = "transport_connect_failed";
         public const string CommandFailed = "command_failed";
+        public const string ArtifactWriteFailed = "artifact_write_failed";
+        public const string ClashTransferXmlMalformed = "clash_transfer_xml_malformed";
+        public const string ClashTransferXmlUnsafe = "clash_transfer_xml_unsafe";
+        public const string ClashTransferSchemaUnsupported = "clash_transfer_schema_unsupported";
     }
 }

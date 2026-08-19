@@ -232,6 +232,8 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<ClashTestsFromSetsRequest>,
             (document, request) => CreateClashTestsFromSets(document, request));
 
+        RegisterClashTransferCommands(router);
+
         router.Register<ClashRunBatchRequest>(
             HostCommandNames.ClashRunBatch,
             true,

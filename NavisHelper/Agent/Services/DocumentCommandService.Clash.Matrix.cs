@@ -54,10 +54,7 @@ namespace NavisHelper.Agent.Services
             var testType = requestedTestType ??
                            (settingsSource == null ? ClashTestType.Hard : settingsSource.TestType);
             var rootItems = BuildClashBboxRootCandidates(document, new ClashBboxPairPlanRequest(), MaxClashBboxRootItems).Items;
-            var rootsByPath = rootItems
-                .Where(root => root != null && root.Item != null && !string.IsNullOrWhiteSpace(root.Info.Path))
-                .GroupBy(root => root.Info.Path, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            var rootInfos = rootItems.Where(root => root != null && root.Info != null).Select(root => root.Info).ToList();
 
             var response = new ClashPairTestsCreateResponse
             {
@@ -99,16 +96,30 @@ namespace NavisHelper.Agent.Services
                 var item = BuildClashPairTestPlanItem(pair, prefix, sequence);
                 response.Tests.Add(item);
 
-                ClashBboxRootCandidate a;
-                ClashBboxRootCandidate b;
-                if (!TryResolveClashPairRoot(rootsByPath, pair == null ? null : pair.A, out a) ||
-                    !TryResolveClashPairRoot(rootsByPath, pair == null ? null : pair.B, out b))
+                var aResolution = ClashRootReferenceResolver.Resolve(rootInfos, pair == null ? null : pair.A, "A", 5);
+                var bResolution = ClashRootReferenceResolver.Resolve(rootInfos, pair == null ? null : pair.B, "B", 5);
+                item.AResolution = aResolution.Diagnostic;
+                item.BResolution = bResolution.Diagnostic;
+                if (!aResolution.Resolved || !bResolution.Resolved)
                 {
+                    string selectionSetPath;
+                    if (!aResolution.Resolved && SelectionSetReferenceResolver.LooksLikeSelectionSetReference(document, pair == null ? null : pair.A, out selectionSetPath))
+                    {
+                        item.AResolution.Status = "selection_set_reference_not_supported";
+                        item.AResolution.Message = "Side A matches Selection Set/Search Set '" + selectionSetPath + "'. Use clash_tests_from_sets or clash_batchtest_import for set-bound tests.";
+                    }
+                    if (!bResolution.Resolved && SelectionSetReferenceResolver.LooksLikeSelectionSetReference(document, pair == null ? null : pair.B, out selectionSetPath))
+                    {
+                        item.BResolution.Status = "selection_set_reference_not_supported";
+                        item.BResolution.Message = "Side B matches Selection Set/Search Set '" + selectionSetPath + "'. Use clash_tests_from_sets or clash_batchtest_import for set-bound tests.";
+                    }
                     item.Status = "skipped";
-                    item.ErrorMessage = "Could not resolve pair root items in the active document.";
+                    item.ErrorMessage = BuildClashRootResolutionError(item.AResolution, item.BResolution);
                     response.SkippedTestCount++;
                     continue;
                 }
+                var a = rootItems.First(root => object.ReferenceEquals(root.Info, aResolution.Root));
+                var b = rootItems.First(root => object.ReferenceEquals(root.Info, bResolution.Root));
 
                 item.SelectionAItemCount = 1;
                 item.SelectionBItemCount = 1;

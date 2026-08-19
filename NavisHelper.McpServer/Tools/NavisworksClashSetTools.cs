@@ -9,11 +9,11 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
     public NavisworksClashSetTools(NavisworksToolContext context) : base(context) { }
 
     [McpServerTool]
-    [Description("Creates one Clash Detective test per Selection Set/Search Set pair. Both test sides use native live Navisworks SelectionSource bindings, so dynamic Search Sets are re-evaluated on later runs. Dry-run by default. References accept itemId (preferred), full path, or unique name. pairNameTemplate supports {index}, {aName}, {bName}, {aCode}, {bCode} and zeroPad/strip/replace/upper/lower transforms.")]
+    [Description("Creates one Clash Detective test per Selection Set/Search Set or model-root pair. Set sides use native live Navisworks SelectionSource bindings, so dynamic Search Sets are re-evaluated. Dry-run by default. Inline references accept document-local itemId, exact full path, unique name, rootName, or sourceFile. planPath also accepts navishelper.clash-test-transfer v1; there itemId is diagnostic-only and exact full set path is the portable identity.")]
     public Task<ClashTestsFromSetsResponse> ClashTestsFromSets(
         [Description("False previews names, resolved set paths, current member counts, conflicts, and warnings. True creates/replaces tests.")] bool apply = false,
         [Description("Inline pairs. Each a/b reference accepts Selection Set itemId/path/name or a direct model rootName/sourceFile; optional pair name overrides the template. Use either pairs or planPath.")] List<ClashSetPair> pairs = null,
-        [Description("Optional local JSON file containing a pair array or {\"pairs\":[...]}. Use instead of inline pairs for large plans.")] string planPath = "",
+        [Description("Optional local JSON file containing a legacy pair array, {\"pairs\":[...]}, or navishelper.clash-test-transfer v1. Use instead of inline pairs for large plans or JSON round-trip transfer.")] string planPath = "",
         [Description("Clash type: hard, hard_conservative, clearance, or duplicate. Default hard.")] string testType = "hard",
         [Description("Tolerance in millimeters. A negative value leaves the Navisworks default unchanged.")] double toleranceMm = -1,
         [Description("Name template used when pair.name is empty. Default: {index|zeroPad:3} ИЗОЛ {aName}-{bName}.")] string pairNameTemplate = "{index|zeroPad:3} ИЗОЛ {aName}-{bName}",
@@ -24,6 +24,7 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
         [Description("Tests per asynchronous run batch when runAfterCreate=true.")] int runBatchSize = 10,
         [Description("Advisory per-test timebox in seconds. Navisworks cannot safely interrupt a single synchronous test; overruns are reported after that test returns.")] int perTestTimeoutSeconds = 300,
         [Description("Native Clash Detective ignore rules. Set {\"sameFile\":true} to prevent clashes within the same appended source model during calculation.")] ClashNativeIgnoreRules ignoreRules = null,
+        [Description("Continue after per-test errors. Default true preserves legacy behavior. False rolls back earlier changes from this call when possible.")] bool continueOnError = true,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -43,6 +44,7 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
             RunBatchSize = runBatchSize,
             PerTestTimeoutSeconds = perTestTimeoutSeconds,
             IgnoreRules = ignoreRules,
+            ContinueOnError = continueOnError,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
     }
 

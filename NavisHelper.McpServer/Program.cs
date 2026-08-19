@@ -36,6 +36,7 @@ builder.Services
     .WithTools<NavisworksClashIsolationTools>()
     .WithTools<NavisworksClashRootMatrixTools>()
     .WithTools<NavisworksClashSetTools>()
+    .WithTools<NavisworksClashTransferTools>()
     .WithTools<NavisworksScenarioTools>();
 
 var host = builder.Build();

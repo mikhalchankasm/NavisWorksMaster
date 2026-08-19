@@ -152,6 +152,38 @@ Safe workflow:
 
 For a whole-model coordination matrix, create/run the broad test with `clash_tests_from_sets` and `ignoreRules.sameFile=true`, then call `clash_root_matrix`. Continue while `pairsTruncated=true` using `offset=nextOffset`. For large group listings, continue `clash_group_results` while `groupsTruncated=true` using `groupOffset=nextGroupOffset`; `resultsTruncated` and `groupsTruncated` describe different limits.
 
+For a new Clash Test whose sides are Selection Sets/Search Sets, use
+`clash_tests_from_sets`; do not route set names through
+`clash_pair_tests_create`, which is intentionally BBox/model-root-oriented.
+Set bindings are native `SelectionSource` references and remain live when the
+test is rerun. Inline `itemId` is valid only in the current document/tree
+session; a full exact set path is the portable identity.
+
+For transfer between NWD documents:
+
+1. In the source document, call `clash_tests_export(..., apply=false)` and
+   review exportable/unsupported tests and both side identities.
+2. Repeat with an exact absolute `outputPath` and `apply=true`; require
+   `outputWritten=true`, `artifactStatus=written_verified`, non-zero
+   `bytesWritten`, and the SHA-256 before treating the artifact as created.
+3. In the target document, pass that JSON to
+   `clash_tests_from_sets(planPath=..., apply=false)` for JSON round-trip, or
+   pass a confirmed Navisworks `nw-exchange-12.0` batchtest XML to
+   `clash_batchtest_import(apply=false)`.
+4. Review exact resolved A/B paths, side type, member counts, tolerance/type,
+   conflicts, unsupported settings, and per-side failures.
+   An omitted tolerance stays unset (with an XML warning) and retains the
+   target Navisworks default; dry-run continues evaluating later tests even
+   when `continueOnError=false`.
+5. Apply only after review. `clash_batchtest_import` defaults to
+   `overwriteExisting=false` and `continueOnError=false`; on a later failure it
+   rolls back earlier changes from the call when supported.
+
+Neither route transfers or runs old clash results, saved result viewpoints,
+comments, review/calculation state, or calculation history. XML import supports
+only the XSD-confirmed `lcop_selection_set_tree/<full path>` locator. Use the
+NavisHelper JSON plan for model-root (`rootName`/`sourceFile`) sides.
+
 Use `clash_renumber_results` after grouping when the user wants every visible group/result in a Clash Test to receive an individual ordered number. Default `scope=top_level` is the usual mode: it numbers real groups and ungrouped results as standard Clash Detective shows them. Always run dry-run first, then apply only with `confirmRename=true`.
 
 Use `clash_generate_report` when the user asks for a Clash Report with screenshots, report files, or report-managed viewpoints/section boxes.
@@ -277,7 +309,7 @@ Use `saved_viewpoints_export` when the user needs an external editable/auditable
 Keep the two Navisworks set concepts separate:
 
 - `create_selection_set` stores concrete model items as a static Selection Set. With `matchHandles`, it saves search results directly without first changing the active Navisworks selection; without `matchHandles`, it saves the current selection. It can save into `folderPath` and overwrite an existing set in that folder when `overwrite=true`.
-- `create_search_set` stores a reusable dynamic Search Set from persistable `find_items`-style conditions. It supports `equals`, `contains`, `wildcard`, and `defined`; every display `category` + `property` is resolved from a real model property before persistence, so Navisworks does not create a phantom duplicate category. Clean internal names are saved with `HasPropertyByName`; names containing replacement characters (common in RVM AVEVA properties) are saved through opaque runtime IDs. `Item/Name` and `Элемент/Имя` are still stored through Navisworks internal property names so those standard targets work across English/Russian UI languages. `runtime_resolved_condition_count` counts only the opaque runtime-ID bindings. `equals` uses display-string matching unless `dataType` is explicitly numeric/bool/datetime. Persisted search sets currently support `combineOperator=all` only.
+- `create_search_set` stores a reusable dynamic Search Set from persistable `find_items`-style conditions. It supports `equals`, `contains`, `wildcard`, and `defined`; every display `category` + `property` is resolved from a real model property before persistence, so Navisworks does not create a phantom duplicate category. To guarantee the fast path without display-name traversal, provide only `categoryInternal` and `propertyInternal`. If display and internal names are both supplied, display names intentionally retain priority. Clean internal names are saved with `HasPropertyByName`; names containing replacement characters (common in RVM AVEVA properties) are saved through opaque runtime IDs. `Item/Name` and `Элемент/Имя` are still stored through Navisworks internal property names so those standard targets work across English/Russian UI languages. `runtime_resolved_condition_count` counts only the opaque runtime-ID bindings. `equals` uses display-string matching unless `dataType` is explicitly numeric/bool/datetime. Persisted search sets currently support `combineOperator=all` only.
 
 Use `list_selection_sets` before modifying sets or folders. Its `itemId` is duplicate-safe for the current tree state; refresh the list after any create, move, delete, or reorder. For large trees, page with `offset` or narrow results with `pathPrefix` / `nameContains` before asking for an `itemId`. Use `selection_sets_manage` for `create_folder`, `delete_folder`, `delete_set`, `delete`, `rename`, and `move`; prefer `itemId` when cleaning up duplicate or mojibake names. Use `selection_sets_reorder` for natural numeric sorting of folders and sets.
 

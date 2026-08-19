@@ -90,8 +90,20 @@ Clashes:
 - `clash_manage_tests`
 - `clash_bbox_pair_plan`
 - `clash_pair_tests_create`
+- `clash_tests_from_sets`
+- `clash_tests_export`
+- `clash_batchtest_import`
 - `clash_create_matrix_from_selection`
 - `clash_save_viewpoints`
+
+Use `clash_tests_from_sets` for new set-bound tests. Use
+`clash_tests_export` plus a JSON transfer plan, or
+`clash_batchtest_import` for the supported `nw-exchange-12.0` Selection Set
+locator subset, when moving definitions between documents. Dry-run export and
+BBox planning do not write files. A Selection Set `itemId` is local to the
+current document/tree; exact full set path is the portable reference. Transfer
+tools never carry old Clash results, viewpoints, comments, or calculation
+history.
 
 Startup/timing:
 

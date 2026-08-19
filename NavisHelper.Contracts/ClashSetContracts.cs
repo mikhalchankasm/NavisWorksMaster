@@ -18,6 +18,11 @@ namespace NavisHelper.Agent.Contracts
         public SelectionSetReference A { get; set; }
         public SelectionSetReference B { get; set; }
         public string Name { get; set; }
+        public string TestType { get; set; }
+        public double? ToleranceMm { get; set; }
+        public ClashNativeIgnoreRules IgnoreRules { get; set; }
+        public bool? ASelfIntersect { get; set; }
+        public bool? BSelfIntersect { get; set; }
     }
 
     public sealed class ClashTestsFromSetsRequest
@@ -35,6 +40,7 @@ namespace NavisHelper.Agent.Contracts
         public int? RunBatchSize { get; set; }
         public int? PerTestTimeoutSeconds { get; set; }
         public ClashNativeIgnoreRules IgnoreRules { get; set; }
+        public bool? ContinueOnError { get; set; }
     }
 
     public sealed class ClashNativeIgnoreRules
@@ -52,6 +58,7 @@ namespace NavisHelper.Agent.Contracts
         public int ReplacedTestCount { get; set; }
         public int ConflictTestCount { get; set; }
         public int SkippedTestCount { get; set; }
+        public int RolledBackTestCount { get; set; }
         public bool RunAfterCreate { get; set; }
         public string RunOperationId { get; set; }
         public string PairNameTemplate { get; set; }
@@ -80,8 +87,13 @@ namespace NavisHelper.Agent.Contracts
         public int SelectionAItemCount { get; set; }
         public int SelectionBItemCount { get; set; }
         public string SideBinding { get; set; }
+        public double? ToleranceMm { get; set; }
+        public string TestType { get; set; }
+        public bool ASelfIntersect { get; set; }
+        public bool BSelfIntersect { get; set; }
         public bool Applied { get; set; }
         public bool Replaced { get; set; }
+        public bool RolledBack { get; set; }
         public string TestHandle { get; set; }
         public string Status { get; set; }
         public string ErrorMessage { get; set; }
