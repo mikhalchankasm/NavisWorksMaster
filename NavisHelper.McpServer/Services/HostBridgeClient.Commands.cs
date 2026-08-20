@@ -220,6 +220,16 @@ internal sealed partial class HostBridgeClient
         return CallHostAsync<ClashTestsFromSetsResponse>(HostCommandNames.ClashTestsFromSets, request, cancellationToken, target, 600000);
     }
 
+    public Task<ClashTestsExportResponse> ClashTestsExportAsync(ClashTestsExportRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    {
+        return CallHostAsync<ClashTestsExportResponse>(HostCommandNames.ClashTestsExport, request, cancellationToken, target, 600000);
+    }
+
+    public Task<ClashBatchtestImportResponse> ClashBatchtestImportAsync(ClashBatchtestImportRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    {
+        return CallHostAsync<ClashBatchtestImportResponse>(HostCommandNames.ClashBatchtestImport, request, cancellationToken, target, 600000);
+    }
+
     public Task<ClashRunBatchResponse> ClashRunBatchAsync(ClashRunBatchRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
     {
         return CallHostAsync<ClashRunBatchResponse>(HostCommandNames.ClashRunBatch, request, cancellationToken, target);

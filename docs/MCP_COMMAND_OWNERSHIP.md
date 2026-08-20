@@ -65,8 +65,26 @@ These commands already have stable MCP contracts:
 - `clash_manage_tests`
 - `clash_bbox_pair_plan`
 - `clash_pair_tests_create`
+- `clash_tests_from_sets`
+- `clash_tests_export`
+- `clash_batchtest_import`
 - `clash_create_matrix_from_selection`
 - `clash_save_viewpoints`
+
+Clash transfer is intentionally split by layer without a second mutation
+pipeline:
+
+- `NavisHelper.Contracts`: versioned transfer DTOs, hardened pure batchtest XML
+  adapter, root diagnostics, and verified atomic artifact helper.
+- `ClashTestTransferExporterService`: Navisworks read adapter that maps one
+  native Selection Source or one exact model root into portable references.
+- `ClashBatchtestImportService`: XML-to-plan orchestration only.
+- `ClashTestsFromSetsService` and `SelectionSetReferenceResolver`: the single
+  resolution/mutation path for JSON and XML imports.
+- `NavisworksClashTransferTools`: dedicated MCP container for the two new tools.
+
+`clash_pair_tests_create` remains owned by the BBox/root feature family and
+does not accept Selection Set mutation semantics.
 
 ## Next Common-Layer Candidates
 

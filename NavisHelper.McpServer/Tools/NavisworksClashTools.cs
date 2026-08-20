@@ -376,9 +376,9 @@ internal sealed class NavisworksClashTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Plans candidate Clash Detective group pairs by intersecting bounding boxes from top-level roots or the current arbitrary selection. Does not mutate the Navisworks document. Defaults to preview; apply=true writes outputPath. Never creates or runs tests. Use sourceMode=selection for nested discipline groups and refineDepth=1 or 2 to reduce broad-box false positives.")]
+    [Description("Plans candidate Clash Detective group pairs by intersecting bounding boxes from top-level roots or the current arbitrary selection. Does not mutate the document. Dry-run never writes outputPath and returns outputWritten=false plus requested/matched/unmatched rootNames. apply=true requires an absolute outputPath and returns only after verified atomic write. Never creates or runs tests.")]
     public Task<ClashBboxPairPlanResponse> ClashBboxPairPlan(
-        [Description("False previews only; true writes outputPath when provided. Default is false.")] bool apply = false,
+        [Description("False previews only and never writes a file. True requires outputPath and writes/verifies the full artifact. Default false.")] bool apply = false,
         [Description("Root mode. Currently top_level_files uses each model root and its direct children, matching list_root_items.")] string rootMode = "top_level_files",
         [Description("Candidate source: top_level_files (default) or selection. selection evaluates the current selected groups/items and supports nested discipline groups.")] string sourceMode = "top_level_files",
         [Description("Optional exact root names/paths/source files to include. Empty means all matched roots.")] List<string> rootNames = null,
@@ -391,7 +391,7 @@ internal sealed class NavisworksClashTools : NavisworksToolBase
         [Description("Maximum candidate pairs before stopping. Default is 50000.")] int maxCandidatePairs = 50000,
         [Description("Maximum roots/candidates/rejected pairs returned inline. Full output can be written with outputPath. Default is 200.")] int previewLimit = 200,
         [Description("Include skipped/rejected pair preview rows with reasons. Default is false.")] bool includeRejected = false,
-        [Description("Optional JSON or CSV output path for the full plan. JSON can be passed to clash_pair_tests_create as planOutputPath.")] string outputPath = "",
+        [Description("Optional exact absolute JSON or CSV output path for the full plan. In dry-run it is returned only as calculatedOutputPath. JSON can feed clash_pair_tests_create.planOutputPath.")] string outputPath = "",
         [Description("Replace an existing outputPath when apply=true. Default is false. Store only in an explicitly reviewed exactReplay scenario.")] bool overwriteExisting = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
@@ -418,7 +418,7 @@ internal sealed class NavisworksClashTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Creates Clash Detective tests from bbox candidate pairs. Defaults to dry-run; pass apply=true only after reviewing planned test names/selections. This does not run created tests.")]
+    [Description("Creates root/BBox-oriented Clash Detective tests from bbox candidate pairs. Each side resolves by exact full path, then unique exact root display name, then unique exact source-file identity; ambiguity is never resolved by choosing the first match. Use clash_tests_from_sets or clash_batchtest_import for Selection Set/Search Set sides. Dry-run by default and never runs tests.")]
     public Task<ClashPairTestsCreateResponse> ClashPairTestsCreate(
         [Description("False previews test creation, true creates Clash Detective tests. Default is false/dry-run.")] bool apply = false,
         [Description("Candidate pairs returned by clash_bbox_pair_plan. Usually pass planOutputPath instead for large plans.")] List<ClashBboxCandidatePair> pairs = null,

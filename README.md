@@ -76,7 +76,7 @@ The bundle manifest declares Windows x64 support for Navisworks Manage **2024–
 
 The MCP client starts `NavisHelper.McpServer.exe` over stdio. The server discovers the in-process Navisworks host and communicates through a local Windows named pipe; it does not expose an HTTP port.
 
-The source registers **100 distinct MCP tools**. `scripts/check_mcp_command_catalog.py` derives their snake_case names from the 100 `[McpServerTool]` methods and verifies the generated 100-row index on **2026-08-08**. The separate curated status table is a smaller guide, not the registered-tool count: it currently contains 51 `implemented`, 16 live-`validated`, 15 `planned`, and one `deprecated alias` rows.
+The source registers **102 distinct MCP tools**. `scripts/check_mcp_command_catalog.py` derives their snake_case names from the 102 `[McpServerTool]` methods and verifies the generated 102-row index on **2026-08-19**. The separate curated status table is a smaller guide, not the registered-tool count: it currently contains 54 `implemented`, 16 live-`validated`, 15 `planned`, and one `deprecated alias` rows.
 
 ### Tool families
 

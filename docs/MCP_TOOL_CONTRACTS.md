@@ -89,15 +89,67 @@ test.
 
 - Dry-run is the default and returns resolved `itemId`, path, set type, current
   A/B member counts, planned test name, empty-set warnings, and name conflicts.
-- A set reference accepts `itemId` (preferred), full `path`, or unique `name`
-  plus optional one-based `occurrence`.
-- Input is either inline `pairs` or `planPath`; the JSON file may be a pair
-  array or `{ "pairs": [...] }`. The default limit is 200 and the hard maximum
-  is 500.
+- An inline set reference accepts document-local `itemId`, full `path`, or
+  unique `name` plus optional one-based `occurrence`. `itemId` is not portable
+  between documents. In a versioned transfer plan, the exact full set-tree
+  path is authoritative and `itemId` is retained only as source diagnostics.
+- Input is either inline `pairs` or `planPath`; the JSON file may be a legacy
+  pair array, `{ "pairs": [...] }`, or `navishelper.clash-test-transfer` v1.
+  Transfer definitions preserve each test's exact name, type, explicit tolerance,
+  self-intersection flags, and supported same-file ignore rule. The default
+  limit is 200 and the hard maximum is 500.
 - `overwriteExisting=true` replaces a same-name test. `pairNameTemplate` uses
   the same tokens/transforms as matrix creation.
 - `runAfterCreate=true` returns `runOperationId` and starts the asynchronous
   runner using `runBatchSize` and `perTestTimeoutSeconds`.
+- `continueOnError=false` enables operation-level rollback of tests created or
+  replaced earlier in the same call when a later resolution/conflict/mutation
+  fails. Legacy callers keep `continueOnError=true` by default.
+
+For ordinary new `set × set`, `root × set`, or `root × root` definitions, call
+`clash_tests_from_sets` directly. Model roots accept exact `rootName` and/or
+`sourceFile`; set sides remain live native Selection Sources.
+
+## Clash Test transfer between documents
+
+The portable JSON schema is:
+
+- `schema: "navishelper.clash-test-transfer"`;
+- `version: 1`;
+- `tests[]` with exact `name`, `testType`, `toleranceMm`, sides `a`/`b`,
+  supported ignore rules, warnings, and unsupported settings;
+- set sides identified primarily by exact full Selection Sets tree `path`;
+- model-root sides identified by `rootName` and/or `sourceFile`.
+
+`toleranceMm` is nullable: an explicit source tolerance is preserved in
+millimeters, while an omitted XML/JSON tolerance remains unset so the target
+Navisworks default is retained. XML omission is reported as a warning.
+
+`clash_tests_export` is read-only with respect to the Navisworks document.
+With `apply=false`, it builds the full preview but never creates an output
+file: `outputWritten=false`, `artifactStatus="not_written_dry_run"`, and the
+requested absolute path appears only as `calculatedOutputPath`. With
+`apply=true`, `outputPath` is required. The tool serializes to
+`outputPath + ".partial"`, flushes, atomically completes the target, verifies
+existence/readability/size, and returns `outputWritten=true`, `bytesWritten`,
+and SHA-256. Existing targets require `overwriteExisting=true`.
+
+`clash_batchtest_import` accepts the supported subset of Autodesk
+`nw-exchange-12.0` `<batchtest>` XML. The adapter accepts only exact
+`lcop_selection_set_tree/<full path>` locators confirmed by the Autodesk XSD,
+then routes the common transfer plan through `SelectionSetReferenceResolver`
+and `clash_tests_from_sets`. It does not guess undocumented model/file locator
+syntax. JSON transfer plans cover `root × set` and model-root references.
+
+The XML reader prohibits DTDs and external entities, sets `XmlResolver=null`,
+does not load XSD/schemaLocation resources, enforces a 10 MB input bound and a
+bounded test count, and matches elements by local name for namespace-tolerant
+parsing. Dry-run resolves both exact paths and reports current member counts,
+type/tolerance, conflicts, unsupported settings, and side-specific failures.
+`apply=true` never runs the created tests. Clash results, result viewpoints,
+comments, calculation state, and saved historical results are never imported.
+With `apply=false`, fail-fast controls never truncate preview: every test is
+still resolved so the operator can review all conflicts and missing sides.
 
 ## Asynchronous clash runs
 
@@ -602,7 +654,7 @@ Inputs:
 | `maxCandidatePairs` | int | `50000` | Stop after this many candidate pairs. |
 | `previewLimit` | int | `200` | Inline roots/candidates/rejected preview limit. |
 | `includeRejected` | bool | `false` | Include skipped/rejected pair preview. |
-| `outputPath` | string | `""` | Optional JSON/CSV plan artifact. Fails if the file already exists. JSON can feed `clash_pair_tests_create.planOutputPath`. |
+| `outputPath` | string | `""` | Exact absolute JSON/CSV plan path. Dry-run does not write it and returns it as `calculatedOutputPath`; `apply=true` requires it. JSON can feed `clash_pair_tests_create.planOutputPath`. |
 | `instanceId` | string | `""` | Optional explicit Navisworks host. |
 | `navisworksVersion` | string | `""` | Optional version filter. |
 
@@ -613,7 +665,9 @@ Outputs:
 | `rootMode`, `refineDepth`, `bboxToleranceMm` | scalar | Effective planner settings. |
 | `totalRootItems`, `returnedRootItems`, `rootPairCount`, `candidatePairCount`, `skippedPairCount` | int | Planner counts. |
 | `rootItemsTruncated`, `candidatePairsTruncated`, `previewTruncated` | bool | Scope/preview truncation flags. |
-| `elapsedMs`, `outputPath` | scalar | Runtime and artifact path. |
+| `elapsedMs`, `outputPath`, `calculatedOutputPath` | scalar | Runtime, verified written path, and dry-run-only calculated path. |
+| `outputWritten`, `artifactStatus`, `bytesWritten`, `sha256` | scalar | Verified artifact outcome. Dry-run always reports `outputWritten=false`. |
+| `requestedRootNames`, `matchedRootNames`, `unmatchedRootNames`, `notEvaluatedRootNames` | string[] | Explicit outcome for every exact `rootNames` input. |
 | `skippedReasonCounts` | object | Counts by rejection reason. |
 | `rootItems[]` | array | `index`, `name`, `path`, `sourceFile`, `childCount`, `boundingBox`. |
 | `candidatePairs[]` | array | `index`, `a`, `b`, `checkedChildPairCount`, `childIntersectingPairCount`, `reason`. |
@@ -621,6 +675,14 @@ Outputs:
 | `warnings[]` | string[] | Non-fatal warnings. |
 
 ## `clash_pair_tests_create`
+
+This remains a BBox/model-root-oriented tool. Each side resolves in strict
+order: exact full path, unique exact root display name, then unique exact
+source-file identity. It never uses contains/fuzzy matching and never chooses
+the first ambiguous candidate. `tests[].aResolution` and `bResolution` report
+the side, supplied fields, strategy/status, match count, and compact candidates.
+If a side matches a Selection Set/Search Set, the diagnostic directs the caller
+to `clash_tests_from_sets` or `clash_batchtest_import`.
 
 Inputs:
 

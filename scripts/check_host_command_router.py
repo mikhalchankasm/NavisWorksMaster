@@ -7,12 +7,15 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 STATUSES = ROOT / "NavisHelper.Contracts" / "Statuses.cs"
-ROUTER = ROOT / "NavisHelper" / "Agent" / "Host" / "AgentHostService.CommandRouter.cs"
+ROUTERS = (
+    ROOT / "NavisHelper" / "Agent" / "Host" / "AgentHostService.CommandRouter.cs",
+    ROOT / "NavisHelper" / "Agent" / "Host" / "AgentHostService.ClashTransfer.cs",
+)
 DISPATCH = ROOT / "NavisHelper" / "Agent" / "Host" / "AgentHostService.Dispatch.cs"
 REQUEST_POLICY = ROOT / "NavisHelper.Contracts" / "HostRequestPolicy.cs"
 TRANSPORT = ROOT / "NavisHelper" / "Agent" / "Host" / "AgentHostService.Transport.cs"
 OPERATION_HISTORY = ROOT / "NavisHelper" / "Agent" / "Host" / "AgentHostService.OperationHistory.cs"
-EXPECTED_COMMAND_COUNT = 83
+EXPECTED_COMMAND_COUNT = 85
 EXPECTED_SPECIAL = {"FindItems"}
 EXPECTED_BYPASS = {
     "ClashReportStatus",
@@ -32,8 +35,11 @@ def command_names_from_contract() -> set[str]:
 
 
 def router_references() -> list[str]:
-    text = ROUTER.read_text(encoding="utf-8-sig")
-    return re.findall(r"router\.Register<[^>]+>\(\s*HostCommandNames\.(\w+)", text, re.DOTALL)
+    references: list[str] = []
+    for path in ROUTERS:
+        text = path.read_text(encoding="utf-8-sig")
+        references.extend(re.findall(r"router\.Register<[^>]+>\(\s*HostCommandNames\.(\w+)", text, re.DOTALL))
+    return references
 
 
 def special_dispatch_references() -> list[str]:

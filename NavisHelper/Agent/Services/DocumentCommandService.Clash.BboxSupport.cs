@@ -11,6 +11,7 @@ using Autodesk.Navisworks.Api.Clash;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Core;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace NavisHelper.Agent.Services
 {
@@ -138,7 +139,7 @@ namespace NavisHelper.Agent.Services
             var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var rootNames = request.RootNames == null
                 ? new List<string>()
-                : request.RootNames.Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name.Trim()).ToList();
+                : request.RootNames.Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             var excludes = request.ExcludeNameContains == null
                 ? new List<string>()
                 : request.ExcludeNameContains.Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name.Trim()).ToList();
@@ -176,6 +177,9 @@ namespace NavisHelper.Agent.Services
             var items = all.Take(maxRootItems).ToList();
             if (truncated)
                 warnings.Add("Root item limit reached; increase maxRootItems to include all matched roots.");
+            var outcomes = ClashBboxPlanHelper.BuildRootNameOutcomes(all.Select(candidate => candidate.Info), rootNames, false);
+            if (outcomes.Unmatched.Count > 0)
+                warnings.Add("Exact rootNames not found: " + string.Join(", ", outcomes.Unmatched) + ".");
 
             return new ClashBboxRootCandidateSet
             {
@@ -183,6 +187,10 @@ namespace NavisHelper.Agent.Services
                 Truncated = truncated,
                 Items = items,
                 Warnings = warnings,
+                RequestedRootNames = outcomes.Requested,
+                MatchedRootNames = outcomes.Matched,
+                UnmatchedRootNames = outcomes.Unmatched,
+                NotEvaluatedRootNames = outcomes.NotEvaluatedDueToLimit,
             };
         }
 
@@ -439,42 +447,54 @@ namespace NavisHelper.Agent.Services
             counts[key] = count + amount;
         }
 
-        private static void WriteClashBboxPlanOutput(
+        private static VerifiedFileArtifact WriteClashBboxPlanOutput(
             ClashBboxPairPlanResponse response,
             string outputPath,
             bool overwriteExisting)
         {
             if (response == null || string.IsNullOrWhiteSpace(outputPath))
-                return;
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "apply=true requires an absolute outputPath for clash_bbox_pair_plan.");
 
-            var path = Path.GetFullPath(Environment.ExpandEnvironmentVariables(outputPath.Trim()));
-            if (File.Exists(path) && !overwriteExisting)
-                throw new AgentCommandException(ErrorCodes.SchemaViolation, "Output file already exists. Choose another outputPath.");
-
-            var directory = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(directory))
-                Directory.CreateDirectory(directory);
-
+            var expanded = Environment.ExpandEnvironmentVariables(outputPath.Trim());
+            if (!Path.IsPathRooted(expanded))
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "outputPath must be absolute.");
+            var path = Path.GetFullPath(expanded);
             response.OutputPath = path;
             var extension = Path.GetExtension(path);
-            if (string.Equals(extension, ".csv", StringComparison.OrdinalIgnoreCase))
+            var content = string.Equals(extension, ".csv", StringComparison.OrdinalIgnoreCase)
+                ? BuildClashBboxPlanCsv(response)
+                : BuildClashBboxPlanJson(response);
+            try
             {
-                WriteClashBboxPlanCsv(response, path);
+                return VerifiedFileArtifactWriter.WriteUtf8(path, content, overwriteExisting);
             }
-            else
+            catch (Exception ex)
             {
-                File.WriteAllText(path, JsonConvert.SerializeObject(response, ClashReportJsonSettings), Encoding.UTF8);
+                response.OutputPath = string.Empty;
+                response.OutputWritten = false;
+                throw new AgentCommandException(ErrorCodes.ArtifactWriteFailed, "Failed to write and verify Clash bbox plan artifact: " + ex.Message);
             }
         }
 
-        private static void WriteClashBboxPlanCsv(ClashBboxPairPlanResponse response, string path)
+        private static string BuildClashBboxPlanCsv(ClashBboxPairPlanResponse response)
         {
-            using (var writer = new StreamWriter(path, false, Encoding.UTF8))
-            {
-                writer.WriteLine(ClashBboxPlanHelper.CsvHeader);
-                foreach (var pair in response.CandidatePairs)
-                    writer.WriteLine(ClashBboxPlanHelper.BuildCsvRow(pair));
-            }
+            var builder = new StringBuilder();
+            builder.AppendLine(ClashBboxPlanHelper.CsvHeader);
+            foreach (var pair in response.CandidatePairs)
+                builder.AppendLine(ClashBboxPlanHelper.BuildCsvRow(pair));
+            return builder.ToString();
+        }
+
+        private static string BuildClashBboxPlanJson(ClashBboxPairPlanResponse response)
+        {
+            var artifact = JObject.FromObject(response, JsonSerializer.Create(ClashReportJsonSettings));
+            // Verification metadata belongs to the authoritative MCP response. It cannot
+            // truthfully describe the file from inside that same file before write/read-back.
+            artifact.Remove(nameof(ClashBboxPairPlanResponse.OutputWritten));
+            artifact.Remove(nameof(ClashBboxPairPlanResponse.ArtifactStatus));
+            artifact.Remove(nameof(ClashBboxPairPlanResponse.BytesWritten));
+            artifact.Remove(nameof(ClashBboxPairPlanResponse.Sha256));
+            return artifact.ToString(Formatting.Indented);
         }
 
         private static List<ClashBboxCandidatePair> LoadClashPairTestInputPairs(ClashPairTestsCreateRequest request)
@@ -692,6 +712,16 @@ namespace NavisHelper.Agent.Services
                 return false;
 
             return rootsByPath.TryGetValue(item.Path, out root) && root != null && root.Item != null;
+        }
+
+        private static string BuildClashRootResolutionError(ClashRootResolutionDiagnostic a, ClashRootResolutionDiagnostic b)
+        {
+            var messages = new List<string>();
+            if (a != null && !string.Equals(a.Status, "resolved", StringComparison.OrdinalIgnoreCase))
+                messages.Add("side=A; status=" + a.Status + "; path='" + (a.ProvidedPath ?? string.Empty) + "'; name='" + (a.ProvidedName ?? string.Empty) + "'; sourceFile='" + (a.ProvidedSourceFile ?? string.Empty) + "'; " + a.Message);
+            if (b != null && !string.Equals(b.Status, "resolved", StringComparison.OrdinalIgnoreCase))
+                messages.Add("side=B; status=" + b.Status + "; path='" + (b.ProvidedPath ?? string.Empty) + "'; name='" + (b.ProvidedName ?? string.Empty) + "'; sourceFile='" + (b.ProvidedSourceFile ?? string.Empty) + "'; " + b.Message);
+            return string.Join(" | ", messages);
         }
     }
 }

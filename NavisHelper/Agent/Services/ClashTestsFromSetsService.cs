@@ -9,6 +9,7 @@ using NavisHelper.Agent.Contracts;
 using NavisHelper.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
 
 namespace NavisHelper.Agent.Services
 {
@@ -25,7 +26,8 @@ namespace NavisHelper.Agent.Services
             request = request ?? new ClashTestsFromSetsRequest();
             var apply = request.Apply == true;
             var limit = Math.Max(1, Math.Min(MaximumLimit, request.Limit.GetValueOrDefault(DefaultLimit)));
-            var pairs = LoadPairs(request);
+            List<string> inputWarnings;
+            var pairs = LoadPairs(request, out inputWarnings);
             if (pairs.Count > limit)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Pair count exceeds limit=" + limit.ToString(CultureInfo.InvariantCulture) + ".");
             var template = string.IsNullOrWhiteSpace(request.PairNameTemplate)
@@ -34,10 +36,9 @@ namespace NavisHelper.Agent.Services
             var startIndex = request.PairNameStartIndex.GetValueOrDefault(1);
             if (startIndex < 0)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "pairNameStartIndex must be non-negative.");
-            var testType = ResolveTestType(request.TestType);
-            var toleranceMm = request.ToleranceMm;
-            if (toleranceMm.HasValue && toleranceMm.Value < 0)
-                toleranceMm = null;
+            var defaultTestType = ResolveTestType(request.TestType);
+            var defaultToleranceMm = NormalizeTolerance(request.ToleranceMm);
+            var continueOnError = request.ContinueOnError.GetValueOrDefault(true);
 
             var clash = document.GetClash();
             if (clash == null || clash.TestsData == null || clash.TestsData.Value == null)
@@ -51,24 +52,65 @@ namespace NavisHelper.Agent.Services
                 InputPairCount = pairs.Count,
                 PairNameTemplate = template,
                 PairNameStartIndex = startIndex,
-                ToleranceMm = toleranceMm,
-                TestType = testType.ToString(),
+                ToleranceMm = defaultToleranceMm,
+                TestType = defaultTestType.ToString(),
                 RunAfterCreate = request.RunAfterCreate == true,
-                IgnoreSameFile = request.IgnoreRules != null && request.IgnoreRules.SameFile == true,
+                IgnoreSameFile = (request.IgnoreRules != null && request.IgnoreRules.SameFile == true) ||
+                                 pairs.Any(pair => pair != null && pair.IgnoreRules != null && pair.IgnoreRules.SameFile == true),
             };
+            response.Warnings.AddRange(inputWarnings);
             var resolvedReferenceCache = new Dictionary<string, ResolvedSelectionSetReference>(StringComparer.OrdinalIgnoreCase);
             var itemCountCache = new Dictionary<ResolvedSelectionSetReference, int>();
+            var appliedMutations = new List<AppliedClashSetMutation>();
+            var abortRemaining = false;
 
             for (var pairIndex = 0; pairIndex < pairs.Count; pairIndex++)
             {
                 var pair = pairs[pairIndex];
                 var item = new ClashSetTestPlanItem { PairIndex = pairIndex + 1, SideBinding = "selection_source" };
                 response.Tests.Add(item);
+                if (abortRemaining)
+                {
+                    item.TestName = pair == null ? string.Empty : pair.Name;
+                    item.Status = "not_evaluated_after_failure";
+                    item.ErrorMessage = "Not evaluated because continueOnError=false and an earlier test failed.";
+                    response.SkippedTestCount++;
+                    continue;
+                }
                 try
                 {
-                    var a = ResolveCached(document, pair == null ? null : pair.A, resolvedReferenceCache);
-                    var b = ResolveCached(document, pair == null ? null : pair.B, resolvedReferenceCache);
+                    ResolvedSelectionSetReference a;
+                    ResolvedSelectionSetReference b;
+                    try
+                    {
+                        a = ResolveCached(document, pair == null ? null : pair.A, resolvedReferenceCache);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new AgentCommandException(GetErrorCode(ex), "Test '" + (pair == null ? string.Empty : pair.Name ?? string.Empty) + "' side A: " + ex.Message);
+                    }
+                    try
+                    {
+                        b = ResolveCached(document, pair == null ? null : pair.B, resolvedReferenceCache);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new AgentCommandException(GetErrorCode(ex), "Test '" + (pair == null ? string.Empty : pair.Name ?? string.Empty) + "' side B: " + ex.Message);
+                    }
+                    var testType = string.IsNullOrWhiteSpace(pair == null ? null : pair.TestType)
+                        ? defaultTestType
+                        : ResolveTestType(pair.TestType);
+                    var toleranceMm = pair != null && pair.ToleranceMm.HasValue
+                        ? NormalizeTolerance(pair.ToleranceMm)
+                        : defaultToleranceMm;
+                    var ignoreRules = pair != null && pair.IgnoreRules != null ? pair.IgnoreRules : request.IgnoreRules;
+                    var aSelfIntersect = pair != null && pair.ASelfIntersect.GetValueOrDefault(false);
+                    var bSelfIntersect = pair != null && pair.BSelfIntersect.GetValueOrDefault(false);
                     Populate(item, a, b);
+                    item.TestType = testType.ToString();
+                    item.ToleranceMm = toleranceMm;
+                    item.ASelfIntersect = aSelfIntersect;
+                    item.BSelfIntersect = bSelfIntersect;
                     item.SelectionAItemCount = GetItemCountCached(document, a, itemCountCache);
                     item.SelectionBItemCount = GetItemCountCached(document, b, itemCountCache);
                     item.TestName = string.IsNullOrWhiteSpace(pair.Name)
@@ -88,6 +130,11 @@ namespace NavisHelper.Agent.Services
                         item.ErrorMessage = "Another pair in this request resolves to the same test name.";
                         response.ConflictTestCount++;
                         response.SkippedTestCount++;
+                        if (apply && !continueOnError)
+                        {
+                            RollbackMutations(clash, appliedMutations, response);
+                            abortRemaining = true;
+                        }
                         continue;
                     }
                     if (previous != null && request.OverwriteExisting != true)
@@ -96,6 +143,11 @@ namespace NavisHelper.Agent.Services
                         item.ErrorMessage = "A Clash Detective test with this name already exists.";
                         response.ConflictTestCount++;
                         response.SkippedTestCount++;
+                        if (apply && !continueOnError)
+                        {
+                            RollbackMutations(clash, appliedMutations, response);
+                            abortRemaining = true;
+                        }
                         continue;
                     }
 
@@ -106,7 +158,7 @@ namespace NavisHelper.Agent.Services
 
                     var previousCopy = previous == null ? null : previous.CreateCopy() as ClashTest;
                     var creationName = previous == null ? item.TestName : item.TestName + " [replacement " + Guid.NewGuid().ToString("N").Substring(0, 8) + "]";
-                    var test = BuildTest(document, creationName, a, b, testType, toleranceMm, request.IgnoreRules);
+                    var test = BuildTest(document, creationName, a, b, testType, toleranceMm, ignoreRules, aSelfIntersect, bSelfIntersect);
                     ClashTest created;
                     try
                     {
@@ -115,9 +167,9 @@ namespace NavisHelper.Agent.Services
                             .LastOrDefault(candidate => string.Equals(candidate.DisplayName, creationName, StringComparison.OrdinalIgnoreCase));
                         if (created == null || !HasPreservedBinding(created.SelectionA.Selection, a) || !HasPreservedBinding(created.SelectionB.Selection, b))
                             throw new AgentCommandException(ErrorCodes.CommandFailed, "Created test did not preserve its Selection Source or explicit model-root binding.");
-                        if (request.IgnoreRules != null && request.IgnoreRules.SameFile == true && !ClashNativeIgnoreRuleService.IsApplied(created))
+                        if (ignoreRules != null && ignoreRules.SameFile == true && !ClashNativeIgnoreRuleService.IsApplied(created))
                             throw new AgentCommandException(ErrorCodes.CommandFailed, "Created test did not preserve the native same-file ignore rule.");
-                        if (request.IgnoreRules != null && request.IgnoreRules.SameFile == true)
+                        if (ignoreRules != null && ignoreRules.SameFile == true)
                             response.IgnoreSameFileVerifiedTestCount++;
                     }
                     catch
@@ -163,6 +215,12 @@ namespace NavisHelper.Agent.Services
                     item.Replaced = previous != null;
                     item.Status = previous == null ? "created" : "replaced";
                     response.CreatedTestCount++;
+                    appliedMutations.Add(new AppliedClashSetMutation
+                    {
+                        Item = item,
+                        TestName = item.TestName,
+                        PreviousCopy = previousCopy,
+                    });
                 }
                 catch (Exception ex)
                 {
@@ -170,6 +228,11 @@ namespace NavisHelper.Agent.Services
                     item.ErrorMessage = ex.Message;
                     response.SkippedTestCount++;
                     response.Warnings.Add("Pair " + (pairIndex + 1).ToString(CultureInfo.InvariantCulture) + ": " + ex.Message);
+                    if (apply && !continueOnError)
+                    {
+                        RollbackMutations(clash, appliedMutations, response);
+                        abortRemaining = true;
+                    }
                 }
             }
 
@@ -179,15 +242,15 @@ namespace NavisHelper.Agent.Services
             return response;
         }
 
-        private static ClashTest BuildTest(Document document, string name, ResolvedSelectionSetReference a, ResolvedSelectionSetReference b, ClashTestType type, double? toleranceMm, ClashNativeIgnoreRules ignoreRules)
+        private static ClashTest BuildTest(Document document, string name, ResolvedSelectionSetReference a, ResolvedSelectionSetReference b, ClashTestType type, double? toleranceMm, ClashNativeIgnoreRules ignoreRules, bool aSelfIntersect, bool bSelfIntersect)
         {
             var test = new ClashTest { DisplayName = name, TestType = type, Guid = Guid.Empty };
             if (toleranceMm.HasValue)
                 test.Tolerance = SectionBoxHelper.MmToDocUnits(toleranceMm.Value);
             BindSelection(document, test.SelectionA.Selection, a);
-            test.SelectionA.SelfIntersect = false;
+            test.SelectionA.SelfIntersect = aSelfIntersect;
             BindSelection(document, test.SelectionB.Selection, b);
-            test.SelectionB.SelfIntersect = false;
+            test.SelectionB.SelfIntersect = bSelfIntersect;
             ClashNativeIgnoreRuleService.Apply(document, test, ignoreRules);
             return test;
         }
@@ -260,8 +323,9 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private static List<ClashSetPair> LoadPairs(ClashTestsFromSetsRequest request)
+        private static List<ClashSetPair> LoadPairs(ClashTestsFromSetsRequest request, out List<string> warnings)
         {
+            warnings = new List<string>();
             var inline = request.Pairs ?? new List<ClashSetPair>();
             if (!string.IsNullOrWhiteSpace(request.PlanPath) && inline.Count > 0)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Pass either pairs or planPath, not both.");
@@ -274,10 +338,87 @@ namespace NavisHelper.Agent.Services
             if (info.Length > MaximumPlanBytes)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "planPath exceeds 10 MB.");
             var token = JToken.Parse(File.ReadAllText(path));
+            var schema = token.Type == JTokenType.Object ? (string)token["schema"] : null;
+            if (!string.IsNullOrWhiteSpace(schema))
+            {
+                ClashTestTransferPlan plan;
+                try
+                {
+                    var serializer = JsonSerializer.Create(new JsonSerializerSettings
+                    {
+                        ContractResolver = new DefaultContractResolver { NamingStrategy = new SnakeCaseNamingStrategy() },
+                    });
+                    plan = token.ToObject<ClashTestTransferPlan>(serializer);
+                    ClashTransferPlanHelper.Validate(plan);
+                }
+                catch (ClashTransferParseException ex)
+                {
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, ex.Message);
+                }
+                var unsupported = plan.Tests == null ? 0 : plan.Tests.Count(test => test == null || !test.Supported);
+                if (unsupported > 0)
+                    warnings.Add("Skipped " + unsupported.ToString(CultureInfo.InvariantCulture) + " unsupported transfer-plan test definition(s). See the plan warnings for details.");
+                return ClashTransferPlanHelper.ToPairs(plan, false);
+            }
             var array = token as JArray ?? token["pairs"] as JArray;
             if (array == null)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "planPath JSON must be an array or an object with a pairs array.");
             return array.ToObject<List<ClashSetPair>>() ?? new List<ClashSetPair>();
+        }
+
+        private static double? NormalizeTolerance(double? value)
+        {
+            if (!value.HasValue)
+                return null;
+            if (double.IsNaN(value.Value) || double.IsInfinity(value.Value))
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "toleranceMm must be a finite non-negative number.");
+            if (value.Value < 0)
+                return null;
+            return value.Value;
+        }
+
+        private static string GetErrorCode(Exception exception)
+        {
+            var command = exception as AgentCommandException;
+            return command == null ? ErrorCodes.CommandFailed : command.ErrorCode;
+        }
+
+        private static void RollbackMutations(DocumentClash clash, IList<AppliedClashSetMutation> mutations, ClashTestsFromSetsResponse response)
+        {
+            if (clash == null || clash.TestsData == null || mutations == null)
+                return;
+            for (var index = mutations.Count - 1; index >= 0; index--)
+            {
+                var mutation = mutations[index];
+                try
+                {
+                    var current = ClashApiCompat.GetClashTests(clash)
+                        .FirstOrDefault(test => string.Equals(test.DisplayName, mutation.TestName, StringComparison.OrdinalIgnoreCase));
+                    if (current != null)
+                        ClashTestMutationService.RemoveTest(clash.TestsData, current);
+                    if (mutation.PreviousCopy != null)
+                        ClashApiCompat.AddClashTestCopy(clash.TestsData, mutation.PreviousCopy);
+                    mutation.Item.Applied = false;
+                    mutation.Item.RolledBack = true;
+                    mutation.Item.Status = "rolled_back";
+                    response.RolledBackTestCount++;
+                    response.CreatedTestCount = Math.Max(0, response.CreatedTestCount - 1);
+                    if (mutation.PreviousCopy != null)
+                        response.ReplacedTestCount = Math.Max(0, response.ReplacedTestCount - 1);
+                }
+                catch (Exception ex)
+                {
+                    response.Warnings.Add("Rollback failed for '" + mutation.TestName + "': " + ex.Message);
+                }
+            }
+            mutations.Clear();
+        }
+
+        private sealed class AppliedClashSetMutation
+        {
+            public ClashSetTestPlanItem Item { get; set; }
+            public string TestName { get; set; }
+            public ClashTest PreviousCopy { get; set; }
         }
     }
 }

@@ -1145,6 +1145,8 @@ internal sealed class ScenarioLibraryService
             ["clash_renumber_results"] = CreateToolDescriptor(typeof(NavisworksClashTools), nameof(NavisworksClashTools.ClashRenumberResults), 1, true, false, Array.Empty<string>()),
             ["clash_create_matrix_from_selection"] = CreateToolDescriptor(typeof(NavisworksClashTools), nameof(NavisworksClashTools.ClashCreateMatrixFromSelection), 2, true, false, Array.Empty<string>()),
             ["clash_tests_from_sets"] = CreateToolDescriptor(typeof(NavisworksClashSetTools), nameof(NavisworksClashSetTools.ClashTestsFromSets), 1, true, false, Array.Empty<string>()),
+            ["clash_tests_export"] = CreateToolDescriptor(typeof(NavisworksClashTransferTools), nameof(NavisworksClashTransferTools.ClashTestsExport), 1, false, true, Array.Empty<string>()),
+            ["clash_batchtest_import"] = CreateToolDescriptor(typeof(NavisworksClashTransferTools), nameof(NavisworksClashTransferTools.ClashBatchtestImport), 1, true, false, new[] { "inputPath" }),
             ["clash_run_batch"] = CreateToolDescriptor(typeof(NavisworksClashSetTools), nameof(NavisworksClashSetTools.ClashRunBatch), 1, true, false, Array.Empty<string>()),
             ["select_by_search"] = CreateToolDescriptor(typeof(NavisworksScenarioWorkflowTools), nameof(NavisworksScenarioWorkflowTools.SelectBySearch), 1, false, false, new[] { "conditions" }),
             ["clash_report_status"] = CreateToolDescriptor(typeof(NavisworksClashTools), nameof(NavisworksClashTools.ClashReportStatus), 1, false, false, Array.Empty<string>()),
@@ -1207,6 +1209,8 @@ internal sealed class ScenarioLibraryService
         descriptors["clash_pair_tests_create"].OutputProjections.UnionWith(new[] { "tests", "createdTestCount" });
         descriptors["clash_create_matrix_from_selection"].OutputProjections.UnionWith(new[] { "tests", "createdTestCount", "plannedPairCount" });
         descriptors["clash_tests_from_sets"].OutputProjections.UnionWith(new[] { "tests", "createdTestCount", "runOperationId" });
+        descriptors["clash_tests_export"].OutputProjections.UnionWith(new[] { "plan", "outputWritten", "artifactStatus", "bytesWritten", "sha256" });
+        descriptors["clash_batchtest_import"].OutputProjections.UnionWith(new[] { "plan", "tests", "createdTestCount", "rolledBackTestCount" });
         descriptors["clash_run_batch"].OutputProjections.UnionWith(new[] { "operationId", "state", "processedTestCount" });
         descriptors["clash_list_tests"].OutputProjections.UnionWith(new[] { "tests", "returnedTestCount" });
         foreach (var descriptor in descriptors)

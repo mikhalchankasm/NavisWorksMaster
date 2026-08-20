@@ -74,6 +74,15 @@ namespace NavisHelper.Agent.Contracts
         public bool PreviewTruncated { get; set; }
         public long ElapsedMs { get; set; }
         public string OutputPath { get; set; }
+        public string CalculatedOutputPath { get; set; }
+        public bool OutputWritten { get; set; }
+        public string ArtifactStatus { get; set; }
+        public long BytesWritten { get; set; }
+        public string Sha256 { get; set; }
+        public List<string> RequestedRootNames { get; set; } = new List<string>();
+        public List<string> MatchedRootNames { get; set; } = new List<string>();
+        public List<string> UnmatchedRootNames { get; set; } = new List<string>();
+        public List<string> NotEvaluatedRootNames { get; set; } = new List<string>();
         public Dictionary<string, int> SkippedReasonCounts { get; set; } = new Dictionary<string, int>();
         public List<ClashBboxRootItem> RootItems { get; set; } = new List<ClashBboxRootItem>();
         public List<ClashBboxCandidatePair> CandidatePairs { get; set; } = new List<ClashBboxCandidatePair>();
@@ -149,6 +158,8 @@ namespace NavisHelper.Agent.Contracts
         public string APath { get; set; }
         public string BName { get; set; }
         public string BPath { get; set; }
+        public ClashRootResolutionDiagnostic AResolution { get; set; }
+        public ClashRootResolutionDiagnostic BResolution { get; set; }
         public int SelectionAItemCount { get; set; }
         public int SelectionBItemCount { get; set; }
         public bool Applied { get; set; }

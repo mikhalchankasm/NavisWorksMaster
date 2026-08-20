@@ -43,6 +43,8 @@ clash_bbox_pair_plan
 clash_pair_tests_create
 clash_create_matrix_from_selection
 clash_tests_from_sets
+clash_tests_export
+clash_batchtest_import
 clash_run_batch
 clash_run_resume
 clash_run_status

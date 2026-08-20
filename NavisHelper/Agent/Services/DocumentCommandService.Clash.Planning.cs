@@ -57,6 +57,10 @@ namespace NavisHelper.Agent.Services
                 TotalRootItems = roots.TotalCount,
                 ReturnedRootItems = roots.Items.Count,
                 RootItemsTruncated = roots.Truncated,
+                RequestedRootNames = roots.RequestedRootNames,
+                MatchedRootNames = roots.MatchedRootNames,
+                UnmatchedRootNames = roots.UnmatchedRootNames,
+                NotEvaluatedRootNames = roots.NotEvaluatedRootNames,
             };
             fullResponse.RootItems.AddRange(roots.Items.Select(root => root.Info));
             fullResponse.Warnings.AddRange(roots.Warnings);
@@ -146,10 +150,26 @@ namespace NavisHelper.Agent.Services
             stopwatch.Stop();
             fullResponse.ElapsedMs = stopwatch.ElapsedMilliseconds;
             if (!string.IsNullOrWhiteSpace(request.OutputPath))
-                fullResponse.OutputPath = Path.GetFullPath(Environment.ExpandEnvironmentVariables(request.OutputPath.Trim()));
+            {
+                var expandedOutputPath = Environment.ExpandEnvironmentVariables(request.OutputPath.Trim());
+                if (!Path.IsPathRooted(expandedOutputPath))
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, "outputPath must be absolute.");
+                fullResponse.CalculatedOutputPath = Path.GetFullPath(expandedOutputPath);
+            }
+            fullResponse.OutputWritten = false;
+            fullResponse.ArtifactStatus = string.IsNullOrWhiteSpace(fullResponse.CalculatedOutputPath)
+                ? ClashTransferArtifactStatuses.NotRequested
+                : ClashTransferArtifactStatuses.NotWrittenDryRun;
             fullResponse.Pairs = fullResponse.CandidatePairs;
             if (apply)
-                WriteClashBboxPlanOutput(fullResponse, fullResponse.OutputPath, request.OverwriteExisting == true);
+            {
+                var artifact = WriteClashBboxPlanOutput(fullResponse, fullResponse.CalculatedOutputPath, request.OverwriteExisting == true);
+                fullResponse.OutputPath = artifact.OutputPath;
+                fullResponse.OutputWritten = true;
+                fullResponse.ArtifactStatus = ClashTransferArtifactStatuses.WrittenVerified;
+                fullResponse.BytesWritten = artifact.BytesWritten;
+                fullResponse.Sha256 = artifact.Sha256;
+            }
 
             var response = ClashBboxPlanHelper.BuildPreview(fullResponse, previewLimit, includeRejected);
             response.Pairs = response.CandidatePairs;

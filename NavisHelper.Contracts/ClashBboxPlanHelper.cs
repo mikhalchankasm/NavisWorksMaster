@@ -5,6 +5,14 @@ using System.Linq;
 
 namespace NavisHelper.Agent.Contracts
 {
+    public sealed class ClashRootNameOutcomes
+    {
+        public List<string> Requested { get; set; } = new List<string>();
+        public List<string> Matched { get; set; } = new List<string>();
+        public List<string> Unmatched { get; set; } = new List<string>();
+        public List<string> NotEvaluatedDueToLimit { get; set; } = new List<string>();
+    }
+
     public static class ClashBboxPlanHelper
     {
         public const string CsvHeader = "index,a_name,a_path,b_name,b_path,checked_child_pair_count,child_intersecting_pair_count,reason";
@@ -54,12 +62,44 @@ namespace NavisHelper.Agent.Contracts
                                    (includeRejected && full.RejectedPairs.Count > previewLimit),
                 ElapsedMs = full.ElapsedMs,
                 OutputPath = full.OutputPath,
+                CalculatedOutputPath = full.CalculatedOutputPath,
+                OutputWritten = full.OutputWritten,
+                ArtifactStatus = full.ArtifactStatus,
+                BytesWritten = full.BytesWritten,
+                Sha256 = full.Sha256,
+                RequestedRootNames = full.RequestedRootNames.ToList(),
+                MatchedRootNames = full.MatchedRootNames.ToList(),
+                UnmatchedRootNames = full.UnmatchedRootNames.ToList(),
+                NotEvaluatedRootNames = full.NotEvaluatedRootNames.ToList(),
                 SkippedReasonCounts = new Dictionary<string, int>(full.SkippedReasonCounts, StringComparer.OrdinalIgnoreCase),
                 RootItems = full.RootItems.Take(previewLimit).ToList(),
                 CandidatePairs = full.CandidatePairs.Take(previewLimit).ToList(),
                 RejectedPairs = includeRejected ? full.RejectedPairs.Take(previewLimit).ToList() : new List<ClashBboxRejectedPair>(),
                 Warnings = full.Warnings.ToList(),
             };
+        }
+
+        public static ClashRootNameOutcomes BuildRootNameOutcomes(IEnumerable<ClashBboxRootItem> roots, IEnumerable<string> requestedNames, bool evaluationTruncated)
+        {
+            var available = (roots ?? Enumerable.Empty<ClashBboxRootItem>()).Where(root => root != null).ToList();
+            var requested = (requestedNames ?? Enumerable.Empty<string>())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var outcome = new ClashRootNameOutcomes { Requested = requested };
+            foreach (var value in requested)
+            {
+                if (available.Any(root => string.Equals(root.Name, value, StringComparison.OrdinalIgnoreCase) ||
+                                          string.Equals(root.Path, value, StringComparison.OrdinalIgnoreCase) ||
+                                          string.Equals(root.SourceFile, value, StringComparison.OrdinalIgnoreCase)))
+                    outcome.Matched.Add(value);
+                else if (evaluationTruncated)
+                    outcome.NotEvaluatedDueToLimit.Add(value);
+                else
+                    outcome.Unmatched.Add(value);
+            }
+            return outcome;
         }
 
         public static string BuildCsvRow(ClashBboxCandidatePair pair)

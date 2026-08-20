@@ -98,6 +98,10 @@ namespace NavisHelper.Agent.Services
             public bool Truncated { get; set; }
             public List<ClashBboxRootCandidate> Items { get; set; } = new List<ClashBboxRootCandidate>();
             public List<string> Warnings { get; set; } = new List<string>();
+            public List<string> RequestedRootNames { get; set; } = new List<string>();
+            public List<string> MatchedRootNames { get; set; } = new List<string>();
+            public List<string> UnmatchedRootNames { get; set; } = new List<string>();
+            public List<string> NotEvaluatedRootNames { get; set; } = new List<string>();
         }
 
         private sealed class ClashBboxPairRefineStats

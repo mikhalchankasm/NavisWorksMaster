@@ -40,6 +40,8 @@ namespace NavisHelper.Agent.Services
             {
                 var path = NormalizePath(reference.Path);
                 matches = nodes.Where(node => string.Equals(NormalizePath(node.Path), path, StringComparison.OrdinalIgnoreCase)).ToList();
+                if (matches.Count == 0 && BuildFolderPaths(document.SelectionSets.RootItem).Any(folderPath => string.Equals(NormalizePath(folderPath), path, StringComparison.OrdinalIgnoreCase)))
+                    throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, "Selection Set path resolved to a folder, not a Selection Set/Search Set: " + reference.Path.Trim());
             }
             else if (!string.IsNullOrWhiteSpace(reference.Name))
             {
@@ -58,10 +60,43 @@ namespace NavisHelper.Agent.Services
                 return matches[index];
             }
             if (matches.Count == 0)
-                throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, "Selection set was not found.");
+                throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, BuildNotFoundMessage(reference));
             if (matches.Count > 1)
-                throw new AgentCommandException(ErrorCodes.SavedItemAmbiguous, "More than one selection set matched. Pass itemId from list_selection_sets or occurrence.");
+                throw new AgentCommandException(ErrorCodes.SavedItemAmbiguous, BuildAmbiguousMessage(reference, matches));
             return matches[0];
+        }
+
+        public static ResolvedSelectionSetReference Describe(Document document, SelectionSet item)
+        {
+            if (document == null)
+                throw new ArgumentNullException(nameof(document));
+            if (item == null)
+                throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, "Selection Set source is unavailable.");
+            var matches = Build(document.SelectionSets.RootItem)
+                .Where(candidate => object.ReferenceEquals(candidate.Item, item) || candidate.Item.Equals(item))
+                .ToList();
+            if (matches.Count != 1)
+                throw new AgentCommandException(matches.Count == 0 ? ErrorCodes.SelectionSetNotFound : ErrorCodes.SavedItemAmbiguous,
+                    matches.Count == 0 ? "Selection Source could not be mapped back to the Selection Sets tree." : "Selection Source maps to more than one Selection Sets tree item.");
+            return matches[0];
+        }
+
+        public static bool LooksLikeSelectionSetReference(Document document, ClashBboxRootItem reference, out string matchedPath)
+        {
+            matchedPath = string.Empty;
+            if (document == null || reference == null || document.SelectionSets == null)
+                return false;
+            var path = NormalizePath(reference.Path);
+            if (path.StartsWith("lcop_selection_set_tree/", StringComparison.OrdinalIgnoreCase))
+                path = path.Substring("lcop_selection_set_tree/".Length);
+            var nodes = Build(document.SelectionSets.RootItem);
+            var match = !string.IsNullOrWhiteSpace(path)
+                ? nodes.FirstOrDefault(node => string.Equals(NormalizePath(node.Path), path, StringComparison.OrdinalIgnoreCase))
+                : nodes.FirstOrDefault(node => !string.IsNullOrWhiteSpace(reference.Name) && string.Equals(node.Name, reference.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (match == null)
+                return false;
+            matchedPath = match.Path;
+            return true;
         }
 
         private static ResolvedSelectionSetReference ResolveModelRoot(Document document, SelectionSetReference reference)
@@ -161,6 +196,45 @@ namespace NavisHelper.Agent.Services
         private static string NormalizePath(string value)
         {
             return (value ?? string.Empty).Trim().Replace('\\', '/').Trim('/');
+        }
+
+        private static IEnumerable<string> BuildFolderPaths(GroupItem root)
+        {
+            if (root == null)
+                yield break;
+            foreach (var path in CollectFolderPaths(root, string.Empty))
+                yield return path;
+        }
+
+        private static IEnumerable<string> CollectFolderPaths(GroupItem parent, string parentPath)
+        {
+            foreach (SavedItem child in parent.Children)
+            {
+                var group = child as GroupItem;
+                if (group == null)
+                    continue;
+                var name = group.DisplayName ?? string.Empty;
+                var path = string.IsNullOrWhiteSpace(parentPath) ? name : parentPath + "/" + name;
+                yield return path;
+                foreach (var nested in CollectFolderPaths(group, path))
+                    yield return nested;
+            }
+        }
+
+        private static string BuildNotFoundMessage(SelectionSetReference reference)
+        {
+            if (!string.IsNullOrWhiteSpace(reference.Path))
+                return "Selection Set/Search Set exact path was not found: " + reference.Path.Trim();
+            if (!string.IsNullOrWhiteSpace(reference.ItemId))
+                return "Selection Set/Search Set itemId was not found in this document: " + reference.ItemId.Trim();
+            return "Selection Set/Search Set exact name was not found: " + (reference.Name ?? string.Empty).Trim();
+        }
+
+        private static string BuildAmbiguousMessage(SelectionSetReference reference, IList<ResolvedSelectionSetReference> matches)
+        {
+            var field = !string.IsNullOrWhiteSpace(reference.Path) ? "path" : !string.IsNullOrWhiteSpace(reference.ItemId) ? "itemId" : "name";
+            return "Selection Set/Search Set exact " + field + " is ambiguous (" + matches.Count.ToString(CultureInfo.InvariantCulture) + " matches): " +
+                   string.Join(", ", matches.Take(5).Select(match => match.Path));
         }
     }
 }

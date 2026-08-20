@@ -535,6 +535,7 @@
     <Compile Include="Agent\Host\AgentHostService.OperationHistory.cs" />
     <Compile Include="Agent\Host\AgentHostService.CommandRouter.cs" />
     <Compile Include="Agent\Host\AgentHostService.ClashSets.cs" />
+    <Compile Include="Agent\Host\AgentHostService.ClashTransfer.cs" />
     <Compile Include="Agent\Host\CommandRouter.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.Clash.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.Clash.Grouping.cs" />
@@ -564,6 +565,8 @@
     <Compile Include="Agent\Services\ClashReportOperationTracker.cs" />
     <Compile Include="Agent\Services\SelectionSetReferenceResolver.cs" />
     <Compile Include="Agent\Services\ClashTestsFromSetsService.cs" />
+    <Compile Include="Agent\Services\ClashTestTransferExporterService.cs" />
+    <Compile Include="Agent\Services\ClashBatchtestImportService.cs" />
     <Compile Include="Agent\Services\ClashBatchRunService.cs" />
     <Compile Include="Agent\Services\ClashReportArtifactWriter.cs" />
     <Compile Include="Agent\Services\ClashReportItemProcessingService.cs" />
