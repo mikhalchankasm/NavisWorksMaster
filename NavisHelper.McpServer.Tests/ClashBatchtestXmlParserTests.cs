@@ -91,12 +91,101 @@ public sealed class ClashBatchtestXmlParserTests
     [Fact]
     public void Parse_UnsupportedTypeAndSettingsAreReported()
     {
-        var xml = Wrap("<clashtest name=\"Custom\" test_type=\"custom\" tolerance=\"1\" priority=\"5\"><linkage mode=\"animation\"/><left><clashselection><locator>lcop_selection_set_tree/A</locator></clashselection></left><right><clashselection><locator>lcop_selection_set_tree/B</locator></clashselection></right><rules/></clashtest>");
+        var xml = Wrap("<clashtest name=\"Custom\" test_type=\"custom\" tolerance=\"1\" priority=\"5\"><linkage mode=\"animation\"/><left><clashselection><locator>lcop_selection_set_tree/A</locator></clashselection></left><right><clashselection><locator>lcop_selection_set_tree/B</locator></clashselection></right><rules><rule enabled=\"1\"/></rules></clashtest>");
         var test = Assert.Single(Parse(xml).Tests);
         Assert.False(test.Supported);
         Assert.Contains("priority", test.UnsupportedSettings);
         Assert.Contains("linkage", test.UnsupportedSettings);
         Assert.Contains("rules", test.UnsupportedSettings);
+    }
+
+    [Fact]
+    public void Parse_NeutralPlaceholdersRemainSupported()
+    {
+        var xml = Wrap("<clashtest name=\"Neutral\" test_type=\"hard\" tolerance=\"1\"><linkage mode=\"none\"/>" +
+                       "<left><clashselection><locator>lcop_selection_set_tree/A</locator></clashselection></left>" +
+                       "<right><clashselection><locator>lcop_selection_set_tree/B</locator></clashselection></right>" +
+                       "<default_assignee/> <tolerances> </tolerances><rules/> <summary> </summary><clashresults/></clashtest>");
+
+        var test = Assert.Single(Parse(xml).Tests);
+
+        Assert.True(test.Supported);
+        Assert.Empty(test.UnsupportedSettings);
+    }
+
+    [Fact]
+    public void Parse_PriorityZeroAndMergeCompositesRemainUnsupported()
+    {
+        var xml = Wrap("<clashtest name=\"Non-default preservation unknown\" test_type=\"hard\" tolerance=\"1\" priority=\"0\" merge_composites=\"0\"><linkage/>" +
+                       "<left><clashselection><locator>lcop_selection_set_tree/A</locator></clashselection></left>" +
+                       "<right><clashselection><locator>lcop_selection_set_tree/B</locator></clashselection></right></clashtest>");
+
+        var test = Assert.Single(Parse(xml).Tests);
+
+        Assert.False(test.Supported);
+        Assert.Contains("priority", test.UnsupportedSettings);
+        Assert.Contains("merge_composites", test.UnsupportedSettings);
+    }
+
+    [Fact]
+    public void Parse_ActiveUnsupportedSettingIsExcludedFromImportPairs()
+    {
+        var xml = Wrap("<clashtest name=\"Active rule\" test_type=\"hard\" tolerance=\"1\"><linkage/>" +
+                       "<left><clashselection><locator>lcop_selection_set_tree/A</locator></clashselection></left>" +
+                       "<right><clashselection><locator>lcop_selection_set_tree/B</locator></clashselection></right>" +
+                       "<rules><rule enabled=\"1\"/></rules></clashtest>");
+
+        var plan = Parse(xml);
+
+        Assert.False(Assert.Single(plan.Tests).Supported);
+        Assert.Empty(ClashTransferPlanHelper.ToPairs(plan, false));
+    }
+
+    [Theory]
+    [InlineData("0", false)]
+    [InlineData("1", true)]
+    [InlineData("false", false)]
+    [InlineData("FALSE", false)]
+    [InlineData("true", true)]
+    [InlineData("TRUE", true)]
+    public void Parse_ValidSelfIntersectValuesArePreserved(string rawValue, bool expected)
+    {
+        var test = Assert.Single(Parse(Wrap(TestWithSelfIntersect("Valid bool", rawValue))).Tests);
+
+        Assert.Equal(expected, test.A.SelfIntersect);
+    }
+
+    [Fact]
+    public void Parse_AbsentEmptyAndWhitespaceSelfIntersectRemainUnset()
+    {
+        var xml = Wrap("<clashtest name=\"Optional bool\" test_type=\"hard\" tolerance=\"1\"><linkage/>" +
+                       "<left><clashselection><locator>lcop_selection_set_tree/A</locator></clashselection></left>" +
+                       "<right><clashselection selfintersect=\"&#x20;&#x20;\"><locator>lcop_selection_set_tree/B</locator></clashselection></right></clashtest>" +
+                       "<clashtest name=\"Empty bool\" test_type=\"hard\" tolerance=\"1\"><linkage/>" +
+                       "<left><clashselection selfintersect=\"\"><locator>lcop_selection_set_tree/C</locator></clashselection></left>" +
+                       "<right><clashselection><locator>lcop_selection_set_tree/D</locator></clashselection></right></clashtest>");
+
+        var tests = Parse(xml).Tests;
+
+        Assert.Null(tests[0].A.SelfIntersect);
+        Assert.Null(tests[0].B.SelfIntersect);
+        Assert.Null(tests[1].A.SelfIntersect);
+        Assert.Null(tests[1].B.SelfIntersect);
+    }
+
+    [Theory]
+    [InlineData("2")]
+    [InlineData("yes")]
+    public void Parse_InvalidSelfIntersectIsTypedMalformedXmlWithContext(string rawValue)
+    {
+        var exception = Assert.Throws<ClashTransferParseException>(() => Parse(Wrap(TestWithSelfIntersect("Invalid bool", rawValue))));
+
+        Assert.Equal(ClashTransferParseErrorCodes.MalformedXml, exception.Code);
+        Assert.Contains("Invalid bool", exception.Message);
+        Assert.Contains("#1", exception.Message);
+        Assert.Contains("side A", exception.Message);
+        Assert.Contains("selfintersect", exception.Message);
+        Assert.Contains(rawValue, exception.Message);
     }
 
     [Fact]
@@ -140,4 +229,9 @@ public sealed class ClashBatchtestXmlParserTests
         "<clashtest name=\"" + name + "\" test_type=\"clearance\" tolerance=\"" + tolerance + "\"><linkage/>" +
         "<left><clashselection selfintersect=\"1\"><locator>lcop_selection_set_tree/" + a + "</locator></clashselection></left>" +
         "<right><clashselection selfintersect=\"0\"><locator>lcop_selection_set_tree/" + b + "</locator></clashselection></right></clashtest>";
+
+    private static string TestWithSelfIntersect(string name, string rawValue) =>
+        "<clashtest name=\"" + name + "\" test_type=\"hard\" tolerance=\"1\"><linkage/>" +
+        "<left><clashselection selfintersect=\"" + rawValue + "\"><locator>lcop_selection_set_tree/A</locator></clashselection></left>" +
+        "<right><clashselection><locator>lcop_selection_set_tree/B</locator></clashselection></right></clashtest>";
 }

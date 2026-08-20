@@ -83,6 +83,39 @@ public sealed class ClashTransferPlanHelperTests
     }
 
     [Fact]
+    public void RefreshSupport_ActiveUnsupportedSettingMakesPortableDefinitionUnsupported()
+    {
+        var definition = PortableDefinition("Unsupported setting");
+        definition.UnsupportedSettings.Add("priority");
+
+        ClashTransferPlanHelper.RefreshSupport(definition);
+
+        Assert.False(definition.Supported);
+    }
+
+    [Fact]
+    public void RefreshSupport_ExporterNonSameFileIgnoreRuleMakesDefinitionUnsupported()
+    {
+        var definition = PortableDefinition("Unsupported ignore rule");
+        definition.UnsupportedSettings.Add("ignore_rule:Items in same layer");
+
+        ClashTransferPlanHelper.RefreshSupport(definition);
+
+        Assert.False(definition.Supported);
+    }
+
+    [Fact]
+    public void ToPairs_ExcludesDefinitionWithUnsupportedSettings()
+    {
+        var definition = PortableDefinition("Excluded");
+        definition.UnsupportedSettings.Add("rules");
+        ClashTransferPlanHelper.RefreshSupport(definition);
+
+        Assert.Empty(ClashTransferPlanHelper.ToPairs(Plan(definition), false));
+        Assert.Single(ClashTransferPlanHelper.ToPairs(Plan(definition), true));
+    }
+
+    [Fact]
     public void WrongSchemaOrVersionIsRejected()
     {
         Assert.Throws<ClashTransferParseException>(() => ClashTransferPlanHelper.Validate(new ClashTestTransferPlan { Schema = "other" }));
@@ -90,6 +123,14 @@ public sealed class ClashTransferPlanHelperTests
     }
 
     private static ClashTestTransferPlan Plan(ClashTestTransferDefinition definition) => new() { Tests = new List<ClashTestTransferDefinition> { definition } };
+
+    private static ClashTestTransferDefinition PortableDefinition(string name) => new()
+    {
+        Name = name,
+        TestType = "hard",
+        A = SetSide("A", "Sets/A", null, ClashTransferSideKinds.SelectionSet),
+        B = SetSide("B", "Sets/B", null, ClashTransferSideKinds.SelectionSet),
+    };
 
     private static ClashTestTransferSide SetSide(string side, string path, string itemId, string kind) => new()
     {

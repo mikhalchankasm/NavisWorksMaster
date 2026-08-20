@@ -42,6 +42,17 @@ public sealed class ClashTransferArchitectureTests
     }
 
     [Fact]
+    public void Exporter_UsesSharedStrictToleranceUnitConverter()
+    {
+        var exporter = Read("NavisHelper", "Agent", "Services", "ClashTestTransferExporterService.cs");
+        Assert.Contains("ClashToleranceUnitConverter.ToMillimeters(value, document.Units.ToString())", exporter);
+        Assert.Contains("case Units.Micrometers:", exporter);
+        Assert.Contains("case Units.Mils:", exporter);
+        Assert.Contains("case Units.Microinches:", exporter);
+        Assert.DoesNotContain("default: return value * 1000.0", exporter);
+    }
+
+    [Fact]
     public void ImportTool_DefaultsToDryRunNoOverwriteAndFailFastRollback()
     {
         var tools = Read("NavisHelper.McpServer", "Tools", "NavisworksClashTransferTools.cs");

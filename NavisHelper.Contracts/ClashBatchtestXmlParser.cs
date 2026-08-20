@@ -109,17 +109,17 @@ namespace NavisHelper.Agent.Contracts
                 result.Warnings.Add("Unsupported test type: " + testType);
             }
 
-            result.A = ParseSide(element, "left", "A", result);
-            result.B = ParseSide(element, "right", "B", result);
-            AddUnsupportedSetting(element, "default_assignee", result);
-            AddUnsupportedSetting(element, "tolerances", result);
-            AddUnsupportedSetting(element, "rules", result);
-            AddUnsupportedSetting(element, "summary", result);
-            AddUnsupportedSetting(element, "clashresults", result);
+            result.A = ParseSide(element, "left", "A", result, index);
+            result.B = ParseSide(element, "right", "B", result, index);
+            AddUnsupportedSettingIfNonNeutral(element, "default_assignee", result);
+            AddUnsupportedSettingIfNonNeutral(element, "tolerances", result);
+            AddUnsupportedSettingIfNonNeutral(element, "rules", result);
+            AddUnsupportedSettingIfNonNeutral(element, "summary", result);
+            AddUnsupportedSettingIfNonNeutral(element, "clashresults", result);
             AddUnsupportedAttribute(element, "merge_composites", result);
             AddUnsupportedAttribute(element, "priority", result);
-            var linkage = element.Elements().FirstOrDefault(child => NameIs(child, "linkage"));
-            if (linkage != null && (!string.IsNullOrWhiteSpace(Attribute(linkage, "mode")) || linkage.Elements().Any()))
+            var linkages = element.Elements().Where(child => NameIs(child, "linkage")).ToList();
+            if (linkages.Count > 1 || linkages.Any(linkage => !IsNeutralLinkage(linkage)))
                 result.UnsupportedSettings.Add("linkage");
             if (result.UnsupportedSettings.Count > 0)
                 result.Warnings.Add("Unsupported settings are intentionally not imported: " + string.Join(", ", result.UnsupportedSettings) + ".");
@@ -127,7 +127,7 @@ namespace NavisHelper.Agent.Contracts
             return result;
         }
 
-        private static ClashTestTransferSide ParseSide(XElement test, string elementName, string sideName, ClashTestTransferDefinition owner)
+        private static ClashTestTransferSide ParseSide(XElement test, string elementName, string sideName, ClashTestTransferDefinition owner, int testIndex)
         {
             var side = new ClashTestTransferSide { Side = sideName, Kind = ClashTransferSideKinds.Unsupported, Supported = false };
             var sideElement = test.Elements().FirstOrDefault(element => NameIs(element, elementName));
@@ -136,7 +136,7 @@ namespace NavisHelper.Agent.Contracts
             var locator = locatorElement == null ? string.Empty : (locatorElement.Value ?? string.Empty).Trim();
             side.Locator = locator;
             if (selection != null)
-                side.SelfIntersect = ParseIntegerBoolean(Attribute(selection, "selfintersect"));
+                side.SelfIntersect = ParseOptionalBoolean(Attribute(selection, "selfintersect"), owner.Name, testIndex, sideName, "selfintersect");
             if (string.IsNullOrWhiteSpace(locator))
             {
                 side.Warnings.Add("Test '" + (owner.Name ?? string.Empty) + "' side " + sideName + " is missing a locator.");
@@ -177,15 +177,19 @@ namespace NavisHelper.Agent.Contracts
             return parsed * unitToMm;
         }
 
-        private static bool? ParseIntegerBoolean(string value)
+        private static bool? ParseOptionalBoolean(string value, string testName, int testIndex, string sideName, string attributeName)
         {
             if (string.IsNullOrWhiteSpace(value))
                 return null;
-            if (value == "1" || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase))
+            var normalized = value.Trim();
+            if (normalized == "1" || string.Equals(normalized, "true", StringComparison.OrdinalIgnoreCase))
                 return true;
-            if (value == "0" || string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
+            if (normalized == "0" || string.Equals(normalized, "false", StringComparison.OrdinalIgnoreCase))
                 return false;
-            return null;
+            var displayValue = normalized.Length <= 128 ? normalized : normalized.Substring(0, 128) + "...";
+            throw new ClashTransferParseException(
+                ClashTransferParseErrorCodes.MalformedXml,
+                "Invalid boolean for test '" + (testName ?? string.Empty) + "' (#" + testIndex.ToString(CultureInfo.InvariantCulture) + "), side " + sideName + ", attribute '" + attributeName + "': " + displayValue);
         }
 
         private static void ValidateSchemaLocation(XElement root)
@@ -199,10 +203,34 @@ namespace NavisHelper.Agent.Contracts
                 throw new ClashTransferParseException(ClashTransferParseErrorCodes.UnsupportedSchema, "Only Navisworks nw-exchange-12.0 batchtest XML is supported; schemaLocation was " + location.Value + ".");
         }
 
-        private static void AddUnsupportedSetting(XElement element, string name, ClashTestTransferDefinition result)
+        private static void AddUnsupportedSettingIfNonNeutral(XElement element, string name, ClashTestTransferDefinition result)
         {
-            if (element.Elements().Any(child => NameIs(child, name)))
+            var settings = element.Elements().Where(child => NameIs(child, name)).ToList();
+            if (settings.Count > 1 || settings.Any(child => !IsNeutralPlaceholder(child)))
                 result.UnsupportedSettings.Add(name);
+        }
+
+        private static bool IsNeutralPlaceholder(XElement element)
+        {
+            return element != null &&
+                   !element.HasAttributes &&
+                   !element.Elements().Any() &&
+                   string.IsNullOrWhiteSpace(element.Value);
+        }
+
+        private static bool IsNeutralLinkage(XElement linkage)
+        {
+            if (linkage == null)
+                return true;
+            if (linkage.Elements().Any() || !string.IsNullOrWhiteSpace(linkage.Value))
+                return false;
+
+            var attributes = linkage.Attributes().ToList();
+            if (attributes.Count == 0)
+                return true;
+            return attributes.Count == 1 &&
+                   string.Equals(attributes[0].Name.LocalName, "mode", StringComparison.OrdinalIgnoreCase) &&
+                   string.Equals(attributes[0].Value.Trim(), "none", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void AddUnsupportedAttribute(XElement element, string name, ClashTestTransferDefinition result)

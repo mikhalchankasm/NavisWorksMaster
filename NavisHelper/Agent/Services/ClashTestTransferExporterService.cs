@@ -280,17 +280,24 @@ namespace NavisHelper.Agent.Services
 
         private static double DocumentUnitsToMillimeters(Document document, double value)
         {
+            if (document == null)
+                throw new ArgumentNullException(nameof(document));
             switch (document.Units)
             {
-                case Units.Centimeters: return value * 10.0;
-                case Units.Meters: return value * 1000.0;
-                case Units.Kilometers: return value * 1000000.0;
-                case Units.Inches: return value * 25.4;
-                case Units.Feet: return value * 304.8;
-                case Units.Yards: return value * 914.4;
-                case Units.Miles: return value * 1609344.0;
-                case Units.Millimeters: return value;
-                default: return value * 1000.0;
+                case Units.Centimeters:
+                case Units.Meters:
+                case Units.Kilometers:
+                case Units.Inches:
+                case Units.Feet:
+                case Units.Yards:
+                case Units.Miles:
+                case Units.Millimeters:
+                case Units.Micrometers:
+                case Units.Mils:
+                case Units.Microinches:
+                    return ClashToleranceUnitConverter.ToMillimeters(value, document.Units.ToString());
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(document.Units), document.Units, "Unsupported Navisworks document units.");
             }
         }
     }

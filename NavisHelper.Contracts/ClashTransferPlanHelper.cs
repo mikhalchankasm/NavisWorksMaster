@@ -62,6 +62,7 @@ namespace NavisHelper.Agent.Contracts
             test.Warnings = test.Warnings ?? new List<string>();
             test.Supported = !string.IsNullOrWhiteSpace(test.Name) &&
                              IsSupportedTestType(test.TestType) &&
+                             test.UnsupportedSettings.Count == 0 &&
                              IsPortableSide(test.A) &&
                              IsPortableSide(test.B);
         }
