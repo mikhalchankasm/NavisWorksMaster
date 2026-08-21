@@ -1,0 +1,31 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.mikhalchankasm/navishelper",
+  "title": "NavisHelper",
+  "description": "Windows MCP server for Autodesk Navisworks Manage model coordination and automation.",
+  "version": "2.8.9.0",
+  "websiteUrl": "https://github.com/mikhalchankasm/NavisWorksMaster/releases/tag/v2.8.9.0",
+  "repository": {
+    "url": "https://github.com/mikhalchankasm/NavisWorksMaster",
+    "source": "github",
+    "id": "1315141444",
+    "subfolder": "NavisHelper.McpServer"
+  },
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "io.github.mikhalchankasm/navishelper": {
+        "distributionStatus": "metadata-only",
+        "systemRequirements": {
+          "operatingSystem": "Windows x64",
+          "hostApplications": [
+            "Autodesk Navisworks Manage 2024",
+            "Autodesk Navisworks Manage 2025",
+            "Autodesk Navisworks Manage 2026",
+            "Autodesk Navisworks Manage 2027"
+          ],
+          "runtime": ".NET 9 Runtime for the framework-dependent package"
+        }
+      }
+    }
+  }
+}
