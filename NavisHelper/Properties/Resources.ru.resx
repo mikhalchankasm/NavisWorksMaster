@@ -1657,6 +1657,9 @@
   <data name="Panel_Selection_Unhide_Result" xml:space="preserve">
     <value>Все элементы показаны</value>
   </data>
+  <data name="Panel_Selection_Unhide_Empty" xml:space="preserve">
+    <value>В документе нет элементов модели, которые можно показать.</value>
+  </data>
   <data name="Panel_Selection_Bounds_Title" xml:space="preserve">
     <value>Габариты выделения</value>
   </data>
@@ -2485,6 +2488,16 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Panel_Selection_Invert_Title" xml:space="preserve"><value>Инвертировать выделение</value></data>
   <data name="Panel_Selection_Isolate_Title" xml:space="preserve"><value>Изолировать</value></data>
   <data name="Panel_Selection_Unhide_Title" xml:space="preserve"><value>Показать всё</value></data>
+  <data name="Panel_ModelScan_Running" xml:space="preserve"><value>Сканирование элементов модели…</value></data>
+  <data name="Panel_ModelScan_Busy" xml:space="preserve"><value>Другое сканирование модели уже выполняется.</value></data>
+  <data name="Panel_ModelScan_Canceled" xml:space="preserve"><value>Сканирование модели отменено. Изменения не применены.</value></data>
+  <data name="Panel_ModelScan_DocumentChanged" xml:space="preserve"><value>Активный документ изменился. Изменения не применены.</value></data>
+  <data name="Panel_ModelScan_SourceChanged" xml:space="preserve"><value>Во время сканирования изменилась модель или выделение. Изменения не применены.</value></data>
+  <data name="Panel_ModelScan_Suspended" xml:space="preserve"><value>Сканирование модели недоступно, пока панель неактивна. Изменения не применены.</value></data>
+  <data name="Panel_ModelScan_SelectByProperty_Progress" xml:space="preserve"><value>NavisHelper: выбор по значению свойства</value></data>
+  <data name="Panel_ModelScan_Invert_Progress" xml:space="preserve"><value>NavisHelper: инвертирование выделения</value></data>
+  <data name="Panel_ModelScan_Isolate_Progress" xml:space="preserve"><value>NavisHelper: изоляция выделения</value></data>
+  <data name="Panel_ModelScan_Unhide_Progress" xml:space="preserve"><value>NavisHelper: отображение элементов модели</value></data>
   <data name="Panel_Selection_SectionBox_Title" xml:space="preserve"><value>Секущий параллелепипед</value></data>
   <data name="Panel_Clash_Column_New" xml:space="preserve"><value>Нов.</value></data>
   <data name="Panel_Clash_Column_Active" xml:space="preserve"><value>Акт.</value></data>
