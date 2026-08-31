@@ -28,6 +28,7 @@ builder.Services
     })
     .WithStdioServerTransport()
     .WithTools<NavisworksTools>()
+    .WithTools<NavisworksSectionBoxTools>()
     .WithTools<NavisworksStartupTools>()
     .WithTools<NavisworksSelectionReportTools>()
     .WithTools<NavisworksModelColorSchemeTools>()

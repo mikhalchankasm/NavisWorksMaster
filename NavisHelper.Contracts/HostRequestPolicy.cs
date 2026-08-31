@@ -46,4 +46,12 @@ namespace NavisHelper.Agent.Contracts
                    kind == HostRequestGateBypassKind.LastOperationStatus;
         }
     }
+
+    public static class OperationHistoryPolicy
+    {
+        public static bool IsAuthoritativeSuccessfulCompletion(string state, bool? ok)
+        {
+            return ok == true && string.Equals(state, "completed", StringComparison.OrdinalIgnoreCase);
+        }
+    }
 }

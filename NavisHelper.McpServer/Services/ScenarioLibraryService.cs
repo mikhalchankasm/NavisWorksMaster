@@ -61,6 +61,11 @@ internal sealed class ScenarioLibraryService
         MaxDepth = 32,
     };
 
+    private static readonly JsonSerializerOptions SectionBoxLiteralJsonOptions = new(ToolInputJsonOptions)
+    {
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+    };
+
     private readonly string _rootPath;
 
     public ScenarioLibraryService()
@@ -631,6 +636,8 @@ internal sealed class ScenarioLibraryService
                     if (!descriptor.ScaleAuthorizationArguments.Contains(gate, StringComparer.OrdinalIgnoreCase))
                         result.Errors.Add("unknown scale authorization gate for " + step.StepId + ": " + gate);
                 }
+                if (string.Equals(step.Tool, "isolate_by_box", StringComparison.Ordinal))
+                    ValidateSectionBoxDurationSafetyEnvelope(step, limit, result);
             }
 
             if (verifyExactFingerprint && result.Errors.Count == 0)
@@ -710,7 +717,8 @@ internal sealed class ScenarioLibraryService
             envelope.StepLimits ??= new Dictionary<string, ScenarioStepSafetyLimit>(StringComparer.OrdinalIgnoreCase);
             foreach (var item in envelope.StepLimits)
             {
-                if (item.Value == null || item.Value.MaxMatchedItems < 0 || item.Value.MaxModelWrites < 0 || item.Value.MaxFileWrites < 0)
+                if (item.Value == null || item.Value.MaxMatchedItems < 0 || item.Value.MaxModelWrites < 0 ||
+                    item.Value.MaxFileWrites < 0 || item.Value.MaxDurationSeconds < 0)
                     result.Errors.Add("exactReplay safety limits must be non-negative: " + item.Key);
                 if (item.Value != null)
                 {
@@ -813,6 +821,25 @@ internal sealed class ScenarioLibraryService
                 !(schemaVersion >= 2 && step.ReviewedWrites.Contains(argument.Key, StringComparer.OrdinalIgnoreCase)))
             {
                 result.Errors.Add("reviewed write behavior requires reviewedWrites declaration in schema version 2 template: " + argument.Key);
+                continue;
+            }
+
+            if (string.Equals(step.Tool, "isolate_by_box", StringComparison.Ordinal) &&
+                string.Equals(argument.Key, "box", StringComparison.OrdinalIgnoreCase))
+            {
+                ValidateSectionBoxLiteral(argument.Value, result);
+                continue;
+            }
+            if (string.Equals(step.Tool, "isolate_by_box", StringComparison.Ordinal) &&
+                string.Equals(argument.Key, "maxScannedItems", StringComparison.OrdinalIgnoreCase))
+            {
+                ValidateSectionBoxTraversalLimit(argument.Value, result);
+                continue;
+            }
+            if (string.Equals(step.Tool, "isolate_by_box", StringComparison.Ordinal) &&
+                string.Equals(argument.Key, "maxDurationSeconds", StringComparison.OrdinalIgnoreCase))
+            {
+                ValidateSectionBoxDurationLimit(argument.Value, result);
                 continue;
             }
 
@@ -1130,6 +1157,7 @@ internal sealed class ScenarioLibraryService
             ["model_color_scheme"] = CreateToolDescriptor(typeof(NavisworksModelColorSchemeTools), nameof(NavisworksModelColorSchemeTools.ModelColorScheme), 1, true, false, Array.Empty<string>()),
             ["select_selection_set"] = CreateToolDescriptor(nameof(NavisworksTools.SelectSelectionSet), 1, false, false, new[] { "pathOrName" }),
             ["isolate_selected"] = CreateToolDescriptor(nameof(NavisworksTools.IsolateSelected), 1, true, false, Array.Empty<string>()),
+            ["isolate_by_box"] = CreateToolDescriptor(typeof(NavisworksSectionBoxTools), nameof(NavisworksSectionBoxTools.IsolateByBox), 1, true, false, new[] { "box", "maxScannedItems", "maxDurationSeconds" }),
             ["zoom_to_selection"] = CreateToolDescriptor(nameof(NavisworksTools.ZoomToSelection), 1, false, false, Array.Empty<string>()),
             ["clash_list_tests"] = CreateToolDescriptor(typeof(NavisworksClashTools), nameof(NavisworksClashTools.ClashListTests), 1, false, false, Array.Empty<string>()),
             ["clash_list_results"] = CreateToolDescriptor(typeof(NavisworksClashTools), nameof(NavisworksClashTools.ClashListResults), 1, false, false, Array.Empty<string>()),
@@ -1645,6 +1673,126 @@ internal sealed class ScenarioLibraryService
         return false;
     }
 
+    private static void ValidateSectionBoxLiteral(JsonElement value, ScenarioValidationResult result)
+    {
+        if (ContainsScenarioReferenceProperty(value, out var referenceProperty))
+        {
+            result.Errors.Add("isolate_by_box box must be literal geometry and cannot contain " + referenceProperty);
+            return;
+        }
+        if (ContainsForbiddenPropertyName(value, out var forbiddenProperty))
+        {
+            result.Errors.Add("runtime identity or credential property cannot be stored: " + forbiddenProperty);
+            return;
+        }
+
+        try
+        {
+            var geometry = JsonSerializer.Deserialize<SectionBoxGeometry>(
+                value.GetRawText(),
+                SectionBoxLiteralJsonOptions);
+            SectionBoxGeometryRules.Validate(geometry);
+        }
+        catch (Exception exception) when (
+            exception is JsonException ||
+            exception is NotSupportedException ||
+            exception is ArgumentException)
+        {
+            result.Errors.Add("isolate_by_box box must be valid literal canonical geometry: " + SafeMessage(exception));
+            return;
+        }
+
+        ValidateJsonStrings(value, "argument box", result);
+    }
+
+    private static void ValidateSectionBoxTraversalLimit(JsonElement value, ScenarioValidationResult result)
+    {
+        if (ContainsScenarioReferenceProperty(value, out var referenceProperty))
+        {
+            result.Errors.Add("isolate_by_box maxScannedItems must be a literal integer and cannot contain " + referenceProperty);
+            return;
+        }
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var limit) ||
+            limit < 1 || limit > SectionBoxIsolationLimits.MaximumMaxScannedItems)
+        {
+            result.Errors.Add(
+                "isolate_by_box maxScannedItems must be a literal integer between 1 and " +
+                SectionBoxIsolationLimits.MaximumMaxScannedItems);
+        }
+    }
+
+    private static void ValidateSectionBoxDurationLimit(JsonElement value, ScenarioValidationResult result)
+    {
+        if (ContainsScenarioReferenceProperty(value, out var referenceProperty))
+        {
+            result.Errors.Add("isolate_by_box maxDurationSeconds must be a literal integer and cannot contain " + referenceProperty);
+            return;
+        }
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var limit) ||
+            limit < 1 || limit > SectionBoxIsolationLimits.MaximumMaxDurationSeconds)
+        {
+            result.Errors.Add(
+                "isolate_by_box maxDurationSeconds must be a literal integer between 1 and " +
+                SectionBoxIsolationLimits.MaximumMaxDurationSeconds);
+        }
+    }
+
+    private static void ValidateSectionBoxDurationSafetyEnvelope(
+        ScenarioStepDefinition step,
+        ScenarioStepSafetyLimit limit,
+        ScenarioValidationResult result)
+    {
+        if (!limit.MaxDurationSeconds.HasValue)
+        {
+            result.Errors.Add("exactReplay safety maxDurationSeconds is required for " + step.StepId);
+            return;
+        }
+        if (limit.MaxDurationSeconds.Value < 1 ||
+            limit.MaxDurationSeconds.Value > SectionBoxIsolationLimits.MaximumMaxDurationSeconds)
+        {
+            result.Errors.Add(
+                "exactReplay safety maxDurationSeconds must be between 1 and " +
+                SectionBoxIsolationLimits.MaximumMaxDurationSeconds + " for " + step.StepId);
+            return;
+        }
+        if (!step.Arguments.TryGetValue("maxDurationSeconds", out var argument) ||
+            argument.ValueKind != JsonValueKind.Number ||
+            !argument.TryGetInt32(out var literalDuration) ||
+            literalDuration != limit.MaxDurationSeconds.Value)
+        {
+            result.Errors.Add(
+                "exactReplay safety maxDurationSeconds must equal the literal isolate_by_box argument for " +
+                step.StepId);
+        }
+    }
+
+    private static bool ContainsScenarioReferenceProperty(JsonElement value, out string propertyName)
+    {
+        propertyName = string.Empty;
+        if (value.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in value.EnumerateObject())
+            {
+                if (property.Name is "$stepResult" or "$parameter" or "$loop")
+                {
+                    propertyName = property.Name;
+                    return true;
+                }
+                if (ContainsScenarioReferenceProperty(property.Value, out propertyName))
+                    return true;
+            }
+        }
+        else if (value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in value.EnumerateArray())
+            {
+                if (ContainsScenarioReferenceProperty(item, out propertyName))
+                    return true;
+            }
+        }
+        return false;
+    }
+
     private static void ValidateFixedPath(JsonElement value, string parameterName, ScenarioValidationResult result)
     {
         var path = value.GetString() ?? string.Empty;
@@ -2046,6 +2194,8 @@ internal sealed class ScenarioLibraryService
                         .Select(gate => (JsonNode)JsonValue.Create(gate))
                         .ToArray()),
             };
+            if (item.Value.MaxDurationSeconds.HasValue)
+                result[item.Key]["maxDurationSeconds"] = item.Value.MaxDurationSeconds.Value;
         }
         return result;
     }

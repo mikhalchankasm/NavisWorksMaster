@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using NavisHelper.Agent.Contracts;
 using NavisHelper.McpServer.Services;
 using Xunit;
 
@@ -776,6 +777,151 @@ public sealed class ScenarioLibraryServiceTests : IDisposable
         Assert.Empty(body.ApplyArgumentOverrides);
     }
 
+    [Fact]
+    public void SectionBoxReplay_IsAllowlistedAsMutatingApplyTool_ButCaptureIsNot()
+    {
+        var capabilities = _service.GetCapabilities();
+
+        Assert.Contains(capabilities.AllowedTools, tool =>
+            tool.Tool == "isolate_by_box" && tool.MutatesModel && tool.HasApply);
+        Assert.DoesNotContain(capabilities.AllowedTools, tool => tool.Tool == "get_current_section_box");
+
+        var captureDraft = CreateSectionBoxExactReplayDraft();
+        captureDraft.Steps[0].Tool = "get_current_section_box";
+        captureDraft.Steps[0].Arguments.Clear();
+        Assert.Contains(
+            _service.ValidateDraft(captureDraft).Errors,
+            error => error.Contains("not scenario-allowlisted", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SectionBoxExactReplay_StoresLiteralGeometryAndResolvesWithoutCaptureOrRuntimeHandles()
+    {
+        var draft = CreateSectionBoxExactReplayDraft();
+        var serialized = JsonSerializer.Serialize(draft);
+        var saved = Save(draft, exact: true);
+        var resolved = _service.Resolve(saved.ScenarioId, null, "exact_replay", "2027", null, "");
+
+        Assert.DoesNotContain("get_current_section_box", serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain("$stepResult", serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain("matchHandle", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.True(resolved.Ok, resolved.ErrorMessage);
+        var step = Assert.Single(resolved.Steps);
+        Assert.Equal("isolate_by_box", step.Tool);
+        Assert.Equal("document_global", step.PreviewArguments["box"].GetProperty("coordinateSpace").GetString());
+        Assert.Equal(SectionBoxIsolationLimits.DefaultMaxScannedItems, step.PreviewArguments["maxScannedItems"].GetInt32());
+        Assert.Equal(SectionBoxIsolationLimits.DefaultMaxDurationSeconds, step.PreviewArguments["maxDurationSeconds"].GetInt32());
+        Assert.False(step.PreviewArguments["apply"].GetBoolean());
+        Assert.True(step.ApplyArgumentOverrides["apply"].GetBoolean());
+    }
+
+    [Fact]
+    public void SectionBoxExactReplay_RejectsStepResultInsteadOfLiteralGeometry()
+    {
+        var draft = CreateSectionBoxExactReplayDraft();
+        draft.Steps[0].Arguments["box"] = Element(new Dictionary<string, string>
+        {
+            ["$stepResult"] = "scan.results[0].boundingBox",
+        });
+
+        var validation = _service.ValidateDraft(draft);
+
+        Assert.Contains(validation.Errors, error =>
+            error.Contains("box must be literal geometry", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SectionBoxExactReplay_RejectsNestedRuntimeReferenceAndInvalidLiteral()
+    {
+        var nestedReferenceDraft = CreateSectionBoxExactReplayDraft();
+        nestedReferenceDraft.Steps[0].Arguments["box"] = JsonDocument.Parse(
+            "{\"formatVersion\":1,\"coordinateSpace\":\"document_global\",\"documentUnits\":\"meters\"," +
+            "\"center\":{\"$stepResult\":\"scan.center\"},\"halfExtents\":{\"x\":1,\"y\":1,\"z\":1}," +
+            "\"axes\":[{\"x\":1,\"y\":0,\"z\":0},{\"x\":0,\"y\":1,\"z\":0},{\"x\":0,\"y\":0,\"z\":1}]}"
+        ).RootElement.Clone();
+        var invalidLiteralDraft = CreateSectionBoxExactReplayDraft();
+        invalidLiteralDraft.Steps[0].Arguments["box"] = Element(new Dictionary<string, string>());
+
+        var nestedValidation = _service.ValidateDraft(nestedReferenceDraft);
+        var invalidValidation = _service.ValidateDraft(invalidLiteralDraft);
+
+        Assert.Contains(nestedValidation.Errors, error =>
+            error.Contains("box must be literal geometry", StringComparison.Ordinal));
+        Assert.Contains(invalidValidation.Errors, error =>
+            error.Contains("valid literal canonical geometry", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SectionBoxExactReplay_RequiresLiteralInRangeTraversalLimit()
+    {
+        var missing = CreateSectionBoxExactReplayDraft();
+        missing.Steps[0].Arguments.Remove("maxScannedItems");
+        var referenced = CreateSectionBoxExactReplayDraft();
+        referenced.Steps[0].Arguments["maxScannedItems"] = Element(new Dictionary<string, string>
+        {
+            ["$parameter"] = "limit",
+        });
+        var aboveHardMaximum = CreateSectionBoxExactReplayDraft();
+        aboveHardMaximum.Steps[0].Arguments["maxScannedItems"] =
+            Element(SectionBoxIsolationLimits.MaximumMaxScannedItems + 1);
+
+        var missingValidation = _service.ValidateDraft(missing);
+        var referencedValidation = _service.ValidateDraft(referenced);
+        var maximumValidation = _service.ValidateDraft(aboveHardMaximum);
+
+        Assert.Contains(missingValidation.Errors, error =>
+            error.Contains("required tool argument is missing: maxScannedItems", StringComparison.Ordinal));
+        Assert.Contains(referencedValidation.Errors, error =>
+            error.Contains("maxScannedItems must be a literal integer", StringComparison.Ordinal));
+        Assert.Contains(maximumValidation.Errors, error =>
+            error.Contains("between 1 and 500000", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SectionBoxExactReplay_RequiresLiteralDurationAndMatchingSafetyEnvelope()
+    {
+        var missing = CreateSectionBoxExactReplayDraft();
+        missing.Steps[0].Arguments.Remove("maxDurationSeconds");
+        var referenced = CreateSectionBoxExactReplayDraft();
+        referenced.Steps[0].Arguments["maxDurationSeconds"] = Element(new Dictionary<string, string>
+        {
+            ["$stepResult"] = "previous.duration",
+        });
+        var aboveHardMaximum = CreateSectionBoxExactReplayDraft();
+        aboveHardMaximum.Steps[0].Arguments["maxDurationSeconds"] =
+            Element(SectionBoxIsolationLimits.MaximumMaxDurationSeconds + 1);
+        var missingSafety = CreateSectionBoxExactReplayDraft();
+        missingSafety.ExactReplay.SafetyEnvelope.StepLimits["isolateCapturedBox"].MaxDurationSeconds = null;
+        var mismatchedSafety = CreateSectionBoxExactReplayDraft();
+        mismatchedSafety.ExactReplay.SafetyEnvelope.StepLimits["isolateCapturedBox"].MaxDurationSeconds = 120;
+
+        Assert.Contains(_service.ValidateDraft(missing).Errors, error =>
+            error.Contains("required tool argument is missing: maxDurationSeconds", StringComparison.Ordinal));
+        Assert.Contains(_service.ValidateDraft(referenced).Errors, error =>
+            error.Contains("maxDurationSeconds must be a literal integer", StringComparison.Ordinal));
+        Assert.Contains(_service.ValidateDraft(aboveHardMaximum).Errors, error =>
+            error.Contains("between 1 and 480", StringComparison.Ordinal));
+        Assert.Contains(_service.ValidateDraft(missingSafety).Errors, error =>
+            error.Contains("safety maxDurationSeconds is required", StringComparison.Ordinal));
+        Assert.Contains(_service.ValidateDraft(mismatchedSafety).Errors, error =>
+            error.Contains("must equal the literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SectionBoxExactReplay_DurationParticipatesInFingerprint()
+    {
+        var draft = CreateSectionBoxExactReplayDraft();
+        var preview = _service.Save(draft, "", "", false, true, true);
+        Assert.True(preview.Ok, string.Join("; ", preview.Errors));
+        draft.Steps[0].Arguments["maxDurationSeconds"] = Element(120);
+        draft.ExactReplay.SafetyEnvelope.StepLimits["isolateCapturedBox"].MaxDurationSeconds = 120;
+
+        var validation = _service.ValidateDraft(draft);
+
+        Assert.Contains(validation.Errors, error =>
+            error.Contains("previewFingerprint does not match", StringComparison.Ordinal));
+    }
+
     private ScenarioMutationResponse Save(ScenarioDraft draft, bool exact = false)
     {
         var response = _service.Save(draft, "", "", true, true, exact);
@@ -846,6 +992,70 @@ public sealed class ScenarioLibraryServiceTests : IDisposable
             },
         };
         return draft;
+    }
+
+    private static ScenarioDraft CreateSectionBoxExactReplayDraft()
+    {
+        var geometry = new SectionBoxGeometry
+        {
+            FormatVersion = 1,
+            CoordinateSpace = "document_global",
+            DocumentUnits = "meters",
+            Center = new BoxVector3 { X = 10, Y = 20, Z = 30 },
+            HalfExtents = new BoxVector3 { X = 4, Y = 3, Z = 2 },
+            Axes = new List<BoxVector3>
+            {
+                new() { X = 0.7071067811865476, Y = 0.7071067811865475, Z = 0 },
+                new() { X = -0.7071067811865475, Y = 0.7071067811865476, Z = 0 },
+                new() { X = 0, Y = 0, Z = 1 },
+            },
+        };
+        return new ScenarioDraft
+        {
+            SchemaVersion = 2,
+            ExecutionMode = "exactReplay",
+            Name = "Literal section box replay",
+            Description = "Replays isolation from captured literal oriented-box geometry.",
+            Context = new ScenarioContext { NavisworksVersions = new List<string> { "2027" } },
+            Parameters = new List<ScenarioParameterDefinition>(),
+            Steps = new List<ScenarioStepDefinition>
+            {
+                new()
+                {
+                    StepId = "isolateCapturedBox",
+                    Tool = "isolate_by_box",
+                    ScenarioContractVersion = 1,
+                    Arguments = new Dictionary<string, JsonElement>
+                    {
+                        ["box"] = JsonSerializer.SerializeToElement(
+                            geometry,
+                            new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+                        ["maxScannedItems"] = Element(SectionBoxIsolationLimits.DefaultMaxScannedItems),
+                        ["maxDurationSeconds"] = Element(SectionBoxIsolationLimits.DefaultMaxDurationSeconds),
+                        ["previewLimit"] = Element(10),
+                    },
+                },
+            },
+            ExactReplay = new ScenarioExactReplayDefinition
+            {
+                FixedParameters = new Dictionary<string, JsonElement>(),
+                ContextPolicy = "strict",
+                WritePolicy = "repeatReviewedWrites",
+                SafetyEnvelope = new ScenarioSafetyEnvelope
+                {
+                    PreviewFingerprint = "sha256:" + new string('a', 64),
+                    StepLimits = new Dictionary<string, ScenarioStepSafetyLimit>
+                    {
+                        ["isolateCapturedBox"] = new()
+                        {
+                            MaxMatchedItems = SectionBoxIsolationLimits.MaximumMaxScannedItems,
+                            MaxModelWrites = SectionBoxIsolationLimits.MaximumMaxScannedItems,
+                            MaxDurationSeconds = SectionBoxIsolationLimits.DefaultMaxDurationSeconds,
+                        },
+                    },
+                },
+            },
+        };
     }
 
     private static ScenarioDraft CreateMatrixScenarioV2()

@@ -12,7 +12,7 @@ internal sealed partial class HostBridgeClient
 {
     private const int DefaultTimeoutMs = 60000;
 
-    private const int HostTimeoutMarginMs = 5000;
+    private const int HostTimeoutMarginMs = ProtocolConstants.HostTransportResponseMarginMilliseconds;
 
     private const int HostBusyRetryDelayBaseMs = 150;
 

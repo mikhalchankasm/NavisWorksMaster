@@ -418,8 +418,8 @@ namespace NavisHelper.Agent.Host
             var value = timeoutMs.GetValueOrDefault(60000);
             if (value < 1)
                 return 1;
-            if (value > 600000)
-                return 600000;
+            if (value > ProtocolConstants.MaximumHostRequestTimeoutMilliseconds)
+                return ProtocolConstants.MaximumHostRequestTimeoutMilliseconds;
             return value;
         }
     }
