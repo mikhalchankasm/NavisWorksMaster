@@ -62,6 +62,24 @@ public sealed class SectionBoxClippingParserTests
         Assert.Equal(ErrorCodes.SectionBoxPayloadUnsupported, error.ErrorCode);
     }
 
+    [Fact]
+    public void Parse_OversizedVersion_ReturnsTypedPayloadError()
+    {
+        var error = Assert.Throws<SectionBoxParseException>(() => SectionBoxClippingParser.Parse(
+            "{\"Type\":\"ClipPlaneSet\",\"Version\":1234567890123456789012345678901234567890,\"Enabled\":true}"));
+
+        Assert.Equal(ErrorCodes.SectionBoxPayloadUnsupported, error.ErrorCode);
+    }
+
+    [Fact]
+    public void Parse_JsonComments_ReturnsTypedPayloadError()
+    {
+        var error = Assert.Throws<SectionBoxParseException>(() => SectionBoxClippingParser.Parse(
+            "{\"Type\":\"ClipPlaneSet\",/*comment*/\"Version\":1,\"Enabled\":true}"));
+
+        Assert.Equal(ErrorCodes.SectionBoxPayloadUnsupported, error.ErrorCode);
+    }
+
     [Theory]
     [InlineData("NaN")]
     [InlineData("Infinity")]

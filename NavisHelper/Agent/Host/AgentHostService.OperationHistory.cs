@@ -241,9 +241,9 @@ namespace NavisHelper.Agent.Host
                     _operationHistoryOrder.Enqueue(requestId);
                 }
 
-                if (string.Equals(errorCode, ErrorCodes.RequestTimeout, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(record.State, "completed", StringComparison.OrdinalIgnoreCase) &&
-                    record.Ok == true)
+                // Completion is authoritative. A later pipe-write/disconnect failure must not
+                // rewrite a successfully completed (and possibly mutating) UI callback as failed.
+                if (OperationHistoryPolicy.IsAuthoritativeSuccessfulCompletion(record.State, record.Ok))
                 {
                     return;
                 }

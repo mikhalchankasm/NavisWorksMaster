@@ -47,6 +47,10 @@ internal sealed partial class HostBridgeClient
                     TryDeleteStaleRecord(record);
                     throw new HostCallException(ErrorCodes.TransportConnectFailed, "Timed out while connecting to Navisworks host.");
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch
                 {
                     TryDeleteStaleRecord(record);

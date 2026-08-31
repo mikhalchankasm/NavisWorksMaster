@@ -21,10 +21,21 @@ internal sealed partial class HostBridgeClient
         CancellationToken cancellationToken,
         HostTargetOptions target = null)
     {
+        int maxDurationSeconds;
+        try
+        {
+            maxDurationSeconds = SectionBoxIsolationLimits.ValidateMaxDurationSeconds(
+                request?.MaxDurationSeconds);
+        }
+        catch (ArgumentOutOfRangeException exception)
+        {
+            throw new HostCallException(ErrorCodes.SchemaViolation, exception.Message);
+        }
         return CallHostAsync<IsolateByBoxResponse>(
             HostCommandNames.IsolateByBox,
             request,
             cancellationToken,
-            target);
+            target,
+            SectionBoxIsolationLimits.GetBridgeRequestTimeoutMilliseconds(maxDurationSeconds));
     }
 }

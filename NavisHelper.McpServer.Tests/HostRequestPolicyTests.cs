@@ -57,7 +57,7 @@ public sealed class HostRequestPolicyTests
             .Select(field => (string)field.GetRawConstantValue()!)
             .ToArray();
 
-        Assert.Equal(85, commands.Length);
+        Assert.Equal(87, commands.Length);
         Assert.Equal(
             new[]
             {
@@ -77,5 +77,19 @@ public sealed class HostRequestPolicyTests
                 HostCommandNames.LastOperationStatus,
             },
             commands.Where(HostRequestPolicy.IsOperationStatusPollCommand).OrderBy(command => command));
+    }
+
+    [Theory]
+    [InlineData("completed", true, true)]
+    [InlineData("COMPLETED", true, true)]
+    [InlineData("completed", false, false)]
+    [InlineData("failed", true, false)]
+    [InlineData("running", null, false)]
+    public void OperationHistory_SuccessfulCompletionIsAuthoritative(
+        string state,
+        bool? ok,
+        bool expected)
+    {
+        Assert.Equal(expected, OperationHistoryPolicy.IsAuthoritativeSuccessfulCompletion(state, ok));
     }
 }

@@ -73,6 +73,7 @@ internal sealed class ScenarioStepSafetyLimit
     public int MaxMatchedItems { get; set; }
     public int MaxModelWrites { get; set; }
     public int MaxFileWrites { get; set; }
+    public int? MaxDurationSeconds { get; set; }
     public List<string> ApprovedScaleGates { get; set; } = new();
 }
 

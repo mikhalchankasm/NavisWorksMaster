@@ -36,6 +36,7 @@ namespace NavisHelper.Agent.Contracts
         public SectionBoxGeometry Box { get; set; }
         public bool? Apply { get; set; }
         public int? MaxScannedItems { get; set; }
+        public int? MaxDurationSeconds { get; set; }
         public int? PreviewLimit { get; set; }
     }
 
@@ -48,9 +49,17 @@ namespace NavisHelper.Agent.Contracts
         public bool Partial { get; set; }
         public bool TraversalTruncated { get; set; }
         public bool TimedOut { get; set; }
+        public int MaxDurationSeconds { get; set; }
+        public long ElapsedMilliseconds { get; set; }
         public int ClassificationErrorCount { get; set; }
         public int ScannedItemCount { get; set; }
         public int IntersectingItemCount { get; set; }
+        public int OutsideItemCount { get; set; }
+        public int ConservativeUnclassifiedItemCount { get; set; }
+        public int StructuralContainerItemCount { get; set; }
+        public int EmptyItemCount { get; set; }
+        public int PrunedSubtreeRootCount { get; set; }
+        public int PrunedDirectChildBranchCount { get; set; }
         public int WouldKeepVisibleItemCount { get; set; }
         public int WouldHideItemCount { get; set; }
         public int PreviouslyHiddenItemCount { get; set; }
@@ -60,6 +69,8 @@ namespace NavisHelper.Agent.Contracts
         public int? HiddenItemCount { get; set; }
         public bool AffectedItemsPreviewTruncated { get; set; }
         public List<BoxIsolationPreviewItem> AffectedItemsPreview { get; set; } = new List<BoxIsolationPreviewItem>();
+        public bool PreservedUnclassifiedPreviewTruncated { get; set; }
+        public List<BoxIsolationPreviewItem> PreservedUnclassifiedPreview { get; set; } = new List<BoxIsolationPreviewItem>();
         public bool SelectionPreserved { get; set; }
         public bool SectionBoxPreserved { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
@@ -80,17 +91,176 @@ namespace NavisHelper.Agent.Contracts
         public BoxVector3 BoundsMax { get; set; }
         public bool WasHidden { get; set; }
         public bool Unclassified { get; set; }
+        public bool PreserveCurrentVisibility { get; set; }
+        public bool HasPrecomputedIntersection { get; set; }
+        public bool PrecomputedIntersects { get; set; }
     }
 
     public sealed class BoxIsolationPlan
     {
         public List<int> UnclassifiedIndices { get; set; } = new List<int>();
         public List<int> IntersectingIndices { get; set; } = new List<int>();
+        public List<int> OutsideIndices { get; set; } = new List<int>();
         public List<int> KeepVisibleIndices { get; set; } = new List<int>();
         public List<int> HideIndices { get; set; } = new List<int>();
+        public List<int> RevealIndices { get; set; } = new List<int>();
+        public List<int> NewlyHiddenIndices { get; set; } = new List<int>();
         public int PreviouslyHiddenItemCount { get; set; }
         public int WouldRevealItemCount { get; set; }
         public int WouldChangeVisibilityItemCount { get; set; }
+    }
+
+    public sealed class BoxIsolationPlanningResult
+    {
+        public BoxIsolationPlan Plan { get; set; } = new BoxIsolationPlan();
+        public bool TimedOut { get; set; }
+        public int ClassificationProcessedItemCount { get; set; }
+        public int VisibilityProcessedItemCount { get; set; }
+    }
+
+    public enum BoxIsolationNodeDisposition
+    {
+        Intersecting,
+        OutsideSubtree,
+        StructuralContainer,
+        EmptyLeaf,
+        Unclassified,
+    }
+
+    public static class BoxIsolationTraversalPolicy
+    {
+        public static BoxIsolationNodeDisposition Classify(
+            bool boundsReadable,
+            bool intersects,
+            bool geometryStatusKnown,
+            bool hasGeometry,
+            bool hasChildren)
+        {
+            if (boundsReadable)
+                return intersects
+                    ? BoxIsolationNodeDisposition.Intersecting
+                    : BoxIsolationNodeDisposition.OutsideSubtree;
+            if (geometryStatusKnown && !hasGeometry)
+                return hasChildren
+                    ? BoxIsolationNodeDisposition.StructuralContainer
+                    : BoxIsolationNodeDisposition.EmptyLeaf;
+            return BoxIsolationNodeDisposition.Unclassified;
+        }
+
+        public static bool ShouldDescend(BoxIsolationNodeDisposition disposition, bool hasChildren)
+        {
+            if (!hasChildren)
+                return false;
+            return disposition != BoxIsolationNodeDisposition.OutsideSubtree;
+        }
+
+        public static bool IsRealClassificationError(BoxIsolationNodeDisposition disposition)
+        {
+            return disposition == BoxIsolationNodeDisposition.Unclassified;
+        }
+
+        public static bool ShouldPreserveCurrentVisibility(BoxIsolationNodeDisposition disposition)
+        {
+            return disposition == BoxIsolationNodeDisposition.StructuralContainer ||
+                   disposition == BoxIsolationNodeDisposition.EmptyLeaf;
+        }
+    }
+
+    public sealed class BoxIsolationTraversalAccounting
+    {
+        private readonly int _maximumScannedItems;
+
+        public BoxIsolationTraversalAccounting(int maximumScannedItems)
+        {
+            if (maximumScannedItems < 1)
+                throw new ArgumentOutOfRangeException(nameof(maximumScannedItems));
+            _maximumScannedItems = maximumScannedItems;
+        }
+
+        public int ScannedItemCount { get; private set; }
+        public int PrunedSubtreeRootCount { get; private set; }
+        public int PrunedDirectChildBranchCount { get; private set; }
+
+        public bool TryRegisterScannedItem()
+        {
+            if (ScannedItemCount >= _maximumScannedItems)
+                return false;
+            ScannedItemCount++;
+            return true;
+        }
+
+        public void RecordPrunedSubtree(int directChildCount)
+        {
+            if (directChildCount < 1)
+                return;
+            PrunedSubtreeRootCount++;
+            PrunedDirectChildBranchCount = checked(PrunedDirectChildBranchCount + directChildCount);
+        }
+    }
+
+    public static class SectionBoxIsolationLimits
+    {
+        public const int DefaultMaxScannedItems = 500000;
+        public const int MaximumMaxScannedItems = 500000;
+        public const int DefaultMaxDurationSeconds = 60;
+        public const int MaximumMaxDurationSeconds = 480;
+        public const int PostTraversalHostReserveSeconds = 90;
+        public const int BridgeSetupReserveSeconds = 5;
+        public const int RecommendedClientResponseReserveSeconds = 5;
+
+        public static int ValidateMaxDurationSeconds(int? requested)
+        {
+            var value = requested.GetValueOrDefault(DefaultMaxDurationSeconds);
+            if (value < 1 || value > MaximumMaxDurationSeconds)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(requested),
+                    "maxDurationSeconds must be between 1 and " + MaximumMaxDurationSeconds + ".");
+            }
+            return value;
+        }
+
+        public static int GetBridgeRequestTimeoutMilliseconds(int maxDurationSeconds)
+        {
+            var validated = ValidateMaxDurationSeconds(maxDurationSeconds);
+            return checked(
+                (validated + PostTraversalHostReserveSeconds + BridgeSetupReserveSeconds) * 1000 +
+                ProtocolConstants.HostTransportResponseMarginMilliseconds);
+        }
+
+        public static int GetRecommendedClientTimeoutMilliseconds(int maxDurationSeconds)
+        {
+            return checked(
+                GetBridgeRequestTimeoutMilliseconds(maxDurationSeconds) +
+                RecommendedClientResponseReserveSeconds * 1000);
+        }
+    }
+
+    public interface ISectionBoxIsolationClock
+    {
+        long ElapsedMilliseconds { get; }
+    }
+
+    public sealed class SectionBoxIsolationDurationGuard
+    {
+        private readonly ISectionBoxIsolationClock _clock;
+        private readonly long _limitMilliseconds;
+
+        public SectionBoxIsolationDurationGuard(int maxDurationSeconds, ISectionBoxIsolationClock clock)
+        {
+            MaxDurationSeconds = SectionBoxIsolationLimits.ValidateMaxDurationSeconds(maxDurationSeconds);
+            _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+            _limitMilliseconds = checked((long)MaxDurationSeconds * 1000L);
+        }
+
+        public int MaxDurationSeconds { get; }
+
+        public long ElapsedMilliseconds => _clock.ElapsedMilliseconds;
+
+        public bool ShouldStop(bool hasRemainingWork)
+        {
+            return hasRemainingWork && ElapsedMilliseconds >= _limitMilliseconds;
+        }
     }
 
     public static class SectionBoxGeometryRules
@@ -142,13 +312,21 @@ namespace NavisHelper.Agent.Contracts
         {
             if (!IsFinite(x) || !IsFinite(y) || !IsFinite(z) || !IsFinite(w))
                 throw new ArgumentException("rotation quaternion must contain finite numbers.");
-            var magnitude = Math.Sqrt(x * x + y * y + z * z + w * w);
-            if (magnitude <= QuaternionTolerance)
+            var scale = Math.Max(Math.Max(Math.Abs(x), Math.Abs(y)), Math.Max(Math.Abs(z), Math.Abs(w)));
+            if (scale == 0)
                 throw new ArgumentException("rotation quaternion must not be degenerate.");
-            x /= magnitude;
-            y /= magnitude;
-            z /= magnitude;
-            w /= magnitude;
+            var scaledX = x / scale;
+            var scaledY = y / scale;
+            var scaledZ = z / scale;
+            var scaledW = w / scale;
+            var scaledMagnitude = Math.Sqrt(
+                scaledX * scaledX + scaledY * scaledY + scaledZ * scaledZ + scaledW * scaledW);
+            if (scale <= QuaternionTolerance / scaledMagnitude)
+                throw new ArgumentException("rotation quaternion must not be degenerate.");
+            x = scaledX / scaledMagnitude;
+            y = scaledY / scaledMagnitude;
+            z = scaledZ / scaledMagnitude;
+            w = scaledW / scaledMagnitude;
 
             return new List<BoxVector3>
             {
@@ -179,7 +357,7 @@ namespace NavisHelper.Agent.Contracts
             return new SectionBoxIntersectionTester(box).Intersects(minimum, maximum);
         }
 
-        internal sealed class SectionBoxIntersectionTester
+        public sealed class SectionBoxIntersectionTester
         {
             private readonly SectionBoxGeometry _box;
             private readonly double[,] _rotation = new double[3, 3];
@@ -188,7 +366,7 @@ namespace NavisHelper.Agent.Contracts
             private readonly double _extent1;
             private readonly double _extent2;
 
-            internal SectionBoxIntersectionTester(SectionBoxGeometry box)
+            public SectionBoxIntersectionTester(SectionBoxGeometry box)
             {
                 _box = box;
                 _extent0 = box.HalfExtents.X;
@@ -205,7 +383,7 @@ namespace NavisHelper.Agent.Contracts
                 }
             }
 
-            internal bool Intersects(BoxVector3 minimum, BoxVector3 maximum)
+            public bool Intersects(BoxVector3 minimum, BoxVector3 maximum)
             {
             ValidateBounds(minimum, maximum);
             var a0 = (maximum.X - minimum.X) * 0.5;
@@ -312,15 +490,32 @@ namespace NavisHelper.Agent.Contracts
     {
         public static BoxIsolationPlan Build(SectionBoxGeometry box, IList<BoxIsolationPlanItem> items)
         {
+            var result = BuildBounded(box, items, null);
+            if (result.TimedOut)
+                throw new InvalidOperationException("Unbounded box isolation planning unexpectedly timed out.");
+            return result.Plan;
+        }
+
+        public static BoxIsolationPlanningResult BuildBounded(
+            SectionBoxGeometry box,
+            IList<BoxIsolationPlanItem> items,
+            SectionBoxIsolationDurationGuard durationGuard)
+        {
             SectionBoxGeometryRules.Validate(box);
             if (items == null)
                 throw new ArgumentNullException(nameof(items));
 
-            var plan = new BoxIsolationPlan();
+            var result = new BoxIsolationPlanningResult();
+            var plan = result.Plan;
             var keep = new bool[items.Count];
             var tester = new SectionBoxGeometryRules.SectionBoxIntersectionTester(box);
             for (var index = 0; index < items.Count; index++)
             {
+                if (durationGuard != null && durationGuard.ShouldStop(hasRemainingWork: true))
+                {
+                    result.TimedOut = true;
+                    return result;
+                }
                 var item = items[index] ?? throw new ArgumentException("plan items must not contain null values.");
                 if (item.ParentIndex >= index || item.ParentIndex < -1)
                     throw new ArgumentException("plan item parentIndex must refer to an earlier item or -1.");
@@ -329,50 +524,95 @@ namespace NavisHelper.Agent.Contracts
                 if (item.Unclassified)
                 {
                     plan.UnclassifiedIndices.Add(index);
+                    KeepItemAndAncestors(items, keep, index);
+                    result.ClassificationProcessedItemCount = index + 1;
                     continue;
                 }
-                if (!tester.Intersects(item.BoundsMin, item.BoundsMax))
+                if (item.PreserveCurrentVisibility)
+                {
+                    result.ClassificationProcessedItemCount = index + 1;
                     continue;
+                }
+                var intersects = item.HasPrecomputedIntersection
+                    ? item.PrecomputedIntersects
+                    : tester.Intersects(item.BoundsMin, item.BoundsMax);
+                if (!intersects)
+                {
+                    plan.OutsideIndices.Add(index);
+                    result.ClassificationProcessedItemCount = index + 1;
+                    continue;
+                }
 
                 plan.IntersectingIndices.Add(index);
-                var current = index;
-                while (current >= 0 && !keep[current])
-                {
-                    keep[current] = true;
-                    current = items[current].ParentIndex;
-                }
+                KeepItemAndAncestors(items, keep, index);
+                result.ClassificationProcessedItemCount = index + 1;
             }
 
             for (var index = 0; index < items.Count; index++)
             {
-                if (items[index].Unclassified)
-                    continue;
+                if (durationGuard != null && durationGuard.ShouldStop(hasRemainingWork: true))
+                {
+                    result.TimedOut = true;
+                    return result;
+                }
                 if (keep[index])
                 {
                     plan.KeepVisibleIndices.Add(index);
                     if (items[index].WasHidden)
                     {
+                        plan.RevealIndices.Add(index);
                         plan.WouldRevealItemCount++;
                         plan.WouldChangeVisibilityItemCount++;
                     }
+                }
+                else if (items[index].PreserveCurrentVisibility)
+                {
+                    if (items[index].WasHidden)
+                        plan.HideIndices.Add(index);
+                    else
+                        plan.KeepVisibleIndices.Add(index);
                 }
                 else
                 {
                     plan.HideIndices.Add(index);
                     if (!items[index].WasHidden)
+                    {
+                        plan.NewlyHiddenIndices.Add(index);
                         plan.WouldChangeVisibilityItemCount++;
+                    }
                 }
+                result.VisibilityProcessedItemCount = index + 1;
             }
 
-            return plan;
+            return result;
+        }
+
+        private static void KeepItemAndAncestors(IList<BoxIsolationPlanItem> items, bool[] keep, int index)
+        {
+            var current = index;
+            while (current >= 0 && !keep[current])
+            {
+                keep[current] = true;
+                current = items[current].ParentIndex;
+            }
         }
     }
 
     public static class BoxIsolationExecutionRules
     {
-        public static bool ShouldApply(bool applyRequested, bool partial)
+        public static bool IsPartial(bool traversalTruncated, bool timedOut)
         {
-            return applyRequested && !partial;
+            return traversalTruncated || timedOut;
+        }
+
+        public static bool ShouldApply(bool applyRequested, bool partial, int classificationErrorCount)
+        {
+            return applyRequested && !partial && classificationErrorCount == 0;
+        }
+
+        public static bool HasTimedOut(long elapsedMilliseconds, int limitMilliseconds)
+        {
+            return elapsedMilliseconds >= limitMilliseconds;
         }
     }
 }

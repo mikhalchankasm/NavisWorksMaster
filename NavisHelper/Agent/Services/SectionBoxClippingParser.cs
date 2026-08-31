@@ -39,7 +39,7 @@ namespace NavisHelper.Agent.Services
             try
             {
                 using (var stringReader = new StringReader(json))
-                using (var reader = new JsonTextReader(stringReader)
+                using (var reader = new StrictJsonTextReader(stringReader)
                 {
                     DateParseHandling = DateParseHandling.None,
                     FloatParseHandling = FloatParseHandling.Double,
@@ -163,7 +163,8 @@ namespace NavisHelper.Agent.Services
         private static void RequireVersion(JObject value, string owner)
         {
             var token = GetProperty(value, "Version");
-            if (token == null || token.Type != JTokenType.Integer || token.Value<int>() != 1)
+            if (token == null || token.Type != JTokenType.Integer ||
+                !string.Equals(token.ToString(Formatting.None), "1", StringComparison.Ordinal))
                 throw Unsupported(owner + ".Version must be 1.");
         }
 
@@ -184,6 +185,22 @@ namespace NavisHelper.Agent.Services
         private static SectionBoxParseException Unsupported(string message, Exception innerException = null)
         {
             return new SectionBoxParseException(ErrorCodes.SectionBoxPayloadUnsupported, message, innerException);
+        }
+
+        private sealed class StrictJsonTextReader : JsonTextReader
+        {
+            public StrictJsonTextReader(TextReader reader)
+                : base(reader)
+            {
+            }
+
+            public override bool Read()
+            {
+                var read = base.Read();
+                if (read && TokenType == JsonToken.Comment)
+                    throw new JsonReaderException("JSON comments are not supported.");
+                return read;
+            }
         }
     }
 }
