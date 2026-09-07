@@ -9,6 +9,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -111,12 +112,25 @@ namespace NavisHelper.WPF
             _selectionMemoryText.Foreground = Brushes.DarkGreen;
         }
 
-        private void InvertSelection()
+        private async void InvertSelection()
         {
             try
             {
+                await InvertSelectionAsync();
+            }
+            catch (Exception ex)
+            {
+                ReportModelScanFailure(ex);
+                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Selection_Invert_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<TaskAwareCommandOutcome> InvertSelectionAsync()
+        {
+                if (!EnsureModelScanAvailable())
+                    return TaskAwareCommandOutcome.NotCompleted;
                 var doc = NwApplication.ActiveDocument;
-                if (doc == null) return;
+                if (doc == null) return TaskAwareCommandOutcome.NotCompleted;
 
                 var selected = doc.CurrentSelection.SelectedItems;
                 if (selected == null || selected.Count == 0)
@@ -124,36 +138,60 @@ namespace NavisHelper.WPF
                     MessageBox.Show(
                         PanelUi("Panel_Selection_Invert_SelectItems"),
                         PanelUi("Panel_Selection_Invert_Title"));
-                    return;
+                    return TaskAwareCommandOutcome.NotCompleted;
                 }
 
-                var all = CollectModelItems(doc);
-                var selectedSet = new HashSet<ModelItem>(selected.Cast<ModelItem>());
-                var inverted = new ModelItemCollection();
+                SetGlobalStatusResource("Panel_ModelScan_Preparing", Brushes.DarkGoldenrod);
+                var request = new UiThreadModelOperationRequest
+                {
+                    ProgressCaption = PanelUi("Panel_ModelScan_Invert_Progress"),
+                    PreparePhaseMessage = PanelUi("Panel_ModelScan_Preparing"),
+                    ScanPhaseMessage = PanelUi("Panel_ModelScan_Phase_Scan"),
+                    ReportScanProgress = ReportModelScanProgress,
+                    VerifyPhaseMessage = PanelUi("Panel_ModelScan_Phase_Verify"),
+                    ApplyPhaseMessage = PanelUi("Panel_ModelScan_Phase_ApplySelection"),
+                    RecoveryPhaseMessage = PanelUi("Panel_ModelScan_Phase_Restore"),
+                    SnapshotUnavailableMessage = PanelUi("Panel_ModelScan_SnapshotUnavailable"),
+                    ObservedChanges = CooperativeModelScanInvalidation.Selection,
+                    ApplyKind = CooperativeModelApplyKind.ReplaceSelection
+                };
+                request.PrepareAsync = async preparation =>
+                {
+                    var sourceSelection = await preparation.CopySelectionAsync();
+                    var selectedSet = await preparation.BuildSelectionSetAsync(sourceSelection);
+                    request.CommitGuardSelection = sourceSelection;
+                    request.IncludeItem = item => !selectedSet.Contains(item);
+                };
+                var operation = await _modelScanCoordinator.RunOperationAsync(doc, request);
+                if (ReportIncompleteModelScan(operation))
+                    return TaskAwareCommandOutcome.NotCompleted;
 
-                foreach (var item in all)
-                    if (!selectedSet.Contains(item))
-                        inverted.Add(item);
-
-                doc.CurrentSelection.Clear();
-                doc.CurrentSelection.CopyFrom(inverted);
                 SetGlobalStatusResource(
                     "Panel_Selection_Invert_Result_Format",
                     Brushes.DarkGreen,
-                    inverted.Count);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Selection_Invert_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                    operation.ScanItemCount);
+                return TaskAwareCommandOutcome.Completed;
         }
 
-        private void IsolateSelection()
+        private async void IsolateSelection()
         {
             try
             {
+                await IsolateSelectionAsync();
+            }
+            catch (Exception ex)
+            {
+                ReportModelScanFailure(ex);
+                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Selection_Isolate_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<TaskAwareCommandOutcome> IsolateSelectionAsync()
+        {
+                if (!EnsureModelScanAvailable())
+                    return TaskAwareCommandOutcome.NotCompleted;
                 var doc = NwApplication.ActiveDocument;
-                if (doc == null) return;
+                if (doc == null) return TaskAwareCommandOutcome.NotCompleted;
 
                 var selected = doc.CurrentSelection.SelectedItems;
                 if (selected == null || selected.Count == 0)
@@ -161,70 +199,190 @@ namespace NavisHelper.WPF
                     MessageBox.Show(
                         PanelUi("Panel_Selection_Isolate_SelectItems"),
                         PanelUi("Panel_Selection_Isolate_Title"));
-                    return;
+                    return TaskAwareCommandOutcome.NotCompleted;
                 }
 
-                var all = CollectModelItems(doc);
-                var selectedItems = selected.Cast<ModelItem>().ToList();
-                var keep = new HashSet<ModelItem>(selectedItems);
-                foreach (var item in selectedItems)
+                SetGlobalStatusResource("Panel_ModelScan_Preparing", Brushes.DarkGoldenrod);
+                var request = new UiThreadModelOperationRequest
                 {
-                    var descendants = new Stack<ModelItem>();
-                    descendants.Push(item);
-                    while (descendants.Count > 0)
-                    {
-                        var node = descendants.Pop();
-                        if (node.Children == null) continue;
-                        foreach (var child in node.Children)
-                        {
-                            if (keep.Add(child))
-                                descendants.Push(child);
-                        }
-                    }
+                    ProgressCaption = PanelUi("Panel_ModelScan_Isolate_Progress"),
+                    PreparePhaseMessage = PanelUi("Panel_ModelScan_Preparing"),
+                    ScanPhaseMessage = PanelUi("Panel_ModelScan_Phase_Scan"),
+                    ReportScanProgress = ReportModelScanProgress,
+                    VerifyPhaseMessage = PanelUi("Panel_ModelScan_Phase_Verify"),
+                    ApplyPhaseMessage = PanelUi("Panel_ModelScan_Phase_ApplyVisibility"),
+                    RecoveryPhaseMessage = PanelUi("Panel_ModelScan_Phase_Restore"),
+                    SnapshotUnavailableMessage = PanelUi("Panel_ModelScan_SnapshotUnavailable"),
+                    ObservedChanges = CooperativeModelScanInvalidation.Selection,
+                    ApplyKind = CooperativeModelApplyKind.HideItems
+                };
+                request.PrepareAsync = async preparation =>
+                {
+                    var sourceSelection = await preparation.CopySelectionAsync();
+                    var selectedSet = await preparation.BuildSelectionSetAsync(sourceSelection);
+                    var selectedAncestors = await preparation.CollectAncestorsAsync(sourceSelection);
+                    request.CommitGuardSelection = sourceSelection;
+                    request.IncludeItem = item => ShouldHideForIsolation(
+                        item,
+                        selectedSet,
+                        selectedAncestors);
+                };
+                var operation = await _modelScanCoordinator.RunOperationAsync(doc, request);
+                if (ReportIncompleteModelScan(operation))
+                    return TaskAwareCommandOutcome.NotCompleted;
 
-                    var current = item.Parent;
-                    while (current != null)
-                    {
-                        keep.Add(current);
-                        current = current.Parent;
-                    }
-                }
-
-                var hidden = new Autodesk.Navisworks.Api.ModelItemCollection();
-                foreach (var item in all)
-                    if (!keep.Contains(item))
-                        hidden.Add(item);
-
-                try { doc.Models.SetHidden(hidden, true); } catch { }
                 SetGlobalStatusResource(
                     "Panel_Selection_Isolate_Result_Format",
                     Brushes.DarkGreen,
-                    hidden.Count);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Selection_Isolate_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                    operation.ScanItemCount);
+                return TaskAwareCommandOutcome.Completed;
         }
 
-        private void UnhideAll()
+        private async void UnhideAll()
         {
             try
             {
-                var doc = NwApplication.ActiveDocument;
-                if (doc == null) return;
-
-                var all = CollectModelItems(doc);
-                if (all.Count == 0) return;
-                doc.Models.SetHidden(all, false);
-                SetGlobalStatusResource(
-                    "Panel_Selection_Unhide_Result",
-                    Brushes.DarkGreen);
+                await UnhideAllAsync();
             }
             catch (Exception ex)
             {
+                ReportModelScanFailure(ex);
                 MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Selection_Unhide_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private async Task<TaskAwareCommandOutcome> UnhideAllAsync()
+        {
+                if (!EnsureModelScanAvailable())
+                    return TaskAwareCommandOutcome.NotCompleted;
+                var doc = NwApplication.ActiveDocument;
+                if (doc == null) return TaskAwareCommandOutcome.NotCompleted;
+
+                SetGlobalStatusResource("Panel_ModelScan_Running", Brushes.DarkGoldenrod);
+                var operation = await _modelScanCoordinator.RunOperationAsync(
+                    doc,
+                    new UiThreadModelOperationRequest
+                    {
+                        ProgressCaption = PanelUi("Panel_ModelScan_Unhide_Progress"),
+                        ScanPhaseMessage = PanelUi("Panel_ModelScan_Phase_Scan"),
+                        ReportScanProgress = ReportModelScanProgress,
+                        VerifyPhaseMessage = PanelUi("Panel_ModelScan_Phase_Verify"),
+                        ApplyPhaseMessage = PanelUi("Panel_ModelScan_Phase_ApplyVisibility"),
+                        RecoveryPhaseMessage = PanelUi("Panel_ModelScan_Phase_Restore"),
+                        SnapshotUnavailableMessage = PanelUi("Panel_ModelScan_SnapshotUnavailable"),
+                        // Only the hidden subset is applied, so unhiding a
+                        // mostly visible model costs the apply phase the size
+                        // of that subset instead of the size of the model.
+                        IncludeItem = item => item.IsHidden,
+                        ObservedChanges = CooperativeModelScanInvalidation.None,
+                        ApplyKind = CooperativeModelApplyKind.ShowItems,
+                        ApplyOnlyIfNonEmptyResult = true
+                    });
+                if (ReportIncompleteModelScan(operation))
+                    return TaskAwareCommandOutcome.NotCompleted;
+
+                if (operation.ApplyStatus == CooperativeModelApplyStatus.SkippedEmpty)
+                {
+                    SetGlobalStatusResource(
+                        "Panel_Selection_Unhide_Empty",
+                        Brushes.DarkGreen);
+                    return TaskAwareCommandOutcome.NotCompleted;
+                }
+                SetGlobalStatusResource(
+                    "Panel_Selection_Unhide_Result",
+                    Brushes.DarkGreen);
+                return TaskAwareCommandOutcome.Completed;
+        }
+
+        private bool ReportIncompleteModelScan(UiThreadModelOperationResult operation)
+        {
+            if (operation == null)
+                throw new ArgumentNullException(nameof(operation));
+            switch (operation.Status)
+            {
+                case CooperativeModelScanStatus.Completed:
+                    return false;
+                case CooperativeModelScanStatus.Busy:
+                    SetGlobalStatusResource("Panel_ModelScan_Busy", Brushes.Orange);
+                    return true;
+                case CooperativeModelScanStatus.DocumentChanged:
+                    SetGlobalStatusResource("Panel_ModelScan_DocumentChanged", Brushes.Orange);
+                    return true;
+                case CooperativeModelScanStatus.SourceChanged:
+                    SetGlobalStatusResource("Panel_ModelScan_SourceChanged", Brushes.Orange);
+                    return true;
+                case CooperativeModelScanStatus.Suspended:
+                    SetGlobalStatusResource("Panel_ModelScan_Suspended", Brushes.Gray);
+                    return true;
+                case CooperativeModelScanStatus.ApplyFailed:
+                    ReportModelScanApplyFailure(operation);
+                    return true;
+                default:
+                    SetGlobalStatusResource("Panel_ModelScan_Canceled", Brushes.Gray);
+                    return true;
+            }
+        }
+
+        /// <summary>
+        /// Claims restoration only after recovery readback has verified it.
+        /// An unsuccessful or interrupted recovery leaves the state uncertain.
+        /// </summary>
+        private void ReportModelScanApplyFailure(UiThreadModelOperationResult operation)
+        {
+            var detail = operation.ApplyError?.Message ?? string.Empty;
+            if (operation.RecoveryError != null)
+                detail += Environment.NewLine + operation.RecoveryError.Message;
+            var resourceKey = operation.RecoveryStatus == CooperativeModelRecoveryStatus.Restored
+                ? "Panel_ModelScan_ApplyFailedRestored_Format"
+                : "Panel_ModelScan_ApplyFailedUnknown_Format";
+            SetGlobalStatusResource(
+                resourceKey,
+                Brushes.Red,
+                detail);
+            MessageBox.Show(
+                UiLocalizationService.Current.Format(
+                    resourceKey,
+                    detail),
+                PanelUi("Panel_ModelScan_ApplyFailed_Title"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+
+        private static bool ShouldHideForIsolation(
+            ModelItem item,
+            HashSet<ModelItem> selected,
+            HashSet<ModelItem> selectedAncestors)
+        {
+            return CooperativeModelIsolationPolicy.ShouldHide(
+                item,
+                selected,
+                selectedAncestors,
+                value => value.Parent);
+        }
+
+        private void ReportModelScanFailure(Exception exception)
+        {
+            SetGlobalStatusResource(
+                "Panel_Common_Error_Format",
+                Brushes.Red,
+                exception?.Message ?? string.Empty);
+        }
+
+
+        private bool EnsureModelScanAvailable()
+        {
+            if (_modelScanCoordinator.IsAvailable)
+                return true;
+            SetGlobalStatusResource("Panel_ModelScan_Suspended", Brushes.Gray);
+            return false;
+        }
+
+        private void ReportModelScanProgress(int visitedItems)
+        {
+            SetGlobalStatusResource(
+                "Panel_ModelScan_Visited_Format",
+                Brushes.DarkGoldenrod,
+                visitedItems);
         }
 
         private void ShowAndCopySelectionBounds()

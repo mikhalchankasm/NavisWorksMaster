@@ -9,6 +9,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -557,23 +558,49 @@ namespace NavisHelper.WPF
             }
         }
 
-        private void OnSelectByPropertyValue()
+        private async void OnSelectByPropertyValue()
         {
             try
             {
+                await SelectByPropertyValueAsync();
+            }
+            catch (Exception ex)
+            {
+                ReportModelScanFailure(ex);
+                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_SelectByProperty_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<TaskAwareCommandOutcome> SelectByPropertyValueAsync()
+        {
+                if (!EnsureModelScanAvailable())
+                    return TaskAwareCommandOutcome.NotCompleted;
                 var doc = NwApplication.ActiveDocument;
-                if (doc == null) return;
+                if (doc == null) return TaskAwareCommandOutcome.NotCompleted;
 
                 var selected = doc.CurrentSelection.SelectedItems;
                 if (selected == null || selected.Count == 0)
                 {
                     MessageBox.Show(PanelUi("Panel_Colors_SelectByProperty_SelectItems"), PanelUi("Panel_Colors_SelectByProperty_Title"));
-                    return;
+                    return TaskAwareCommandOutcome.NotCompleted;
                 }
 
+                var documentIdentity = UiThreadModelScanDocumentIdentity.Capture(doc);
                 var sourceValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                // Suggestions are best-effort within a short time/item budget.
+                // One native property lookup remains indivisible.
+                const int SuggestionProbeItemLimit = 256;
+                const int SuggestionProbeValueLimit = 16;
+                var suggestionTimer = Stopwatch.StartNew();
+                int probed = 0;
                 foreach (var item in selected)
                 {
+                    if (probed++ >= SuggestionProbeItemLimit ||
+                        sourceValues.Count >= SuggestionProbeValueLimit ||
+                        suggestionTimer.Elapsed >= TimeSpan.FromMilliseconds(12))
+                    {
+                        break;
+                    }
                     var value = FindPropertyValue(item, PropertyAliases);
                     if (!string.IsNullOrWhiteSpace(value))
                         sourceValues.Add(value);
@@ -588,34 +615,57 @@ namespace NavisHelper.WPF
                     sourceValues.FirstOrDefault() ?? string.Empty);
 
                 if (string.IsNullOrWhiteSpace(input))
-                    return;
+                    return TaskAwareCommandOutcome.NotCompleted;
 
-                input = input.Trim();
-
-                var allItems = CollectModelItems(doc);
-                var result = new Autodesk.Navisworks.Api.ModelItemCollection();
-                foreach (var item in allItems)
+                if (!EnsureModelScanAvailable())
+                    return TaskAwareCommandOutcome.NotCompleted;
+                if (!ReferenceEquals(NwApplication.ActiveDocument, doc) ||
+                    documentIdentity == null || !documentIdentity.Matches(doc))
                 {
-                    var value = FindPropertyValue(item, PropertyAliases);
-                    if (string.Equals(value, input, StringComparison.OrdinalIgnoreCase))
-                        result.Add(item);
+                    SetGlobalStatusResource("Panel_ModelScan_DocumentChanged", Brushes.Orange);
+                    return TaskAwareCommandOutcome.NotCompleted;
                 }
 
-                if (result.Count == 0)
+                input = input.Trim();
+                SetGlobalStatusResource(
+                    "Panel_ModelScan_Preparing",
+                    Brushes.DarkGoldenrod);
+                var request = new UiThreadModelOperationRequest
+                {
+                    ProgressCaption = PanelUi("Panel_ModelScan_SelectByProperty_Progress"),
+                    PreparePhaseMessage = PanelUi("Panel_ModelScan_Preparing"),
+                    ScanPhaseMessage = PanelUi("Panel_ModelScan_Phase_Scan"),
+                    ReportScanProgress = ReportModelScanProgress,
+                    VerifyPhaseMessage = PanelUi("Panel_ModelScan_Phase_Verify"),
+                    ApplyPhaseMessage = PanelUi("Panel_ModelScan_Phase_ApplySelection"),
+                    RecoveryPhaseMessage = PanelUi("Panel_ModelScan_Phase_Restore"),
+                    SnapshotUnavailableMessage = PanelUi("Panel_ModelScan_SnapshotUnavailable"),
+                    ObservedChanges = CooperativeModelScanInvalidation.ModelProperties |
+                                      CooperativeModelScanInvalidation.Selection,
+                    ApplyKind = CooperativeModelApplyKind.ReplaceSelection,
+                    ApplyOnlyIfNonEmptyResult = true
+                };
+                request.PrepareAsync = async preparation =>
+                {
+                    request.CommitGuardSelection = await preparation.CopySelectionAsync();
+                    request.IncludeItem = item => string.Equals(
+                        FindPropertyValue(item, PropertyAliases),
+                        input,
+                        StringComparison.OrdinalIgnoreCase);
+                };
+                var operation = await _modelScanCoordinator.RunOperationAsync(doc, request);
+                if (ReportIncompleteModelScan(operation))
+                    return TaskAwareCommandOutcome.NotCompleted;
+
+                if (operation.ApplyStatus == CooperativeModelApplyStatus.SkippedEmpty)
                 {
                     SetGlobalStatusResource("Panel_Colors_SelectByProperty_NoMatches", Brushes.Orange);
                     MessageBox.Show(PanelUi("Panel_Colors_SelectByProperty_NoMatches"), PanelUi("Panel_Colors_SelectByProperty_Title"));
-                    return;
+                    return TaskAwareCommandOutcome.NotCompleted;
                 }
 
-                doc.CurrentSelection.Clear();
-                doc.CurrentSelection.CopyFrom(result);
-                SetGlobalStatusResource("Panel_Colors_SelectByProperty_Result_Format", Brushes.DarkGreen, result.Count);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_SelectByProperty_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                SetGlobalStatusResource("Panel_Colors_SelectByProperty_Result_Format", Brushes.DarkGreen, operation.ScanItemCount);
+                return TaskAwareCommandOutcome.Completed;
         }
 
         private void OnCreateSearchSelectionSet()
@@ -1464,27 +1514,6 @@ namespace NavisHelper.WPF
                 if (item != null)
                     result.Add(item);
             return result;
-        }
-
-        private static ModelItemCollection CollectModelItems(Autodesk.Navisworks.Api.Document doc)
-        {
-            var result = new ModelItemCollection();
-            if (doc == null) return result;
-            var roots = doc.Models.CreateCollectionFromRootItems();
-            var seen = new HashSet<ModelItem>();
-            foreach (var root in roots)
-                CollectModelItemsRecursive(root, result, seen);
-            return result;
-        }
-
-        private static void CollectModelItemsRecursive(ModelItem item, ModelItemCollection result, HashSet<ModelItem> seen)
-        {
-            if (item == null) return;
-            if (!seen.Add(item)) return;
-            result.Add(item);
-            if (item.Children != null)
-                foreach (var child in item.Children)
-                    CollectModelItemsRecursive(child, result, seen);
         }
 
         private static string FindPropertyValue(ModelItem item, (string Category, string Name)[] aliases)
