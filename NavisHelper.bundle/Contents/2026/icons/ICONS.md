@@ -6,8 +6,8 @@
 
 ## Каталог идентификаторов
 
-- Модель: `parent`, `child`, `sibling`, `leaf`, `all_under`, `selection_invert`,
-  `selection_isolate`, `selection_unhide`, `selection_set_prop`, `selection_search_set`,
+- Модель: `parent`, `child`, `sibling`, `leaf`, `all_under`,
+  `selection_search_set`,
   `copy_names`, `selection_bounds_info`, `filter`, `selection_save`, `selection_recall`.
 - Данные: `csv_import`, `import_ps`, `save_hierarchy`, `save_nwd2018`,
   `export_selected_props`.

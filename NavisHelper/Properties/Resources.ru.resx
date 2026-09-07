@@ -293,9 +293,6 @@
   <data name="Panel_Model_CopyNames_ToolTip" xml:space="preserve">
     <value>Копировать DisplayName выделенных объектов в буфер обмена (Ctrl+M)</value>
   </data>
-  <data name="Panel_Colors_SelectByProperty_Action" xml:space="preserve">
-    <value>Скопировать выборку по значению свойства</value>
-  </data>
   <data name="Panel_Colors_Ai_CopyResponse_ToolTip" xml:space="preserve">
     <value>Копировать ответ в буфер обмена</value>
   </data>
@@ -411,9 +408,6 @@
   <data name="Panel_HeightMarks_Group_SessionObjects" xml:space="preserve">
     <value>Сессионные группы объектов</value>
   </data>
-  <data name="Panel_Model_Isolate_ToolTip" xml:space="preserve">
-    <value>Скрыть всё, кроме выделенного</value>
-  </data>
   <data name="Panel_HideGraphics" xml:space="preserve">
     <value>Скрыть Graphics</value>
   </data>
@@ -454,15 +448,6 @@
   </data>
   <data name="Panel_Selection_MemoryCount_Format" xml:space="preserve">
     <value>в памяти: {0} объектов</value>
-  </data>
-  <data name="Panel_Invert" xml:space="preserve">
-    <value>Инвертировать</value>
-  </data>
-  <data name="Panel_Selection_Invert_ToolTip" xml:space="preserve">
-    <value>Инвертировать текущую выборку</value>
-  </data>
-  <data name="Panel_Isolate" xml:space="preserve">
-    <value>Изолировать</value>
   </data>
   <data name="Panel_Level" xml:space="preserve">
     <value>Уровень</value>
@@ -514,9 +499,6 @@
   </data>
   <data name="Panel_Model_Group_SelectionMemory" xml:space="preserve">
     <value>Запомнить выборку</value>
-  </data>
-  <data name="Panel_Model_Group_SelectionOperations" xml:space="preserve">
-    <value>Операции с выборкой</value>
   </data>
   <data name="Panel_Model_Group_TreeNavigation" xml:space="preserve">
     <value>Навигация по дереву</value>
@@ -730,9 +712,6 @@
   <data name="Panel_Clash_GroupTree_Instruction" xml:space="preserve">
     <value>Выберите уровень дерева, чтобы сгруппировать коллизии по этому объекту</value>
   </data>
-  <data name="Panel_Colors_SelectByProperty_Label" xml:space="preserve">
-    <value>Выбрать по свойству</value>
-  </data>
   <data name="Panel_Colors_SearchSet_SelectAfterCreate_ToolTip" xml:space="preserve">
     <value>Выделить найденные элементы после создания</value>
   </data>
@@ -751,9 +730,6 @@
   </data>
   <data name="Panel_Section_Show_ToolTip" xml:space="preserve">
     <value>Установить Section Box по текущему выделению</value>
-  </data>
-  <data name="Panel_Selection_UnhideAll_ToolTip" xml:space="preserve">
-    <value>Показать все элементы</value>
   </data>
   <data name="Panel_HeightMarks_Graphics_ToolTip" xml:space="preserve">
     <value>Показать временные Graphics.Text2D-метки для текущего выделения, не меняя камеру.</value>
@@ -838,9 +814,6 @@
   </data>
   <data name="Panel_TransparentContext" xml:space="preserve">
     <value>Прозрачный контекст</value>
-  </data>
-  <data name="Panel_UnhideAll" xml:space="preserve">
-    <value>Показать всё</value>
   </data>
   <data name="Panel_Clash_Transparency_Description" xml:space="preserve">
     <value>Используется только для визуального просмотра выбранной коллизии в форме. Saved Viewpoints сохраняются без прозрачности.</value>
@@ -1642,24 +1615,6 @@
   <data name="Panel_Selection_MemoryRestored_Format" xml:space="preserve">
     <value>Слот {0}: восстановлено {1} эл.</value>
   </data>
-  <data name="Panel_Selection_Invert_SelectItems" xml:space="preserve">
-    <value>Выделите хотя бы один элемент для инверсии.</value>
-  </data>
-  <data name="Panel_Selection_Invert_Result_Format" xml:space="preserve">
-    <value>Инвертировано: выбрано {0} эл.</value>
-  </data>
-  <data name="Panel_Selection_Isolate_SelectItems" xml:space="preserve">
-    <value>Выделите элементы для Isolate.</value>
-  </data>
-  <data name="Panel_Selection_Isolate_Result_Format" xml:space="preserve">
-    <value>Isolate: скрыто {0} эл.</value>
-  </data>
-  <data name="Panel_Selection_Unhide_Result" xml:space="preserve">
-    <value>Все элементы показаны</value>
-  </data>
-  <data name="Panel_Selection_Unhide_Empty" xml:space="preserve">
-    <value>В документе нет скрытых элементов модели.</value>
-  </data>
   <data name="Panel_Selection_Bounds_Title" xml:space="preserve">
     <value>Габариты выделения</value>
   </data>
@@ -1817,19 +1772,6 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Panel_Colors_OverridesReset" xml:space="preserve">
     <value>Overrides NavisHelper сброшены</value>
   </data>
-  <data name="Panel_Colors_SelectByProperty_SelectItems" xml:space="preserve">
-    <value>Выделите один или несколько элементов.</value>
-  </data>
-  <data name="Panel_Colors_SelectByProperty_Prompt_Format" xml:space="preserve">
-    <value>Введите точное значение свойства (Система / Спец / Отметка):
-Доступные из выделения: {0}</value>
-  </data>
-  <data name="Panel_Colors_SelectByProperty_NoMatches" xml:space="preserve">
-    <value>По этому значению ничего не найдено.</value>
-  </data>
-  <data name="Panel_Colors_SelectByProperty_Result_Format" xml:space="preserve">
-    <value>Выделено по значению: {0} эл.</value>
-  </data>
   <data name="Panel_Colors_SearchSet_Title" xml:space="preserve">
     <value>Поисковый набор</value>
   </data>
@@ -1950,12 +1892,6 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Panel_CommandPalette_FilterByList_Description" xml:space="preserve">
     <value>Отфильтровать модель списком имён из файла</value>
   </data>
-  <data name="Panel_CommandPalette_SelectByProperty_Title" xml:space="preserve">
-    <value>Select by Property Value</value>
-  </data>
-  <data name="Panel_CommandPalette_SelectByProperty_Description" xml:space="preserve">
-    <value>Выбрать по значению свойства из выделения</value>
-  </data>
   <data name="Panel_CommandPalette_SaveSearchSet_Title" xml:space="preserve">
     <value>Сохранить поисковый набор</value>
   </data>
@@ -1991,24 +1927,6 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   </data>
   <data name="Panel_CommandPalette_AllUnder_Description" xml:space="preserve">
     <value>Выбрать все потомки выделенных элементов</value>
-  </data>
-  <data name="Panel_CommandPalette_InvertSelection_Title" xml:space="preserve">
-    <value>Invert Selection</value>
-  </data>
-  <data name="Panel_CommandPalette_InvertSelection_Description" xml:space="preserve">
-    <value>Инвертировать текущую выборку</value>
-  </data>
-  <data name="Panel_CommandPalette_Isolate_Title" xml:space="preserve">
-    <value>Isolate</value>
-  </data>
-  <data name="Panel_CommandPalette_Isolate_Description" xml:space="preserve">
-    <value>Скрыть все, кроме текущей выборки</value>
-  </data>
-  <data name="Panel_CommandPalette_UnhideAll_Title" xml:space="preserve">
-    <value>Unhide All</value>
-  </data>
-  <data name="Panel_CommandPalette_UnhideAll_Description" xml:space="preserve">
-    <value>Показать все элементы</value>
   </data>
   <data name="Panel_CommandPalette_RememberSelection_Title" xml:space="preserve">
     <value>Запомнить выборку</value>
@@ -2483,32 +2401,7 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Panel_Colors_Match_Title" xml:space="preserve"><value>Сопоставление цвета</value></data>
   <data name="Panel_Colors_Property_Title" xml:space="preserve"><value>Цвет по свойству</value></data>
   <data name="Panel_Colors_Overrides_Title" xml:space="preserve"><value>Сброс переопределений</value></data>
-  <data name="Panel_Colors_SelectByProperty_Title" xml:space="preserve"><value>Выбор по значению свойства</value></data>
   <data name="Panel_Selection_Memory_Title" xml:space="preserve"><value>Слот выделения</value></data>
-  <data name="Panel_Selection_Invert_Title" xml:space="preserve"><value>Инвертировать выделение</value></data>
-  <data name="Panel_Selection_Isolate_Title" xml:space="preserve"><value>Изолировать</value></data>
-  <data name="Panel_Selection_Unhide_Title" xml:space="preserve"><value>Показать всё</value></data>
-  <data name="Panel_ModelScan_Running" xml:space="preserve"><value>Сканирование элементов модели…</value></data>
-  <data name="Panel_ModelScan_Busy" xml:space="preserve"><value>Другое сканирование модели уже выполняется.</value></data>
-  <data name="Panel_ModelScan_Canceled" xml:space="preserve"><value>Сканирование модели отменено. Изменения не применены.</value></data>
-  <data name="Panel_ModelScan_DocumentChanged" xml:space="preserve"><value>Активный документ изменился. Изменения не применены.</value></data>
-  <data name="Panel_ModelScan_SourceChanged" xml:space="preserve"><value>Во время сканирования изменилась модель или выделение. Изменения не применены.</value></data>
-  <data name="Panel_ModelScan_Suspended" xml:space="preserve"><value>Сканирование модели недоступно, пока панель неактивна. Изменения не применены.</value></data>
-  <data name="Panel_ModelScan_Phase_Scan" xml:space="preserve"><value>Сканирование элементов модели; общее число неизвестно…</value></data>
-  <data name="Panel_ModelScan_Visited_Format" xml:space="preserve"><value>Обработано {0} элементов; общее число неизвестно.</value></data>
-  <data name="Panel_ModelScan_Phase_Verify" xml:space="preserve"><value>Проверка выделения…</value></data>
-  <data name="Panel_ModelScan_Preparing" xml:space="preserve"><value>Подготовка операции…</value></data>
-  <data name="Panel_ModelScan_Phase_ApplySelection" xml:space="preserve"><value>Применение выделения…</value></data>
-  <data name="Panel_ModelScan_Phase_ApplyVisibility" xml:space="preserve"><value>Применение видимости…</value></data>
-  <data name="Panel_ModelScan_ApplyFailed_Title" xml:space="preserve"><value>Не удалось применить изменения</value></data>
-  <data name="Panel_ModelScan_ApplyFailedRestored_Format" xml:space="preserve"><value>Не удалось применить изменения. Исходное состояние восстановлено и проверено: {0}</value></data>
-  <data name="Panel_ModelScan_ApplyFailedUnknown_Format" xml:space="preserve"><value>Не удалось применить изменения. Текущее состояние не удалось подтвердить; возможны частичные изменения. Проверьте выделение и видимость перед следующей операцией: {0}</value></data>
-  <data name="Panel_ModelScan_Phase_Restore" xml:space="preserve"><value>Восстановление и проверка исходного состояния; отмена недоступна…</value></data>
-  <data name="Panel_ModelScan_SnapshotUnavailable" xml:space="preserve"><value>Не удалось безопасно сохранить состояние видимости для восстановления. Изменения не применены.</value></data>
-  <data name="Panel_ModelScan_SelectByProperty_Progress" xml:space="preserve"><value>NavisHelper: выбор по значению свойства</value></data>
-  <data name="Panel_ModelScan_Invert_Progress" xml:space="preserve"><value>NavisHelper: инвертирование выделения</value></data>
-  <data name="Panel_ModelScan_Isolate_Progress" xml:space="preserve"><value>NavisHelper: изоляция выделения</value></data>
-  <data name="Panel_ModelScan_Unhide_Progress" xml:space="preserve"><value>NavisHelper: отображение элементов модели</value></data>
   <data name="Panel_Selection_SectionBox_Title" xml:space="preserve"><value>Секущий параллелепипед</value></data>
   <data name="Panel_Clash_Column_New" xml:space="preserve"><value>Нов.</value></data>
   <data name="Panel_Clash_Column_Active" xml:space="preserve"><value>Акт.</value></data>

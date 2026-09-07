@@ -59,17 +59,6 @@ namespace NavisHelper.WPF
             navRow2.Children.Add(NavBtn("all_under", "\U0001F4C2", "Panel_AllUnder", null, "Panel_Model_AllDescendants_ToolTip", TreeNavigation.SelectAllUnder, requiresSelection: true));
             stack.Children.Add(navRow2);
 
-            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_SelectionOperations"));
-            var setOpsRow = new WrapPanel();
-            setOpsRow.Children.Add(ActionBtn("selection_invert", "\U00002195", "Panel_Invert", "Panel_Selection_Invert_ToolTip", InvertSelection, requiresSelection: true));
-            setOpsRow.Children.Add(ActionBtn("selection_isolate", "\U0001F5D1", "Panel_Isolate", "Panel_Model_Isolate_ToolTip", IsolateSelection, 0, ButtonKind.Destructive, true));
-            setOpsRow.Children.Add(ActionBtn("selection_unhide", "\U0001F513", "Panel_UnhideAll", "Panel_Selection_UnhideAll_ToolTip", UnhideAll));
-            stack.Children.Add(setOpsRow);
-
-            var selectByPropertyRow = new WrapPanel();
-            selectByPropertyRow.Children.Add(ActionBtn("selection_set_prop", "\U0001F50D", "Panel_Colors_SelectByProperty_Label", "Panel_Colors_SelectByProperty_Action", OnSelectByPropertyValue, requiresSelection: true));
-            stack.Children.Add(selectByPropertyRow);
-
             stack.Children.Add(CreateGroupHeader("Panel_Model_Group_SearchSets"));
             var searchSetRow = new WrapPanel();
             searchSetRow.Children.Add(ActionBtn("selection_search_set", "\U0001F4C1", "Panel_SaveSearch", "Panel_Colors_SearchSet_Action_ToolTip", OnCreateSearchSelectionSet));

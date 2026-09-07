@@ -9,7 +9,6 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -556,116 +555,6 @@ namespace NavisHelper.WPF
             {
                 MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Overrides_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-        private async void OnSelectByPropertyValue()
-        {
-            try
-            {
-                await SelectByPropertyValueAsync();
-            }
-            catch (Exception ex)
-            {
-                ReportModelScanFailure(ex);
-                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_SelectByProperty_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private async Task<TaskAwareCommandOutcome> SelectByPropertyValueAsync()
-        {
-                if (!EnsureModelScanAvailable())
-                    return TaskAwareCommandOutcome.NotCompleted;
-                var doc = NwApplication.ActiveDocument;
-                if (doc == null) return TaskAwareCommandOutcome.NotCompleted;
-
-                var selected = doc.CurrentSelection.SelectedItems;
-                if (selected == null || selected.Count == 0)
-                {
-                    MessageBox.Show(PanelUi("Panel_Colors_SelectByProperty_SelectItems"), PanelUi("Panel_Colors_SelectByProperty_Title"));
-                    return TaskAwareCommandOutcome.NotCompleted;
-                }
-
-                var documentIdentity = UiThreadModelScanDocumentIdentity.Capture(doc);
-                var sourceValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                // Suggestions are best-effort within a short time/item budget.
-                // One native property lookup remains indivisible.
-                const int SuggestionProbeItemLimit = 256;
-                const int SuggestionProbeValueLimit = 16;
-                var suggestionTimer = Stopwatch.StartNew();
-                int probed = 0;
-                foreach (var item in selected)
-                {
-                    if (probed++ >= SuggestionProbeItemLimit ||
-                        sourceValues.Count >= SuggestionProbeValueLimit ||
-                        suggestionTimer.Elapsed >= TimeSpan.FromMilliseconds(12))
-                    {
-                        break;
-                    }
-                    var value = FindPropertyValue(item, PropertyAliases);
-                    if (!string.IsNullOrWhiteSpace(value))
-                        sourceValues.Add(value);
-                }
-
-                var suggestion = string.Join(", ", sourceValues.Take(6));
-                var input = Microsoft.VisualBasic.Interaction.InputBox(
-                    UiLocalizationService.Current.Format(
-                        "Panel_Colors_SelectByProperty_Prompt_Format",
-                        suggestion),
-                    PanelUi("Panel_Colors_SelectByProperty_Title"),
-                    sourceValues.FirstOrDefault() ?? string.Empty);
-
-                if (string.IsNullOrWhiteSpace(input))
-                    return TaskAwareCommandOutcome.NotCompleted;
-
-                if (!EnsureModelScanAvailable())
-                    return TaskAwareCommandOutcome.NotCompleted;
-                if (!ReferenceEquals(NwApplication.ActiveDocument, doc) ||
-                    documentIdentity == null || !documentIdentity.Matches(doc))
-                {
-                    SetGlobalStatusResource("Panel_ModelScan_DocumentChanged", Brushes.Orange);
-                    return TaskAwareCommandOutcome.NotCompleted;
-                }
-
-                input = input.Trim();
-                SetGlobalStatusResource(
-                    "Panel_ModelScan_Preparing",
-                    Brushes.DarkGoldenrod);
-                var request = new UiThreadModelOperationRequest
-                {
-                    ProgressCaption = PanelUi("Panel_ModelScan_SelectByProperty_Progress"),
-                    PreparePhaseMessage = PanelUi("Panel_ModelScan_Preparing"),
-                    ScanPhaseMessage = PanelUi("Panel_ModelScan_Phase_Scan"),
-                    ReportScanProgress = ReportModelScanProgress,
-                    VerifyPhaseMessage = PanelUi("Panel_ModelScan_Phase_Verify"),
-                    ApplyPhaseMessage = PanelUi("Panel_ModelScan_Phase_ApplySelection"),
-                    RecoveryPhaseMessage = PanelUi("Panel_ModelScan_Phase_Restore"),
-                    SnapshotUnavailableMessage = PanelUi("Panel_ModelScan_SnapshotUnavailable"),
-                    ObservedChanges = CooperativeModelScanInvalidation.ModelProperties |
-                                      CooperativeModelScanInvalidation.Selection,
-                    ApplyKind = CooperativeModelApplyKind.ReplaceSelection,
-                    ApplyOnlyIfNonEmptyResult = true
-                };
-                request.PrepareAsync = async preparation =>
-                {
-                    request.CommitGuardSelection = await preparation.CopySelectionAsync();
-                    request.IncludeItem = item => string.Equals(
-                        FindPropertyValue(item, PropertyAliases),
-                        input,
-                        StringComparison.OrdinalIgnoreCase);
-                };
-                var operation = await _modelScanCoordinator.RunOperationAsync(doc, request);
-                if (ReportIncompleteModelScan(operation))
-                    return TaskAwareCommandOutcome.NotCompleted;
-
-                if (operation.ApplyStatus == CooperativeModelApplyStatus.SkippedEmpty)
-                {
-                    SetGlobalStatusResource("Panel_Colors_SelectByProperty_NoMatches", Brushes.Orange);
-                    MessageBox.Show(PanelUi("Panel_Colors_SelectByProperty_NoMatches"), PanelUi("Panel_Colors_SelectByProperty_Title"));
-                    return TaskAwareCommandOutcome.NotCompleted;
-                }
-
-                SetGlobalStatusResource("Panel_Colors_SelectByProperty_Result_Format", Brushes.DarkGreen, operation.ScanItemCount);
-                return TaskAwareCommandOutcome.Completed;
         }
 
         private void OnCreateSearchSelectionSet()
