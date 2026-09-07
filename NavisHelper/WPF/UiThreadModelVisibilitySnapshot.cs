@@ -14,9 +14,9 @@ namespace NavisHelper.WPF
         internal VisibilitySnapshot<ModelItem> State { get; } =
             new VisibilitySnapshot<ModelItem>(new InstanceComparer());
 
-        internal bool TryRecord(ModelItem item)
+        internal bool TryRecord(ModelItem item, out bool hidden)
         {
-            bool hidden = item.IsHidden;
+            hidden = item.IsHidden;
             try
             {
                 State.Record(item, hidden);

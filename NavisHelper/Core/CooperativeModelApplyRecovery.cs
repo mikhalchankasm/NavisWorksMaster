@@ -90,8 +90,6 @@ namespace NavisHelper.Core
         private readonly Dictionary<T, bool> _instanceFlags;
         private readonly List<T> _originallyVisible = new List<T>();
         private readonly List<T> _originallyHidden = new List<T>();
-        private readonly List<KeyValuePair<T, bool>> _records =
-            new List<KeyValuePair<T, bool>>();
 
         internal VisibilitySnapshot(IEqualityComparer<T> instanceComparer = null)
         {
@@ -99,12 +97,20 @@ namespace NavisHelper.Core
                 instanceComparer ?? EqualityComparer<T>.Default);
             Visible = _originallyVisible.AsReadOnly();
             Hidden = _originallyHidden.AsReadOnly();
-            Entries = _records.AsReadOnly();
         }
 
         internal IReadOnlyList<T> Visible { get; }
         internal IReadOnlyList<T> Hidden { get; }
-        internal IReadOnlyList<KeyValuePair<T, bool>> Entries { get; }
+        internal IEnumerable<KeyValuePair<T, bool>> Entries
+        {
+            get
+            {
+                foreach (var item in _originallyVisible)
+                    yield return new KeyValuePair<T, bool>(item, false);
+                foreach (var item in _originallyHidden)
+                    yield return new KeyValuePair<T, bool>(item, true);
+            }
+        }
 
         internal void Record(T item, bool wasHidden)
         {
@@ -126,7 +132,6 @@ namespace NavisHelper.Core
 
             // Keep each hierarchy entry for full readback, even when another
             // entry shares its instance identity.
-            _records.Add(new KeyValuePair<T, bool>(item, wasHidden));
             if (wasHidden)
                 _originallyHidden.Add(item);
             else

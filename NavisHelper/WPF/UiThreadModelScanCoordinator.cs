@@ -300,10 +300,14 @@ namespace NavisHelper.WPF
                                 }
 
                                 context.VisitedItems++;
+                                bool wasHidden = false;
                                 if (context.VisibilitySnapshot != null &&
-                                    !context.VisibilitySnapshot.TryRecord(item))
+                                    !context.VisibilitySnapshot.TryRecord(item, out wasHidden))
                                     throw new InvalidOperationException(request.SnapshotUnavailableMessage);
-                                if (request.IncludeItem(item))
+                                // Avoid no-op writes and keep a compact inverse
+                                // operation ready for recovery before mutation.
+                                if (request.IncludeItem(item) && (!changesVisibility ||
+                                    CooperativeModelVisibilityPolicy.NeedsChange(wasHidden, request.ApplyKind)))
                                     context.ScanResult.Add(item);
                                 processedInChunk++;
                             }
@@ -624,7 +628,7 @@ namespace NavisHelper.WPF
                 Func<Task> yield = async () =>
                 {
                     await YieldToDispatcherAsync();
-                    checkIdentity();
+                    check();
                 };
                 Action<int, TimeSpan> report = (count, elapsed) =>
                 {
@@ -658,12 +662,12 @@ namespace NavisHelper.WPF
                 else
                 {
                     var snapshot = context.VisibilitySnapshot.State;
-                    if (snapshot.Visible.Count > 0)
-                        restores.Add(() => SuppressSelfMutations(
-                            () => context.Document.Models.SetHidden(snapshot.Visible, false)));
-                    if (snapshot.Hidden.Count > 0)
-                        restores.Add(() => SuppressSelfMutations(
-                            () => context.Document.Models.SetHidden(snapshot.Hidden, true)));
+                    // Every result item needed a flag change before apply.
+                    // Reversing only that set also restores its aliases; the
+                    // full snapshot remains the independent readback evidence.
+                    restores.Add(() => SuppressSelfMutations(
+                        () => context.Document.Models.SetHidden(context.ScanResult,
+                            context.Request.ApplyKind == CooperativeModelApplyKind.ShowItems)));
                     verify = async () =>
                     {
                         bool matches = true;

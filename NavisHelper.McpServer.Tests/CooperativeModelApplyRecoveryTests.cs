@@ -5,6 +5,45 @@ namespace NavisHelper.McpServer.Tests;
 
 public sealed class CooperativeModelApplyRecoveryTests
 {
+    [Theory]
+    [InlineData(false, true, true)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, true)]
+    public void VisibilityApply_CollectsOnlyFlagsThatNeedChanging(bool hidden, bool hide, bool needsChange)
+    {
+        var kind = hide ? CooperativeModelApplyKind.HideItems : CooperativeModelApplyKind.ShowItems;
+        Assert.Equal(needsChange, CooperativeModelVisibilityPolicy.NeedsChange(hidden, kind));
+    }
+
+    [Fact]
+    public async Task SparseUnhideRecovery_WritesOnlyTheChangedInstanceSet()
+    {
+        var visible = Enumerable.Range(0, 1000).Select(i => new Item("visible", i, false)).ToList();
+        var hidden = new Item("hidden", 1000, true);
+        var alias = new Item("alias", 1000, true);
+        var model = visible.Concat(new[] { hidden, alias }).ToArray();
+        var snapshot = new VisibilitySnapshot<Item>(new InstanceComparer());
+        foreach (var item in model) snapshot.Record(item, item.Hidden);
+        var changed = model.Where(item => CooperativeModelVisibilityPolicy.NeedsChange(
+            item.Hidden, CooperativeModelApplyKind.ShowItems)).ToArray();
+        hidden.Hidden = false; // An apply failure after only one flag changed.
+        int recoveryInputs = 0;
+        var result = await CooperativeModelApplyRecovery.RecoverAsync(new Action[]
+        {
+            () =>
+            {
+                recoveryInputs = changed.Length;
+                var instances = changed.Select(item => item.InstanceId).ToHashSet();
+                foreach (var item in model.Where(item => instances.Contains(item.InstanceId)))
+                    item.Hidden = true;
+            }
+        }, () => { }, () => Task.FromResult(snapshot.Entries.All(pair => pair.Key.Hidden == pair.Value)));
+        Assert.Equal(2, recoveryInputs);
+        Assert.Equal(CooperativeModelRecoveryStatus.Restored, result.Status);
+        Assert.All(visible, item => Assert.False(item.Hidden));
+    }
+
     [Fact]
     public async Task PartialSelectionMutationThenThrow_RestoresOriginalSelection()
     {
@@ -187,7 +226,7 @@ public sealed class CooperativeModelApplyRecoveryTests
             () => Task.FromResult(snapshot.Entries.All(record => record.Key.Hidden == record.Value)));
 
         Assert.Equal(CooperativeModelRecoveryStatus.Restored, result.Status);
-        Assert.Equal(3, snapshot.Entries.Count);
+        Assert.Equal(3, snapshot.Entries.Count());
         Assert.Contains(unselectedAlias, snapshot.Visible);
         Assert.False(selected.Hidden);
         Assert.False(unselectedAlias.Hidden);
@@ -215,7 +254,7 @@ public sealed class CooperativeModelApplyRecoveryTests
         snapshot.Record(new Item("visible", 1, false), false);
         snapshot.Record(new Item("hidden", 2, true), true);
 
-        Assert.Equal(2, snapshot.Entries.Count);
+        Assert.Equal(2, snapshot.Entries.Count());
         Assert.Single(snapshot.Visible);
         Assert.Single(snapshot.Hidden);
     }

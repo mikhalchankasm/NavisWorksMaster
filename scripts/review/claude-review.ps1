@@ -5,6 +5,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$reviewEncoding = New-Object System.Text.UTF8Encoding($false)
+[Console]::InputEncoding = $reviewEncoding
+[Console]::OutputEncoding = $reviewEncoding
+$OutputEncoding = $reviewEncoding
 
 if ($PromptPath -and $Prompt) {
     throw 'Use either -PromptPath or -Prompt, not both.'

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using Autodesk.Navisworks.Api;
 
 namespace NavisHelper.WPF
@@ -42,7 +41,7 @@ namespace NavisHelper.WPF
                    string.Equals(
                        _modelFingerprint,
                        currentFingerprint,
-                       StringComparison.Ordinal) &&
+                       StringComparison.OrdinalIgnoreCase) &&
                    string.Equals(
                        _fileName,
                        NormalizePath(SafeRead(() => document.FileName)),
@@ -80,15 +79,9 @@ namespace NavisHelper.WPF
         {
             if (string.IsNullOrWhiteSpace(value))
                 return string.Empty;
-            try
-            {
-                return Path.GetFullPath(value.Trim());
-            }
-            catch
-            {
-                // Preserve the stable raw value when path normalization is unavailable.
-                return value.Trim();
-            }
+            // Relative model paths must not acquire process-CWD identity:
+            // a file dialog can change that directory while the UI yields.
+            return value.Trim().Replace('/', '\\');
         }
 
         private static string SafeRead(Func<string> read)

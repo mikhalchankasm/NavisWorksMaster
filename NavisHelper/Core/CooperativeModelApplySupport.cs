@@ -17,6 +17,15 @@ namespace NavisHelper.Core
         Completed
     }
 
+    internal static class CooperativeModelVisibilityPolicy
+    {
+        internal static bool NeedsChange(bool isHidden, CooperativeModelApplyKind kind)
+        {
+            return kind == CooperativeModelApplyKind.HideItems ? !isHidden :
+                   kind == CooperativeModelApplyKind.ShowItems && isHidden;
+        }
+    }
+
     /// <summary>
     /// Pure decision table for document-event invalidation of the running
     /// model operation. An event only cancels the active operation when the
