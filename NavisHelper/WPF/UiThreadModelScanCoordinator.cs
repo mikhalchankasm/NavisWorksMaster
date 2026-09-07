@@ -65,10 +65,6 @@ namespace NavisHelper.WPF
 
     internal sealed class UiThreadModelScanCoordinator : IDisposable
     {
-        // The scan sub-operation owns this share of the overall progress bar;
-        // the apply sub-operation owns the rest. The bar therefore never
-        // reaches completion before the apply phase has actually finished.
-        private const double ScanPhaseProgressShare = 0.75;
         private const int ApplyMaxItemsPerChunk = 4096;
 
         private readonly Dispatcher _dispatcher;
@@ -84,6 +80,7 @@ namespace NavisHelper.WPF
         private CooperativeSubscriptionSet _applicationSubscriptions;
         private CooperativeSubscriptionSet _documentSubscriptions;
         private Document _observedDocument;
+        private CooperativeModelScanInvalidation _activeObservedChanges;
         private bool _eventsAttached;
         private bool _attachRequested;
         private bool _disposed;
@@ -199,6 +196,7 @@ namespace NavisHelper.WPF
                     CooperativeModelScanStatus.Busy);
             }
 
+            _activeObservedChanges = observedChanges;
             var context = new OperationContext
             {
                 Document = document,
@@ -223,11 +221,14 @@ namespace NavisHelper.WPF
 
                 progress = NwApplication.BeginProgress(
                     request.ProgressCaption ?? string.Empty);
-                progressOwnership = new CooperativeProgressOwnership(EndProgressSafely);
+                // A null progress (degraded dialog) must not close a foreign
+                // progress scope when the ownership is disposed.
+                if (progress != null)
+                    progressOwnership = new CooperativeProgressOwnership(EndProgressSafely);
                 context.Progress = progress;
                 context.ScanSubOperationOpen = BeginSubOperationSafely(
                     progress,
-                    ScanPhaseProgressShare,
+                    CooperativeProgressPhaseMath.ScanPhaseShare,
                     request.ScanPhaseMessage);
                 var roots = CopyRoots(document);
                 var seen = new HashSet<ModelItem>();
@@ -276,8 +277,9 @@ namespace NavisHelper.WPF
                                 context.MaxScanChunkMs = Math.Max(
                                     context.MaxScanChunkMs,
                                     chunkTimer.ElapsedMilliseconds);
-                                UpdateProgressSafely(
-                                    progress,
+                                PublishScanTimingSnapshot(context, scanTimer);
+                                UpdateScanProgress(
+                                    context,
                                     _chunkPolicy.CalculateProgress(
                                         rootIndex,
                                         roots.Count,
@@ -287,8 +289,8 @@ namespace NavisHelper.WPF
                         }
                     }
 
-                    UpdateProgressSafely(
-                        progress,
+                    UpdateScanProgress(
+                        context,
                         (double)(rootIndex + 1) / Math.Max(1, roots.Count));
                     await Dispatcher.Yield(DispatcherPriority.Background);
                 }
@@ -297,10 +299,7 @@ namespace NavisHelper.WPF
                 scanTimer.Stop();
                 context.Result.Status = CooperativeModelScanStatus.Completed;
                 context.Result.ScanItemCount = context.ScanResult.Count;
-                context.Result.Timings.ScanMs = scanTimer.ElapsedMilliseconds;
-                context.Result.Timings.ScanChunks = context.ScanChunks;
-                context.Result.Timings.MaxScanChunkMs = context.MaxScanChunkMs;
-                context.Result.Timings.VisitedItems = context.VisitedItems;
+                PublishScanTimingSnapshot(context, scanTimer);
 
                 await RunCommitGateAndApplyAsync(context);
                 return context.Result;
@@ -308,10 +307,14 @@ namespace NavisHelper.WPF
             finally
             {
                 totalTimer.Stop();
+                if (scanTimer.IsRunning)
+                    scanTimer.Stop();
+                PublishScanTimingSnapshot(context, scanTimer);
                 EndSubOperationSafely(context, isApplySubOperation: true);
                 EndSubOperationSafely(context, isApplySubOperation: false);
                 progressOwnership?.Dispose();
                 operation.Dispose();
+                _activeObservedChanges = CooperativeModelScanInvalidation.None;
                 context.Result.Timings.TotalMs = totalTimer.ElapsedMilliseconds;
                 LogOperationResult(request, context.Result);
             }
@@ -374,24 +377,17 @@ namespace NavisHelper.WPF
 
         /// <summary>
         /// Applies the scan result in bounded chunks with UI yields. Cancel
-        /// and invalidation are honored until the first mutation; after it the
-        /// operation completes its remaining bounded chunks so a cancel can
-        /// never leave the model partially changed. An exception mid-apply
-        /// triggers a rollback to the captured original state.
+        /// and invalidation are re-checked before every chunk: a stop request
+        /// mid-apply rolls the already-applied chunks back to the captured
+        /// original state, so the model is never left partially changed and
+        /// the reported status never claims a rollback that did not happen.
+        /// The suppression window covers only the mutation calls themselves;
+        /// events observed outside it (foreign edits, deferred self-events)
+        /// stop the operation through the normal rollback path.
         /// </summary>
         private async Task ApplyAsync(
             OperationContext context)
         {
-            // Last cancellation point before the irreversible boundary. The
-            // full stop reason (lease, generation, document, progress dialog)
-            // is re-checked here, right before the first mutation.
-            var stopReason = GetStopReason(context);
-            if (stopReason.HasValue)
-            {
-                context.Result.Status = stopReason.Value;
-                return;
-            }
-
             var progress = context.Progress;
             var applyTimer = Stopwatch.StartNew();
             context.ApplySubOperationOpen = BeginSubOperationSafely(
@@ -403,35 +399,47 @@ namespace NavisHelper.WPF
             var document = context.Document;
             var scanResult = context.ScanResult;
 
-            _suppressor.Begin();
             try
             {
                 var chunks = CooperativeModelApplyChunker.Plan(
                     scanResult.Count,
                     ApplyMaxItemsPerChunk);
-                if (request.ApplyKind == CooperativeModelApplyKind.ReplaceSelection)
-                {
-                    // Clear() is the first mutation of the irreversible phase.
-                    document.CurrentSelection.Clear();
-                }
-
                 foreach (var chunk in chunks)
                 {
+                    // Stop requests (cancel button, lease cancellation,
+                    // invalidation observed by this operation) are honored
+                    // between chunks and route through the rollback path.
+                    var stopReason = GetStopReason(context);
+                    if (stopReason.HasValue)
+                    {
+                        CancelWithRollback(context, rollback, applyTimer, stopReason.Value);
+                        return;
+                    }
+
                     var chunkTimer = Stopwatch.StartNew();
                     var slice = BuildSlice(scanResult, chunk);
 
                     switch (request.ApplyKind)
                     {
                         case CooperativeModelApplyKind.ReplaceSelection:
-                            document.CurrentSelection.AddRange(slice);
+                            if (chunk.Start == 0)
+                            {
+                                // Clear() is the first mutation of the
+                                // irreversible-until-rolled-back phase.
+                                SuppressSelfMutations(
+                                    () => document.CurrentSelection.Clear());
+                            }
+                            SuppressSelfMutations(
+                                () => document.CurrentSelection.AddRange(slice));
                             break;
                         case CooperativeModelApplyKind.HideItems:
                         case CooperativeModelApplyKind.ShowItems:
                             foreach (var item in slice)
                                 rollback.Record(item, item.IsHidden);
-                            document.Models.SetHidden(
-                                slice,
-                                request.ApplyKind == CooperativeModelApplyKind.HideItems);
+                            SuppressSelfMutations(
+                                () => document.Models.SetHidden(
+                                    slice,
+                                    request.ApplyKind == CooperativeModelApplyKind.HideItems));
                             break;
                     }
 
@@ -441,16 +449,15 @@ namespace NavisHelper.WPF
                     context.MaxApplyChunkMs = Math.Max(
                         context.MaxApplyChunkMs,
                         chunkTimer.ElapsedMilliseconds);
-                    UpdateProgressSafely(
-                        progress,
+                    PublishApplyTimingSnapshot(context, applyTimer);
+                    UpdateApplyProgress(
+                        context,
                         (double)(chunk.Start + chunk.Count) / Math.Max(1, scanResult.Count));
                     await Dispatcher.Yield(DispatcherPriority.Background);
                 }
 
                 context.Result.ApplyStatus = CooperativeModelApplyStatus.Completed;
-                context.Result.Timings.ApplyMs = applyTimer.ElapsedMilliseconds;
-                context.Result.Timings.ApplyChunks = context.ApplyChunks;
-                context.Result.Timings.MaxApplyChunkMs = context.MaxApplyChunkMs;
+                PublishApplyTimingSnapshot(context, applyTimer);
                 // Only now, with every chunk applied, may the bar reach full
                 // completion.
                 UpdateProgressSafely(progress, 1.0);
@@ -476,18 +483,66 @@ namespace NavisHelper.WPF
                 context.Result.ApplyStatus = rollbackError == null
                     ? CooperativeModelApplyStatus.FailedRolledBack
                     : CooperativeModelApplyStatus.FailedRollbackIncomplete;
-                context.Result.Timings.ApplyMs = applyTimer.ElapsedMilliseconds;
-                context.Result.Timings.ApplyChunks = context.ApplyChunks;
-                context.Result.Timings.MaxApplyChunkMs = context.MaxApplyChunkMs;
+                if (rollbackError == null)
+                    context.Result.AppliedItemCount = 0;
                 context.Result.Timings.RollbackMs = rollbackTimer.ElapsedMilliseconds;
+                PublishApplyTimingSnapshot(context, applyTimer);
                 Logger.Error(
                     "Model operation apply failed and was rolled back: " + applyError,
                     "ModelScan");
             }
             finally
             {
-                _suppressor.End();
                 EndSubOperationSafely(context, isApplySubOperation: true);
+            }
+        }
+
+        private void CancelWithRollback(
+            OperationContext context,
+            CooperativeHiddenStateRollback<ModelItem> rollback,
+            Stopwatch applyTimer,
+            CooperativeModelScanStatus stopStatus)
+        {
+            var rollbackTimer = Stopwatch.StartNew();
+            Exception rollbackError = null;
+            try
+            {
+                RollbackApply(context, rollback);
+            }
+            catch (Exception restoreError)
+            {
+                rollbackError = restoreError;
+            }
+            rollbackTimer.Stop();
+
+            context.Result.Status = stopStatus;
+            context.Result.ApplyError = rollbackError;
+            context.Result.ApplyStatus = rollbackError == null
+                ? CooperativeModelApplyStatus.CanceledRolledBack
+                : CooperativeModelApplyStatus.CanceledRollbackIncomplete;
+            if (rollbackError == null)
+                context.Result.AppliedItemCount = 0;
+            context.Result.Timings.RollbackMs = rollbackTimer.ElapsedMilliseconds;
+            PublishApplyTimingSnapshot(context, applyTimer);
+            if (rollbackError != null)
+            {
+                Logger.Error(
+                    "Model operation was stopped mid-apply and the rollback failed: " +
+                    rollbackError,
+                    "ModelScan");
+            }
+        }
+
+        private void SuppressSelfMutations(Action mutate)
+        {
+            _suppressor.Begin();
+            try
+            {
+                mutate();
+            }
+            finally
+            {
+                _suppressor.End();
             }
         }
 
@@ -510,7 +565,7 @@ namespace NavisHelper.WPF
             switch (request.ApplyKind)
             {
                 case CooperativeModelApplyKind.ReplaceSelection:
-                    document.CurrentSelection.Clear();
+                    SuppressSelfMutations(() => document.CurrentSelection.Clear());
                     var guard = request.CommitGuardSelection;
                     if (guard != null && guard.Count > 0)
                     {
@@ -518,7 +573,9 @@ namespace NavisHelper.WPF
                                      guard.Count,
                                      ApplyMaxItemsPerChunk))
                         {
-                            document.CurrentSelection.AddRange(BuildSlice(guard, chunk));
+                            var slice = BuildSlice(guard, chunk);
+                            SuppressSelfMutations(
+                                () => document.CurrentSelection.AddRange(slice));
                         }
                     }
                     break;
@@ -534,7 +591,9 @@ namespace NavisHelper.WPF
                             var slice = new List<ModelItem>(chunk.Count);
                             for (int i = chunk.Start; i < chunk.Start + chunk.Count; i++)
                                 slice.Add(batch.Items[i]);
-                            document.Models.SetHidden(slice, batch.Hidden);
+                            var restoreHidden = batch.Hidden;
+                            SuppressSelfMutations(
+                                () => document.Models.SetHidden(slice, restoreHidden));
                         }
                     }
                     break;
@@ -550,6 +609,10 @@ namespace NavisHelper.WPF
                 if (_dispatcher.HasShutdownStarted ||
                     _dispatcher.HasShutdownFinished)
                 {
+                    // Dispatcher shutdown cannot schedule the Dispose
+                    // continuation of an in-flight operation; its progress
+                    // dialog and lease are torn down with the process. This
+                    // is accepted at shutdown and documented here.
                     _attachRequested = false;
                     _disposed = true;
                     _lifecycle.Dispose();
@@ -650,12 +713,20 @@ namespace NavisHelper.WPF
             if (_disposed)
                 return;
 
-            // The apply phase legitimately fires selection and model
-            // collection events through its own mutations; suppressing them
-            // keeps the operation from invalidating itself. A document
-            // replacement is never suppressed.
-            if (_suppressor.IsSuppressed(change))
+            // The decision gates both the generation bump and the
+            // cancellation: an event the active operation did not opt in to
+            // observe must neither abort it nor poison its generation
+            // snapshot, and the apply phase's own synchronous mutation
+            // events must not invalidate the operation mid-apply. Without
+            // the shared gate an observed self-event would cancel the very
+            // operation that produced it on the next chunk check.
+            if (!CooperativeInvalidationDecision.ShouldCancelOperation(
+                    change,
+                    _activeObservedChanges,
+                    _suppressor.Active))
+            {
                 return;
+            }
 
             _generations.Invalidate(change);
             CancelCurrent();
@@ -665,8 +736,8 @@ namespace NavisHelper.WPF
         {
             if (ReferenceEquals(_observedDocument, document) &&
                 _documentSubscriptions != null &&
-                _documentSubscriptions.Count == 5 &&
-                _documentSubscriptions.ActiveCount == 5)
+                _documentSubscriptions.Count == DocumentSubscriptionCount &&
+                _documentSubscriptions.ActiveCount == DocumentSubscriptionCount)
             {
                 return;
             }
@@ -783,8 +854,6 @@ namespace NavisHelper.WPF
 
         private CooperativeModelScanStatus? GetStopReason(OperationContext context)
         {
-            if (!_attachRequested || !_lifecycle.CanStart)
-                return CooperativeModelScanStatus.Suspended;
             if (!IsCurrentDocument(context.Document) ||
                 !ReferenceEquals(_observedDocument, context.Document))
             {
@@ -801,6 +870,8 @@ namespace NavisHelper.WPF
             }
             if (context.Progress != null && context.Progress.IsCanceled)
                 return CooperativeModelScanStatus.Canceled;
+            if (!_attachRequested || !_lifecycle.CanStart)
+                return CooperativeModelScanStatus.Suspended;
             return null;
         }
 
@@ -896,15 +967,47 @@ namespace NavisHelper.WPF
             }
         }
 
+        /// <summary>
+        /// Updates progress inside the scan phase. When the scan
+        /// sub-operation is unavailable, the share mapping is applied
+        /// manually so the bar still never claims completion before the
+        /// apply phase has run.
+        /// </summary>
+        private static void UpdateScanProgress(
+            OperationContext context,
+            double scanFraction)
+        {
+            var overall = context.ScanSubOperationOpen
+                ? scanFraction
+                : CooperativeProgressPhaseMath.MapScanFraction(scanFraction);
+            UpdateProgressSafely(context.Progress, overall);
+        }
+
+        /// <summary>
+        /// Updates progress inside the apply phase, mapped into the
+        /// remaining overall share when the apply sub-operation is
+        /// unavailable, so a degraded dialog cannot jump backwards.
+        /// </summary>
+        private static void UpdateApplyProgress(
+            OperationContext context,
+            double applyFraction)
+        {
+            if (!context.ApplySubOperationOpen)
+            {
+                UpdateProgressSafely(
+                    context.Progress,
+                    CooperativeProgressPhaseMath.MapApplyFraction(applyFraction));
+                return;
+            }
+            UpdateProgressSafely(context.Progress, applyFraction);
+        }
+
         private static void UpdateProgressSafely(Progress progress, double fraction)
         {
             if (progress == null)
                 return;
             try
             {
-                // Update also reports the cancel request at the exact moment
-                // of the call; GetStopReason polls IsCanceled once per chunk,
-                // so both paths feed cancellation.
                 progress.Update(fraction);
             }
             catch (Exception ex)
@@ -927,6 +1030,25 @@ namespace NavisHelper.WPF
                     "Failed to close model-scan progress: " + ex,
                     "ModelScan");
             }
+        }
+
+        private static void PublishScanTimingSnapshot(
+            OperationContext context,
+            Stopwatch scanTimer)
+        {
+            context.Result.Timings.ScanMs = scanTimer.ElapsedMilliseconds;
+            context.Result.Timings.ScanChunks = context.ScanChunks;
+            context.Result.Timings.MaxScanChunkMs = context.MaxScanChunkMs;
+            context.Result.Timings.VisitedItems = context.VisitedItems;
+        }
+
+        private static void PublishApplyTimingSnapshot(
+            OperationContext context,
+            Stopwatch applyTimer)
+        {
+            context.Result.Timings.ApplyMs = applyTimer.ElapsedMilliseconds;
+            context.Result.Timings.ApplyChunks = context.ApplyChunks;
+            context.Result.Timings.MaxApplyChunkMs = context.MaxApplyChunkMs;
         }
 
         private static void LogOperationResult(
@@ -958,6 +1080,8 @@ namespace NavisHelper.WPF
                     "Model scanning must run on the Navisworks UI dispatcher.");
             }
         }
+
+        private const int DocumentSubscriptionCount = 5;
 
         private sealed class OperationContext
         {

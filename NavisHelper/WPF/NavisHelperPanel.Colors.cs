@@ -586,8 +586,18 @@ namespace NavisHelper.WPF
                 }
 
                 var sourceValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                // The suggestion probe is bounded so a huge selection cannot
+                // freeze the UI before the progress dialog even opens.
+                const int SuggestionProbeItemLimit = 256;
+                const int SuggestionProbeValueLimit = 16;
+                int probed = 0;
                 foreach (var item in selected)
                 {
+                    if (probed++ >= SuggestionProbeItemLimit ||
+                        sourceValues.Count >= SuggestionProbeValueLimit)
+                    {
+                        break;
+                    }
                     var value = FindPropertyValue(item, PropertyAliases);
                     if (!string.IsNullOrWhiteSpace(value))
                         sourceValues.Add(value);

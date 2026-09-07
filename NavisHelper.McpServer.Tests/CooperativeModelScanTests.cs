@@ -582,6 +582,101 @@ public sealed class CooperativeModelScanTests
     }
 
     [Fact]
+    public void InvalidationDecision_UnobservedChangeDoesNotCancelOperation()
+    {
+        // Regression for the review finding H-1: a selection click during an
+        // unhide-all (which observes no selection changes) must not abort
+        // the operation and misreport it as a user cancel.
+        var unhideObserved = CooperativeModelScanInvalidation.Document |
+                             CooperativeModelScanInvalidation.ModelCollection;
+
+        Assert.False(CooperativeInvalidationDecision.ShouldCancelOperation(
+            CooperativeModelScanInvalidation.Selection,
+            unhideObserved,
+            selfMutationInProgress: false));
+    }
+
+    [Fact]
+    public void InvalidationDecision_ObservedChangeCancelsOperation()
+    {
+        var invertObserved = CooperativeModelScanInvalidation.Document |
+                             CooperativeModelScanInvalidation.ModelCollection |
+                             CooperativeModelScanInvalidation.Selection;
+
+        Assert.True(CooperativeInvalidationDecision.ShouldCancelOperation(
+            CooperativeModelScanInvalidation.Selection,
+            invertObserved,
+            selfMutationInProgress: false));
+    }
+
+    [Fact]
+    public void InvalidationDecision_SelfMutationEventsNeverCancelOperation()
+    {
+        var observed = CooperativeModelScanInvalidation.Selection |
+                       CooperativeModelScanInvalidation.ModelCollection |
+                       CooperativeModelScanInvalidation.ModelProperties;
+
+        Assert.False(CooperativeInvalidationDecision.ShouldCancelOperation(
+            CooperativeModelScanInvalidation.Selection,
+            observed,
+            selfMutationInProgress: true));
+        Assert.False(CooperativeInvalidationDecision.ShouldCancelOperation(
+            CooperativeModelScanInvalidation.ModelCollection,
+            observed,
+            selfMutationInProgress: true));
+    }
+
+    [Fact]
+    public void InvalidationDecision_DocumentReplacementAlwaysCancels()
+    {
+        Assert.True(CooperativeInvalidationDecision.ShouldCancelOperation(
+            CooperativeModelScanInvalidation.Document,
+            CooperativeModelScanInvalidation.None,
+            selfMutationInProgress: true));
+    }
+
+    [Fact]
+    public void ProgressPhaseMath_ScanNeverFillsTheBar()
+    {
+        Assert.Equal(0.0, CooperativeProgressPhaseMath.MapScanFraction(0.0));
+        Assert.Equal(
+            CooperativeProgressPhaseMath.ScanPhaseShare,
+            CooperativeProgressPhaseMath.MapScanFraction(1.0));
+        Assert.True(
+            CooperativeProgressPhaseMath.MapScanFraction(0.999) <
+            CooperativeProgressPhaseMath.ScanPhaseShare);
+        Assert.True(CooperativeProgressPhaseMath.ScanPhaseShare < 1.0);
+    }
+
+    [Fact]
+    public void ProgressPhaseMath_ApplyCompletesTheBarOnlyAtTheEnd()
+    {
+        Assert.Equal(
+            CooperativeProgressPhaseMath.ScanPhaseShare,
+            CooperativeProgressPhaseMath.MapApplyFraction(0.0));
+        Assert.Equal(1.0, CooperativeProgressPhaseMath.MapApplyFraction(1.0));
+        Assert.True(
+            CooperativeProgressPhaseMath.MapApplyFraction(0.5) >
+            CooperativeProgressPhaseMath.ScanPhaseShare);
+        Assert.True(
+            CooperativeProgressPhaseMath.MapApplyFraction(0.5) < 1.0);
+    }
+
+    [Theory]
+    [InlineData(-1.0)]
+    [InlineData(2.0)]
+    [InlineData(double.NaN)]
+    public void ProgressPhaseMath_ClampsDegenerateFractions(double fraction)
+    {
+        var scan = CooperativeProgressPhaseMath.MapScanFraction(fraction);
+        var apply = CooperativeProgressPhaseMath.MapApplyFraction(fraction);
+
+        Assert.InRange(scan, 0.0, CooperativeProgressPhaseMath.ScanPhaseShare);
+        Assert.InRange(apply, CooperativeProgressPhaseMath.ScanPhaseShare, 1.0);
+        Assert.True(apply >= scan);
+    }
+
+    [Fact]
     public void SourceGuard_ModelApiScanStaysOnCooperativeUiDispatcher()
     {
         var root = FindRepositoryRoot();
@@ -649,7 +744,10 @@ public sealed class CooperativeModelScanTests
             "private void InvalidateCurrent",
             "private void ObserveDocument");
         Assert.Contains("if (_disposed)", invalidateCurrent, StringComparison.Ordinal);
-        Assert.Contains("_suppressor.IsSuppressed(change)", invalidateCurrent, StringComparison.Ordinal);
+        Assert.Contains(
+            "CooperativeInvalidationDecision.ShouldCancelOperation(",
+            invalidateCurrent,
+            StringComparison.Ordinal);
         Assert.Contains("CooperativeDepthFirstTraversal<ModelItem>", coordinator, StringComparison.Ordinal);
         var runOperation = Slice(
             coordinator,
@@ -751,7 +849,7 @@ public sealed class CooperativeModelScanTests
         Assert.Contains("BeginSubOperation", coordinator, StringComparison.Ordinal);
         Assert.Contains("EndSubOperation", coordinator, StringComparison.Ordinal);
         Assert.Contains(
-            "ScanPhaseProgressShare",
+            "CooperativeProgressPhaseMath.ScanPhaseShare",
             coordinator,
             StringComparison.Ordinal);
 
@@ -759,7 +857,7 @@ public sealed class CooperativeModelScanTests
         var applyAsync = Slice(
             coordinator,
             "private async Task ApplyAsync(",
-            "private static List<ModelItem> BuildSlice");
+            "private void CancelWithRollback(");
         Assert.Contains("CurrentSelection.Clear()", applyAsync, StringComparison.Ordinal);
         Assert.Contains("CurrentSelection.AddRange(slice)", applyAsync, StringComparison.Ordinal);
         Assert.Contains("Models.SetHidden(", applyAsync, StringComparison.Ordinal);
@@ -772,22 +870,36 @@ public sealed class CooperativeModelScanTests
             applyAsync,
             StringComparison.Ordinal);
 
-        // Cancellation is honored until the first mutation; the stop check
-        // must run before the irreversible Clear/SetHidden boundary.
-        var stopIndex = applyAsync.IndexOf(
+        // Cancellation is re-checked before every chunk and routes through
+        // the rollback path, so Cancel stays live for the whole apply phase
+        // and a stop never leaves partial changes behind.
+        var chunkLoopIndex = applyAsync.IndexOf(
+            "foreach (var chunk in chunks)",
+            StringComparison.Ordinal);
+        var chunkStopIndex = applyAsync.IndexOf(
             "var stopReason = GetStopReason(context);",
             StringComparison.Ordinal);
-        var clearIndex = applyAsync.IndexOf(
-            "document.CurrentSelection.Clear();",
+        Assert.True(chunkStopIndex > chunkLoopIndex);
+        Assert.Contains("CancelWithRollback(", applyAsync, StringComparison.Ordinal);
+        Assert.Contains(
+            "CooperativeModelApplyStatus.CanceledRolledBack",
+            coordinator,
             StringComparison.Ordinal);
-        Assert.True(stopIndex >= 0 && clearIndex > stopIndex);
+        Assert.Contains(
+            "CooperativeModelApplyStatus.CanceledRollbackIncomplete",
+            coordinator,
+            StringComparison.Ordinal);
+
+        // Self-mutation suppression is scoped to the mutation calls only,
+        // not to the whole apply phase with its yields.
+        Assert.Contains(
+            "SuppressSelfMutations(",
+            coordinator,
+            StringComparison.Ordinal);
 
         // The bar reaches full completion only after every chunk is applied.
         var completionIndex = applyAsync.IndexOf(
             "UpdateProgressSafely(progress, 1.0);",
-            StringComparison.Ordinal);
-        var chunkLoopIndex = applyAsync.IndexOf(
-            "foreach (var chunk in chunks)",
             StringComparison.Ordinal);
         Assert.True(completionIndex > chunkLoopIndex);
         Assert.Equal(
@@ -805,10 +917,25 @@ public sealed class CooperativeModelScanTests
             coordinator,
             StringComparison.Ordinal);
 
-        // Timing evidence is logged for every operation outcome.
+        // Document-event invalidation goes through the pure decision table.
+        Assert.Contains(
+            "CooperativeInvalidationDecision.ShouldCancelOperation(",
+            coordinator,
+            StringComparison.Ordinal);
+
+        // Timing evidence is logged for every operation outcome and is
+        // published per chunk, including on early-return paths.
         Assert.Contains("LogOperationResult(", coordinator, StringComparison.Ordinal);
         Assert.Contains(
             "ToLogString()",
+            coordinator,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "PublishScanTimingSnapshot(",
+            coordinator,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "PublishApplyTimingSnapshot(",
             coordinator,
             StringComparison.Ordinal);
     }

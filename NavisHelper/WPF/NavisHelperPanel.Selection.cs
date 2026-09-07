@@ -264,7 +264,10 @@ namespace NavisHelper.WPF
                         ProgressCaption = PanelUi("Panel_ModelScan_Unhide_Progress"),
                         ScanPhaseMessage = PanelUi("Panel_ModelScan_Phase_Scan"),
                         ApplyPhaseMessage = PanelUi("Panel_ModelScan_Phase_ApplyVisibility"),
-                        IncludeItem = item => true,
+                        // Only the hidden subset is applied, so unhiding a
+                        // mostly visible model costs the apply phase the size
+                        // of that subset instead of the size of the model.
+                        IncludeItem = item => item.IsHidden,
                         ObservedChanges = CooperativeModelScanInvalidation.None,
                         ApplyKind = CooperativeModelApplyKind.ShowItems,
                         ApplyOnlyIfNonEmptyResult = true
@@ -292,7 +295,7 @@ namespace NavisHelper.WPF
             switch (operation.Status)
             {
                 case CooperativeModelScanStatus.Completed:
-                    return ReportModelScanApplyFailure(operation);
+                    return false;
                 case CooperativeModelScanStatus.Busy:
                     SetGlobalStatusResource("Panel_ModelScan_Busy", Brushes.Orange);
                     return true;
@@ -309,6 +312,14 @@ namespace NavisHelper.WPF
                     ReportModelScanApplyFailure(operation);
                     return true;
                 default:
+                    if (operation.ApplyStatus ==
+                        CooperativeModelApplyStatus.CanceledRollbackIncomplete)
+                    {
+                        // A cancel that could not fully restore the original
+                        // state must not be reported as a clean cancel.
+                        ReportModelScanApplyFailure(operation);
+                        return true;
+                    }
                     SetGlobalStatusResource("Panel_ModelScan_Canceled", Brushes.Gray);
                     return true;
             }
@@ -319,11 +330,8 @@ namespace NavisHelper.WPF
         /// the original state was restored, a failed rollback says it was
         /// not, and neither pretends the operation simply did not run.
         /// </summary>
-        private bool ReportModelScanApplyFailure(UiThreadModelOperationResult operation)
+        private void ReportModelScanApplyFailure(UiThreadModelOperationResult operation)
         {
-            if (operation.Status != CooperativeModelScanStatus.ApplyFailed)
-                return false;
-
             var detail = FlattenExceptionMessages(operation.ApplyError);
             SetGlobalStatusResource(
                 "Panel_ModelScan_ApplyFailed_Format",
@@ -331,14 +339,14 @@ namespace NavisHelper.WPF
                 detail);
             MessageBox.Show(
                 UiLocalizationService.Current.Format(
-                    operation.ApplyStatus == CooperativeModelApplyStatus.FailedRolledBack
-                        ? "Panel_ModelScan_ApplyRolledBack_Format"
-                        : "Panel_ModelScan_ApplyRollbackFailed_Format",
+                    operation.ApplyStatus == CooperativeModelApplyStatus.FailedRollbackIncomplete ||
+                    operation.ApplyStatus == CooperativeModelApplyStatus.CanceledRollbackIncomplete
+                        ? "Panel_ModelScan_ApplyRollbackFailed_Format"
+                        : "Panel_ModelScan_ApplyRolledBack_Format",
                     detail),
                 PanelUi("Panel_ModelScan_ApplyFailed_Title"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
-            return true;
         }
 
         private static string FlattenExceptionMessages(Exception exception)

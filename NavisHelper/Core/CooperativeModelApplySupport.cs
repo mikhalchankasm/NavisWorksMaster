@@ -17,7 +17,68 @@ namespace NavisHelper.Core
         SkippedEmpty,
         Completed,
         FailedRolledBack,
-        FailedRollbackIncomplete
+        FailedRollbackIncomplete,
+        CanceledRolledBack,
+        CanceledRollbackIncomplete
+    }
+
+    /// <summary>
+    /// Pure decision table for document-event invalidation of the running
+    /// model operation. An event only cancels the active operation when the
+    /// operation opted in to observing that change kind; self-mutation
+    /// suppression wins only for the kinds the apply phase actually mutates.
+    /// </summary>
+    internal static class CooperativeInvalidationDecision
+    {
+        internal static bool ShouldCancelOperation(
+            CooperativeModelScanInvalidation change,
+            CooperativeModelScanInvalidation activeObservedChanges,
+            bool selfMutationInProgress)
+        {
+            if ((change & CooperativeModelScanInvalidation.Document) != 0)
+                return true;
+
+            if (selfMutationInProgress &&
+                (change & CooperativeModelScanInvalidation.Document) == 0 &&
+                (change & (CooperativeModelScanInvalidation.Selection |
+                           CooperativeModelScanInvalidation.ModelCollection |
+                           CooperativeModelScanInvalidation.ModelProperties)) != 0)
+            {
+                // The apply phase's own synchronous events; already covered
+                // by the suppression window around the mutation call.
+                return false;
+            }
+
+            return (change & activeObservedChanges) != 0;
+        }
+    }
+
+    /// <summary>
+    /// Manual overall-fraction mapping used when progress sub-operations are
+    /// unavailable. It mirrors the sub-operation contract: the scan phase
+    /// never fills the bar and full completion is reached only by the last
+    /// apply chunk.
+    /// </summary>
+    internal static class CooperativeProgressPhaseMath
+    {
+        internal const double ScanPhaseShare = 0.75;
+
+        internal static double MapScanFraction(double fraction)
+        {
+            return Clamp(fraction) * ScanPhaseShare;
+        }
+
+        internal static double MapApplyFraction(double fraction)
+        {
+            return ScanPhaseShare + Clamp(fraction) * (1.0 - ScanPhaseShare);
+        }
+
+        private static double Clamp(double fraction)
+        {
+            if (double.IsNaN(fraction))
+                return 0.0;
+            return Math.Max(0.0, Math.Min(1.0, fraction));
+        }
     }
 
     internal readonly struct CooperativeModelApplyChunk
