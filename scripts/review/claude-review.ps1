@@ -37,6 +37,9 @@ try {
         '--input-format', 'text',
         '--output-format', 'text',
         '--tools', '',
+        # An empty built-in tool list does not disable configured MCP servers.
+        # With no --mcp-config arguments, strict mode loads no MCP servers.
+        '--strict-mcp-config',
         '--disallowedTools', 'Bash,Read,Edit,Write,Glob,Grep,LS,MultiEdit,NotebookEdit,WebFetch,WebSearch,TodoWrite,Task',
         '--permission-mode', 'dontAsk',
         '--no-session-persistence',
