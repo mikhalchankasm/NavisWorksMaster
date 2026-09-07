@@ -431,88 +431,6 @@ public sealed class CooperativeModelScanTests
             unrelated, selectedSet, ancestors, node => node.Parent));
     }
 
-    [Theory]
-    [InlineData(0, 4096, 0)]
-    [InlineData(1, 4096, 1)]
-    [InlineData(4096, 4096, 1)]
-    [InlineData(4097, 4096, 2)]
-    [InlineData(10_000, 4096, 3)]
-    [InlineData(100_000, 512, 196)]
-    public void ApplyChunker_CoversExactlyAndBoundsChunks(
-        int totalItems,
-        int maxPerChunk,
-        int expectedChunks)
-    {
-        var chunks = CooperativeModelApplyChunker.Plan(totalItems, maxPerChunk);
-
-        Assert.Equal(expectedChunks, chunks.Count);
-
-        int covered = 0;
-        int expectedStart = 0;
-        foreach (var chunk in chunks)
-        {
-            Assert.Equal(expectedStart, chunk.Start);
-            Assert.InRange(chunk.Count, 1, maxPerChunk);
-            expectedStart += chunk.Count;
-            covered += chunk.Count;
-        }
-
-        Assert.Equal(totalItems, covered);
-        Assert.Equal(totalItems, expectedStart);
-    }
-
-    [Theory]
-    [InlineData(-1, 10)]
-    [InlineData(10, 0)]
-    [InlineData(10, -5)]
-    public void ApplyChunker_RejectsInvalidArguments(
-        int totalItems,
-        int maxPerChunk)
-    {
-        Assert.Throws<ArgumentOutOfRangeException>(
-            () => CooperativeModelApplyChunker.Plan(totalItems, maxPerChunk));
-    }
-
-    [Fact]
-    public void HiddenStateRollback_RestoresMixedRecordedStates()
-    {
-        var rollback = new CooperativeHiddenStateRollback<string>();
-        rollback.Record("a", true);
-        rollback.Record("b", false);
-        rollback.Record("c", true);
-        rollback.Record(null, true);
-        rollback.Record("d", false);
-
-        Assert.Equal(4, rollback.RecordedCount);
-
-        var batches = rollback.BuildRestoreBatches().ToList();
-
-        Assert.Equal(2, batches.Count);
-        var hiddenBatch = batches.Single(batch => batch.Hidden);
-        var visibleBatch = batches.Single(batch => !batch.Hidden);
-        Assert.Equal(new[] { "a", "c" }, hiddenBatch.Items);
-        Assert.Equal(new[] { "b", "d" }, visibleBatch.Items);
-    }
-
-    [Fact]
-    public void HiddenStateRollback_EmptyLogProducesNoBatches()
-    {
-        var rollback = new CooperativeHiddenStateRollback<string>();
-
-        Assert.Empty(rollback.BuildRestoreBatches());
-    }
-
-    [Fact]
-    public void HiddenStateRollback_SealsAfterBuildingRestoreBatches()
-    {
-        var rollback = new CooperativeHiddenStateRollback<string>();
-        rollback.Record("a", true);
-        Assert.Single(rollback.BuildRestoreBatches());
-
-        Assert.Throws<InvalidOperationException>(
-            () => rollback.Record("b", false));
-    }
-
     [Fact]
     public void InvalidationSuppressor_SuppressesOnlySelfMutationKindsWhileActive()
     {
@@ -563,11 +481,8 @@ public sealed class CooperativeModelScanTests
             ScanMs = 3000,
             GateMs = 5,
             ApplyMs = 1990,
-            RollbackMs = 0,
             ScanChunks = 900,
-            ApplyChunks = 12,
             MaxScanChunkMs = 18,
-            MaxApplyChunkMs = 95,
             VisitedItems = 123_456
         };
 
@@ -577,8 +492,10 @@ public sealed class CooperativeModelScanTests
         Assert.Contains("scanMs=3000", text, StringComparison.Ordinal);
         Assert.Contains("gateMs=5", text, StringComparison.Ordinal);
         Assert.Contains("applyMs=1990", text, StringComparison.Ordinal);
-        Assert.Contains("maxApplyChunkMs=95", text, StringComparison.Ordinal);
+        Assert.Contains("maxScanChunkMs=18", text, StringComparison.Ordinal);
         Assert.Contains("visitedItems=123456", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("rollbackMs", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("maxApplyChunkMs", text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -649,15 +566,29 @@ public sealed class CooperativeModelScanTests
     }
 
     [Fact]
+    public void ProgressPhaseMath_VerifyStaysBetweenScanAndApply()
+    {
+        var v0 = CooperativeProgressPhaseMath.MapVerifyFraction(0.0);
+        var v1 = CooperativeProgressPhaseMath.MapVerifyFraction(1.0);
+
+        Assert.Equal(CooperativeProgressPhaseMath.ScanPhaseShare, v0);
+        Assert.Equal(CooperativeProgressPhaseMath.VerifyPhaseEndShare, v1);
+        Assert.True(v0 < v1);
+        Assert.True(v1 < 1.0);
+        Assert.True(
+            CooperativeProgressPhaseMath.MapVerifyFraction(0.5) > v0);
+    }
+
+    [Fact]
     public void ProgressPhaseMath_ApplyCompletesTheBarOnlyAtTheEnd()
     {
         Assert.Equal(
-            CooperativeProgressPhaseMath.ScanPhaseShare,
+            CooperativeProgressPhaseMath.VerifyPhaseEndShare,
             CooperativeProgressPhaseMath.MapApplyFraction(0.0));
         Assert.Equal(1.0, CooperativeProgressPhaseMath.MapApplyFraction(1.0));
         Assert.True(
             CooperativeProgressPhaseMath.MapApplyFraction(0.5) >
-            CooperativeProgressPhaseMath.ScanPhaseShare);
+            CooperativeProgressPhaseMath.VerifyPhaseEndShare);
         Assert.True(
             CooperativeProgressPhaseMath.MapApplyFraction(0.5) < 1.0);
     }
@@ -669,11 +600,14 @@ public sealed class CooperativeModelScanTests
     public void ProgressPhaseMath_ClampsDegenerateFractions(double fraction)
     {
         var scan = CooperativeProgressPhaseMath.MapScanFraction(fraction);
+        var verify = CooperativeProgressPhaseMath.MapVerifyFraction(fraction);
         var apply = CooperativeProgressPhaseMath.MapApplyFraction(fraction);
 
         Assert.InRange(scan, 0.0, CooperativeProgressPhaseMath.ScanPhaseShare);
-        Assert.InRange(apply, CooperativeProgressPhaseMath.ScanPhaseShare, 1.0);
-        Assert.True(apply >= scan);
+        Assert.InRange(verify, CooperativeProgressPhaseMath.ScanPhaseShare, CooperativeProgressPhaseMath.VerifyPhaseEndShare);
+        Assert.InRange(apply, CooperativeProgressPhaseMath.VerifyPhaseEndShare, 1.0);
+        Assert.True(apply >= verify);
+        Assert.True(verify >= scan);
     }
 
     [Fact]
@@ -835,7 +769,7 @@ public sealed class CooperativeModelScanTests
     }
 
     [Fact]
-    public void SourceGuard_ApplyPhaseIsPhasedChunkedAndCancellableBeforeFirstMutation()
+    public void SourceGuard_ApplyPhaseIsPhasedAtomicAndCancellableBeforeTheBoundary()
     {
         var root = FindRepositoryRoot();
         var coordinator = File.ReadAllText(Path.Combine(
@@ -853,69 +787,74 @@ public sealed class CooperativeModelScanTests
             coordinator,
             StringComparison.Ordinal);
 
-        // Chunked apply: bounded Autodesk calls with UI yields between them.
+        // Atomic apply: one indivisible Autodesk call per apply kind. The
+        // measured chunked AddRange/SetHidden alternative made each chunk
+        // cost proportional to the accumulated selection (O(n^2/chunk) total,
+        // ~7s stalls, ~60x slower on a ~600k-item model), so the guard pins
+        // that no per-chunk apply loop returns.
         var applyAsync = Slice(
             coordinator,
             "private async Task ApplyAsync(",
-            "private void CancelWithRollback(");
-        Assert.Contains("CurrentSelection.Clear()", applyAsync, StringComparison.Ordinal);
-        Assert.Contains("CurrentSelection.AddRange(slice)", applyAsync, StringComparison.Ordinal);
-        Assert.Contains("Models.SetHidden(", applyAsync, StringComparison.Ordinal);
+            "private void SuppressSelfMutations(");
         Assert.Contains(
-            "CooperativeModelApplyChunker.Plan(",
+            "document.CurrentSelection.CopyFrom(scanResult)",
             applyAsync,
             StringComparison.Ordinal);
         Assert.Contains(
-            "await Dispatcher.Yield(DispatcherPriority.Background);",
+            "document.Models.SetHidden(",
+            applyAsync,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("AddRange", applyAsync, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "foreach (var chunk in chunks)",
+            applyAsync,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "CooperativeModelApplyChunker",
             applyAsync,
             StringComparison.Ordinal);
 
-        // Cancellation is re-checked before every chunk and routes through
-        // the rollback path, so Cancel stays live for the whole apply phase
-        // and a stop never leaves partial changes behind.
-        var chunkLoopIndex = applyAsync.IndexOf(
-            "foreach (var chunk in chunks)",
-            StringComparison.Ordinal);
-        var chunkStopIndex = applyAsync.IndexOf(
+        // Cancel is honored at the boundary: the stop check must appear
+        // before the first mutation call inside ApplyAsync.
+        var stopIndex = applyAsync.IndexOf(
             "var stopReason = GetStopReason(context);",
             StringComparison.Ordinal);
-        Assert.True(chunkStopIndex > chunkLoopIndex);
-        Assert.Contains("CancelWithRollback(", applyAsync, StringComparison.Ordinal);
-        Assert.Contains(
-            "CooperativeModelApplyStatus.CanceledRolledBack",
-            coordinator,
+        var mutationIndex = applyAsync.IndexOf(
+            "SuppressSelfMutations(",
             StringComparison.Ordinal);
-        Assert.Contains(
-            "CooperativeModelApplyStatus.CanceledRollbackIncomplete",
-            coordinator,
-            StringComparison.Ordinal);
+        Assert.True(stopIndex >= 0 && mutationIndex > stopIndex);
 
-        // Self-mutation suppression is scoped to the mutation calls only,
-        // not to the whole apply phase with its yields.
+        // The bar reaches full completion only after the atomic apply.
+        var completionIndex = applyAsync.IndexOf(
+            "UpdateProgressSafely(progress, 1.0);",
+            StringComparison.Ordinal);
+        Assert.True(completionIndex > mutationIndex);
+        Assert.Equal(
+            1,
+            CountOccurrences(coordinator, "UpdateProgressSafely(progress, 1.0);"));
+
+        // Self-mutation suppression is scoped to the mutation call itself.
         Assert.Contains(
             "SuppressSelfMutations(",
             coordinator,
             StringComparison.Ordinal);
 
-        // The bar reaches full completion only after every chunk is applied.
-        var completionIndex = applyAsync.IndexOf(
-            "UpdateProgressSafely(progress, 1.0);",
-            StringComparison.Ordinal);
-        Assert.True(completionIndex > chunkLoopIndex);
-        Assert.Equal(
-            1,
-            CountOccurrences(coordinator, "UpdateProgressSafely(progress, 1.0);"));
-
-        // A mid-apply failure rolls back to the captured original state.
-        Assert.Contains("RollbackApply(", coordinator, StringComparison.Ordinal);
-        Assert.Contains(
-            "CooperativeModelApplyStatus.FailedRolledBack",
+        // The commit gate's selection verification is cooperative: it yields
+        // in bounded chunks and honors stop requests, instead of one
+        // synchronous O(selection) stall (measured 9s at 41k items).
+        var verify = Slice(
             coordinator,
+            "private async Task<bool> VerifySelectionUnchangedAsync(",
+            "private static void UpdateVerifyProgress(");
+        Assert.Contains(
+            "VerifyChunkItems",
+            verify,
             StringComparison.Ordinal);
         Assert.Contains(
-            "CooperativeModelApplyStatus.FailedRollbackIncomplete",
-            coordinator,
+            "await Dispatcher.Yield(DispatcherPriority.Background);",
+            verify,
             StringComparison.Ordinal);
+        Assert.Contains("GetStopReason(context);", verify, StringComparison.Ordinal);
 
         // Document-event invalidation goes through the pure decision table.
         Assert.Contains(

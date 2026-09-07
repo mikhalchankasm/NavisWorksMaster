@@ -4,6 +4,8 @@
 Спец|native-property-name|Navisworks model property display name used for search
 Специализация|native-property-name|Navisworks model property display name used for search
 Отметка|native-property-name|Navisworks model property display name used for search
+Тип|native-property-name|Navisworks model property display name used for search
+Материал|native-property-name|Navisworks model property display name used for search
 Имя|native-property-name|Navisworks host property display name selected from CurrentUICulture
 имя|native-property-name|Normalized Navisworks host property display name used for matching
 элемент|native-property-name|Normalized Navisworks host category display name used for matching

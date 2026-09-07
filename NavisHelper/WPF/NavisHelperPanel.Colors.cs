@@ -615,7 +615,13 @@ namespace NavisHelper.WPF
                     return TaskAwareCommandOutcome.NotCompleted;
 
                 input = input.Trim();
-                var sourceSelection = CopyModelItems(selected);
+                SetGlobalStatusResource(
+                    "Panel_ModelScan_Preparing",
+                    Brushes.DarkGoldenrod);
+                await Dispatcher.Yield(DispatcherPriority.Background);
+                var sourceSelection = await CopyModelItemsCooperativeAsync(
+                    selected,
+                    ReportModelScanPreparing);
                 SetGlobalStatusResource(
                     "Panel_ModelScan_Running",
                     Brushes.DarkGoldenrod);
@@ -625,6 +631,7 @@ namespace NavisHelper.WPF
                     {
                         ProgressCaption = PanelUi("Panel_ModelScan_SelectByProperty_Progress"),
                         ScanPhaseMessage = PanelUi("Panel_ModelScan_Phase_Scan"),
+                        VerifyPhaseMessage = PanelUi("Panel_ModelScan_Phase_Verify"),
                         ApplyPhaseMessage = PanelUi("Panel_ModelScan_Phase_ApplySelection"),
                         IncludeItem = item => string.Equals(
                             FindPropertyValue(item, PropertyAliases),

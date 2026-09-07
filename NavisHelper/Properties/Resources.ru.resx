@@ -1821,7 +1821,7 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
     <value>Выделите один или несколько элементов.</value>
   </data>
   <data name="Panel_Colors_SelectByProperty_Prompt_Format" xml:space="preserve">
-    <value>Введите точное значение свойства (Система / Спец / Отметка):
+    <value>Введите точное значение свойства (Система / Спец / Отметка, при их отсутствии — Имя / Тип / Материал):
 Доступные из выделения: {0}</value>
   </data>
   <data name="Panel_Colors_SelectByProperty_NoMatches" xml:space="preserve">
@@ -2495,16 +2495,13 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Panel_ModelScan_SourceChanged" xml:space="preserve"><value>Во время сканирования изменилась модель или выделение. Изменения не применены.</value></data>
   <data name="Panel_ModelScan_Suspended" xml:space="preserve"><value>Сканирование модели недоступно, пока панель неактивна. Изменения не применены.</value></data>
   <data name="Panel_ModelScan_Phase_Scan" xml:space="preserve"><value>Сканирование элементов модели…</value></data>
+  <data name="Panel_ModelScan_Phase_Verify" xml:space="preserve"><value>Проверка выделения…</value></data>
+  <data name="Panel_ModelScan_Preparing" xml:space="preserve"><value>Подготовка операции…</value></data>
+  <data name="Panel_ModelScan_Preparing_Format" xml:space="preserve"><value>Подготовка операции… обработано {0} элементов</value></data>
   <data name="Panel_ModelScan_Phase_ApplySelection" xml:space="preserve"><value>Применение выделения…</value></data>
   <data name="Panel_ModelScan_Phase_ApplyVisibility" xml:space="preserve"><value>Применение видимости…</value></data>
   <data name="Panel_ModelScan_ApplyFailed_Title" xml:space="preserve"><value>Не удалось применить изменения</value></data>
   <data name="Panel_ModelScan_ApplyFailed_Format" xml:space="preserve"><value>Не удалось применить изменения: {0}</value></data>
-  <data name="Panel_ModelScan_ApplyRolledBack_Format" xml:space="preserve"><value>Не удалось применить изменения, исходное выделение и видимость восстановлены.
-
-{0}</value></data>
-  <data name="Panel_ModelScan_ApplyRollbackFailed_Format" xml:space="preserve"><value>Не удалось применить изменения; полностью восстановить исходное состояние не удалось. Проверьте текущее состояние модели.
-
-{0}</value></data>
   <data name="Panel_ModelScan_SelectByProperty_Progress" xml:space="preserve"><value>NavisHelper: выбор по значению свойства</value></data>
   <data name="Panel_ModelScan_Invert_Progress" xml:space="preserve"><value>NavisHelper: инвертирование выделения</value></data>
   <data name="Panel_ModelScan_Isolate_Progress" xml:space="preserve"><value>NavisHelper: изоляция выделения</value></data>

@@ -298,7 +298,22 @@ namespace NavisHelper.WPF
             ("Элемент", "Marker"),
             ("", "Отметка"),
             ("", "Mark"),
-            ("", "Marker")
+            ("", "Marker"),
+            // Generic fallbacks so suggestions and matching still resolve an
+            // identifying property on models that carry none of the workflow
+            // aliases above (for example plain RVM exports).
+            ("Item", "Name"),
+            ("Элемент", "Имя"),
+            ("", "Name"),
+            ("", "Имя"),
+            ("Item", "Type"),
+            ("Элемент", "Тип"),
+            ("", "Type"),
+            ("", "Тип"),
+            ("Item", "Material"),
+            ("Элемент", "Материал"),
+            ("", "Material"),
+            ("", "Материал")
         };
 
         private const string SearchSetItemInternalCategory = "LcOaNode";

@@ -19,6 +19,7 @@ namespace NavisHelper.WPF
     {
         internal string ProgressCaption { get; set; }
         internal string ScanPhaseMessage { get; set; }
+        internal string VerifyPhaseMessage { get; set; }
         internal string ApplyPhaseMessage { get; set; }
         internal Func<ModelItem, bool> IncludeItem { get; set; }
         internal CooperativeModelScanInvalidation ObservedChanges { get; set; }
@@ -65,7 +66,7 @@ namespace NavisHelper.WPF
 
     internal sealed class UiThreadModelScanCoordinator : IDisposable
     {
-        private const int ApplyMaxItemsPerChunk = 4096;
+        private const int VerifyChunkItems = 4096;
 
         private readonly Dispatcher _dispatcher;
         private readonly CooperativeModelScanOperationGate _operations =
@@ -337,6 +338,22 @@ namespace NavisHelper.WPF
                 return;
             }
 
+            // The unchanged-selection verification is the one gate step that
+            // scales with the size of the operation's source selection
+            // (measured: ~9s for a 41k-item selection), so it runs as its own
+            // cooperative phase with chunked yields, progress, and stop
+            // checks instead of one synchronous stall.
+            bool selectionUnchanged = true;
+            if (context.Request.CommitGuardSelection != null)
+            {
+                selectionUnchanged = await VerifySelectionUnchangedAsync(context);
+                if (!selectionUnchanged)
+                {
+                    context.Result.Status = CooperativeModelScanStatus.SourceChanged;
+                    return;
+                }
+            }
+
             var canCommit = CooperativeModelScanCommitPolicy.CanCommit(
                 CooperativeModelScanStatus.Completed,
                 context.Operation.IsCurrent,
@@ -347,8 +364,7 @@ namespace NavisHelper.WPF
                 context.DocumentIdentity != null &&
                 context.DocumentIdentity.Matches(context.Document),
                 _generations.IsCurrent(context.Generation),
-                context.Request.CommitGuardSelection == null ||
-                IsSelectionUnchanged(context.Document, context.Request.CommitGuardSelection));
+                selectionUnchanged);
             gateTimer.Stop();
             context.Result.Timings.GateMs = gateTimer.ElapsedMilliseconds;
             if (!canCommit)
@@ -376,161 +392,182 @@ namespace NavisHelper.WPF
         }
 
         /// <summary>
-        /// Applies the scan result in bounded chunks with UI yields. Cancel
-        /// and invalidation are re-checked before every chunk: a stop request
-        /// mid-apply rolls the already-applied chunks back to the captured
-        /// original state, so the model is never left partially changed and
-        /// the reported status never claims a rollback that did not happen.
-        /// The suppression window covers only the mutation calls themselves;
-        /// events observed outside it (foreign edits, deferred self-events)
-        /// stop the operation through the normal rollback path.
+        /// Cooperative replacement for the old synchronous
+        /// IsSelectionUnchanged: builds the expected-selection set and drains
+        /// the current selection in bounded chunks with UI yields so a huge
+        /// source selection cannot stall the dispatcher at the commit gate.
+        /// </summary>
+        private async Task<bool> VerifySelectionUnchangedAsync(
+            OperationContext context)
+        {
+            var document = context.Document;
+            var expected = context.Request.CommitGuardSelection;
+            var current = document.CurrentSelection?.SelectedItems;
+            if (current == null || current.Count != expected.Count)
+                return false;
+
+            bool verifySubOperationOpen = false;
+            try
+            {
+                verifySubOperationOpen = BeginSubOperationSafely(
+                    context.Progress,
+                    0.2,
+                    context.Request.VerifyPhaseMessage);
+                var remaining = new HashSet<ModelItem>();
+                int processed = 0;
+                int total = expected.Count * 2;
+                foreach (var item in expected)
+                {
+                    if (item != null)
+                        remaining.Add(item);
+                    processed++;
+                    if (processed % VerifyChunkItems == 0)
+                    {
+                        var stop = GetStopReason(context);
+                        if (stop.HasValue)
+                        {
+                            context.Result.Status = stop.Value;
+                            return false;
+                        }
+                        UpdateVerifyProgress(context, verifySubOperationOpen, (double)processed / total);
+                        await Dispatcher.Yield(DispatcherPriority.Background);
+                    }
+                }
+
+                foreach (var item in current)
+                {
+                    if (item == null || !remaining.Remove(item))
+                        return false;
+                    processed++;
+                    if (processed % VerifyChunkItems == 0)
+                    {
+                        var stop = GetStopReason(context);
+                        if (stop.HasValue)
+                        {
+                            context.Result.Status = stop.Value;
+                            return false;
+                        }
+                        UpdateVerifyProgress(context, verifySubOperationOpen, (double)processed / total);
+                        await Dispatcher.Yield(DispatcherPriority.Background);
+                    }
+                }
+
+                UpdateVerifyProgress(context, verifySubOperationOpen, 1.0);
+                return remaining.Count == 0;
+            }
+            finally
+            {
+                if (verifySubOperationOpen)
+                {
+                    verifySubOperationOpen = false;
+                    try { context.Progress?.EndSubOperation(); }
+                    catch (Exception ex)
+                    {
+                        Logger.Warn(
+                            "Failed to end the verify sub-operation: " + ex,
+                            "ModelScan");
+                    }
+                }
+            }
+        }
+
+        private static void UpdateVerifyProgress(
+            OperationContext context,
+            bool verifySubOperationOpen,
+            double fraction)
+        {
+            if (context.Progress == null)
+                return;
+            UpdateProgressSafely(
+                context.Progress,
+                verifySubOperationOpen
+                    ? fraction
+                    : CooperativeProgressPhaseMath.MapVerifyFraction(fraction));
+        }
+
+        /// <summary>
+        /// Applies the scan result with one indivisible Autodesk call per
+        /// operation kind (CurrentSelection.CopyFrom or Models.SetHidden over
+        /// the whole result). Measured on a ~600k-item model, chunked
+        /// AddRange/SetHidden made each chunk cost proportional to the
+        /// already-accumulated selection state (O(n^2/chunk) total, ~7s
+        /// stalls, ~60x slower than a single call), so chunking bounded
+        /// nothing and only multiplied the total time. The apply is therefore
+        /// atomic: cancel and invalidation are honored up to the last stop
+        /// check right before the call, the call itself either completes or
+        /// throws without partial state, and its measured duration is logged
+        /// as applyMs (the documented upper bound of the apply-phase UI
+        /// stall). Cancel inside the indivisible call is not promised.
         /// </summary>
         private async Task ApplyAsync(
             OperationContext context)
         {
+            // Last cancellation point before the irreversible boundary. The
+            // full stop reason (lease, generation, document, progress dialog)
+            // is re-checked here, right before the mutation.
+            var stopReason = GetStopReason(context);
+            if (stopReason.HasValue)
+            {
+                context.Result.Status = stopReason.Value;
+                return;
+            }
+
             var progress = context.Progress;
             var applyTimer = Stopwatch.StartNew();
             context.ApplySubOperationOpen = BeginSubOperationSafely(
                 progress,
                 1.0,
                 context.Request.ApplyPhaseMessage);
-            var rollback = new CooperativeHiddenStateRollback<ModelItem>();
             var request = context.Request;
             var document = context.Document;
             var scanResult = context.ScanResult;
 
             try
             {
-                var chunks = CooperativeModelApplyChunker.Plan(
-                    scanResult.Count,
-                    ApplyMaxItemsPerChunk);
-                foreach (var chunk in chunks)
+                switch (request.ApplyKind)
                 {
-                    // Stop requests (cancel button, lease cancellation,
-                    // invalidation observed by this operation) are honored
-                    // between chunks and route through the rollback path.
-                    var stopReason = GetStopReason(context);
-                    if (stopReason.HasValue)
-                    {
-                        CancelWithRollback(context, rollback, applyTimer, stopReason.Value);
-                        return;
-                    }
-
-                    var chunkTimer = Stopwatch.StartNew();
-                    var slice = BuildSlice(scanResult, chunk);
-
-                    switch (request.ApplyKind)
-                    {
-                        case CooperativeModelApplyKind.ReplaceSelection:
-                            if (chunk.Start == 0)
-                            {
-                                // Clear() is the first mutation of the
-                                // irreversible-until-rolled-back phase.
-                                SuppressSelfMutations(
-                                    () => document.CurrentSelection.Clear());
-                            }
-                            SuppressSelfMutations(
-                                () => document.CurrentSelection.AddRange(slice));
-                            break;
-                        case CooperativeModelApplyKind.HideItems:
-                        case CooperativeModelApplyKind.ShowItems:
-                            foreach (var item in slice)
-                                rollback.Record(item, item.IsHidden);
-                            SuppressSelfMutations(
-                                () => document.Models.SetHidden(
-                                    slice,
-                                    request.ApplyKind == CooperativeModelApplyKind.HideItems));
-                            break;
-                    }
-
-                    context.Result.AppliedItemCount += slice.Count;
-                    context.ApplyChunks++;
-                    chunkTimer.Stop();
-                    context.MaxApplyChunkMs = Math.Max(
-                        context.MaxApplyChunkMs,
-                        chunkTimer.ElapsedMilliseconds);
-                    PublishApplyTimingSnapshot(context, applyTimer);
-                    UpdateApplyProgress(
-                        context,
-                        (double)(chunk.Start + chunk.Count) / Math.Max(1, scanResult.Count));
-                    await Dispatcher.Yield(DispatcherPriority.Background);
+                    case CooperativeModelApplyKind.ReplaceSelection:
+                        // CopyFrom replaces the selection in one atomic call;
+                        // its own synchronous Changed event is suppressed so
+                        // the operation cannot invalidate itself.
+                        SuppressSelfMutations(
+                            () => document.CurrentSelection.CopyFrom(scanResult));
+                        break;
+                    case CooperativeModelApplyKind.HideItems:
+                    case CooperativeModelApplyKind.ShowItems:
+                        SuppressSelfMutations(
+                            () => document.Models.SetHidden(
+                                scanResult,
+                                request.ApplyKind == CooperativeModelApplyKind.HideItems));
+                        break;
                 }
 
+                context.Result.AppliedItemCount = scanResult.Count;
                 context.Result.ApplyStatus = CooperativeModelApplyStatus.Completed;
+                context.Result.Timings.ApplyMs = applyTimer.ElapsedMilliseconds;
                 PublishApplyTimingSnapshot(context, applyTimer);
-                // Only now, with every chunk applied, may the bar reach full
+                // Only now, with the result applied, may the bar reach full
                 // completion.
                 UpdateProgressSafely(progress, 1.0);
             }
             catch (Exception applyError)
             {
-                var rollbackTimer = Stopwatch.StartNew();
-                Exception rollbackError = null;
-                try
-                {
-                    RollbackApply(context, rollback);
-                }
-                catch (Exception restoreError)
-                {
-                    rollbackError = restoreError;
-                }
-                rollbackTimer.Stop();
-
                 context.Result.Status = CooperativeModelScanStatus.ApplyFailed;
-                context.Result.ApplyError = rollbackError == null
-                    ? applyError
-                    : new AggregateException(applyError, rollbackError);
-                context.Result.ApplyStatus = rollbackError == null
-                    ? CooperativeModelApplyStatus.FailedRolledBack
-                    : CooperativeModelApplyStatus.FailedRollbackIncomplete;
-                if (rollbackError == null)
-                    context.Result.AppliedItemCount = 0;
-                context.Result.Timings.RollbackMs = rollbackTimer.ElapsedMilliseconds;
+                context.Result.ApplyError = applyError;
+                context.Result.Timings.ApplyMs = applyTimer.ElapsedMilliseconds;
                 PublishApplyTimingSnapshot(context, applyTimer);
                 Logger.Error(
-                    "Model operation apply failed and was rolled back: " + applyError,
+                    "Model operation apply failed: " + applyError,
                     "ModelScan");
             }
             finally
             {
                 EndSubOperationSafely(context, isApplySubOperation: true);
             }
-        }
 
-        private void CancelWithRollback(
-            OperationContext context,
-            CooperativeHiddenStateRollback<ModelItem> rollback,
-            Stopwatch applyTimer,
-            CooperativeModelScanStatus stopStatus)
-        {
-            var rollbackTimer = Stopwatch.StartNew();
-            Exception rollbackError = null;
-            try
-            {
-                RollbackApply(context, rollback);
-            }
-            catch (Exception restoreError)
-            {
-                rollbackError = restoreError;
-            }
-            rollbackTimer.Stop();
-
-            context.Result.Status = stopStatus;
-            context.Result.ApplyError = rollbackError;
-            context.Result.ApplyStatus = rollbackError == null
-                ? CooperativeModelApplyStatus.CanceledRolledBack
-                : CooperativeModelApplyStatus.CanceledRollbackIncomplete;
-            if (rollbackError == null)
-                context.Result.AppliedItemCount = 0;
-            context.Result.Timings.RollbackMs = rollbackTimer.ElapsedMilliseconds;
-            PublishApplyTimingSnapshot(context, applyTimer);
-            if (rollbackError != null)
-            {
-                Logger.Error(
-                    "Model operation was stopped mid-apply and the rollback failed: " +
-                    rollbackError,
-                    "ModelScan");
-            }
+            // Keep the async signature: the caller awaits this phase, and a
+            // future chunked fast path for small results can yield here.
+            await Task.CompletedTask;
         }
 
         private void SuppressSelfMutations(Action mutate)
@@ -543,60 +580,6 @@ namespace NavisHelper.WPF
             finally
             {
                 _suppressor.End();
-            }
-        }
-
-        private static List<ModelItem> BuildSlice(
-            ModelItemCollection source,
-            CooperativeModelApplyChunk chunk)
-        {
-            var slice = new List<ModelItem>(chunk.Count);
-            for (int i = chunk.Start; i < chunk.Start + chunk.Count; i++)
-                slice.Add(source[i]);
-            return slice;
-        }
-
-        private void RollbackApply(
-            OperationContext context,
-            CooperativeHiddenStateRollback<ModelItem> rollback)
-        {
-            var document = context.Document;
-            var request = context.Request;
-            switch (request.ApplyKind)
-            {
-                case CooperativeModelApplyKind.ReplaceSelection:
-                    SuppressSelfMutations(() => document.CurrentSelection.Clear());
-                    var guard = request.CommitGuardSelection;
-                    if (guard != null && guard.Count > 0)
-                    {
-                        foreach (var chunk in CooperativeModelApplyChunker.Plan(
-                                     guard.Count,
-                                     ApplyMaxItemsPerChunk))
-                        {
-                            var slice = BuildSlice(guard, chunk);
-                            SuppressSelfMutations(
-                                () => document.CurrentSelection.AddRange(slice));
-                        }
-                    }
-                    break;
-
-                case CooperativeModelApplyKind.HideItems:
-                case CooperativeModelApplyKind.ShowItems:
-                    foreach (var batch in rollback.BuildRestoreBatches())
-                    {
-                        foreach (var chunk in CooperativeModelApplyChunker.Plan(
-                                     batch.Items.Count,
-                                     ApplyMaxItemsPerChunk))
-                        {
-                            var slice = new List<ModelItem>(chunk.Count);
-                            for (int i = chunk.Start; i < chunk.Start + chunk.Count; i++)
-                                slice.Add(batch.Items[i]);
-                            var restoreHidden = batch.Hidden;
-                            SuppressSelfMutations(
-                                () => document.Models.SetHidden(slice, restoreHidden));
-                        }
-                    }
-                    break;
             }
         }
 
@@ -895,30 +878,6 @@ namespace NavisHelper.WPF
                    ReferenceEquals(NwApplication.ActiveDocument, document);
         }
 
-        private static bool IsSelectionUnchanged(
-            Document document,
-            ModelItemCollection expected)
-        {
-            if (document == null || expected == null)
-                return false;
-            var current = document.CurrentSelection?.SelectedItems;
-            if (current == null || current.Count != expected.Count)
-                return false;
-
-            var remaining = new HashSet<ModelItem>();
-            foreach (var item in expected)
-            {
-                if (item != null)
-                    remaining.Add(item);
-            }
-            foreach (var item in current)
-            {
-                if (item != null && !remaining.Remove(item))
-                    return false;
-            }
-            return remaining.Count == 0;
-        }
-
         private static bool BeginSubOperationSafely(
             Progress progress,
             double fractionOfRemainingTime,
@@ -983,25 +942,6 @@ namespace NavisHelper.WPF
             UpdateProgressSafely(context.Progress, overall);
         }
 
-        /// <summary>
-        /// Updates progress inside the apply phase, mapped into the
-        /// remaining overall share when the apply sub-operation is
-        /// unavailable, so a degraded dialog cannot jump backwards.
-        /// </summary>
-        private static void UpdateApplyProgress(
-            OperationContext context,
-            double applyFraction)
-        {
-            if (!context.ApplySubOperationOpen)
-            {
-                UpdateProgressSafely(
-                    context.Progress,
-                    CooperativeProgressPhaseMath.MapApplyFraction(applyFraction));
-                return;
-            }
-            UpdateProgressSafely(context.Progress, applyFraction);
-        }
-
         private static void UpdateProgressSafely(Progress progress, double fraction)
         {
             if (progress == null)
@@ -1047,8 +987,6 @@ namespace NavisHelper.WPF
             Stopwatch applyTimer)
         {
             context.Result.Timings.ApplyMs = applyTimer.ElapsedMilliseconds;
-            context.Result.Timings.ApplyChunks = context.ApplyChunks;
-            context.Result.Timings.MaxApplyChunkMs = context.MaxApplyChunkMs;
         }
 
         private static void LogOperationResult(
@@ -1098,9 +1036,7 @@ namespace NavisHelper.WPF
             internal bool ApplySubOperationOpen;
             internal int VisitedItems;
             internal int ScanChunks;
-            internal int ApplyChunks;
             internal long MaxScanChunkMs;
-            internal long MaxApplyChunkMs;
         }
     }
 }

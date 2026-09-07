@@ -141,9 +141,14 @@ namespace NavisHelper.WPF
                     return TaskAwareCommandOutcome.NotCompleted;
                 }
 
-                var sourceSelection = CopyModelItems(selected);
-                var selectedSet = new HashSet<ModelItem>(
-                    sourceSelection.Cast<ModelItem>());
+                SetGlobalStatusResource("Panel_ModelScan_Preparing", Brushes.DarkGoldenrod);
+                await Dispatcher.Yield(DispatcherPriority.Background);
+                var sourceSelection = await CopyModelItemsCooperativeAsync(
+                    selected,
+                    ReportModelScanPreparing);
+                var selectedSet = await BuildSelectionSetCooperativeAsync(
+                    sourceSelection,
+                    ReportModelScanPreparing);
                 SetGlobalStatusResource("Panel_ModelScan_Running", Brushes.DarkGoldenrod);
                 var operation = await _modelScanCoordinator.RunOperationAsync(
                     doc,
@@ -151,6 +156,7 @@ namespace NavisHelper.WPF
                     {
                         ProgressCaption = PanelUi("Panel_ModelScan_Invert_Progress"),
                         ScanPhaseMessage = PanelUi("Panel_ModelScan_Phase_Scan"),
+                        VerifyPhaseMessage = PanelUi("Panel_ModelScan_Phase_Verify"),
                         ApplyPhaseMessage = PanelUi("Panel_ModelScan_Phase_ApplySelection"),
                         IncludeItem = item => !selectedSet.Contains(item),
                         ObservedChanges = CooperativeModelScanInvalidation.Selection,
@@ -196,20 +202,17 @@ namespace NavisHelper.WPF
                     return TaskAwareCommandOutcome.NotCompleted;
                 }
 
-                var sourceSelection = CopyModelItems(selected);
-                var selectedSet = new HashSet<ModelItem>(
-                    sourceSelection.Cast<ModelItem>());
-                var selectedAncestors = new HashSet<ModelItem>();
-                foreach (var item in sourceSelection)
-                {
-                    var current = item.Parent;
-                    while (current != null)
-                    {
-                        selectedAncestors.Add(current);
-                        current = current.Parent;
-                    }
-                }
-
+                SetGlobalStatusResource("Panel_ModelScan_Preparing", Brushes.DarkGoldenrod);
+                await Dispatcher.Yield(DispatcherPriority.Background);
+                var sourceSelection = await CopyModelItemsCooperativeAsync(
+                    selected,
+                    ReportModelScanPreparing);
+                var selectedSet = await BuildSelectionSetCooperativeAsync(
+                    sourceSelection,
+                    ReportModelScanPreparing);
+                var selectedAncestors = await CollectAncestorsCooperativeAsync(
+                    sourceSelection,
+                    ReportModelScanPreparing);
                 SetGlobalStatusResource("Panel_ModelScan_Running", Brushes.DarkGoldenrod);
                 var operation = await _modelScanCoordinator.RunOperationAsync(
                     doc,
@@ -217,6 +220,7 @@ namespace NavisHelper.WPF
                     {
                         ProgressCaption = PanelUi("Panel_ModelScan_Isolate_Progress"),
                         ScanPhaseMessage = PanelUi("Panel_ModelScan_Phase_Scan"),
+                        VerifyPhaseMessage = PanelUi("Panel_ModelScan_Phase_Verify"),
                         ApplyPhaseMessage = PanelUi("Panel_ModelScan_Phase_ApplyVisibility"),
                         IncludeItem = item => ShouldHideForIsolation(
                             item,
@@ -263,6 +267,7 @@ namespace NavisHelper.WPF
                     {
                         ProgressCaption = PanelUi("Panel_ModelScan_Unhide_Progress"),
                         ScanPhaseMessage = PanelUi("Panel_ModelScan_Phase_Scan"),
+                        VerifyPhaseMessage = PanelUi("Panel_ModelScan_Phase_Verify"),
                         ApplyPhaseMessage = PanelUi("Panel_ModelScan_Phase_ApplyVisibility"),
                         // Only the hidden subset is applied, so unhiding a
                         // mostly visible model costs the apply phase the size
@@ -312,59 +317,31 @@ namespace NavisHelper.WPF
                     ReportModelScanApplyFailure(operation);
                     return true;
                 default:
-                    if (operation.ApplyStatus ==
-                        CooperativeModelApplyStatus.CanceledRollbackIncomplete)
-                    {
-                        // A cancel that could not fully restore the original
-                        // state must not be reported as a clean cancel.
-                        ReportModelScanApplyFailure(operation);
-                        return true;
-                    }
                     SetGlobalStatusResource("Panel_ModelScan_Canceled", Brushes.Gray);
                     return true;
             }
         }
 
         /// <summary>
-        /// Reports apply-phase failures honestly: a rolled-back failure says
-        /// the original state was restored, a failed rollback says it was
-        /// not, and neither pretends the operation simply did not run.
+        /// Reports apply-phase failures honestly: the apply is one atomic
+        /// Autodesk call that either completed or threw, so the failure
+        /// message states the error without claiming a rollback or a clean
+        /// "nothing happened" outcome.
         /// </summary>
         private void ReportModelScanApplyFailure(UiThreadModelOperationResult operation)
         {
-            var detail = FlattenExceptionMessages(operation.ApplyError);
+            var detail = operation.ApplyError?.Message ?? string.Empty;
             SetGlobalStatusResource(
                 "Panel_ModelScan_ApplyFailed_Format",
                 Brushes.Red,
                 detail);
             MessageBox.Show(
                 UiLocalizationService.Current.Format(
-                    operation.ApplyStatus == CooperativeModelApplyStatus.FailedRollbackIncomplete ||
-                    operation.ApplyStatus == CooperativeModelApplyStatus.CanceledRollbackIncomplete
-                        ? "Panel_ModelScan_ApplyRollbackFailed_Format"
-                        : "Panel_ModelScan_ApplyRolledBack_Format",
+                    "Panel_ModelScan_ApplyFailed_Format",
                     detail),
                 PanelUi("Panel_ModelScan_ApplyFailed_Title"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
-        }
-
-        private static string FlattenExceptionMessages(Exception exception)
-        {
-            if (exception == null)
-                return string.Empty;
-            if (exception is AggregateException aggregate)
-            {
-                var parts = new List<string>();
-                foreach (var inner in aggregate.InnerExceptions)
-                {
-                    var message = FlattenExceptionMessages(inner);
-                    if (!string.IsNullOrWhiteSpace(message))
-                        parts.Add(message);
-                }
-                return string.Join(Environment.NewLine, parts);
-            }
-            return exception.Message ?? string.Empty;
         }
 
         private static bool ShouldHideForIsolation(
@@ -385,6 +362,95 @@ namespace NavisHelper.WPF
                 "Panel_Common_Error_Format",
                 Brushes.Red,
                 exception?.Message ?? string.Empty);
+        }
+
+
+        /// <summary>
+        /// Bounded pre-flight helpers for the W1 operations: copying a huge
+        /// selection, building its set, or walking ancestors in one
+        /// synchronous loop stalled the UI thread for tens of seconds before
+        /// the coordinator even opened its progress dialog (measured 26s on
+        /// a 41k-item selection). Every helper yields to the dispatcher in
+        /// bounded chunks and reports progress through the global status
+        /// line, so the panel stays responsive during preparation too.
+        /// </summary>
+        private const int ModelScanPreFlightChunkItems = 2048;
+
+        private static async Task<ModelItemCollection> CopyModelItemsCooperativeAsync(
+            ModelItemCollection source,
+            Action<int> reportProgress)
+        {
+            var copy = new ModelItemCollection();
+            if (source == null)
+                return copy;
+            int processed = 0;
+            foreach (var item in source)
+            {
+                copy.Add(item);
+                processed++;
+                if (processed % ModelScanPreFlightChunkItems == 0)
+                {
+                    reportProgress?.Invoke(processed);
+                    await Dispatcher.Yield(DispatcherPriority.Background);
+                }
+            }
+            return copy;
+        }
+
+        private static async Task<HashSet<ModelItem>> BuildSelectionSetCooperativeAsync(
+            ModelItemCollection source,
+            Action<int> reportProgress)
+        {
+            var set = new HashSet<ModelItem>();
+            if (source == null)
+                return set;
+            int processed = 0;
+            foreach (var item in source)
+            {
+                if (item != null)
+                    set.Add(item);
+                processed++;
+                if (processed % ModelScanPreFlightChunkItems == 0)
+                {
+                    reportProgress?.Invoke(processed);
+                    await Dispatcher.Yield(DispatcherPriority.Background);
+                }
+            }
+            return set;
+        }
+
+        private static async Task<HashSet<ModelItem>> CollectAncestorsCooperativeAsync(
+            ModelItemCollection source,
+            Action<int> reportProgress)
+        {
+            var ancestors = new HashSet<ModelItem>();
+            if (source == null)
+                return ancestors;
+            int processed = 0;
+            foreach (var item in source)
+            {
+                var current = item?.Parent;
+                while (current != null)
+                {
+                    ancestors.Add(current);
+                    current = current.Parent;
+                }
+                processed++;
+                if (processed % ModelScanPreFlightChunkItems == 0)
+                {
+                    reportProgress?.Invoke(processed);
+                    await Dispatcher.Yield(DispatcherPriority.Background);
+                }
+            }
+            return ancestors;
+        }
+
+        private void ReportModelScanPreparing(int processed)
+        {
+            SetGlobalStatusResource(
+                "Panel_ModelScan_Preparing_Format",
+                Brushes.DarkGoldenrod,
+                processed);
         }
 
         private bool EnsureModelScanAvailable()

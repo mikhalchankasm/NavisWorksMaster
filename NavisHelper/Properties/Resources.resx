@@ -1821,7 +1821,7 @@ Waiting for a response…
     <value>Select one or more items.</value>
   </data>
   <data name="Panel_Colors_SelectByProperty_Prompt_Format" xml:space="preserve">
-    <value>Enter an exact property value (System / Specification / Elevation):
+    <value>Enter an exact property value (System / Specification / Elevation, or Name / Type / Material when the model has none of them):
 Values in the selection: {0}</value>
   </data>
   <data name="Panel_Colors_SelectByProperty_NoMatches" xml:space="preserve">
@@ -2495,16 +2495,13 @@ Values in the selection: {0}</value>
   <data name="Panel_ModelScan_SourceChanged" xml:space="preserve"><value>The model or selection changed during the scan. No changes were applied.</value></data>
   <data name="Panel_ModelScan_Suspended" xml:space="preserve"><value>Model scanning is unavailable while the panel is inactive. No changes were applied.</value></data>
   <data name="Panel_ModelScan_Phase_Scan" xml:space="preserve"><value>Scanning model items…</value></data>
+  <data name="Panel_ModelScan_Phase_Verify" xml:space="preserve"><value>Verifying selection…</value></data>
+  <data name="Panel_ModelScan_Preparing" xml:space="preserve"><value>Preparing the operation…</value></data>
+  <data name="Panel_ModelScan_Preparing_Format" xml:space="preserve"><value>Preparing the operation… {0} items processed</value></data>
   <data name="Panel_ModelScan_Phase_ApplySelection" xml:space="preserve"><value>Applying selection…</value></data>
   <data name="Panel_ModelScan_Phase_ApplyVisibility" xml:space="preserve"><value>Applying visibility changes…</value></data>
   <data name="Panel_ModelScan_ApplyFailed_Title" xml:space="preserve"><value>Applying changes failed</value></data>
   <data name="Panel_ModelScan_ApplyFailed_Format" xml:space="preserve"><value>Applying changes failed: {0}</value></data>
-  <data name="Panel_ModelScan_ApplyRolledBack_Format" xml:space="preserve"><value>Applying changes failed and the original selection and visibility were restored.
-
-{0}</value></data>
-  <data name="Panel_ModelScan_ApplyRollbackFailed_Format" xml:space="preserve"><value>Applying changes failed and the original state could not be fully restored. Please check the current model state.
-
-{0}</value></data>
   <data name="Panel_ModelScan_SelectByProperty_Progress" xml:space="preserve"><value>NavisHelper: selecting by property value</value></data>
   <data name="Panel_ModelScan_Invert_Progress" xml:space="preserve"><value>NavisHelper: inverting selection</value></data>
   <data name="Panel_ModelScan_Isolate_Progress" xml:space="preserve"><value>NavisHelper: isolating selection</value></data>
