@@ -9,6 +9,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -92,6 +93,8 @@ namespace NavisHelper.WPF
         private TabItem _viewsTab;
         private TabItem _settingsTab;
         private readonly SelectionGatingController _selectionGating;
+
+        private readonly UiThreadModelScanCoordinator _modelScanCoordinator;
         private readonly PanelLocalizationBindings _panelLocalizationBindings;
         private bool _isDisposed;
 
@@ -133,6 +136,7 @@ namespace NavisHelper.WPF
         {
             public string ResourceId { get; set; }
             public Action Execute { get; set; }
+            public Func<Task<TaskAwareCommandOutcome>> ExecuteAsync { get; set; }
             public DateTime? LastUsed { get; set; }
         }
 
@@ -443,6 +447,7 @@ namespace NavisHelper.WPF
         public NavisHelperPanel()
         {
             _selectionGating = new SelectionGatingController(Dispatcher);
+            _modelScanCoordinator = new UiThreadModelScanCoordinator(Dispatcher);
             _panelLocalizationBindings = new PanelLocalizationBindings(
                 UiLocalizationService.Current,
                 Dispatcher);
@@ -549,6 +554,15 @@ namespace NavisHelper.WPF
 
             try
             {
+                _modelScanCoordinator.Attach();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Failed to attach model-scan lifecycle: " + ex, "ModelScan");
+            }
+
+            try
+            {
                 InstallGlobalHotkeys();
             }
             catch (Exception ex)
@@ -560,6 +574,14 @@ namespace NavisHelper.WPF
         private void OnPanelUnloaded(object sender, RoutedEventArgs e)
         {
             AIColorOperationCoordinator.Current.CancelCurrent();
+            try
+            {
+                _modelScanCoordinator.Detach();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Failed to detach model-scan lifecycle: " + ex, "ModelScan");
+            }
             _settingsTabBuilder?.CancelPendingOperations();
             _panelLocalizationBindings.Detach();
             try
@@ -604,6 +626,16 @@ namespace NavisHelper.WPF
                 return;
 
             AIColorOperationCoordinator.Current.CancelCurrent();
+            try
+            {
+                _modelScanCoordinator.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(
+                    "Failed to dispose model-scan lifecycle: " + ex,
+                    "ModelScan");
+            }
             _settingsTabBuilder?.Dispose();
             _settingsTabBuilder = null;
             Loaded -= OnPanelLoaded;
@@ -768,6 +800,20 @@ namespace NavisHelper.WPF
             });
         }
 
+        private void RegisterAsyncPaletteCommand(
+            string resourceId,
+            Func<Task<TaskAwareCommandOutcome>> action)
+        {
+            if (string.IsNullOrWhiteSpace(resourceId) || action == null) return;
+            _commandPalette.RemoveAll(c =>
+                string.Equals(c.ResourceId, resourceId, StringComparison.Ordinal));
+            _commandPalette.Add(new QuickPaletteCommand
+            {
+                ResourceId = resourceId,
+                ExecuteAsync = action
+            });
+        }
+
         private void RegisterPaletteCommands()
         {
             _commandPalette.Clear();
@@ -784,7 +830,7 @@ namespace NavisHelper.WPF
             RegisterPaletteCommand("AiColoring", () => OnApplyColorScheme(null, null));
             RegisterPaletteCommand("CopyNames", () => ExecutePlugin("CopySelectedNames.CBC"));
             RegisterPaletteCommand("FilterByList", () => ExecutePlugin("FilterModels.COMPANY"));
-            RegisterPaletteCommand("SelectByProperty", OnSelectByPropertyValue);
+            RegisterAsyncPaletteCommand("SelectByProperty", SelectByPropertyValueAsync);
             RegisterPaletteCommand("SaveSearchSet", OnCreateSearchSelectionSet);
 
             RegisterPaletteCommand("Parent", () => TreeNavigation.SafeExecute(TreeNavigation.SelectParents));
@@ -792,9 +838,9 @@ namespace NavisHelper.WPF
             RegisterPaletteCommand("Sibling", () => TreeNavigation.SafeExecute(TreeNavigation.SelectSiblings));
             RegisterPaletteCommand("Leaf", () => TreeNavigation.SafeExecute(TreeNavigation.SelectLeafNodes));
             RegisterPaletteCommand("AllUnder", () => TreeNavigation.SafeExecute(TreeNavigation.SelectAllUnder));
-            RegisterPaletteCommand("InvertSelection", InvertSelection);
-            RegisterPaletteCommand("Isolate", IsolateSelection);
-            RegisterPaletteCommand("UnhideAll", UnhideAll);
+            RegisterAsyncPaletteCommand("InvertSelection", InvertSelectionAsync);
+            RegisterAsyncPaletteCommand("Isolate", IsolateSelectionAsync);
+            RegisterAsyncPaletteCommand("UnhideAll", UnhideAllAsync);
             RegisterPaletteCommand("RememberSelection", () => SaveSelectionSetSlot(0));
             RegisterPaletteCommand("RestoreSelection", () => RecallSelectionSetSlot(0));
 
@@ -862,6 +908,42 @@ namespace NavisHelper.WPF
 
             return UiLocalizedArgument.FromResource(
                 "Panel_CommandPalette_" + command.ResourceId + "_Title");
+        }
+
+        private async void ExecutePaletteCommand(QuickPaletteCommand command)
+        {
+            try
+            {
+                if (command == null)
+                    return;
+
+                if (command.ExecuteAsync != null)
+                {
+                    await TaskAwarePaletteCommandRunner.ExecuteAsync(
+                        command.ExecuteAsync,
+                        () => CompletePaletteCommand(command));
+                    return;
+                }
+
+                command.Execute?.Invoke();
+                CompletePaletteCommand(command);
+            }
+            catch (Exception ex)
+            {
+                SetGlobalStatusResource(
+                    "Panel_Common_Error_Format",
+                    Brushes.Red,
+                    ex.Message);
+            }
+        }
+
+        private void CompletePaletteCommand(QuickPaletteCommand command)
+        {
+            command.LastUsed = DateTime.Now;
+            SetGlobalStatusResource(
+                "Panel_CommandPalette_Executed_Format",
+                Brushes.DarkGreen,
+                PaletteCommandTitleStatusArgument(command));
         }
 
         private void SetGlobalStatusResource(
@@ -1250,25 +1332,12 @@ namespace NavisHelper.WPF
             {
                 var item = results.SelectedItem as ListBoxItem;
                 var command = item?.Tag as QuickPaletteCommand;
-                if (command == null || command.Execute == null) return;
+                if (command == null ||
+                    (command.Execute == null && command.ExecuteAsync == null)) return;
 
                 window.Close();
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    try
-                    {
-                        command.Execute();
-                        command.LastUsed = DateTime.Now;
-                        SetGlobalStatusResource(
-                            "Panel_CommandPalette_Executed_Format",
-                            Brushes.DarkGreen,
-                            PaletteCommandTitleStatusArgument(command));
-                    }
-                    catch (Exception ex)
-                    {
-                        SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
-                    }
-                }));
+                Dispatcher.BeginInvoke(
+                    new Action(() => ExecutePaletteCommand(command)));
             }
 
             query.TextChanged += (s, e) =>

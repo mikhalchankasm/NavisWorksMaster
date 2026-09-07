@@ -647,6 +647,9 @@
     <Compile Include="Core\ColorParser.cs" />
     <Compile Include="Core\ClashOperationProtocolReason.cs" />
     <Compile Include="Core\PersistedModelNames.cs" />
+    <Compile Include="Core\CooperativeModelScanState.cs" />
+    <Compile Include="Core\CooperativeModelScanPrimitives.cs" />
+    <Compile Include="Core\CooperativeModelApplySupport.cs" />
     <Compile Include="Core\Localization\ColorSchemeUiText.cs" />
     <Compile Include="Core\Localization\ClashViewpointErrorRecord.cs" />
     <Compile Include="Core\Localization\PreviewManagerUiOutcome.cs" />
@@ -701,6 +704,8 @@
     <Compile Include="WPF\NavisHelperPanel.Colors.cs" />
     <Compile Include="WPF\NavisHelperPanel.Selection.cs" />
     <Compile Include="WPF\SelectionGatingController.cs" />
+    <Compile Include="WPF\UiThreadModelScanCoordinator.cs" />
+    <Compile Include="WPF\UiThreadModelScanDocumentIdentity.cs" />
     <Compile Include="WPF\NavisHelperPanel.Viewpoints.cs" />
     <Compile Include="WPF\NavisHelperPanel.HeightMarks.cs" />
     <Compile Include="WPF\HeightMarkSessionGroup.cs" />

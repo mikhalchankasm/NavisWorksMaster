@@ -30,6 +30,12 @@
              Link="Core\ClashOperationProtocolReason.cs" />
     <Compile Include="..\NavisHelper\Core\PersistedModelNames.cs"
              Link="Core\PersistedModelNames.cs" />
+    <Compile Include="..\NavisHelper\Core\CooperativeModelScanState.cs"
+             Link="Core\CooperativeModelScanState.cs" />
+    <Compile Include="..\NavisHelper\Core\CooperativeModelScanPrimitives.cs"
+             Link="Core\CooperativeModelScanPrimitives.cs" />
+    <Compile Include="..\NavisHelper\Core\CooperativeModelApplySupport.cs"
+             Link="Core\CooperativeModelApplySupport.cs" />
     <Compile Include="..\NavisHelper\Core\Localization\PreviewManagerUiOutcome.cs"
              Link="Localization\PreviewManagerUiOutcome.cs" />
     <Compile Include="..\NavisHelper\Core\Localization\ClashViewpointErrorRecord.cs"
