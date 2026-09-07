@@ -26,7 +26,7 @@ namespace NavisHelper.WPF
             _checkCanContinue();
             var source = _document.CurrentSelection.SelectedItems;
             var result = new ModelItemCollection();
-            await _run(source, item => result.Add(item));
+            await _run(source, item => { if (item != null) result.Add(item); });
             return result;
         }
 

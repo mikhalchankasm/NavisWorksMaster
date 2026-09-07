@@ -987,11 +987,17 @@ namespace NavisHelper.WPF
 
         private CooperativeModelScanStatus? GetStopReason(OperationContext context)
         {
-            if (!IsCurrentDocument(context.Document) ||
-                !ReferenceEquals(_observedDocument, context.Document))
+            if (!IsCurrentDocument(context.Document))
             {
                 return CooperativeModelScanStatus.DocumentChanged;
             }
+
+            // Detach clears the observed document and cancels the lease.
+            // Classify that lifecycle stop before either secondary signal.
+            if (!_attachRequested || !_lifecycle.CanStart)
+                return CooperativeModelScanStatus.Suspended;
+            if (!ReferenceEquals(_observedDocument, context.Document))
+                return CooperativeModelScanStatus.DocumentChanged;
 
             var changeStatus = _generations.GetChangeStatus(context.Generation);
             if (changeStatus.HasValue)
@@ -1003,8 +1009,6 @@ namespace NavisHelper.WPF
             }
             if (context.ProgressCanceled || (context.Progress != null && context.Progress.IsCanceled))
                 return CooperativeModelScanStatus.Canceled;
-            if (!_attachRequested || !_lifecycle.CanStart)
-                return CooperativeModelScanStatus.Suspended;
             return null;
         }
 
