@@ -557,67 +557,6 @@ namespace NavisHelper.WPF
             }
         }
 
-        private void OnSelectByPropertyValue()
-        {
-            try
-            {
-                var doc = NwApplication.ActiveDocument;
-                if (doc == null) return;
-
-                var selected = doc.CurrentSelection.SelectedItems;
-                if (selected == null || selected.Count == 0)
-                {
-                    MessageBox.Show(PanelUi("Panel_Colors_SelectByProperty_SelectItems"), PanelUi("Panel_Colors_SelectByProperty_Title"));
-                    return;
-                }
-
-                var sourceValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var item in selected)
-                {
-                    var value = FindPropertyValue(item, PropertyAliases);
-                    if (!string.IsNullOrWhiteSpace(value))
-                        sourceValues.Add(value);
-                }
-
-                var suggestion = string.Join(", ", sourceValues.Take(6));
-                var input = Microsoft.VisualBasic.Interaction.InputBox(
-                    UiLocalizationService.Current.Format(
-                        "Panel_Colors_SelectByProperty_Prompt_Format",
-                        suggestion),
-                    PanelUi("Panel_Colors_SelectByProperty_Title"),
-                    sourceValues.FirstOrDefault() ?? string.Empty);
-
-                if (string.IsNullOrWhiteSpace(input))
-                    return;
-
-                input = input.Trim();
-
-                var allItems = CollectModelItems(doc);
-                var result = new Autodesk.Navisworks.Api.ModelItemCollection();
-                foreach (var item in allItems)
-                {
-                    var value = FindPropertyValue(item, PropertyAliases);
-                    if (string.Equals(value, input, StringComparison.OrdinalIgnoreCase))
-                        result.Add(item);
-                }
-
-                if (result.Count == 0)
-                {
-                    SetGlobalStatusResource("Panel_Colors_SelectByProperty_NoMatches", Brushes.Orange);
-                    MessageBox.Show(PanelUi("Panel_Colors_SelectByProperty_NoMatches"), PanelUi("Panel_Colors_SelectByProperty_Title"));
-                    return;
-                }
-
-                doc.CurrentSelection.Clear();
-                doc.CurrentSelection.CopyFrom(result);
-                SetGlobalStatusResource("Panel_Colors_SelectByProperty_Result_Format", Brushes.DarkGreen, result.Count);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_SelectByProperty_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
         private void OnCreateSearchSelectionSet()
         {
             try
@@ -1464,27 +1403,6 @@ namespace NavisHelper.WPF
                 if (item != null)
                     result.Add(item);
             return result;
-        }
-
-        private static ModelItemCollection CollectModelItems(Autodesk.Navisworks.Api.Document doc)
-        {
-            var result = new ModelItemCollection();
-            if (doc == null) return result;
-            var roots = doc.Models.CreateCollectionFromRootItems();
-            var seen = new HashSet<ModelItem>();
-            foreach (var root in roots)
-                CollectModelItemsRecursive(root, result, seen);
-            return result;
-        }
-
-        private static void CollectModelItemsRecursive(ModelItem item, ModelItemCollection result, HashSet<ModelItem> seen)
-        {
-            if (item == null) return;
-            if (!seen.Add(item)) return;
-            result.Add(item);
-            if (item.Children != null)
-                foreach (var child in item.Children)
-                    CollectModelItemsRecursive(child, result, seen);
         }
 
         private static string FindPropertyValue(ModelItem item, (string Category, string Name)[] aliases)

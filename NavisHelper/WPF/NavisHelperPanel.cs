@@ -784,7 +784,6 @@ namespace NavisHelper.WPF
             RegisterPaletteCommand("AiColoring", () => OnApplyColorScheme(null, null));
             RegisterPaletteCommand("CopyNames", () => ExecutePlugin("CopySelectedNames.CBC"));
             RegisterPaletteCommand("FilterByList", () => ExecutePlugin("FilterModels.COMPANY"));
-            RegisterPaletteCommand("SelectByProperty", OnSelectByPropertyValue);
             RegisterPaletteCommand("SaveSearchSet", OnCreateSearchSelectionSet);
 
             RegisterPaletteCommand("Parent", () => TreeNavigation.SafeExecute(TreeNavigation.SelectParents));
@@ -792,9 +791,6 @@ namespace NavisHelper.WPF
             RegisterPaletteCommand("Sibling", () => TreeNavigation.SafeExecute(TreeNavigation.SelectSiblings));
             RegisterPaletteCommand("Leaf", () => TreeNavigation.SafeExecute(TreeNavigation.SelectLeafNodes));
             RegisterPaletteCommand("AllUnder", () => TreeNavigation.SafeExecute(TreeNavigation.SelectAllUnder));
-            RegisterPaletteCommand("InvertSelection", InvertSelection);
-            RegisterPaletteCommand("Isolate", IsolateSelection);
-            RegisterPaletteCommand("UnhideAll", UnhideAll);
             RegisterPaletteCommand("RememberSelection", () => SaveSelectionSetSlot(0));
             RegisterPaletteCommand("RestoreSelection", () => RecallSelectionSetSlot(0));
 

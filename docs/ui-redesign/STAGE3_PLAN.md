@@ -90,7 +90,11 @@
 **Рекомендация: Вариант B** (векторные монохромные иконки, наследующие цвет). Если приоритет — минимум усилий и
 допустима эмодзи-подобная цветность, брать Вариант A с тёмным slate и без иконок на Primary.
 
-### Полный список имён (44, авторитетно из grep кода — НЕ из ICONS.md, он устарел)
+### Исторический список имён
+
+С 08.09.2026 `selection_invert`, `selection_isolate`, `selection_unhide` и
+`selection_set_prop` удалены; не восстанавливать их из этого списка.
+См. [решение владельца](../decisions/selection-operations-retired.md).
 Модель/Навигация: `parent`, `child`, `sibling`, `leaf`, `all_under`, `selection_invert`, `selection_isolate`,
 `selection_unhide`, `selection_set_prop`, `selection_search_set`, `copy_names`, `selection_bounds_info`,
 `filter`, `selection_save`, `selection_recall`.

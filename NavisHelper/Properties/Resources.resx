@@ -293,9 +293,6 @@ Moves one level up the model tree.</value>
   <data name="Panel_Model_CopyNames_ToolTip" xml:space="preserve">
     <value>Copy selected object DisplayNames to the clipboard (Ctrl+M)</value>
   </data>
-  <data name="Panel_Colors_SelectByProperty_Action" xml:space="preserve">
-    <value>Copy selection by property value</value>
-  </data>
   <data name="Panel_Colors_Ai_CopyResponse_ToolTip" xml:space="preserve">
     <value>Copy the response to the clipboard</value>
   </data>
@@ -411,9 +408,6 @@ while navigating</value>
   <data name="Panel_HeightMarks_Group_SessionObjects" xml:space="preserve">
     <value>Session object groups</value>
   </data>
-  <data name="Panel_Model_Isolate_ToolTip" xml:space="preserve">
-    <value>Hide everything except the selection</value>
-  </data>
   <data name="Panel_HideGraphics" xml:space="preserve">
     <value>Hide Graphics</value>
   </data>
@@ -454,15 +448,6 @@ while navigating</value>
   </data>
   <data name="Panel_Selection_MemoryCount_Format" xml:space="preserve">
     <value>in memory: {0} objects</value>
-  </data>
-  <data name="Panel_Invert" xml:space="preserve">
-    <value>Invert</value>
-  </data>
-  <data name="Panel_Selection_Invert_ToolTip" xml:space="preserve">
-    <value>Invert the current selection</value>
-  </data>
-  <data name="Panel_Isolate" xml:space="preserve">
-    <value>Isolate</value>
   </data>
   <data name="Panel_Level" xml:space="preserve">
     <value>Level</value>
@@ -514,9 +499,6 @@ while navigating</value>
   </data>
   <data name="Panel_Model_Group_SelectionMemory" xml:space="preserve">
     <value>Remember selection</value>
-  </data>
-  <data name="Panel_Model_Group_SelectionOperations" xml:space="preserve">
-    <value>Selection operations</value>
   </data>
   <data name="Panel_Model_Group_TreeNavigation" xml:space="preserve">
     <value>Model tree navigation</value>
@@ -730,9 +712,6 @@ Useful for selecting all objects on one level.</value>
   <data name="Panel_Clash_GroupTree_Instruction" xml:space="preserve">
     <value>Select a tree level to group clashes by that object</value>
   </data>
-  <data name="Panel_Colors_SelectByProperty_Label" xml:space="preserve">
-    <value>Select by Property</value>
-  </data>
   <data name="Panel_Colors_SearchSet_SelectAfterCreate_ToolTip" xml:space="preserve">
     <value>Select found items after creation</value>
   </data>
@@ -751,9 +730,6 @@ Keeps only geometric objects on the lowest level.</value>
   </data>
   <data name="Panel_Section_Show_ToolTip" xml:space="preserve">
     <value>Set Section Box to the current selection</value>
-  </data>
-  <data name="Panel_Selection_UnhideAll_ToolTip" xml:space="preserve">
-    <value>Show all items</value>
   </data>
   <data name="Panel_HeightMarks_Graphics_ToolTip" xml:space="preserve">
     <value>Show temporary Graphics.Text2D labels for the current selection without changing the camera.</value>
@@ -838,9 +814,6 @@ Keeps only geometric objects on the lowest level.</value>
   </data>
   <data name="Panel_TransparentContext" xml:space="preserve">
     <value>Transparent context</value>
-  </data>
-  <data name="Panel_UnhideAll" xml:space="preserve">
-    <value>Unhide All</value>
   </data>
   <data name="Panel_Clash_Transparency_Description" xml:space="preserve">
     <value>Used only for visual inspection of the selected clash in the panel. Saved Viewpoints are stored without transparency.</value>
@@ -1642,21 +1615,6 @@ File: {1}</value>
   <data name="Panel_Selection_MemoryRestored_Format" xml:space="preserve">
     <value>Slot {0}: restored {1} items</value>
   </data>
-  <data name="Panel_Selection_Invert_SelectItems" xml:space="preserve">
-    <value>Select at least one item to invert the selection.</value>
-  </data>
-  <data name="Panel_Selection_Invert_Result_Format" xml:space="preserve">
-    <value>Selection inverted: {0} items selected</value>
-  </data>
-  <data name="Panel_Selection_Isolate_SelectItems" xml:space="preserve">
-    <value>Select items to isolate.</value>
-  </data>
-  <data name="Panel_Selection_Isolate_Result_Format" xml:space="preserve">
-    <value>Isolation applied: {0} items hidden</value>
-  </data>
-  <data name="Panel_Selection_Unhide_Result" xml:space="preserve">
-    <value>All items are visible</value>
-  </data>
   <data name="Panel_Selection_Bounds_Title" xml:space="preserve">
     <value>Selection bounds</value>
   </data>
@@ -1814,19 +1772,6 @@ Waiting for a response…
   <data name="Panel_Colors_OverridesReset" xml:space="preserve">
     <value>NavisHelper overrides reset</value>
   </data>
-  <data name="Panel_Colors_SelectByProperty_SelectItems" xml:space="preserve">
-    <value>Select one or more items.</value>
-  </data>
-  <data name="Panel_Colors_SelectByProperty_Prompt_Format" xml:space="preserve">
-    <value>Enter an exact property value (System / Specification / Elevation):
-Values in the selection: {0}</value>
-  </data>
-  <data name="Panel_Colors_SelectByProperty_NoMatches" xml:space="preserve">
-    <value>No items were found with this value.</value>
-  </data>
-  <data name="Panel_Colors_SelectByProperty_Result_Format" xml:space="preserve">
-    <value>Selected by value: {0} items</value>
-  </data>
   <data name="Panel_Colors_SearchSet_Title" xml:space="preserve">
     <value>Search set</value>
   </data>
@@ -1947,12 +1892,6 @@ Values in the selection: {0}</value>
   <data name="Panel_CommandPalette_FilterByList_Description" xml:space="preserve">
     <value>Filter the model using a list of names from a file</value>
   </data>
-  <data name="Panel_CommandPalette_SelectByProperty_Title" xml:space="preserve">
-    <value>Select by Property Value</value>
-  </data>
-  <data name="Panel_CommandPalette_SelectByProperty_Description" xml:space="preserve">
-    <value>Select items matching a property value from the selection</value>
-  </data>
   <data name="Panel_CommandPalette_SaveSearchSet_Title" xml:space="preserve">
     <value>Save search set</value>
   </data>
@@ -1988,24 +1927,6 @@ Values in the selection: {0}</value>
   </data>
   <data name="Panel_CommandPalette_AllUnder_Description" xml:space="preserve">
     <value>Select all descendants of selected items</value>
-  </data>
-  <data name="Panel_CommandPalette_InvertSelection_Title" xml:space="preserve">
-    <value>Invert Selection</value>
-  </data>
-  <data name="Panel_CommandPalette_InvertSelection_Description" xml:space="preserve">
-    <value>Invert the current selection</value>
-  </data>
-  <data name="Panel_CommandPalette_Isolate_Title" xml:space="preserve">
-    <value>Isolate</value>
-  </data>
-  <data name="Panel_CommandPalette_Isolate_Description" xml:space="preserve">
-    <value>Hide everything except the current selection</value>
-  </data>
-  <data name="Panel_CommandPalette_UnhideAll_Title" xml:space="preserve">
-    <value>Unhide All</value>
-  </data>
-  <data name="Panel_CommandPalette_UnhideAll_Description" xml:space="preserve">
-    <value>Show all items</value>
   </data>
   <data name="Panel_CommandPalette_RememberSelection_Title" xml:space="preserve">
     <value>Remember selection</value>
@@ -2480,11 +2401,7 @@ Values in the selection: {0}</value>
   <data name="Panel_Colors_Match_Title" xml:space="preserve"><value>Match Color</value></data>
   <data name="Panel_Colors_Property_Title" xml:space="preserve"><value>Color by Property</value></data>
   <data name="Panel_Colors_Overrides_Title" xml:space="preserve"><value>Reset overrides</value></data>
-  <data name="Panel_Colors_SelectByProperty_Title" xml:space="preserve"><value>Select by Property Value</value></data>
   <data name="Panel_Selection_Memory_Title" xml:space="preserve"><value>Selection Slot</value></data>
-  <data name="Panel_Selection_Invert_Title" xml:space="preserve"><value>Invert Selection</value></data>
-  <data name="Panel_Selection_Isolate_Title" xml:space="preserve"><value>Isolate</value></data>
-  <data name="Panel_Selection_Unhide_Title" xml:space="preserve"><value>Unhide All</value></data>
   <data name="Panel_Selection_SectionBox_Title" xml:space="preserve"><value>Section Box</value></data>
   <data name="Panel_Clash_Column_New" xml:space="preserve"><value>New</value></data>
   <data name="Panel_Clash_Column_Active" xml:space="preserve"><value>Act</value></data>
