@@ -20,6 +20,8 @@
   <ItemGroup>
     <Compile Include="..\NavisHelper\Agent\Services\SectionBoxClippingParser.cs"
              Link="HostServices\SectionBoxClippingParser.cs" />
+    <Compile Include="..\NavisHelper\Agent\Services\ScopedMatchTopology.cs"
+             Link="HostServices\ScopedMatchTopology.cs" />
     <ProjectReference Include="..\NavisHelper.McpServer\NavisHelper.McpServer.csproj" />
   </ItemGroup>
 

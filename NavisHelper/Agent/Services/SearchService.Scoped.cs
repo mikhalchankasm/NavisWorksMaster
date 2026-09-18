@@ -35,6 +35,21 @@ namespace NavisHelper.Agent.Services
             AddSearchRiskWarnings(search, scope, response.Warnings);
 
             EnsureSearchIsSafeToExecute(search);
+
+            if (TryExecuteNativeScopedFindItems(
+                    document,
+                    search,
+                    roots,
+                    matchDepth,
+                    countOnly,
+                    previewLimit,
+                    sessionStore,
+                    response))
+            {
+                return response;
+            }
+
+            response.TraversalMode = TraversalModeManual;
             var started = Stopwatch.StartNew();
             var matchedItems = countOnly ? null : new List<ModelItem>();
             var matchedSet = countOnly ? null : new HashSet<ModelItem>();

@@ -56,10 +56,37 @@ Simple comparisons are `equals`, `not_equals`, `contains`, `starts_with`,
 `ignoreDiacritics`, and `ignoreCharWidth` apply to simple mode; advanced
 conditions retain their per-condition flags.
 
-Scoped traversal starts from the selected/handled/named roots and does not run a
-global native search first. The output adds `matchedItemCount`,
-`scannedItemCount`, `depthHistogram`, `sampleValuesFromModel`, and `warnings`.
-With `countOnly=true`, no match handle is registered. Text warnings flag mixed
+A scoped search starts from the selected/handled/named roots and never widens to
+a global search. The output adds `matchedItemCount`, `scannedItemCount`,
+`depthHistogram`, `sampleValuesFromModel`, `traversalMode`, and `warnings`.
+With `countOnly=true`, no match handle is registered.
+
+`traversalMode` reports how a scoped search was answered and is diagnostic only —
+the match set is the same either way:
+
+| Value | Meaning |
+| --- | --- |
+| `native` | The Navisworks search engine answered it, with the scope roots as the search selection and `DescendantsAndSelf` locations. |
+| `manual` | The roots were walked in managed code, node by node. |
+| absent | An unscoped `whole_model + matchDepth=all` search, or a preflight. |
+
+A scoped search goes to the native engine only when every condition is one the
+whole-model path already answers natively — `equals`, `contains`, `wildcard`, or
+`defined` — and the conditions combine with `AND` alone. Anything else stays on
+the manual traversal: `starts_with`, `ends_with`, `not_equals`, `not_defined`, any
+`OR` between conditions, and every inherited-property condition, including
+`Source File`. The native path is never partial: either it answers the whole
+search or it is not used.
+
+`scannedItemCount` is `0` when `traversalMode=native`, because the search engine
+does not report how many nodes it visited. Do not read that zero as an empty
+scope. With `traversalMode=manual` it is the real visited-node count, and the
+45-second budget and 1,000,000-node limit apply as before.
+
+Set `NAVISHELPER_SCOPED_FIND_ITEMS=manual` in the Navisworks host process to force
+every scoped search back onto the manual traversal. That switch exists to isolate
+a suspected native-engine difference on a live model; it makes scoped searches
+slow again and is not a normal setting. Text warnings flag mixed
 Cyrillic/Latin input or Latin letters that commonly resemble Cyrillic ones.
 For numeric equality, pass `dataType="double"` (or another explicit numeric
 type). Decimal values accept invariant dot syntax and, for persisted Search
