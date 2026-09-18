@@ -25,7 +25,7 @@ namespace NavisHelper.Agent.Services
 
             var response = new SelectItemsResponse();
             var itemsToSelect = new List<ModelItem>();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seen = new HashSet<ModelItem>();
 
             foreach (var handle in request.MatchHandles.Where(h => !string.IsNullOrWhiteSpace(h)))
             {
@@ -37,6 +37,7 @@ namespace NavisHelper.Agent.Services
                     {
                         MatchHandle = handle,
                         Status = SelectHandleStatuses.Stale,
+                        Message = MatchSessionStore.DescribeStale(handle),
                         SelectedItemCount = 0,
                     });
                     continue;
@@ -45,7 +46,7 @@ namespace NavisHelper.Agent.Services
                 var selectedCount = 0;
                 foreach (var item in items)
                 {
-                    var identity = BuildItemPath(item);
+                    var identity = item;
                     if (seen.Add(identity))
                     {
                         itemsToSelect.Add(item);
@@ -270,6 +271,7 @@ namespace NavisHelper.Agent.Services
                         selectedDepth,
                         maxDepth,
                         includeBoundingBoxes,
+                        request.IncludeChain.GetValueOrDefault(true),
                         response));
                 }
                 else
@@ -321,6 +323,7 @@ namespace NavisHelper.Agent.Services
                     {
                         MatchHandle = handle,
                         Status = SelectHandleStatuses.Stale,
+                        Message = MatchSessionStore.DescribeStale(handle),
                     });
                     continue;
                 }

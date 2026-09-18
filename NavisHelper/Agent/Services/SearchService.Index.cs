@@ -31,12 +31,11 @@ namespace NavisHelper.Agent.Services
 
             IList<ModelItem> items;
             if (!sessionStore.TryGet(parentMatchHandle, out items) || items == null || items.Count == 0)
-                throw new AgentCommandException(ErrorCodes.StaleMatchReference, "parentMatchHandle is stale or was not found. Re-run find_items/list_item_children and retry.");
+                throw new AgentCommandException(ErrorCodes.StaleMatchReference, MatchSessionStore.DescribeStale(parentMatchHandle));
 
             var distinct = items
                 .Where(item => item != null)
-                .GroupBy(BuildItemPath, StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.First())
+                .Distinct()
                 .ToList();
             if (distinct.Count != 1)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "parentMatchHandle must resolve to exactly one parent item; it resolved to " + distinct.Count.ToString(CultureInfo.InvariantCulture) + ".");
@@ -91,22 +90,16 @@ namespace NavisHelper.Agent.Services
             if (document == null || document.Models == null)
                 return result;
 
-            var segments = SplitItemPathSegments(parentPath).ToList();
-            if (segments.Count == 0)
-                return result;
-
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var starts = new List<ModelItem>();
             foreach (Model model in document.Models)
             {
-                if (model == null || model.RootItem == null)
-                    continue;
-
-                AddResolvedPathCandidate(result, seen, TryResolveChildPath(model.RootItem, segments, 0));
-                foreach (ModelItem child in model.RootItem.Children)
-                    AddResolvedPathCandidate(result, seen, TryResolveChildPath(child, segments, 0));
+                if (model?.RootItem == null) continue;
+                starts.Add(model.RootItem);
+                starts.AddRange(model.RootItem.Children);
             }
-
-            return result;
+            return ModelItemPathResolver.Resolve(starts, parentPath,
+                item => new[] { string.IsNullOrWhiteSpace(item.DisplayName) ? item.ClassDisplayName : item.DisplayName },
+                item => item.Children);
         }
 
         private List<ModelItem> ResolveListChildrenParentsFromRootIndex(Document document, string parentName, string sourceFile, string comparison)
@@ -116,7 +109,7 @@ namespace NavisHelper.Agent.Services
                 return result;
 
             var index = GetRootSearchIndex(document);
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seen = new HashSet<ModelItem>();
             foreach (var candidate in index.Candidates)
             {
                 if (candidate == null || candidate.Item == null)
@@ -134,56 +127,12 @@ namespace NavisHelper.Agent.Services
             return result;
         }
 
-        private static ModelItem TryResolveChildPath(ModelItem start, IList<string> segments, int segmentIndex)
-        {
-            if (start == null || segments == null || segmentIndex >= segments.Count)
-                return null;
-            if (!ItemNameMatchesSegment(start, segments[segmentIndex]))
-                return null;
-            if (segmentIndex == segments.Count - 1)
-                return start;
-
-            foreach (ModelItem child in start.Children)
-            {
-                var resolved = TryResolveChildPath(child, segments, segmentIndex + 1);
-                if (resolved != null)
-                    return resolved;
-            }
-
-            return null;
-        }
-
-        private static bool ItemNameMatchesSegment(ModelItem item, string segment)
-        {
-            if (item == null || string.IsNullOrWhiteSpace(segment))
-                return false;
-
-            return string.Equals(item.DisplayName ?? string.Empty, segment, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(item.ClassDisplayName ?? string.Empty, segment, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(TryGetSourceFile(item) ?? string.Empty, segment, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(GetRootCandidateFileName(item.DisplayName, TryGetSourceFile(item)), segment, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static IEnumerable<string> SplitItemPathSegments(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                yield break;
-
-            foreach (var segment in path.Replace('\\', '/').Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries))
-            {
-                var value = segment.Trim();
-                if (!string.IsNullOrWhiteSpace(value))
-                    yield return value;
-            }
-        }
-
-        private static void AddResolvedPathCandidate(ICollection<ModelItem> result, ISet<string> seen, ModelItem item)
+        private static void AddResolvedPathCandidate(ICollection<ModelItem> result, ISet<ModelItem> seen, ModelItem item)
         {
             if (result == null || item == null)
                 return;
 
-            var path = BuildItemPath(item);
-            if (seen != null && !seen.Add(path))
+            if (seen != null && !seen.Add(item))
                 return;
 
             result.Add(item);
@@ -244,7 +193,7 @@ namespace NavisHelper.Agent.Services
                 return new RootSearchIndex(cacheKey, 0, result);
 
             var pathCache = new Dictionary<ModelItem, string>();
-            var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenPaths = new HashSet<ModelItem>();
             var modelCount = 0;
 
             foreach (Model model in document.Models)
@@ -289,12 +238,12 @@ namespace NavisHelper.Agent.Services
             ICollection<RootSearchCandidate> candidates,
             ModelItem item,
             IDictionary<ModelItem, string> pathCache,
-            ISet<string> seenPaths)
+            ISet<ModelItem> seenPaths)
         {
             if (candidates == null || item == null)
                 return;
 
-            var path = GetCachedPath(item, pathCache);
+            var path = item;
             if (seenPaths != null && !seenPaths.Add(path))
                 return;
 
@@ -311,7 +260,7 @@ namespace NavisHelper.Agent.Services
                 item.DisplayName ?? string.Empty,
                 sourceFile ?? string.Empty,
                 GetRootCandidateFileName(item.DisplayName, sourceFile),
-                path,
+                GetCachedPath(item, pathCache),
                 aliases.OrderBy(alias => alias, StringComparer.OrdinalIgnoreCase).ToList()));
         }
 
@@ -400,12 +349,12 @@ namespace NavisHelper.Agent.Services
             return Path.GetFileName(document.FileName);
         }
 
-        private static Dictionary<string, ModelItem> ToPathMap(IEnumerable<ModelItem> items, IDictionary<ModelItem, string> pathCache)
+        private static Dictionary<ModelItem, ModelItem> ToIdentityMap(IEnumerable<ModelItem> items, IDictionary<ModelItem, string> pathCache)
         {
-            var result = new Dictionary<string, ModelItem>(StringComparer.OrdinalIgnoreCase);
+            var result = new Dictionary<ModelItem, ModelItem>();
             foreach (var item in items)
             {
-                var path = GetCachedPath(item, pathCache);
+                var path = item;
                 if (!result.ContainsKey(path))
                     result[path] = item;
             }

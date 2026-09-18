@@ -38,6 +38,7 @@ REQUIRED_TOOLS = {
     "item_properties_by_handle",
     "selection_property_report",
     "selection_export_properties",
+    "export_selection_geometry",
     "model_color_scheme",
     "dump_subtree_names",
     "start_subtree_names_dump",

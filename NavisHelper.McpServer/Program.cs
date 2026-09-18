@@ -31,6 +31,7 @@ builder.Services
     .WithTools<NavisworksSectionBoxTools>()
     .WithTools<NavisworksStartupTools>()
     .WithTools<NavisworksSelectionReportTools>()
+    .WithTools<NavisworksGeometryTools>()
     .WithTools<NavisworksModelColorSchemeTools>()
     .WithTools<NavisworksScenarioWorkflowTools>()
     .WithTools<NavisworksClashTools>()

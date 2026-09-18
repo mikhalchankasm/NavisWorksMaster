@@ -15,9 +15,9 @@ internal sealed class NavisworksTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists running Navisworks MCP host instances. Use instance_id from this tool when multiple Navisworks windows are open, or navisworks_version when exactly one host of that version is running.")]
-    public ListNavisworksHostsResponse ListNavisworksHosts()
+    public Task<ListNavisworksHostsResponse> ListNavisworksHosts(CancellationToken cancellationToken = default)
     {
-        return _hostBridgeClient.ListNavisworksHosts();
+        return _hostBridgeClient.ListNavisworksHostsAsync(cancellationToken);
     }
 
     [McpServerTool]
@@ -335,12 +335,14 @@ internal sealed class NavisworksTools : NavisworksToolBase
         [Description("Comparison for parentName/sourceFile: equals, contains, or wildcard. parentPath only supports equals. Default is equals.")] string comparison = FindItemsComparisons.Equal,
         [Description("Include hidden direct children. Default is true.")] bool includeHidden = true,
         [Description("Maximum direct children to return. Default is 200, maximum is 2000.")] int limit = 200,
+        [Description("Zero-based offset within filtered direct children. Default is 0.")] int offset = 0,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
         return _hostBridgeClient.ListItemChildrenAsync(new ListItemChildrenRequest
         {
+            Offset = offset,
             ParentMatchHandle = parentMatchHandle,
             ParentPath = parentPath,
             ParentName = parentName,
@@ -534,12 +536,14 @@ internal sealed class NavisworksTools : NavisworksToolBase
         [Description("Optional maximum path depth to return from model root. Omit for full chains.")] int? maxDepth = null,
         [Description("Response format: tree or flat. Default is tree.")] string format = "tree",
         [Description("Include bounding boxes for returned nodes/items. Default is false because bounding boxes can be expensive on large selections.")] bool includeBoundingBoxes = false,
+        [Description("Include ancestor chains in flat output. Default true; false reduces payload size.")] bool includeChain = true,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
         return _hostBridgeClient.SelectedItemsTreeAsync(new SelectedItemsTreeRequest
         {
+            IncludeChain = includeChain,
             MaxItems = maxItems,
             MaxDepth = maxDepth,
             Format = format,

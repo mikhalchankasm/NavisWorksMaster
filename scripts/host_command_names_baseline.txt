@@ -1,5 +1,6 @@
 # Wire values from NavisHelper.Contracts/Statuses.cs: HostCommandNames.
 # Update this file only in a deliberately reviewed protocol-surface change.
+export_selection_geometry
 find_items
 find_items_by_bbox
 find_root_items_by_name

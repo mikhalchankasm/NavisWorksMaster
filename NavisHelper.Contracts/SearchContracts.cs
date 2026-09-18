@@ -239,6 +239,7 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class ListItemChildrenRequest
     {
+        public int? Offset { get; set; }
         public string ParentMatchHandle { get; set; }
         public string ParentPath { get; set; }
         public string ParentName { get; set; }
@@ -250,6 +251,8 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class ListItemChildrenResponse
     {
+        public int Offset { get; set; }
+        public int? NextOffset { get; set; }
         public string DocumentTitle { get; set; }
         public string ParentDisplayName { get; set; }
         public string ParentPath { get; set; }
@@ -264,6 +267,7 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class ItemChildInfo
     {
+        public string MatchHandle { get; set; }
         public int Index { get; set; }
         public string DisplayName { get; set; }
         public string ClassDisplayName { get; set; }

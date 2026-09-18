@@ -18,6 +18,7 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class SelectItemsHandleResult
     {
+        public string Message { get; set; }
         public string MatchHandle { get; set; }
         public string Status { get; set; }
         public int SelectedItemCount { get; set; }

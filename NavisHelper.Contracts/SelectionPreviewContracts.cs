@@ -63,6 +63,7 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class SelectedItemsTreeRequest
     {
+        public bool? IncludeChain { get; set; }
         public int? MaxItems { get; set; }
         public int? MaxDepth { get; set; }
         public string Format { get; set; }
@@ -137,6 +138,7 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class ItemPropertiesHandleResult
     {
+        public string Message { get; set; }
         public string MatchHandle { get; set; }
         public string Status { get; set; }
         public int ItemCount { get; set; }

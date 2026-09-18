@@ -48,6 +48,7 @@ namespace NavisHelper.Agent.Host
                 _processStartedAtUtc = GetCurrentProcessStartTimeUtc();
 
                 _instanceId = string.Format("nw-{0}-{1}-{2:yyyyMMddTHHmmssZ}", version, pid, startedAt);
+                _matchSessionStore.InstanceId = _instanceId;
                 _pipeName = "navishelper-mcp-" + pid;
                 _discoveryFilePath = Path.Combine(GetInstancesDirectory(), _instanceId + ".json");
 
@@ -87,6 +88,7 @@ namespace NavisHelper.Agent.Host
                 _processStartedAtUtc = GetCurrentProcessStartTimeUtc();
 
                 _instanceId = string.Format("nw-{0}-{1}-{2:yyyyMMddTHHmmssZ}", version, pid, startedAt);
+                _matchSessionStore.InstanceId = _instanceId;
                 _pipeName = "navishelper-mcp-" + pid;
                 _discoveryFilePath = Path.Combine(GetInstancesDirectory(), _instanceId + ".json");
 
