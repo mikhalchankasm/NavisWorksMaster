@@ -32,6 +32,55 @@ complete child environment.
 
 If `NAVISHELPER_INSTANCE_ID` is set, the MCP server treats it as a strict target and fails with `instance_not_found` when that host is absent. `NAVISHELPER_INSTANCES_DIR` is honored by both the Navisworks plugin host and MCP server; set it in both processes only for isolated test runs.
 
+## Narrowing the Advertised Tool Surface
+
+The full surface is 104 tools and 180 KB of JSON in `tools/list`, roughly 53,000
+tokens that the client carries in context on every request. A session that only
+queries and navigates the model does not need the Clash Detective surface, and a
+clash session does not need scenario or markup tools. Narrowing the surface cuts
+that fixed cost and also improves tool-selection accuracy, because the model
+chooses between fewer near-identical names.
+
+Set `NAVISHELPER_MCP_TOOLS` in the MCP client configuration, or pass
+`--tools=<sets>` on the server command line. The command line wins when both are
+present. The default is the full surface, so an existing configuration keeps
+behaving exactly as before.
+
+Measured on the 2.9.0.0 surface:
+
+| Spec | Tools | `tools/list` | Approx. tokens |
+|---|---:|---:|---:|
+| unset, or `all` | 104 | 179.8 KB | ~53,300 |
+| `core,clash` | 70 | 113.0 KB | ~32,700 |
+| `core` | 41 | 44.3 KB | **~12,800** |
+
+Sets: `meta`, `query`, `selection`, `view`, `sets`, `viewpoints`, `markup`,
+`sections`, `reports`, `clash`, `scenarios`, `lifecycle`. The alias `core`
+expands to `meta,query,selection,view` — enough to find items, inspect them,
+select them, and move the camera.
+
+Combine sets with commas and subtract with a leading `-`:
+
+```jsonc
+// everything except Clash Detective
+"env": { "NAVISHELPER_MCP_TOOLS": "all,-clash" }
+
+// read-and-navigate plus clash review
+"env": { "NAVISHELPER_MCP_TOOLS": "core,clash" }
+```
+
+The `meta` set is always advertised regardless of the spec, including when it is
+explicitly subtracted, so `mcp_health_check`, `mcp_diagnostics`,
+`mcp_error_contract`, `mcp_recent_calls`, `list_navisworks_hosts`, `host_status`,
+`last_operation_status` and the task timers are never missing. An unknown set
+name fails at startup rather than silently narrowing the surface: a server that
+refuses to start is far easier to diagnose than a tool that quietly disappeared.
+The active profile is logged to stderr on startup.
+
+A tool outside the active spec is not advertised at all. Its contract is
+unchanged — narrowing never alters a tool's schema or behavior. If a workflow
+needs a tool that is not advertised, widen the spec rather than working around it.
+
 ## Task Timing
 
 Every MCP tool result includes automatic `navishelper_timing` in the primary JSON result with `elapsed_ms`, `elapsed_human`, `should_report_to_user`, `user_message`, and `agent_instruction`. If `should_report_to_user=true`, include `user_message` in the user-facing answer.
