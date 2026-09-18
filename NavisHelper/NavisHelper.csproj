@@ -615,8 +615,6 @@
     <Compile Include="Agent\Services\SearchService.Index.cs" />
     <Compile Include="Agent\Services\SearchService.Rules.cs" />
     <Compile Include="Agent\Services\SearchService.Scoped.cs" />
-    <Compile Include="Agent\Services\SearchService.ScopedNative.cs" />
-    <Compile Include="Agent\Services\ScopedMatchTopology.cs" />
     <Compile Include="Agent\Services\SelectionSetSearchBuilder.cs" />
     <Compile Include="Agent\Session\MatchSessionStore.cs" />
     <Compile Include="AboutDialog.cs" />

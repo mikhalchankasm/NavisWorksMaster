@@ -25,7 +25,6 @@ internal static class ResponseSummaryFormatter
             summary["count_only"] = findItems.CountOnly;
             summary["matched_item_count"] = findItems.MatchedItemCount;
             summary["scanned_item_count"] = findItems.ScannedItemCount;
-            summary["traversal_mode"] = findItems.TraversalMode;
             summary["preflight"] = findItems.Preflight != null;
             return summary;
         }

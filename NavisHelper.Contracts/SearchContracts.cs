@@ -59,21 +59,7 @@ namespace NavisHelper.Agent.Contracts
         public string MatchDepth { get; set; }
         public bool CountOnly { get; set; }
         public int MatchedItemCount { get; set; }
-
-        /// <summary>
-        /// Nodes visited by the manual scoped traversal. Zero when
-        /// <see cref="TraversalMode"/> is <c>native</c>, because the Navisworks
-        /// search engine does not report how many nodes it visited.
-        /// </summary>
         public int ScannedItemCount { get; set; }
-
-        /// <summary>
-        /// <c>native</c> when the Navisworks search engine answered a scoped
-        /// search, <c>manual</c> when it was answered by walking the tree, and
-        /// null for an unscoped search or a preflight. Diagnostic only: the match
-        /// set is the same either way.
-        /// </summary>
-        public string TraversalMode { get; set; }
         public Dictionary<int, int> DepthHistogram { get; set; } = new Dictionary<int, int>();
         public List<string> SampleValuesFromModel { get; set; } = new List<string>();
         public List<string> Warnings { get; set; } = new List<string>();

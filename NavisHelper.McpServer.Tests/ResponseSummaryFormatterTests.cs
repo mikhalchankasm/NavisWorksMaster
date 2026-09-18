@@ -124,7 +124,6 @@ public sealed class ResponseSummaryFormatterTests
             CountOnly = true,
             MatchedItemCount = 17,
             ScannedItemCount = 42,
-            TraversalMode = "manual",
             Preflight = new FindItemsPreflight(),
             Summary = new FindItemsSummary
             {
@@ -155,7 +154,6 @@ public sealed class ResponseSummaryFormatterTests
                 "count_only",
                 "matched_item_count",
                 "scanned_item_count",
-                "traversal_mode",
                 "preflight",
             },
             summary.Keys.ToArray());
@@ -168,7 +166,6 @@ public sealed class ResponseSummaryFormatterTests
         Assert.Equal(true, summary["count_only"]);
         Assert.Equal(17, summary["matched_item_count"]);
         Assert.Equal(42, summary["scanned_item_count"]);
-        Assert.Equal("manual", summary["traversal_mode"]);
         Assert.Equal(true, summary["preflight"]);
     }
 
