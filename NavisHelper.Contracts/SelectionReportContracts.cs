@@ -40,6 +40,9 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class SelectionExportPropertiesRequest
     {
+        public string Scope { get; set; }
+        public List<string> MatchHandles { get; set; } = new List<string>();
+        public bool? CleanValues { get; set; }
         public string OutputPath { get; set; }
         public string Format { get; set; }
         public bool? Apply { get; set; }

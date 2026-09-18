@@ -44,6 +44,14 @@ namespace NavisHelper.Agent.Services
             for (var index = roots.Count - 1; index >= 0; index--)
                 stack.Push(new ScopedSearchNode(roots[index], GetModelItemDepth(roots[index])));
 
+            var nativeCandidates = TryFindNativeNameCandidates(document, roots, search, matchDepth, started);
+            if (nativeCandidates != null)
+            {
+                stack.Clear();
+                for (var i = nativeCandidates.Count - 1; i >= 0; i--)
+                    stack.Push(new ScopedSearchNode(nativeCandidates[i], GetModelItemDepth(nativeCandidates[i])));
+            }
+
             while (stack.Count > 0)
             {
                 if (started.ElapsedMilliseconds > MaxScopedTraversalMilliseconds)
@@ -77,6 +85,8 @@ namespace NavisHelper.Agent.Services
                     if (string.Equals(matchDepth, FindItemsMatchDepths.First, StringComparison.Ordinal))
                         continue;
                 }
+
+                if (nativeCandidates != null) continue;
 
                 var children = item.Children == null
                     ? new List<ModelItem>()
@@ -112,6 +122,57 @@ namespace NavisHelper.Agent.Services
             }
             response.Results.Add(result);
             return response;
+        }
+
+        private static List<ModelItem> TryFindNativeNameCandidates(Document document, IList<ModelItem> roots, FindItemsSearch search, string matchDepth, Stopwatch started)
+        {
+            if (search.Conditions.Count != 1) return null;
+            var condition = search.Conditions[0];
+            var comparison = NormalizeComparison(condition.Operator);
+            if (!ResolveProperty(condition).IsDefaultItemNameTarget || condition.Negate == true ||
+                condition.IgnoreDiacritics == true || condition.IgnoreCharWidth == true ||
+                (comparison != FindItemsComparisons.Equal && comparison != FindItemsComparisons.Contains)) return null;
+            var native = new Search { Locations = SearchLocations.DescendantsAndSelf };
+            var selection = new ModelItemCollection();
+            selection.AddRange(roots);
+            native.Selection.CopyFrom(selection);
+            var resolved = CreateResolvedInternalProperty(ItemInternalCategory, ItemUserNameInternalProperty);
+            native.SearchConditions.Add(BuildPositiveSearchCondition(resolved, condition, VariantData.FromDisplayString(condition.Value ?? string.Empty)));
+            Action checkBudget = () =>
+            {
+                if (started.ElapsedMilliseconds > MaxScopedTraversalMilliseconds)
+                    throw new AgentCommandException(ErrorCodes.CommandFailed, "Native scoped find_items exceeded the 45 second budget. Narrow the scope.");
+            };
+            checkBudget();
+            var candidates = native.FindAll(document, false);
+            checkBudget();
+            if (candidates.Count > MaxScopedScannedItems)
+                throw new AgentCommandException(ErrorCodes.CommandFailed, "Native scoped find_items exceeded 1,000,000 candidates. Narrow the scope.");
+            var matches = new List<ModelItem>();
+            var seen = new HashSet<ModelItem>();
+            foreach (var candidate in candidates)
+            {
+                checkBudget();
+                if (MatchesManualCondition(candidate, condition) && seen.Add(candidate)) matches.Add(candidate);
+            }
+            if (matchDepth == FindItemsMatchDepths.First)
+            {
+                var matched = new HashSet<ModelItem>(matches);
+                var rootSet = new HashSet<ModelItem>(roots);
+                matches = matches.Where(item =>
+                {
+                    checkBudget();
+                    if (rootSet.Contains(item)) return true;
+                    for (var parent = item.Parent; parent != null; parent = parent.Parent)
+                    {
+                        checkBudget();
+                        if (matched.Contains(parent)) return false;
+                        if (rootSet.Contains(parent)) break;
+                    }
+                    return true;
+                }).ToList();
+            }
+            return matches;
         }
 
         private static FindItemsResponse BuildFindItemsPreflight(
@@ -267,7 +328,7 @@ namespace NavisHelper.Agent.Services
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "scopeHandle is required for scope=under_handle.");
                 IList<ModelItem> items;
                 if (!sessionStore.TryGet(handle, out items) || items == null || items.Count == 0)
-                    throw new AgentCommandException(ErrorCodes.StaleMatchReference, "scopeHandle is stale or was not found. Re-run find_items/list_item_children.");
+                    throw new AgentCommandException(ErrorCodes.StaleMatchReference, MatchSessionStore.DescribeStale(handle));
                 roots.AddRange(items.Where(item => item != null));
                 return RemoveNestedScopeRoots(roots);
             }

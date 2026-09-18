@@ -10,6 +10,28 @@ namespace NavisHelper.McpServer.Services;
 
 internal sealed partial class HostBridgeClient
 {
+    public async Task<ListNavisworksHostsResponse> ListNavisworksHostsAsync(CancellationToken cancellationToken)
+    {
+        var response = ListNavisworksHosts();
+        await Task.WhenAll(response.Hosts.Select(async host =>
+        {
+            try
+            {
+                var status = await CallHostAsync<HostStatusResponse>(HostCommandNames.HostStatus, new HostStatusRequest(),
+                    cancellationToken, new HostTargetOptions { InstanceId = host.InstanceId }, HostTimeoutMarginMs + 5000);
+                host.DocumentTitle = status.DocumentTitle;
+                host.DocumentTitleSource = "live_host_status";
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                host.DocumentTitleSource = "discovery_record";
+                host.DocumentTitleRefreshError = ex.Message;
+            }
+        }));
+        return response;
+    }
+
     public ListNavisworksHostsResponse ListNavisworksHosts()
     {
         var directory = GetInstancesDirectory();

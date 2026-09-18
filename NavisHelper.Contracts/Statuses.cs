@@ -18,6 +18,7 @@ namespace NavisHelper.Agent.Contracts
 
     public static class HostCommandNames
     {
+        public const string ExportSelectionGeometry = "export_selection_geometry";
         public const string FindItems = "find_items";
         public const string FindItemsByBbox = "find_items_by_bbox";
         public const string FindRootItemsByName = "find_root_items_by_name";

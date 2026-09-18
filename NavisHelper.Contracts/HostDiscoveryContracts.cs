@@ -27,6 +27,8 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class NavisworksHostInfo
     {
+        public string DocumentTitleSource { get; set; } = "discovery_record";
+        public string DocumentTitleRefreshError { get; set; }
         public string ProtocolVersion { get; set; }
         public string InstanceId { get; set; }
         public string PipeName { get; set; }

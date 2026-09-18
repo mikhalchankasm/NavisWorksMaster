@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Xml;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.Agent.Session;
 
 namespace NavisHelper.Agent.Services
 {
@@ -21,7 +23,7 @@ namespace NavisHelper.Agent.Services
         private const int DefaultSelectionDistinctValueLimit = 1000;
         private const int MaxSelectionDistinctValueLimit = 50000;
 
-        public SelectionPropertyReportResponse SelectionPropertyReport(Document document, SelectionPropertyReportRequest request)
+        public SelectionPropertyReportResponse SelectionPropertyReport(Document document, SelectionPropertyReportRequest request, IList<ModelItem> sourceItems = null, bool cleanValues = false)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -34,9 +36,9 @@ namespace NavisHelper.Agent.Services
             var includeEmptyValues = request.IncludeEmptyValues.GetValueOrDefault(false);
             var categoryFilters = NormalizeReportFilters(request.CategoryFilters);
             var propertyFilters = NormalizeReportFilters(request.PropertyFilters);
-            var selectedItems = document.CurrentSelection == null
+            var selectedItems = sourceItems ?? (document.CurrentSelection == null
                 ? new List<ModelItem>()
-                : document.CurrentSelection.SelectedItems.ToList();
+                : document.CurrentSelection.SelectedItems.ToList());
 
             var response = new SelectionPropertyReportResponse
             {
@@ -83,7 +85,7 @@ namespace NavisHelper.Agent.Services
                         if (!MatchesReportFilters(propertyFilters, propertyDisplayName, propertyName))
                             continue;
 
-                        var value = GetSelectionPropertyReportValue(property);
+                        var value = cleanValues ? PropertyValueFormatter.Clean(property.Value) : GetSelectionPropertyReportValue(property);
                         if (!includeEmptyValues && string.IsNullOrWhiteSpace(value))
                             continue;
 
@@ -111,7 +113,7 @@ namespace NavisHelper.Agent.Services
                             Property = propertyDisplayName,
                             PropertyInternalName = includeInternalNames ? propertyName : string.Empty,
                             Value = value,
-                            ValueType = property.Value == null ? string.Empty : property.Value.GetType().Name,
+                            ValueType = property.Value == null ? string.Empty : property.Value.DataType.ToString(),
                         });
                     }
 
@@ -124,7 +126,7 @@ namespace NavisHelper.Agent.Services
             return response;
         }
 
-        public SelectionExportPropertiesResponse SelectionExportProperties(Document document, SelectionExportPropertiesRequest request)
+        public SelectionExportPropertiesResponse SelectionExportProperties(Document document, SelectionExportPropertiesRequest request, MatchSessionStore sessionStore = null)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -147,7 +149,7 @@ namespace NavisHelper.Agent.Services
                 IncludeEmptyValues = request.IncludeEmptyValues,
                 CategoryFilters = request.CategoryFilters ?? new List<string>(),
                 PropertyFilters = request.PropertyFilters ?? new List<string>(),
-            });
+            }, ModelItemScopeResolver.Resolve(document, request.Scope, request.MatchHandles, sessionStore), request.CleanValues == true);
 
             var apply = request.Apply == true;
             var response = new SelectionExportPropertiesResponse
@@ -381,9 +383,9 @@ namespace NavisHelper.Agent.Services
         {
             var builder = new StringBuilder();
             if (includeInternalNames)
-                builder.AppendLine("Path;DisplayName;Category;CategoryInternalName;Property;PropertyInternalName;Value;ValueType");
+                builder.AppendLine("Path;DisplayName;Category;CategoryInternalName;Property;PropertyInternalName;Value;ValueType;ItemIndex");
             else
-                builder.AppendLine("Path;DisplayName;Category;Property;Value;ValueType");
+                builder.AppendLine("Path;DisplayName;Category;Property;Value;ValueType;ItemIndex");
 
             if (report == null || report.Rows == null)
                 return builder.ToString();
@@ -400,7 +402,7 @@ namespace NavisHelper.Agent.Services
                         .Append(EscapeCsv(row.Property)).Append(';')
                         .Append(EscapeCsv(row.PropertyInternalName)).Append(';')
                         .Append(EscapeCsv(row.Value)).Append(';')
-                        .Append(EscapeCsv(row.ValueType)).AppendLine();
+                        .Append(EscapeCsv(row.ValueType)).Append(';').Append(row.ItemIndex.ToString(CultureInfo.InvariantCulture)).AppendLine();
                 }
                 else
                 {
@@ -410,7 +412,7 @@ namespace NavisHelper.Agent.Services
                         .Append(EscapeCsv(row.Category)).Append(';')
                         .Append(EscapeCsv(row.Property)).Append(';')
                         .Append(EscapeCsv(row.Value)).Append(';')
-                        .Append(EscapeCsv(row.ValueType)).AppendLine();
+                        .Append(EscapeCsv(row.ValueType)).Append(';').Append(row.ItemIndex.ToString(CultureInfo.InvariantCulture)).AppendLine();
                 }
             }
 
@@ -524,8 +526,8 @@ namespace NavisHelper.Agent.Services
         private static string BuildXlsxWorksheetXml(SelectionPropertyReportResponse report, bool includeInternalNames)
         {
             var headers = includeInternalNames
-                ? new[] { "Path", "DisplayName", "Category", "CategoryInternalName", "Property", "PropertyInternalName", "Value", "ValueType" }
-                : new[] { "Path", "DisplayName", "Category", "Property", "Value", "ValueType" };
+                ? new[] { "Path", "DisplayName", "Category", "CategoryInternalName", "Property", "PropertyInternalName", "Value", "ValueType", "ItemIndex" }
+                : new[] { "Path", "DisplayName", "Category", "Property", "Value", "ValueType", "ItemIndex" };
             var rowCount = report == null || report.Rows == null ? 1 : report.Rows.Count + 1;
             var dimension = "A1:" + GetXlsxColumnName(headers.Length) + rowCount;
             var builder = new StringBuilder();
@@ -554,6 +556,7 @@ namespace NavisHelper.Agent.Services
                             row.PropertyInternalName,
                             row.Value,
                             row.ValueType,
+                            row.ItemIndex.ToString(CultureInfo.InvariantCulture),
                         }, false);
                     }
                     else
@@ -566,6 +569,7 @@ namespace NavisHelper.Agent.Services
                             row.Property,
                             row.Value,
                             row.ValueType,
+                            row.ItemIndex.ToString(CultureInfo.InvariantCulture),
                         }, false);
                     }
 

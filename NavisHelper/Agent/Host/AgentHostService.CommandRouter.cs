@@ -9,6 +9,10 @@ namespace NavisHelper.Agent.Host
         private CommandRouter CreateCommandRouter()
         {
             var router = new CommandRouter();
+            router.Register<ExportSelectionGeometryRequest>(
+                HostCommandNames.ExportSelectionGeometry, true,
+                DeserializePayload<ExportSelectionGeometryRequest>,
+                (document, request) => new SelectionGeometryExportService().Export(document, request, _matchSessionStore));
 
             router.Register<HostStatusRequest>(
                 HostCommandNames.HostStatus,
@@ -86,7 +90,7 @@ namespace NavisHelper.Agent.Host
             HostCommandNames.SelectionExportProperties,
             true,
             DeserializePayload<SelectionExportPropertiesRequest>,
-            (document, request) => _commandService.SelectionExportProperties(document, request));
+            (document, request) => _commandService.SelectionExportProperties(document, request, _matchSessionStore));
 
         router.Register<SelectionDistinctPropertyValuesRequest>(
             HostCommandNames.SelectionDistinctPropertyValues,

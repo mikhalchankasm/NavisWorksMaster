@@ -18,6 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\NavisHelper\Core\GeometryExportMath.cs" Link="Core\GeometryExportMath.cs" />
+    <Compile Include="..\NavisHelper\Core\GeometryExportPath.cs" Link="Core\GeometryExportPath.cs" />
+    <Compile Include="..\NavisHelper\Core\ModelItemPathResolver.cs" Link="Core\ModelItemPathResolver.cs" />
+    <Compile Include="..\NavisHelper\Agent\Services\GeometryMeshWriter.cs" Link="HostServices\GeometryMeshWriter.cs" />
     <Compile Include="..\NavisHelper\Agent\Services\SectionBoxClippingParser.cs"
              Link="HostServices\SectionBoxClippingParser.cs" />
     <ProjectReference Include="..\NavisHelper.McpServer\NavisHelper.McpServer.csproj" />

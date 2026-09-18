@@ -42,6 +42,9 @@ internal sealed class NavisworksSelectionReportTools : NavisworksToolBase
     public Task<SelectionExportPropertiesResponse> SelectionExportProperties(
         [Description("Absolute or relative output CSV path. Required.")] string outputPath,
         [Description("Export format: csv or xlsx. Default is csv.")] string format = "csv",
+        [Description("current_selection (default) or match_handle to preserve all matched nodes without changing UI selection.")] string scope = "current_selection",
+        [Description("Handles from the same instanceId. Required for scope=match_handle.")] List<string> matchHandles = null,
+        [Description("Export typed values without type prefixes, using invariant numeric decimal points. Default false preserves existing display formatting.")] bool cleanValues = false,
         [Description("False previews row counts and target path, true writes the file. Default is false/dry-run.")] bool apply = false,
         [Description("Allow replacing an existing output file. Default is false.")] bool overwrite = false,
         [Description("Maximum selected items to inspect. Default is 100, maximum is 10000.")] int itemLimit = 100,
@@ -57,6 +60,9 @@ internal sealed class NavisworksSelectionReportTools : NavisworksToolBase
     {
         return _hostBridgeClient.SelectionExportPropertiesAsync(new SelectionExportPropertiesRequest
         {
+            Scope = scope,
+            MatchHandles = matchHandles ?? new List<string>(),
+            CleanValues = cleanValues,
             OutputPath = outputPath,
             Format = format,
             Apply = apply,

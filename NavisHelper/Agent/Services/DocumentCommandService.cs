@@ -825,6 +825,7 @@ namespace NavisHelper.Agent.Services
             int selectedDepth,
             int? maxDepth,
             bool includeBoundingBoxes,
+            bool includeChain,
             SelectedItemsTreeResponse response)
         {
             var item = new SelectedItemsTreeFlatItem
@@ -839,6 +840,8 @@ namespace NavisHelper.Agent.Services
                 IsSelectedLeaf = true,
                 BoundingBox = includeBoundingBoxes ? TryBuildBoundingBoxInfo(selectedItem) : null,
             };
+
+            if (!includeChain) return item;
 
             for (var depth = 0; depth < chainItems.Count; depth++)
             {

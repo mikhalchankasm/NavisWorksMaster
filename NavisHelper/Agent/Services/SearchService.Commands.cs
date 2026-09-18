@@ -173,18 +173,18 @@ namespace NavisHelper.Agent.Services
 
             var replace = request.ReplaceSelection.GetValueOrDefault(true);
             var selected = new ModelItemCollection();
-            var selectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var selectedPaths = new HashSet<ModelItem>();
             if (!replace && document.CurrentSelection.SelectedItems != null)
             {
                 foreach (ModelItem item in document.CurrentSelection.SelectedItems)
                 {
-                    if (item != null && selectedPaths.Add(BuildItemPath(item)))
+                    if (item != null && selectedPaths.Add(item))
                         selected.Add(item);
                 }
             }
             foreach (var item in matched)
             {
-                if (item != null && selectedPaths.Add(BuildItemPath(item)))
+                if (item != null && selectedPaths.Add(item))
                     selected.Add(item);
             }
             document.CurrentSelection.CopyFrom(selected);
@@ -335,7 +335,9 @@ namespace NavisHelper.Agent.Services
             var visibleChildren = includeHidden
                 ? children
                 : children.Where(child => !child.IsHidden).ToList();
-            var returnedChildren = visibleChildren.Take(limit).ToList();
+            var offset = request.Offset.GetValueOrDefault(0);
+            if (offset < 0) throw new AgentCommandException(ErrorCodes.SchemaViolation, "offset must be non-negative.");
+            var returnedChildren = visibleChildren.Skip(offset).Take(limit).ToList();
 
             var response = new ListItemChildrenResponse
             {
@@ -346,7 +348,9 @@ namespace NavisHelper.Agent.Services
                 TotalChildCount = children.Count,
                 ReturnedChildCount = returnedChildren.Count,
                 SkippedHiddenChildCount = children.Count - visibleChildren.Count,
-                Truncated = visibleChildren.Count > returnedChildren.Count,
+                Offset = offset,
+                NextOffset = (long)offset + returnedChildren.Count < visibleChildren.Count ? (int?)(offset + returnedChildren.Count) : null,
+                Truncated = (long)offset + returnedChildren.Count < visibleChildren.Count,
             };
 
             if (returnedChildren.Count > 0)
@@ -357,7 +361,8 @@ namespace NavisHelper.Agent.Services
                 var child = returnedChildren[i];
                 response.Children.Add(new ItemChildInfo
                 {
-                    Index = i + 1,
+                    Index = offset + i + 1,
+                    MatchHandle = MatchSessionStore.ItemHandle(response.ChildrenMatchHandle, i),
                     DisplayName = child.DisplayName,
                     ClassDisplayName = child.ClassDisplayName,
                     Path = BuildItemPath(child),

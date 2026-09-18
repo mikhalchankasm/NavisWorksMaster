@@ -237,6 +237,7 @@ namespace NavisHelper.Agent.Services
                         {
                             MatchHandle = handle,
                             Status = SelectHandleStatuses.Stale,
+                        Message = MatchSessionStore.DescribeStale(handle),
                             SelectedItemCount = 0,
                         });
                     }
