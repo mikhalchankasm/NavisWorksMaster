@@ -608,11 +608,13 @@
     <Compile Include="Agent\Services\DocumentCommandService.Viewpoints.Import.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.Viewpoints.Management.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.cs" />
+    <Compile Include="Agent\Services\FindItemsMatchSet.cs" />
     <Compile Include="Agent\Services\SearchService.cs" />
     <Compile Include="Agent\Services\SearchService.Commands.cs" />
     <Compile Include="Agent\Services\SearchService.Execution.cs" />
     <Compile Include="Agent\Services\SearchService.Spatial.cs" />
     <Compile Include="Agent\Services\SearchService.Index.cs" />
+    <Compile Include="Agent\Services\SearchService.NativeScoped.cs" />
     <Compile Include="Agent\Services\SearchService.Rules.cs" />
     <Compile Include="Agent\Services\SearchService.Scoped.cs" />
     <Compile Include="Agent\Services\SelectionSetSearchBuilder.cs" />

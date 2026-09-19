@@ -47,19 +47,96 @@ Scope inputs:
 | `scopeHandle` | empty | Runtime match handle for `under_handle`; never persist it in a scenario. |
 | `scopeNodePath` | empty | Fast exact tree path for `under_named_node`. |
 | `scopeNodeName` | empty | Exact display-name fallback. It may need a bounded model traversal; prefer path/handle. |
-| `matchDepth` | `all` | `first` returns the shallowest match on each branch and prunes that item's descendants; `all` preserves legacy behavior. |
+| `matchDepth` | `all` | `first` returns the shallowest match on each branch and prunes that item's descendants; `all` preserves legacy behavior, which is pruned on `whole_model` and unpruned when scoped — see *Pruning* below. |
 | `countOnly` | `false` | Returns counts, depth histogram, and sample model values without creating a handle or preview. |
 | `preflight` | `false` | Returns the interpreted request and clarification questions without running a search. |
 
 Simple comparisons are `equals`, `not_equals`, `contains`, `starts_with`,
 `ends_with`, `wildcard`, `defined`, and `not_defined`. `ignoreCase`,
 `ignoreDiacritics`, and `ignoreCharWidth` apply to simple mode; advanced
-conditions retain their per-condition flags.
+conditions retain their per-condition flags. Inside a grouped `searches`
+condition, `comparison` and `operator` are interchangeable names for the same
+field; `operator` wins when both are set.
 
 Scoped traversal starts from the selected/handled/named roots and does not run a
 global native search first. The output adds `matchedItemCount`,
 `scannedItemCount`, `depthHistogram`, `sampleValuesFromModel`, and `warnings`.
-With `countOnly=true`, no match handle is registered. Text warnings flag mixed
+With `countOnly=true`, no match handle is registered.
+
+### Pruning: `whole_model + matchDepth=all` is pruned, scoped `all` is not
+
+`scope=whole_model` with `matchDepth=all` (and `countOnly=false`, and no
+`starts_with`/`ends_with` condition) is answered by the native Navisworks
+`Search`, which runs with `PruneBelowMatch = true`: the engine **does not return
+descendants of a matching item**. Every other routing — any non-`whole_model`
+scope, `matchDepth=first`, `countOnly=true`, or a `starts_with`/`ends_with`
+condition — is answered by the manual traversal, and `matchDepth=all` there
+returns nested matches as well. The one exception is an eligible scoped
+`matchDepth=first` request, which the engine answers with pruning on because
+pruning and `first` mean the same thing there; see the next section for what
+makes a request eligible and what that costs in `scannedItemCount`.
+
+This asymmetry is the long-standing whole-model contract and is kept
+deliberately; `PruneBelowMatch` is now assigned explicitly rather than inherited
+from the SDK default. It is not silent: when a pruned whole-model search returns
+at least one match that has children, the response carries a warning naming the
+pruning and pointing at the scoped alternative. When every match is childless,
+pruning cannot have changed the result and no warning is emitted.
+
+Measured on `6501.5.nwd` (~88k nodes, Navisworks 2027), `Item/Name contains
+"Copy-of-"`:
+
+| Call | Result |
+| --- | --- |
+| `scope=whole_model, matchDepth=all` (pruned) | 57 |
+| `scope=under_handle` over `/STORE` only, `matchDepth=all` (unpruned) | 1626 |
+| `scope=under_handle` over `/STORE` only, `matchDepth=first` | 11 |
+
+For a complete subtree answer, scope the search and use `matchDepth=all`.
+
+### Scoped `matchDepth=first` is answered by the engine
+
+A scoped search (`current_selection`, `under_handle`, `under_named_node`) with
+`matchDepth=first` is handed to the native Navisworks search rooted at the scope,
+with `PruneBelowMatch = true`. Engine pruning *is* `matchDepth=first` — stop at
+the shallowest match on each branch — so the two paths return the same set, and
+the engine does the walking.
+
+A request falls back to the manual traversal, which stays the reference
+behaviour, when any of these hold:
+
+- `matchDepth=all` — pruning is the wrong semantics;
+- `countOnly=true` — the engine reports matches, not nodes walked, and
+  `scannedItemCount` is the answer that call is asking for;
+- the search combines with `any`, or a condition carries `logicalOperator=or` —
+  native conditions are ANDed;
+- a comparison other than `equals`/`contains`/`wildcard`;
+- `negate` or `inheritFromAncestor` on any condition.
+
+`scannedItemCount` is `0` when the engine answered; `matchedItemCount`,
+`depthHistogram` and `sampleValuesFromModel` are filled as usual. Setting
+`NAVISHELPER_FIND_ITEMS_NATIVE_SCOPE=0` forces every scoped search back onto the
+manual traversal.
+
+Measured on `6501.5.nwd` (~88k nodes, Navisworks 2027), scope = the nine
+discipline roots under `/6501.5`, `matchDepth=first`:
+
+| condition | engine | manual traversal |
+| --- | --- | --- |
+| `Item/Name contains "6501.5."` | 9 matches, 148 ms | 9 matches, 21 ms |
+| `Item/Name contains "насос"` | 1 match, 253 ms | `command_failed` after 45 018 ms |
+| `Item/Name contains "zzzz-no-such-item"` | 0 matches, 257 ms | `command_failed` after 45 029 ms |
+
+The manual traversal is competitive when matches are shallow and plentiful, and
+cannot answer at all once it has to walk deep into a large scope.
+
+### Result identity
+
+Matches are deduplicated by model item identity, not by the displayed tree path.
+A Navisworks model can contain several genuinely different siblings that share a
+display name, so two rows in `preview` may look identical while referring to
+different items; `itemCount` counts them separately and the match handle holds
+them all. Text warnings flag mixed
 Cyrillic/Latin input or Latin letters that commonly resemble Cyrillic ones.
 For numeric equality, pass `dataType="double"` (or another explicit numeric
 type). Decimal values accept invariant dot syntax and, for persisted Search
