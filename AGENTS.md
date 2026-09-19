@@ -16,9 +16,24 @@ The live Navisworks install:
 - `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle` is the owner's
   working installation, not a build output. Ask before writing into it, back up
   what you replace, and restore it when the check is done.
-- `.claude/settings.json` denies the live smoke and startup scripts by name, but
-  its patterns match a command prefix only, so it cannot recognize a copy into
-  that path. That one is on you, not on the allowlist.
+What `.claude/settings.json` can and cannot do:
+
+- Permission patterns match a **command prefix**. The file therefore cannot
+  enumerate every spelling of a dangerous command, and it is defence in depth, not
+  the boundary. The boundary is this section.
+- It denies the live smoke, stress, soak and installer scripts both as a bare path
+  and in the `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\...` form
+  the docs prescribe. Another launcher, or another flag order, will not match.
+- It cannot recognize a copy into the live bundle path at all, nor every refspec
+  that updates `main`.
+- What is actually enforced is the other side: no interpreter — `powershell`,
+  `pwsh`, `cmd`, `bash -c` — and no live script may ever appear on the allowlist,
+  so such a command always stops and asks. `scripts/check_agent_docs.py` fails the
+  build if one does.
+
+So: a live run, a push to `main`, and a write into the live bundle need the owner's
+explicit go-ahead whatever the spelling. Do not read silence from the allowlist as
+permission.
 
 Structural ratchets:
 

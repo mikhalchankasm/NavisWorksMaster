@@ -52,6 +52,28 @@ REQUIRED_BRIEF_SECTIONS = ["Outcome", "Boundaries", "Acceptance", "Files", "Veri
 
 BRIEF_LIMIT_BYTES = 2048
 
+# The powershell invocation the repository's own documentation prescribes for live
+# scripts (docs/MCP_DEVELOPMENT_PLAN.md, docs/MCP_CLIENT_GUIDE.md). A deny rule on the
+# bare `scripts/<x>` path never matches this form.
+DOCUMENTED_PS_PREFIX = "powershell -NoProfile -ExecutionPolicy Bypass -File"
+
+# Scripts that can reach a live Navisworks, an installer, or the user's machine state.
+LIVE_SCRIPT_NAMES = (
+    "navishelper_host_smoke",
+    "navishelper_host_stress",
+    "navishelper_mcp_failure_modes",
+    "navishelper_mcp_regression",
+    "navishelper_mcp_soak",
+    "navishelper_mcp_extended_soak",
+    "navishelper_mcp_smoke",
+    "navishelper_mcp_mixed_stress",
+    "navishelper_redline_live_smoke",
+    "start_navisworks",
+    "test_installer_upgrade",
+    "test_package_install",
+    "live-smoke",
+)
+
 # Rules that must survive verbatim in AGENTS.md. These are safety boundaries, not
 # style: each one exists because ignoring it cost something.
 REQUIRED_SAFETY_LINES = [
@@ -183,6 +205,23 @@ def check_permissions(root: Path, failures: list[str]) -> None:
         if any(f"git {forbidden}" in rule for rule in allow):
             failures.append(f"`git {forbidden}` must never be on the allowlist")
 
+    # Interpreters and shells must never be on the allowlist. Permission patterns are
+    # matched against the command prefix, so no deny list can enumerate every way of
+    # spelling `powershell ... -File scripts\<live script>`. What IS enforceable is
+    # that nothing auto-approves an interpreter in the first place, which is why this
+    # check matters more than the deny entries below.
+    for launcher in ("powershell", "pwsh", "cmd", "cmd.exe", "bash -c", "sh -c", "Start-Process"):
+        if any(launcher in rule for rule in allow):
+            failures.append(
+                f"an allow rule mentions {launcher!r}. An interpreter on the allowlist "
+                "auto-approves any script it is pointed at, including the live ones, and "
+                "prefix-matched denies cannot enumerate every spelling of that command."
+            )
+
+    for script in LIVE_SCRIPT_NAMES:
+        if any(script in rule for rule in allow):
+            failures.append(f"an allow rule mentions {script!r}; live-system scripts must ask")
+
     required_denies = [
         # A flat `git push` deny cannot be cleared by approving the prompt, and it
         # blocks the ordinary one-branch-one-PR step this repository runs on. Deny
@@ -191,11 +230,17 @@ def check_permissions(root: Path, failures: list[str]) -> None:
         "Bash(git push -f*)",
         "Bash(git push --delete*)",
         "Bash(git push origin main*)",
+        "Bash(git push origin refs/heads/main*)",
+        "Bash(git push origin HEAD:refs/heads/main*)",
         "Bash(git branch -D*)",
         "Bash(git reset --hard*)",
         "Bash(git worktree remove*)",
         "Bash(scripts/start_navisworks.ps1*)",
         "Bash(scripts/navishelper_redline_live_smoke.ps1*)",
+        # The invocation the repository's own docs prescribe. A deny on `scripts/<x>`
+        # alone does not match it, because patterns match the command prefix.
+        "Bash(" + DOCUMENTED_PS_PREFIX + " scripts\\navishelper_redline_live_smoke.ps1*)",
+        "Bash(" + DOCUMENTED_PS_PREFIX + " scripts\\start_navisworks.ps1*)",
     ]
     for rule in required_denies:
         if rule not in deny:
@@ -218,6 +263,14 @@ def check_permissions(root: Path, failures: list[str]) -> None:
         if not any(script in rule for rule in deny):
             failures.append(
                 f"scripts/{script} can touch a live system or installer but is not denied by name"
+            )
+        # ...and in the interpreter form the documentation actually uses.
+        if script.endswith(".ps1") and not any(
+            "-File" in rule and script in rule for rule in deny
+        ):
+            failures.append(
+                f"scripts/{script} is denied only as a bare path; the documented "
+                "powershell -File form is not covered"
             )
 
 
