@@ -36,6 +36,14 @@ namespace NavisHelper.Agent.Services
 
             EnsureSearchIsSafeToExecute(search);
             var started = Stopwatch.StartNew();
+
+            List<ModelItem> nativeMatches;
+            if (ShouldTryNativeScopedSearch(search, scope, matchDepth, countOnly) &&
+                TryExecuteNativeScopedSearch(document, search, roots, started, out nativeMatches))
+            {
+                return BuildNativeScopedResponse(response, search, nativeMatches, previewLimit, sessionStore);
+            }
+
             var matchedItems = countOnly ? null : new List<ModelItem>();
             var matchedSet = countOnly ? null : new HashSet<ModelItem>();
             var visited = new HashSet<ModelItem>();
@@ -422,6 +430,79 @@ namespace NavisHelper.Agent.Services
             var comparison = NormalizeComparison(condition.Operator);
             return property.Equals(DefaultProperty, StringComparison.OrdinalIgnoreCase) &&
                    (comparison == FindItemsComparisons.Contains || comparison == FindItemsComparisons.Wildcard);
+        }
+
+        private static bool ShouldTryNativeScopedSearch(
+            FindItemsSearch search,
+            string scope,
+            string matchDepth,
+            bool countOnly)
+        {
+            if (FindItemsNativeScopedPolicy.IsDisabledByEnvironment(
+                    Environment.GetEnvironmentVariable(FindItemsNativeScopedPolicy.DisableEnvironmentVariable)))
+            {
+                return false;
+            }
+
+            return FindItemsNativeScopedPolicy.IsEligible(search, scope, matchDepth, countOnly);
+        }
+
+        /// <summary>
+        /// Fills the scoped response shape from a native result. scannedItemCount
+        /// stays 0 because the engine reports matches, not how many nodes it
+        /// walked; countOnly requests, where that number is the answer, never
+        /// reach this path.
+        /// </summary>
+        private static FindItemsResponse BuildNativeScopedResponse(
+            FindItemsResponse response,
+            FindItemsSearch search,
+            List<ModelItem> matchedItems,
+            int previewLimit,
+            MatchSessionStore sessionStore)
+        {
+            var sampleValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in matchedItems)
+            {
+                var depth = GetModelItemDepth(item);
+                if (!response.DepthHistogram.ContainsKey(depth))
+                    response.DepthHistogram[depth] = 0;
+                response.DepthHistogram[depth]++;
+
+                if (sampleValues.Count < MaxSearchSampleValues)
+                {
+                    var sample = ReadSearchSampleValue(item, search);
+                    if (!string.IsNullOrWhiteSpace(sample))
+                        sampleValues.Add(sample);
+                }
+            }
+
+            response.MatchedItemCount = matchedItems.Count;
+            response.SampleValuesFromModel = sampleValues.ToList();
+
+            var result = new FindItemsResult
+            {
+                Query = search.Query,
+                Status = matchedItems.Count == 0 ? FindItemStatuses.NotFound : FindItemStatuses.Matched,
+            };
+            if (matchedItems.Count > 0)
+            {
+                response.Summary.MatchedQueries = 1;
+                response.Summary.TotalItemsInMatches = matchedItems.Count;
+                result.Matches.Add(new FindItemsMatch
+                {
+                    MatchHandle = sessionStore.Add(matchedItems),
+                    ItemCount = matchedItems.Count,
+                    Preview = matchedItems.Take(previewLimit).Select(BuildPreviewItem).ToList(),
+                    PreviewTruncated = matchedItems.Count > previewLimit,
+                });
+            }
+            else
+            {
+                response.Summary.NotFoundQueries = 1;
+            }
+
+            response.Results.Add(result);
+            return response;
         }
 
         private static bool RequiresLiteralAnchorTraversal(FindItemsSearch search)

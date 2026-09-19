@@ -54,7 +54,9 @@ Scope inputs:
 Simple comparisons are `equals`, `not_equals`, `contains`, `starts_with`,
 `ends_with`, `wildcard`, `defined`, and `not_defined`. `ignoreCase`,
 `ignoreDiacritics`, and `ignoreCharWidth` apply to simple mode; advanced
-conditions retain their per-condition flags.
+conditions retain their per-condition flags. Inside a grouped `searches`
+condition, `comparison` and `operator` are interchangeable names for the same
+field; `operator` wins when both are set.
 
 Scoped traversal starts from the selected/handled/named roots and does not run a
 global native search first. The output adds `matchedItemCount`,
@@ -88,6 +90,42 @@ Measured on `6501.5.nwd` (~88k nodes, Navisworks 2027), `Item/Name contains
 | `scope=under_handle` over `/STORE` only, `matchDepth=first` | 11 |
 
 For a complete subtree answer, scope the search and use `matchDepth=all`.
+
+### Scoped `matchDepth=first` is answered by the engine
+
+A scoped search (`current_selection`, `under_handle`, `under_named_node`) with
+`matchDepth=first` is handed to the native Navisworks search rooted at the scope,
+with `PruneBelowMatch = true`. Engine pruning *is* `matchDepth=first` — stop at
+the shallowest match on each branch — so the two paths return the same set, and
+the engine does the walking.
+
+A request falls back to the manual traversal, which stays the reference
+behaviour, when any of these hold:
+
+- `matchDepth=all` — pruning is the wrong semantics;
+- `countOnly=true` — the engine reports matches, not nodes walked, and
+  `scannedItemCount` is the answer that call is asking for;
+- the search combines with `any`, or a condition carries `logicalOperator=or` —
+  native conditions are ANDed;
+- a comparison other than `equals`/`contains`/`wildcard`;
+- `negate` or `inheritFromAncestor` on any condition.
+
+`scannedItemCount` is `0` when the engine answered; `matchedItemCount`,
+`depthHistogram` and `sampleValuesFromModel` are filled as usual. Setting
+`NAVISHELPER_FIND_ITEMS_NATIVE_SCOPE=0` forces every scoped search back onto the
+manual traversal.
+
+Measured on `6501.5.nwd` (~88k nodes, Navisworks 2027), scope = the nine
+discipline roots under `/6501.5`, `matchDepth=first`:
+
+| condition | engine | manual traversal |
+| --- | --- | --- |
+| `Item/Name contains "6501.5."` | 9 matches, 148 ms | 9 matches, 21 ms |
+| `Item/Name contains "насос"` | 1 match, 253 ms | `command_failed` after 45 018 ms |
+| `Item/Name contains "zzzz-no-such-item"` | 0 matches, 257 ms | `command_failed` after 45 029 ms |
+
+The manual traversal is competitive when matches are shallow and plentiful, and
+cannot answer at all once it has to walk deep into a large scope.
 
 ### Result identity
 

@@ -133,7 +133,11 @@ namespace NavisHelper.Agent.Services
             if (condition == null)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "A search condition cannot be null.");
 
-            var comparison = NormalizeComparison(condition.Operator);
+            // GetConditionComparison, not condition.Operator: the tool schema
+            // advertises both `operator` and `comparison` on a grouped search
+            // condition, and reading only Operator made `comparison: "equals"`
+            // fall back to the contains default without saying so.
+            var comparison = NormalizeComparison(GetConditionComparison(condition));
             var value = condition.Value == null ? null : condition.Value.Trim();
             var requiresValue =
                 !string.Equals(comparison, FindItemsComparisons.Defined, StringComparison.OrdinalIgnoreCase) &&
