@@ -63,11 +63,14 @@ namespace NavisHelper.Agent.Services
                 CountOnly = false,
             };
 
+            var anyMatchHasChildren = false;
             foreach (var search in searches)
             {
                 EnsureCanStartNextSearch(requestStarted, nextSearchDeadlineMs);
 
-                var result = FindSingle(document, search, previewLimit, sessionStore);
+                bool searchMatchHasChildren;
+                var result = FindSingle(document, search, previewLimit, sessionStore, out searchMatchHasChildren);
+                anyMatchHasChildren |= searchMatchHasChildren;
                 response.Results.Add(result);
 
                 if (string.Equals(result.Status, FindItemStatuses.Matched, StringComparison.OrdinalIgnoreCase))
@@ -91,6 +94,13 @@ namespace NavisHelper.Agent.Services
             }
 
             response.MatchedItemCount = response.Summary.TotalItemsInMatches;
+
+            // This branch is the pruned native search. Say so whenever pruning
+            // could have discarded nested matches, so whole-model and scoped
+            // matchDepth=all never disagree silently.
+            var pruningWarning = FindItemsNativeSearchPolicy.BuildPrunedWholeModelWarning(anyMatchHasChildren);
+            if (!string.IsNullOrEmpty(pruningWarning))
+                response.Warnings.Add(pruningWarning);
 
             return response;
         }
@@ -173,18 +183,21 @@ namespace NavisHelper.Agent.Services
 
             var replace = request.ReplaceSelection.GetValueOrDefault(true);
             var selected = new ModelItemCollection();
-            var selectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Dedup by item identity: the display-name path is not unique, so
+            // keying on it drops one of two same-named siblings and would select
+            // fewer items than find_items reports.
+            var selectedItems = new HashSet<ModelItem>();
             if (!replace && document.CurrentSelection.SelectedItems != null)
             {
                 foreach (ModelItem item in document.CurrentSelection.SelectedItems)
                 {
-                    if (item != null && selectedPaths.Add(BuildItemPath(item)))
+                    if (item != null && selectedItems.Add(item))
                         selected.Add(item);
                 }
             }
             foreach (var item in matched)
             {
-                if (item != null && selectedPaths.Add(BuildItemPath(item)))
+                if (item != null && selectedItems.Add(item))
                     selected.Add(item);
             }
             document.CurrentSelection.CopyFrom(selected);

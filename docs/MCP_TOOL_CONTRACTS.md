@@ -47,7 +47,7 @@ Scope inputs:
 | `scopeHandle` | empty | Runtime match handle for `under_handle`; never persist it in a scenario. |
 | `scopeNodePath` | empty | Fast exact tree path for `under_named_node`. |
 | `scopeNodeName` | empty | Exact display-name fallback. It may need a bounded model traversal; prefer path/handle. |
-| `matchDepth` | `all` | `first` returns the shallowest match on each branch and prunes that item's descendants; `all` preserves legacy behavior. |
+| `matchDepth` | `all` | `first` returns the shallowest match on each branch and prunes that item's descendants; `all` preserves legacy behavior, which is pruned on `whole_model` and unpruned when scoped — see *Pruning* below. |
 | `countOnly` | `false` | Returns counts, depth histogram, and sample model values without creating a handle or preview. |
 | `preflight` | `false` | Returns the interpreted request and clarification questions without running a search. |
 
@@ -59,7 +59,43 @@ conditions retain their per-condition flags.
 Scoped traversal starts from the selected/handled/named roots and does not run a
 global native search first. The output adds `matchedItemCount`,
 `scannedItemCount`, `depthHistogram`, `sampleValuesFromModel`, and `warnings`.
-With `countOnly=true`, no match handle is registered. Text warnings flag mixed
+With `countOnly=true`, no match handle is registered.
+
+### Pruning: `whole_model + matchDepth=all` is pruned, scoped `all` is not
+
+`scope=whole_model` with `matchDepth=all` (and `countOnly=false`, and no
+`starts_with`/`ends_with` condition) is answered by the native Navisworks
+`Search`, which runs with `PruneBelowMatch = true`: the engine **does not return
+descendants of a matching item**. Every other routing — any non-`whole_model`
+scope, `matchDepth=first`, `countOnly=true`, or a `starts_with`/`ends_with`
+condition — is answered by the manual traversal, and `matchDepth=all` there
+returns nested matches as well.
+
+This asymmetry is the long-standing whole-model contract and is kept
+deliberately; `PruneBelowMatch` is now assigned explicitly rather than inherited
+from the SDK default. It is not silent: when a pruned whole-model search returns
+at least one match that has children, the response carries a warning naming the
+pruning and pointing at the scoped alternative. When every match is childless,
+pruning cannot have changed the result and no warning is emitted.
+
+Measured on `6501.5.nwd` (~88k nodes, Navisworks 2027), `Item/Name contains
+"Copy-of-"`:
+
+| Call | Result |
+| --- | --- |
+| `scope=whole_model, matchDepth=all` (pruned) | 57 |
+| `scope=under_handle` over `/STORE` only, `matchDepth=all` (unpruned) | 1626 |
+| `scope=under_handle` over `/STORE` only, `matchDepth=first` | 11 |
+
+For a complete subtree answer, scope the search and use `matchDepth=all`.
+
+### Result identity
+
+Matches are deduplicated by model item identity, not by the displayed tree path.
+A Navisworks model can contain several genuinely different siblings that share a
+display name, so two rows in `preview` may look identical while referring to
+different items; `itemCount` counts them separately and the match handle holds
+them all. Text warnings flag mixed
 Cyrillic/Latin input or Latin letters that commonly resemble Cyrillic ones.
 For numeric equality, pass `dataType="double"` (or another explicit numeric
 type). Decimal values accept invariant dot syntax and, for persisted Search

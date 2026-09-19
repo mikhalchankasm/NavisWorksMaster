@@ -15,8 +15,14 @@ namespace NavisHelper.Agent.Services
 {
     internal sealed partial class SearchService
     {
-        private FindItemsResult FindSingle(Document document, FindItemsSearch search, int previewLimit, MatchSessionStore sessionStore)
+        private FindItemsResult FindSingle(
+            Document document,
+            FindItemsSearch search,
+            int previewLimit,
+            MatchSessionStore sessionStore,
+            out bool anyMatchHasChildren)
         {
+            anyMatchHasChildren = false;
             var started = Stopwatch.StartNew();
             List<ModelItem> matchedItems;
             try
@@ -53,6 +59,7 @@ namespace NavisHelper.Agent.Services
                 };
             }
 
+            anyMatchHasChildren = AnyMatchHasChildren(matchedItems);
             var handle = sessionStore.Add(matchedItems);
             var result = new FindItemsResult
             {
@@ -74,6 +81,22 @@ namespace NavisHelper.Agent.Services
             return result;
         }
 
+        /// <summary>
+        /// True when at least one match could have had descendants discarded by
+        /// Search.PruneBelowMatch. When every match is childless the pruned
+        /// native result and an unpruned traversal cannot differ.
+        /// </summary>
+        private static bool AnyMatchHasChildren(IEnumerable<ModelItem> matches)
+        {
+            foreach (var item in matches ?? Enumerable.Empty<ModelItem>())
+            {
+                if (item != null && item.Children != null && item.Children.Any())
+                    return true;
+            }
+
+            return false;
+        }
+
         private static MatchPreviewItem BuildPreviewItem(ModelItem item)
         {
             return new MatchPreviewItem
@@ -89,7 +112,7 @@ namespace NavisHelper.Agent.Services
             if (search == null || search.Conditions == null || search.Conditions.Count == 0)
                 return new List<ModelItem>();
 
-            Dictionary<string, ModelItem> accumulator = null;
+            FindItemsMatchSet<ModelItem> accumulator = null;
             var combineAll = string.Equals(search.CombineOperator, FindItemsCombineOperators.All, StringComparison.OrdinalIgnoreCase);
             var hasConditionLevelLogic = search.Conditions.Any(condition =>
                 condition != null && !string.Equals(condition.LogicalOperator, FindItemsConditionOptionsHelper.And, StringComparison.OrdinalIgnoreCase));
@@ -121,19 +144,18 @@ namespace NavisHelper.Agent.Services
                     continue;
                 }
 
-                var conditionPathCache = new Dictionary<ModelItem, string>();
                 var conditionStarted = Stopwatch.StartNew();
                 Logger.Info(
                     "find_items condition_stage_start query=\"" + search.Query + "\" mode=native_condition accumulator=" + (accumulator == null ? -1 : accumulator.Count) + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
                     "AgentHost");
 
-                var currentMatches = ExecuteConditionSearch(document, condition, conditionPathCache);
+                var currentMatches = ExecuteConditionSearch(document, condition);
                 conditionStarted.Stop();
                 Logger.Info(
                     "find_items condition_stage_done query=\"" + search.Query + "\" mode=native_condition hits=" + currentMatches.Count + " condition_elapsed_ms=" + conditionStarted.ElapsedMilliseconds + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
                     "AgentHost");
 
-                var currentMap = ToPathMap(currentMatches, conditionPathCache);
+                var currentMap = ToMatchSet(currentMatches);
 
                 if (accumulator == null)
                 {
@@ -143,11 +165,11 @@ namespace NavisHelper.Agent.Services
                     ? string.Equals(condition.LogicalOperator, FindItemsConditionOptionsHelper.Or, StringComparison.OrdinalIgnoreCase)
                     : !combineAll)
                 {
-                    UnionByPath(accumulator, currentMap);
+                    accumulator.UnionWith(currentMap);
                 }
                 else
                 {
-                    IntersectByPath(accumulator, currentMap);
+                    accumulator.IntersectWith(currentMap);
                 }
 
                 if (!hasConditionLevelLogic && combineAll && accumulator.Count == 0)
@@ -157,10 +179,7 @@ namespace NavisHelper.Agent.Services
             if (accumulator == null || accumulator.Count == 0)
                 return new List<ModelItem>();
 
-            var sortPathCache = new Dictionary<ModelItem, string>();
-            var matches = accumulator.Values.ToList();
-            matches.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(GetCachedPath(left, sortPathCache), GetCachedPath(right, sortPathCache)));
-            return matches;
+            return SortMatchesByPath(accumulator.ToList());
         }
 
         private static bool TryExecuteNativeAndFastPath(
@@ -205,8 +224,7 @@ namespace NavisHelper.Agent.Services
             if (nativeConditionGroups.Count == 0)
                 return false;
 
-            var pathCache = new Dictionary<ModelItem, string>();
-            var resultMap = new Dictionary<string, ModelItem>(StringComparer.OrdinalIgnoreCase);
+            var resultMap = new FindItemsMatchSet<ModelItem>();
             Logger.Info(
                 "find_items native_and_fast_path_start native_conditions=" + nativeConditionGroups.Count + " variants=" + nativeVariantCount + " post_filters=" + postFilters.Count + " elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
                 "AgentHost");
@@ -219,8 +237,8 @@ namespace NavisHelper.Agent.Services
                     "find_items native_and_fast_path_variant_start variant=" + variantIndex + "/" + nativeVariantCount + " conditions=" + nativeConditions.Count + " elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
                     "AgentHost");
 
-                var nativeMatches = ToPathMap(ExecuteSearchQuery(document, nativeConditions, pathCache), pathCache);
-                UnionByPath(resultMap, nativeMatches);
+                var nativeMatches = ExecuteSearchQuery(document, nativeConditions);
+                resultMap.AddRange(nativeMatches);
                 Logger.Info(
                     "find_items native_and_fast_path_variant_done variant=" + variantIndex + "/" + nativeVariantCount + " hits=" + nativeMatches.Count + " union_hits=" + resultMap.Count + " elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
                     "AgentHost");
@@ -239,9 +257,7 @@ namespace NavisHelper.Agent.Services
                     break;
             }
 
-            var sortPathCache = new Dictionary<ModelItem, string>();
-            matches = resultMap.Values.ToList();
-            matches.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(GetCachedPath(left, sortPathCache), GetCachedPath(right, sortPathCache)));
+            matches = SortMatchesByPath(resultMap.ToList());
 
             Logger.Info(
                 "find_items native_and_fast_path=true native_conditions=" + nativeConditionGroups.Count + " variants=" + nativeVariantCount + " post_filters=" + postFilters.Count + " matches=" + matches.Count + " elapsed_ms=" + (searchStarted == null ? 0 : searchStarted.ElapsedMilliseconds),
@@ -344,18 +360,16 @@ namespace NavisHelper.Agent.Services
             return sets;
         }
 
-        private static void FilterAccumulator(IDictionary<string, ModelItem> accumulator, FindItemsCondition condition, Stopwatch searchStarted)
+        private static void FilterAccumulator(FindItemsMatchSet<ModelItem> accumulator, FindItemsCondition condition, Stopwatch searchStarted)
         {
             var comparison = NormalizeComparison(condition.Operator);
             var resolved = ResolveProperty(condition);
 
-            foreach (var key in accumulator.Keys.ToList())
+            accumulator.RemoveWhere(item =>
             {
                 EnsureManualFilterWithinBudget(searchStarted);
-
-                if (!MatchesManualCondition(accumulator[key], condition, resolved, comparison))
-                    accumulator.Remove(key);
-            }
+                return !MatchesManualCondition(item, condition, resolved, comparison);
+            });
         }
 
         private static void EnsureManualFilterWithinBudget(Stopwatch searchStarted)
@@ -372,8 +386,7 @@ namespace NavisHelper.Agent.Services
 
         private static List<ModelItem> ExecuteConditionSearch(
             Document document,
-            FindItemsCondition condition,
-            IDictionary<ModelItem, string> pathCache)
+            FindItemsCondition condition)
         {
             // Native negation is saved for Search Sets below. For transient
             // find_items we evaluate it manually so every comparison type and
@@ -383,15 +396,14 @@ namespace NavisHelper.Agent.Services
 
             var resolved = ResolveProperty(condition);
             if (resolved.IsDefaultItemNameTarget)
-                return ExecuteDefaultItemNameConditionSearch(document, condition, pathCache);
+                return ExecuteDefaultItemNameConditionSearch(document, condition);
 
-            return ExecuteExplicitConditionSearch(document, condition, resolved, pathCache);
+            return ExecuteExplicitConditionSearch(document, condition, resolved);
         }
 
         private static List<ModelItem> ExecuteDefaultItemNameConditionSearch(
             Document document,
-            FindItemsCondition condition,
-            IDictionary<ModelItem, string> pathCache)
+            FindItemsCondition condition)
         {
             var comparison = NormalizeComparison(condition.Operator);
 
@@ -402,11 +414,11 @@ namespace NavisHelper.Agent.Services
                 string.Equals(comparison, FindItemsComparisons.NotDefined, StringComparison.OrdinalIgnoreCase))
                 return ExecuteDefaultItemNameExistenceSearch(document, comparison);
 
-            var result = new Dictionary<string, ModelItem>(StringComparer.OrdinalIgnoreCase);
+            var result = new FindItemsMatchSet<ModelItem>();
             foreach (var property in DisplayNameProperties)
             {
                 var resolved = CreateResolvedDisplayProperty(property.Category, property.Name);
-                foreach (var item in ExecuteExplicitConditionSearch(document, new FindItemsCondition
+                result.AddRange(ExecuteExplicitConditionSearch(document, new FindItemsCondition
                 {
                     Category = property.Category,
                     Property = property.Name,
@@ -415,15 +427,10 @@ namespace NavisHelper.Agent.Services
                     IgnoreCase = condition.IgnoreCase,
                     IgnoreDiacritics = condition.IgnoreDiacritics,
                     IgnoreCharWidth = condition.IgnoreCharWidth,
-                }, resolved, pathCache))
-                {
-                    var path = GetCachedPath(item, pathCache);
-                    if (!result.ContainsKey(path))
-                        result[path] = item;
-                }
+                }, resolved));
             }
 
-            return result.Values.ToList();
+            return result.ToList();
         }
 
         private static List<ModelItem> ExecuteDefaultItemNameExistenceSearch(Document document, string comparison)
@@ -459,13 +466,12 @@ namespace NavisHelper.Agent.Services
         private static List<ModelItem> ExecuteExplicitConditionSearch(
             Document document,
             FindItemsCondition condition,
-            ResolvedProperty resolved,
-            IDictionary<ModelItem, string> pathCache)
+            ResolvedProperty resolved)
         {
             var comparison = NormalizeComparison(condition.Operator);
 
             if (string.Equals(comparison, FindItemsComparisons.Equal, StringComparison.OrdinalIgnoreCase))
-                return ExecuteEqualsConditionSearch(document, condition, resolved, pathCache);
+                return ExecuteEqualsConditionSearch(document, condition, resolved);
 
             if (string.Equals(comparison, FindItemsComparisons.NotEquals, StringComparison.OrdinalIgnoreCase))
                 return ExecuteManualConditionSearch(document, condition);
@@ -473,43 +479,40 @@ namespace NavisHelper.Agent.Services
             if (string.Equals(comparison, FindItemsComparisons.NotDefined, StringComparison.OrdinalIgnoreCase))
                 return ExecuteManualConditionSearch(document, condition);
 
-            var matches = ExecuteSearchQuery(document, BuildPositiveSearchCondition(resolved, condition), pathCache);
-            return ExpandInheritedMatchesIfNeeded(matches, condition, resolved, comparison, pathCache);
+            var matches = ExecuteSearchQuery(document, BuildPositiveSearchCondition(resolved, condition));
+            return ExpandInheritedMatchesIfNeeded(matches, condition, resolved, comparison);
         }
 
         private static List<ModelItem> ExecuteEqualsConditionSearch(
             Document document,
             FindItemsCondition condition,
-            ResolvedProperty resolved,
-            IDictionary<ModelItem, string> pathCache)
+            ResolvedProperty resolved)
         {
             var comparison = NormalizeComparison(condition.Operator);
-            var matches = ExecuteSearchQuery(document, BuildPositiveSearchCondition(resolved, condition), pathCache);
+            var matches = ExecuteSearchQuery(document, BuildPositiveSearchCondition(resolved, condition));
 
             if (ShouldTryDisplayStringFallback(condition))
             {
                 var fallbackMatches = ExecuteSearchQuery(
                     document,
-                    BuildPositiveSearchCondition(resolved, condition, VariantData.FromDisplayString(condition.Value ?? string.Empty)),
-                    pathCache);
+                    BuildPositiveSearchCondition(resolved, condition, VariantData.FromDisplayString(condition.Value ?? string.Empty)));
 
-                matches = MergeMatchesByPath(matches, fallbackMatches, pathCache);
+                matches = MergeMatches(matches, fallbackMatches);
             }
 
-            return ExpandInheritedMatchesIfNeeded(matches, condition, resolved, comparison, pathCache);
+            return ExpandInheritedMatchesIfNeeded(matches, condition, resolved, comparison);
         }
 
         private static List<ModelItem> ExpandInheritedMatchesIfNeeded(
             List<ModelItem> matches,
             FindItemsCondition condition,
             ResolvedProperty resolved,
-            string comparison,
-            IDictionary<ModelItem, string> pathCache)
+            string comparison)
         {
             if (resolved == null || !resolved.InheritFromAncestor)
                 return matches;
 
-            var expanded = ExpandMatchesToDescendantsAndSelf(matches, pathCache);
+            var expanded = ExpandMatchesToDescendantsAndSelf(matches);
             if (IsBroadInheritedPositiveCondition(condition, resolved, comparison) &&
                 expanded.Count > MaxInheritedBroadPositiveExpandedMatches)
             {
@@ -520,17 +523,14 @@ namespace NavisHelper.Agent.Services
             return expanded;
         }
 
-        private static List<ModelItem> ExpandMatchesToDescendantsAndSelf(
-            IEnumerable<ModelItem> matches,
-            IDictionary<ModelItem, string> pathCache)
+        private static List<ModelItem> ExpandMatchesToDescendantsAndSelf(IEnumerable<ModelItem> matches)
         {
-            var expanded = new List<ModelItem>();
-            var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var expanded = new FindItemsMatchSet<ModelItem>();
 
             foreach (var item in matches)
-                CollectItems(item, expanded, pathCache, seenPaths);
+                CollectItems(item, expanded);
 
-            return expanded;
+            return expanded.ToList();
         }
 
         private static List<ModelItem> ExecuteManualConditionSearch(Document document, FindItemsCondition condition)
@@ -1212,92 +1212,82 @@ namespace NavisHelper.Agent.Services
                    DateTime.TryParse(value, CultureInfo.CurrentCulture, DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.RoundtripKind, out result);
         }
 
-        private static List<ModelItem> ExecuteSearchQuery(Document document, Search search, IDictionary<ModelItem, string> pathCache)
+        private static List<ModelItem> ExecuteSearchQuery(Document document, Search search)
         {
-            var matches = new List<ModelItem>();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Dedup by item identity, not by the display-name path: a model may
+            // carry several distinct siblings that share a name, and collapsing
+            // them here is what made the native path return fewer items than the
+            // manual scoped traversal.
+            var matches = new FindItemsMatchSet<ModelItem>();
 
             foreach (ModelItem item in search.FindAll(document, false))
-            {
-                var path = GetCachedPath(item, pathCache);
-                if (seen.Add(path))
-                    matches.Add(item);
-            }
+                matches.Add(item);
 
-            return matches;
+            return matches.ToList();
         }
 
-        private static List<ModelItem> ExecuteSearchQuery(
-            Document document,
-            SearchCondition condition,
-            IDictionary<ModelItem, string> pathCache)
+        private static List<ModelItem> ExecuteSearchQuery(Document document, SearchCondition condition)
         {
-            return ExecuteSearchQuery(document, new[] { condition }, pathCache);
+            return ExecuteSearchQuery(document, new[] { condition });
         }
 
         private static List<ModelItem> ExecuteSearchQuery(
             Document document,
-            IEnumerable<SearchCondition> conditions,
-            IDictionary<ModelItem, string> pathCache)
+            IEnumerable<SearchCondition> conditions)
         {
             var search = new Search();
             search.Selection.SelectAll();
             search.Locations = SearchLocations.DescendantsAndSelf;
+
+            // Search.PruneBelowMatch defaults to true. Set it explicitly so the
+            // whole-model contract is a decision rather than an inherited SDK
+            // default: whole_model + matchDepth=all returns the shallowest match
+            // on each branch, while scoped matchDepth=all does not prune. See
+            // docs/MCP_TOOL_CONTRACTS.md.
+            search.PruneBelowMatch = FindItemsNativeSearchPolicy.PruneBelowMatch;
+
             foreach (var condition in conditions ?? Enumerable.Empty<SearchCondition>())
                 search.SearchConditions.Add(condition);
 
-            return ExecuteSearchQuery(document, search, pathCache);
+            return ExecuteSearchQuery(document, search);
         }
 
-        private static List<ModelItem> MergeMatchesByPath(
+        private static List<ModelItem> MergeMatches(
             IEnumerable<ModelItem> primary,
-            IEnumerable<ModelItem> secondary,
-            IDictionary<ModelItem, string> pathCache)
+            IEnumerable<ModelItem> secondary)
         {
-            var merged = new Dictionary<string, ModelItem>(StringComparer.OrdinalIgnoreCase);
+            var merged = new FindItemsMatchSet<ModelItem>();
+            merged.AddRange(primary);
+            merged.AddRange(secondary);
 
-            foreach (var item in primary ?? Enumerable.Empty<ModelItem>())
-                merged[GetCachedPath(item, pathCache)] = item;
-
-            foreach (var item in secondary ?? Enumerable.Empty<ModelItem>())
-                merged[GetCachedPath(item, pathCache)] = item;
-
-            return merged.Values.ToList();
+            return merged.ToList();
         }
 
-        private static void CollectItems(
-            ModelItem item,
-            ICollection<ModelItem> items,
-            IDictionary<ModelItem, string> pathCache,
-            ISet<string> seenPaths)
+        private static void CollectItems(ModelItem item, FindItemsMatchSet<ModelItem> items)
         {
             if (item == null)
                 return;
 
-            var path = GetCachedPath(item, pathCache);
-            if (seenPaths.Add(path))
-                items.Add(item);
+            items.Add(item);
 
             foreach (ModelItem childItem in item.Children)
-                CollectItems(childItem, items, pathCache, seenPaths);
+                CollectItems(childItem, items);
         }
 
-        private static void IntersectByPath(IDictionary<string, ModelItem> accumulator, IDictionary<string, ModelItem> current)
+        private static FindItemsMatchSet<ModelItem> ToMatchSet(IEnumerable<ModelItem> items)
         {
-            foreach (var key in accumulator.Keys.ToList())
-            {
-                if (!current.ContainsKey(key))
-                    accumulator.Remove(key);
-            }
+            var result = new FindItemsMatchSet<ModelItem>();
+            result.AddRange(items);
+            return result;
         }
 
-        private static void UnionByPath(IDictionary<string, ModelItem> accumulator, IDictionary<string, ModelItem> current)
+        private static List<ModelItem> SortMatchesByPath(List<ModelItem> matches)
         {
-            foreach (var entry in current)
-            {
-                if (!accumulator.ContainsKey(entry.Key))
-                    accumulator[entry.Key] = entry.Value;
-            }
+            var sortPathCache = new Dictionary<ModelItem, string>();
+            matches.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(
+                GetCachedPath(left, sortPathCache),
+                GetCachedPath(right, sortPathCache)));
+            return matches;
         }
     }
 }

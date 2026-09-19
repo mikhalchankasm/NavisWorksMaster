@@ -608,6 +608,7 @@
     <Compile Include="Agent\Services\DocumentCommandService.Viewpoints.Import.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.Viewpoints.Management.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.cs" />
+    <Compile Include="Agent\Services\FindItemsMatchSet.cs" />
     <Compile Include="Agent\Services\SearchService.cs" />
     <Compile Include="Agent\Services\SearchService.Commands.cs" />
     <Compile Include="Agent\Services\SearchService.Execution.cs" />

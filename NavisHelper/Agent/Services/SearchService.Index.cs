@@ -33,10 +33,12 @@ namespace NavisHelper.Agent.Services
             if (!sessionStore.TryGet(parentMatchHandle, out items) || items == null || items.Count == 0)
                 throw new AgentCommandException(ErrorCodes.StaleMatchReference, "parentMatchHandle is stale or was not found. Re-run find_items/list_item_children and retry.");
 
+            // Group by item identity, not by the display-name path: a handle can
+            // legitimately hold two distinct siblings that share a name, and that
+            // is an ambiguous parent rather than one parent.
             var distinct = items
                 .Where(item => item != null)
-                .GroupBy(BuildItemPath, StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.First())
+                .Distinct()
                 .ToList();
             if (distinct.Count != 1)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "parentMatchHandle must resolve to exactly one parent item; it resolved to " + distinct.Count.ToString(CultureInfo.InvariantCulture) + ".");
@@ -398,19 +400,6 @@ namespace NavisHelper.Agent.Services
                 return string.Empty;
 
             return Path.GetFileName(document.FileName);
-        }
-
-        private static Dictionary<string, ModelItem> ToPathMap(IEnumerable<ModelItem> items, IDictionary<ModelItem, string> pathCache)
-        {
-            var result = new Dictionary<string, ModelItem>(StringComparer.OrdinalIgnoreCase);
-            foreach (var item in items)
-            {
-                var path = GetCachedPath(item, pathCache);
-                if (!result.ContainsKey(path))
-                    result[path] = item;
-            }
-
-            return result;
         }
 
         private static string TryGetSourceFile(ModelItem item)

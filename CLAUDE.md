@@ -92,6 +92,8 @@ Plugins access models via `Application.ActiveDocument`. Key API operations:
 - **Progress:** `Application.BeginProgress()` / `EndProgress()` for long operations
 - **Bounding box:** `selection.BoundingBox()` returns combined `BoundingBox3D` for a `ModelItemCollection`. Note: `BoundingBox3D.Copy()` does NOT exist.
 - **Saved viewpoints:** `doc.SavedViewpoints.InsertCopy()` + `ReplaceFromCurrentView()` to save current view with redlines.
+- **Search pruning:** `Search.PruneBelowMatch` defaults to **true** — a `new Search()` that never sets it skips descendants of every match. `SearchService.ExecuteSearchQuery` assigns it explicitly via `FindItemsNativeSearchPolicy.PruneBelowMatch`; do not drop that assignment. `whole_model + matchDepth=all` is pruned by contract, scoped `matchDepth=all` is not, and the pruned path emits a warning when a match has children. See `docs/MCP_TOOL_CONTRACTS.md`.
+- **Result identity:** dedup search results by `ModelItem` (its `Equals` compares the underlying native object), never by a path built from `DisplayName`. Models contain genuinely distinct siblings that share a display name, so path-keyed accumulators silently drop real matches — measured live as 70 vs 115 hits on one `6501.5.nwd` query. Use `FindItemsMatchSet<ModelItem>` for find_items accumulation.
 
 ### Redline (Markup) JSON Format
 
