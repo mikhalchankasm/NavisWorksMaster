@@ -35,6 +35,9 @@ jobs:
       - name: Check panel localization
         run: python scripts/check_panel_localization.py
 
+      - name: Check agent instruction surface
+        run: python scripts/check_agent_docs.py
+
       - name: Build contracts
         run: dotnet build NavisHelper.Contracts/NavisHelper.Contracts.csproj -c Release
 
