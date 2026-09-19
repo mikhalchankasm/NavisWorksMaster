@@ -112,5 +112,5 @@ clash.TestsData.Value.TestsRoot.Children
 2. Добавить version-specific references в `NavisHelper.csproj`
 3. Добавить новый блок в `NavisHelper.bundle/PackageContents.xml`
 4. Расширить copy-логику bundle
-5. Обновить этот файл, `README.md` и `CLAUDE.md`
+5. Обновить этот файл и `README.md` (сборка живёт здесь; `CLAUDE.md` её копию больше не держит)
 6. Проверить сборку старых поддерживаемых версий, чтобы не словить регрессию
