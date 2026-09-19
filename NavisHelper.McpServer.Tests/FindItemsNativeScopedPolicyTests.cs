@@ -210,6 +210,70 @@ public sealed class FindItemsNativeScopedPolicyTests
         Assert.DoesNotContain("NormalizeComparison(condition.Operator)", body, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(0L, false)]
+    [InlineData(44999L, false)]
+    [InlineData(45000L, false)]
+    [InlineData(45001L, true)]
+    public void ExceedsTraversalBudget_matches_the_manual_traversal_comparison(long elapsed, bool expected)
+    {
+        // The manual traversal throws on `elapsed > 45000`. An off-by-one here
+        // would let one path accept a millisecond the other rejects.
+        Assert.Equal(expected, FindItemsNativeScopedPolicy.ExceedsTraversalBudget(elapsed));
+    }
+
+    [Fact]
+    public void BuildTraversalBudgetMessage_names_the_progress_and_the_remedy()
+    {
+        var message = FindItemsNativeScopedPolicy.BuildTraversalBudgetMessage(2, 5);
+
+        Assert.Contains("2 of 5 native searches", message, StringComparison.Ordinal);
+        Assert.Contains("Narrow the scope", message, StringComparison.Ordinal);
+        // matchDepth is already first on this path, so suggesting it would be
+        // advice the caller has already taken.
+        Assert.DoesNotContain("matchDepth=first", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Native_scoped_path_enforces_the_budget_between_variants()
+    {
+        // Up to MaxNativeAndFastPathVariants engine searches run per request and
+        // a single FindAll cannot be interrupted. Without a check inside the loop
+        // the fast path silently drops the guard the manual traversal has always
+        // had. The rethrow matters as much as the check: the surrounding
+        // catch-all turns engine rejections into a manual fallback, which would
+        // spend the budget a second time.
+        var source = ReadRepositoryFile("NavisHelper/Agent/Services/SearchService.NativeScoped.cs");
+
+        var loop = source.IndexOf("foreach (var conditions in variants)", StringComparison.Ordinal);
+        Assert.True(loop >= 0, "The variant loop was reshaped; re-point this guard.");
+
+        var body = source.Substring(loop);
+        Assert.Contains("FindItemsNativeScopedPolicy.ExceedsTraversalBudget", body, StringComparison.Ordinal);
+        Assert.Contains("catch (AgentCommandException)", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Both_scoped_paths_read_the_budget_from_one_place()
+    {
+        // Two copies of 45000 drift, and the drift is invisible: each path keeps
+        // enforcing a budget, just not the same one.
+        var source = ReadRepositoryFile("NavisHelper/Agent/Services/SearchService.Scoped.cs");
+
+        var declaration = source.IndexOf("MaxScopedTraversalMilliseconds =", StringComparison.Ordinal);
+        Assert.True(declaration >= 0, "MaxScopedTraversalMilliseconds was renamed; re-point this guard.");
+
+        var body = source.Substring(declaration, Math.Min(200, source.Length - declaration));
+        Assert.Contains("FindItemsNativeScopedPolicy.TraversalBudgetMilliseconds", body, StringComparison.Ordinal);
+    }
+
+    private static string ReadRepositoryFile(string relativePath)
+    {
+        var path = Path.Combine(FindRepositoryRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Assert.True(File.Exists(path), path + " is missing; re-point this guard.");
+        return File.ReadAllText(path);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

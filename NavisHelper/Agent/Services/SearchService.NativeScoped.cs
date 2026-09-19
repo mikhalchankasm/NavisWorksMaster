@@ -51,10 +51,30 @@ namespace NavisHelper.Agent.Services
                 return false;
 
             var found = new FindItemsMatchSet<ModelItem>();
+            var completedVariants = 0;
             try
             {
                 foreach (var conditions in variants)
                 {
+                    // The manual traversal checks this budget on every node. One
+                    // FindAll cannot be interrupted, so the closest equivalent is
+                    // to refuse to start another one once the budget is gone.
+                    // Falling back to the manual traversal here would spend the
+                    // budget a second time, so this fails the call the same way
+                    // the manual path does.
+                    if (FindItemsNativeScopedPolicy.ExceedsTraversalBudget(started.ElapsedMilliseconds))
+                    {
+                        Logger.Info(
+                            "find_items scoped_native_budget_exceeded completed_variants=" + completedVariants +
+                            " variants=" + variants.Count +
+                            " native_hits=" + found.Count +
+                            " elapsed_ms=" + GetElapsedMilliseconds(started),
+                            "AgentHost");
+                        throw new AgentCommandException(
+                            ErrorCodes.CommandFailed,
+                            FindItemsNativeScopedPolicy.BuildTraversalBudgetMessage(completedVariants, variants.Count));
+                    }
+
                     var nativeSearch = new Search();
                     nativeSearch.Selection.CopyFrom(scopeSelection);
                     nativeSearch.Locations = SearchLocations.DescendantsAndSelf;
@@ -64,7 +84,15 @@ namespace NavisHelper.Agent.Services
 
                     foreach (ModelItem item in nativeSearch.FindAll(document, false))
                         found.Add(item);
+
+                    completedVariants++;
                 }
+            }
+            catch (AgentCommandException)
+            {
+                // The budget check above is a decision about this request, not an
+                // engine rejection. It must not be turned into a silent fallback.
+                throw;
             }
             catch (Exception ex)
             {

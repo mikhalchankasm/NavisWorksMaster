@@ -11,7 +11,10 @@ namespace NavisHelper.Agent.Services
 {
     internal sealed partial class SearchService
     {
-        private const int MaxScopedTraversalMilliseconds = 45000;
+        // One number for both paths: the native fast path enforces the same
+        // budget between its variants.
+        private const int MaxScopedTraversalMilliseconds =
+            FindItemsNativeScopedPolicy.TraversalBudgetMilliseconds;
         private const int MaxScopedScannedItems = 1000000;
         private const int MaxSearchSampleValues = 10;
 

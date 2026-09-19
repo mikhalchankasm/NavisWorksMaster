@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace NavisHelper.Agent.Contracts
@@ -25,6 +26,44 @@ namespace NavisHelper.Agent.Contracts
         /// for A/B measurement and for a model where the two paths disagree.
         /// </summary>
         public const string DisableEnvironmentVariable = "NAVISHELPER_FIND_ITEMS_NATIVE_SCOPE";
+
+        /// <summary>
+        /// Wall-clock budget for a scoped find_items, shared with the manual
+        /// traversal so neither path outlives the other.
+        ///
+        /// The native path cannot interrupt a single Search.FindAll, so it
+        /// enforces the budget between condition variants: an exhausted budget
+        /// must not buy another full engine scan. Without this the fast path
+        /// silently dropped the guard the manual traversal has always had, and
+        /// that guard fires on real models -- Item/Name contains "насос" over the
+        /// nine discipline roots of 6501.5.nwd fails manually at 45 018 ms.
+        /// </summary>
+        public const int TraversalBudgetMilliseconds = 45000;
+
+        /// <summary>
+        /// Mirrors the manual traversal's comparison exactly, so neither path
+        /// tolerates a millisecond the other rejects.
+        /// </summary>
+        public static bool ExceedsTraversalBudget(long elapsedMilliseconds)
+        {
+            return elapsedMilliseconds > TraversalBudgetMilliseconds;
+        }
+
+        /// <summary>
+        /// Failure text for a budget exhausted part-way through the variants.
+        /// Falling back to the manual traversal at this point would spend the
+        /// budget a second time, so the call fails the way the manual path
+        /// fails. matchDepth is already first here, so narrowing the scope is
+        /// the only remedy left to name.
+        /// </summary>
+        public static string BuildTraversalBudgetMessage(int completedVariants, int totalVariants)
+        {
+            return "Scoped find_items exceeded the 45 second traversal budget after "
+                + completedVariants.ToString(CultureInfo.InvariantCulture)
+                + " of "
+                + totalVariants.ToString(CultureInfo.InvariantCulture)
+                + " native searches. Narrow the scope.";
+        }
 
         private static readonly string[] NativeComparisons =
         {
