@@ -91,6 +91,12 @@ Only these:
 
 No brief means the task is not ready: return it and say what is missing.
 
+**If the brief cannot hold, stop and say so instead of working around it.** A brief
+that contradicts itself — move this file, do not touch tests, keep CI green, while
+eight tests hard-code the path — is not a puzzle to solve quietly. Escalate it.
+Disclose your own shortcuts the same way: state what you did, that it is a
+shortcut, and how to close it.
+
 Read one of these only when you are changing what it describes, never as
 background:
 
@@ -109,7 +115,16 @@ background:
 - Two attempts: implementation plus one correction pass. No result after that —
   stop, return the card, record the blocker. Do not open a third PR.
 - Timebox: 2 hours or 10M tokens. Past that, stop and ask.
-- PR size: at most 400 changed lines and 10 files.
+- PR size, two numbers rather than one, because a modification and a new file do
+  not cost the same to review:
+  - changes to existing code: at most 400 changed lines and 10 files;
+  - new, self-contained code shipped with its tests: at most 800 lines and 5 files;
+  - a move-only refactor whose equivalence is proven by a mechanical criterion
+    stated in its brief, which must check that the goal was reached and not only
+    that nothing broke.
+
+  Do not reach for the larger number because the smaller one is inconvenient. Use
+  it only when you can say what makes that review cheaper.
 - Files over 80 KB: targeted patches only, never a whole rewrite. Today these are
   `NavisHelper/Properties/Resources*.resx`,
   `NavisHelper.McpServer/Services/ScenarioLibraryService.cs`,

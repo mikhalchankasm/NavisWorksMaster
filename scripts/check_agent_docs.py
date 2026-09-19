@@ -222,6 +222,18 @@ def check_permissions(root: Path, failures: list[str]) -> None:
         if any(script in rule for rule in allow):
             failures.append(f"an allow rule mentions {script!r}; live-system scripts must ask")
 
+    # Accepting a change is the owner's, and that is expressed by never
+    # auto-approving it: absence from the allowlist already means every merge stops
+    # and asks. A hard deny would add no safety - it would only stop the owner from
+    # delegating the keystroke on a decision they had already made.
+    for irreversible in ("gh pr merge", "gh release", "gh repo delete", "gh api -X PUT",
+                         "gh api --method PUT"):
+        if any(irreversible in rule for rule in allow):
+            failures.append(
+                f"an allow rule mentions {irreversible!r}. Accepting or publishing a change "
+                "must ask the owner every time; it may never be auto-approved."
+            )
+
     required_denies = [
         # A flat `git push` deny cannot be cleared by approving the prompt, and it
         # blocks the ordinary one-branch-one-PR step this repository runs on. Deny
