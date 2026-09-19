@@ -71,7 +71,10 @@ With `countOnly=true`, no match handle is registered.
 descendants of a matching item**. Every other routing — any non-`whole_model`
 scope, `matchDepth=first`, `countOnly=true`, or a `starts_with`/`ends_with`
 condition — is answered by the manual traversal, and `matchDepth=all` there
-returns nested matches as well.
+returns nested matches as well. The one exception is an eligible scoped
+`matchDepth=first` request, which the engine answers with pruning on because
+pruning and `first` mean the same thing there; see the next section for what
+makes a request eligible and what that costs in `scannedItemCount`.
 
 This asymmetry is the long-standing whole-model contract and is kept
 deliberately; `PruneBelowMatch` is now assigned explicitly rather than inherited
