@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using NavisHelper.Agent.Contracts;
 using Xunit;
@@ -24,57 +25,81 @@ namespace NavisHelper.McpServer.Tests;
 /// </summary>
 public sealed class FindItemsPathSegmentsTests
 {
+    /// <summary>
+    /// Walks a printed path the way SearchService.ResolveFrom does: one node at a
+    /// time, each level offering the names that node actually carries. Returns the
+    /// names consumed, so a walk that reaches the target can be compared against
+    /// the levels the path was meant to address.
+    /// </summary>
+    private static List<string> Walk(string printed, params string[] namesByLevel)
+    {
+        var consumed = new List<string>();
+        var remaining = printed;
+
+        foreach (var name in namesByLevel)
+        {
+            var rest = FindItemsPathSegments.TryConsume(new[] { name }, remaining);
+            if (rest == null)
+                return consumed;
+
+            consumed.Add(name);
+            remaining = rest;
+            if (rest.Length == 0)
+                break;
+        }
+
+        // A walk that ends with path left over has not reached the target.
+        Assert.Equal(string.Empty, remaining);
+        return consumed;
+    }
+
     [Fact]
     public void A_printed_path_round_trips_when_names_begin_with_a_slash()
     {
         // Exactly what list_root_items prints for this model.
-        var printed = "6501.5.nwd / /STORE";
+        var consumed = Walk("6501.5.nwd / /STORE", "6501.5.nwd", "/STORE");
 
-        var segments = FindItemsPathSegments.Split(printed).ToList();
-
-        Assert.Equal(new[] { "6501.5.nwd", "/STORE" }, segments);
+        Assert.Equal(new[] { "6501.5.nwd", "/STORE" }, consumed);
     }
 
     [Fact]
-    public void Every_segment_of_a_deep_printed_path_survives()
+    public void Every_level_of_a_deep_printed_path_is_reached()
     {
         // From a live find_items preview on the same model.
-        var printed =
-            "6501.5.nwd / /STORE / /6501.5-S / /6501.5-S.ТХ / /Вариант_1_U-221 / "
-            + "/Copy-of-6501.5-15-SA02-2179-S3C1-N";
+        var levels = new[]
+        {
+            "6501.5.nwd",
+            "/STORE",
+            "/6501.5-S",
+            "/6501.5-S.ТХ",
+            "/Вариант_1_U-221",
+            "/Copy-of-6501.5-15-SA02-2179-S3C1-N",
+        };
 
-        var segments = FindItemsPathSegments.Split(printed).ToList();
+        var consumed = Walk(string.Join(FindItemsPathSegments.Separator, levels), levels);
 
-        Assert.Equal(
-            new[]
-            {
-                "6501.5.nwd",
-                "/STORE",
-                "/6501.5-S",
-                "/6501.5-S.ТХ",
-                "/Вариант_1_U-221",
-                "/Copy-of-6501.5-15-SA02-2179-S3C1-N",
-            },
-            segments);
+        Assert.Equal(levels, consumed);
     }
 
     [Fact]
     public void A_name_containing_a_slash_in_the_middle_survives()
     {
         // Real shape from the same model: GASKET 1 of BRANCH /150.=79338/61632.1
-        var printed = "6501.5.nwd / GASKET 1 of BRANCH /150.=79338/61632.1";
+        // Splitting the text would tear this name into three.
+        var consumed = Walk(
+            "6501.5.nwd / GASKET 1 of BRANCH /150.=79338/61632.1",
+            "6501.5.nwd",
+            "GASKET 1 of BRANCH /150.=79338/61632.1");
 
-        var segments = FindItemsPathSegments.Split(printed).ToList();
-
-        Assert.Equal(new[] { "6501.5.nwd", "GASKET 1 of BRANCH /150.=79338/61632.1" }, segments);
+        Assert.Equal(new[] { "6501.5.nwd", "GASKET 1 of BRANCH /150.=79338/61632.1" }, consumed);
     }
 
     [Fact]
-    public void Paths_without_the_separator_still_split_on_slashes()
+    public void A_caller_authored_slash_path_still_splits_on_slashes()
     {
-        // Backward compatibility: a caller passing a plain slash-delimited path,
-        // which is what the old behaviour accepted, must keep working.
-        var segments = FindItemsPathSegments.Split("Model/Level/Item").ToList();
+        // Backward compatibility: a plain slash-delimited path, which is what the
+        // old behaviour accepted and the only thing that still reaches the split.
+        var segments = FindItemsPathSegments.SplitSlashPath("Model/Level/Item").ToList();
 
         Assert.Equal(new[] { "Model", "Level", "Item" }, segments);
     }
@@ -82,7 +107,7 @@ public sealed class FindItemsPathSegmentsTests
     [Fact]
     public void Backslashes_are_still_accepted_as_a_separator()
     {
-        var segments = FindItemsPathSegments.Split(@"Model\Level\Item").ToList();
+        var segments = FindItemsPathSegments.SplitSlashPath(@"Model\Level\Item").ToList();
 
         Assert.Equal(new[] { "Model", "Level", "Item" }, segments);
     }
@@ -94,7 +119,7 @@ public sealed class FindItemsPathSegmentsTests
     [InlineData(" / ")]
     public void Empty_input_yields_nothing(string path)
     {
-        Assert.Empty(FindItemsPathSegments.Split(path));
+        Assert.Empty(FindItemsPathSegments.SplitSlashPath(path));
     }
 
     [Fact]
@@ -153,6 +178,21 @@ public sealed class FindItemsPathSegmentsTests
     {
         var names = name == null ? null : new[] { name };
         Assert.Null(FindItemsPathSegments.TryConsume(names, remaining));
+    }
+
+    [Fact]
+    public void Splitting_a_printed_path_on_slashes_is_why_it_is_not_done()
+    {
+        // The reason SplitSlashPath is named for what it accepts. Handing it a
+        // printed path tears one real node name into three, which is exactly the
+        // defect this whole file exists to prevent; SearchService therefore sends
+        // printed paths to TryConsume and never here.
+        var torn = FindItemsPathSegments.SplitSlashPath(
+            "6501.5.nwd / GASKET 1 of BRANCH /150.=79338/61632.1").ToList();
+
+        Assert.Equal(
+            new[] { "6501.5.nwd", "GASKET 1 of BRANCH", "150.=79338", "61632.1" },
+            torn);
     }
 
     [Fact]

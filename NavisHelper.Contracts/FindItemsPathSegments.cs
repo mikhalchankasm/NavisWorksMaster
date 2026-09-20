@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace NavisHelper.Agent.Contracts
 {
     /// <summary>
-    /// Splits a model-tree path into the node names it addresses.
+    /// Turns a model-tree path into the node names it addresses.
     ///
     /// This is the inverse of the path the tools print. `list_root_items`,
     /// `list_item_children` and every find_items preview report a `path` built by
@@ -67,15 +67,22 @@ namespace NavisHelper.Agent.Contracts
             return remainingPath.Substring(best.Length + Separator.Length);
         }
 
-        public static IEnumerable<string> Split(string path)
+        /// <summary>
+        /// Splits a caller-authored slash path, the form this tool accepted before
+        /// it accepted printed paths: <c>Model/Level/Item</c>, backslashes included.
+        ///
+        /// A printed path never comes here. It is resolved with <see cref="TryConsume"/>
+        /// against the tree, because a <c>DisplayName</c> may contain the separator and
+        /// a slash, so no split of the text alone can find the boundaries. Splitting a
+        /// printed path here would tear <c>/150.=79338/61632.1</c> into three segments,
+        /// which is why the method says slash path in its name.
+        /// </summary>
+        public static IEnumerable<string> SplitSlashPath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
                 yield break;
 
-            // Printed paths preserve slashes within names; plain paths retain legacy splitting.
-            var segments = path.IndexOf(Separator, StringComparison.Ordinal) >= 0
-                ? path.Split(new[] { Separator }, StringSplitOptions.RemoveEmptyEntries)
-                : path.Replace('\\', '/').Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            var segments = path.Replace('\\', '/').Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (var segment in segments)
             {

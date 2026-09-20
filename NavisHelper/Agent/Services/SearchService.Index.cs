@@ -103,7 +103,7 @@ namespace NavisHelper.Agent.Services
             // is a caller-authored slash path and keeps the old segment behaviour.
             var segments = printed.IndexOf(FindItemsPathSegments.Separator, StringComparison.Ordinal) >= 0
                 ? null
-                : FindItemsPathSegments.Split(printed).ToList();
+                : FindItemsPathSegments.SplitSlashPath(printed).ToList();
             if (segments != null && segments.Count == 0)
                 return result;
 
