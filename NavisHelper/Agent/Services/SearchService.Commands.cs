@@ -305,16 +305,26 @@ namespace NavisHelper.Agent.Services
             var index = GetRootSearchIndex(document);
             var candidates = index.Candidates;
             var response = new FindItemsResponse();
-            var pathCache = new Dictionary<ModelItem, string>();
 
             foreach (var name in names)
             {
-                var matchedItems = candidates
-                    .Where(candidate => RootCandidateMatches(candidate, name, comparison))
+                // Dedup by item identity: the display-name path is not unique, so a
+                // path key drops one of two same-named roots. The candidate already
+                // carries the path the index built, so ordering no longer rebuilds
+                // it twice per comparison inside the sort.
+                var seenItems = new HashSet<ModelItem>();
+                var matchedCandidates = new List<RootSearchCandidate>();
+                foreach (var candidate in candidates)
+                {
+                    if (!RootCandidateMatches(candidate, name, comparison) || !seenItems.Add(candidate.Item))
+                        continue;
+
+                    matchedCandidates.Add(candidate);
+                }
+
+                var matchedItems = matchedCandidates
+                    .OrderBy(candidate => candidate.Path, StringComparer.OrdinalIgnoreCase)
                     .Select(candidate => candidate.Item)
-                    .GroupBy(item => GetCachedPath(item, pathCache), StringComparer.OrdinalIgnoreCase)
-                    .Select(group => group.First())
-                    .OrderBy(item => GetCachedPath(item, pathCache), StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
                 var result = new FindItemsResult

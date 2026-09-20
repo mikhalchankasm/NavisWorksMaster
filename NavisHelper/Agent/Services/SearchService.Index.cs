@@ -97,7 +97,7 @@ namespace NavisHelper.Agent.Services
             if (segments.Count == 0)
                 return result;
 
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seen = new HashSet<ModelItem>();
             foreach (Model model in document.Models)
             {
                 if (model == null || model.RootItem == null)
@@ -118,7 +118,7 @@ namespace NavisHelper.Agent.Services
                 return result;
 
             var index = GetRootSearchIndex(document);
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seen = new HashSet<ModelItem>();
             foreach (var candidate in index.Candidates)
             {
                 if (candidate == null || candidate.Item == null)
@@ -179,13 +179,16 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private static void AddResolvedPathCandidate(ICollection<ModelItem> result, ISet<string> seen, ModelItem item)
+        // Dedup by item identity. ResolveListChildrenParent already reports more
+        // than one match as an error, so a path key did not merge two same-named
+        // roots into one answer -- it picked one of them and hid the ambiguity,
+        // while the parentMatchHandle path, which keys on Distinct(), reported it.
+        private static void AddResolvedPathCandidate(ICollection<ModelItem> result, ISet<ModelItem> seen, ModelItem item)
         {
             if (result == null || item == null)
                 return;
 
-            var path = BuildItemPath(item);
-            if (seen != null && !seen.Add(path))
+            if (seen != null && !seen.Add(item))
                 return;
 
             result.Add(item);
@@ -245,8 +248,10 @@ namespace NavisHelper.Agent.Services
             if (document == null || document.Models == null)
                 return new RootSearchIndex(cacheKey, 0, result);
 
-            var pathCache = new Dictionary<ModelItem, string>();
-            var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Dedup by item identity, not by the display-name path. Two appended
+            // files that share a display name produce the same path, so a path key
+            // drops the second root from the index that every root tool reads.
+            var seenItems = new HashSet<ModelItem>();
             var modelCount = 0;
 
             foreach (Model model in document.Models)
@@ -255,9 +260,9 @@ namespace NavisHelper.Agent.Services
                 if (model == null || model.RootItem == null)
                     continue;
 
-                AddRootSearchCandidate(result, model.RootItem, pathCache, seenPaths);
+                AddRootSearchCandidate(result, model.RootItem, seenItems);
                 foreach (ModelItem child in model.RootItem.Children)
-                    AddRootSearchCandidate(result, child, pathCache, seenPaths);
+                    AddRootSearchCandidate(result, child, seenItems);
             }
 
             return new RootSearchIndex(cacheKey, modelCount, result);
@@ -290,16 +295,15 @@ namespace NavisHelper.Agent.Services
         private static void AddRootSearchCandidate(
             ICollection<RootSearchCandidate> candidates,
             ModelItem item,
-            IDictionary<ModelItem, string> pathCache,
-            ISet<string> seenPaths)
+            ISet<ModelItem> seenItems)
         {
             if (candidates == null || item == null)
                 return;
 
-            var path = GetCachedPath(item, pathCache);
-            if (seenPaths != null && !seenPaths.Add(path))
+            if (seenItems != null && !seenItems.Add(item))
                 return;
 
+            var path = BuildItemPath(item);
             var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var sourceFile = TryGetSourceFile(item);
             AddRootAlias(aliases, item.DisplayName);

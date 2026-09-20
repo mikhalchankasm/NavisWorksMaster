@@ -585,12 +585,14 @@ namespace NavisHelper.Agent.Services
         private static ModelItemCollection BuildSelectionSetItems(Document document, SavedItem savedItem)
         {
             var result = new ModelItemCollection();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Dedup by item identity: a selection set can hold two distinct
+            // same-named siblings, and a display-name path key selects only one.
+            var seen = new HashSet<ModelItem>();
             AddSelectionSetItems(document, savedItem, result, seen);
             return result;
         }
 
-        private static void AddSelectionSetItems(Document document, SavedItem savedItem, ModelItemCollection result, ISet<string> seen)
+        private static void AddSelectionSetItems(Document document, SavedItem savedItem, ModelItemCollection result, ISet<ModelItem> seen)
         {
             if (savedItem == null || result == null || seen == null)
                 return;
@@ -601,8 +603,7 @@ namespace NavisHelper.Agent.Services
                 var selectedItems = selectionSet.GetSelectedItems(document);
                 foreach (ModelItem item in selectedItems)
                 {
-                    var path = BuildItemPath(item);
-                    if (seen.Add(path))
+                    if (seen.Add(item))
                         result.Add(item);
                 }
 

@@ -223,7 +223,9 @@ namespace NavisHelper.Agent.Services
 
             partial = false;
             var itemsToSave = new ModelItemCollection();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Dedup by item identity: the handles can carry two distinct
+            // same-named siblings, and a display-name path key saves only one.
+            var seen = new HashSet<ModelItem>();
 
             foreach (var handle in matchHandles.Where(h => !string.IsNullOrWhiteSpace(h)))
             {
@@ -246,8 +248,7 @@ namespace NavisHelper.Agent.Services
                 var selectedCount = 0;
                 foreach (var item in items)
                 {
-                    var identity = BuildItemPath(item);
-                    if (seen.Add(identity))
+                    if (seen.Add(item))
                     {
                         itemsToSave.Add(item);
                         selectedCount++;
