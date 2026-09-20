@@ -55,7 +55,10 @@ namespace NavisHelper.Agent.Services
                 Max = request.Max,
                 MatchMode = matchMode,
             };
-            var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Keyed by ModelItem for the same reason as find_items: a display-name
+            // path has no sibling index, so two distinct leaves with the same name
+            // inside the zone collapsed into one and the count under-reported.
+            var seenItems = new HashSet<ModelItem>();
 
             if (document.Models != null)
             {
@@ -98,8 +101,7 @@ namespace NavisHelper.Agent.Services
                     if (box == null || !MatchesSpatialBox(box, request.Min, request.Max, matchMode))
                         continue;
 
-                    var path = BuildItemPath(item);
-                    if (!seenPaths.Add(path))
+                    if (!seenItems.Add(item))
                         continue;
 
                     response.MatchedItemCount++;
@@ -109,7 +111,10 @@ namespace NavisHelper.Agent.Services
                         continue;
                     }
 
-                    matches.Add(new SpatialMatch(item, path, sourceFile, box));
+                    // The path is still what the result is presented and sorted by;
+                    // it is simply no longer what identity is decided by, and it is
+                    // now built only for the items that are actually returned.
+                    matches.Add(new SpatialMatch(item, BuildItemPath(item), sourceFile, box));
                 }
             }
 
