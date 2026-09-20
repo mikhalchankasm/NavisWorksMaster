@@ -179,9 +179,11 @@ than only cheapen it. That is a contract change and is not made here.
 
 ## The clash surface
 
-Measured in an agreed L3 window on 2026-09-20, plugin `20bb4356…`. These 29 tools are not
-reachable from a session started with a narrowed tool profile, so they were driven through a
-server built with the default `all` profile.
+Measured in an agreed L3 window on 2026-09-20, plugin `20bb4356…`. The session used for this
+work advertises no clash tools, so they were driven through a separately launched server.
+**That is a property of the profile that session was started with, not of narrowing:**
+`McpToolProfile` defines a `clash` set enumerating all 29, so `--tools=clash` reaches them
+and a reproducer does not need the full `all` catalog.
 
 **The reference model contains no clash tests.** Every result-bearing tool therefore
 measures an empty path unless tests exist, so one throwaway matrix was created from a
