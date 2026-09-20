@@ -98,6 +98,64 @@ public sealed class FindItemsPathSegmentsTests
     }
 
     [Fact]
+    public void A_node_whose_own_name_contains_the_separator_resolves()
+    {
+        // BuildItemPath emits "Supply / Return / Child" for a node called
+        // "Supply / Return", and those bytes are indistinguishable from two levels.
+        // Splitting up front guesses wrong, so resolution consumes one node at a
+        // time against the names the tree actually offers.
+        var rest = FindItemsPathSegments.TryConsume(new[] { "Supply / Return" }, "Supply / Return / Child");
+
+        Assert.Equal("Child", rest);
+    }
+
+    [Fact]
+    public void The_longest_matching_name_wins()
+    {
+        // A node can offer several names - DisplayName, ClassDisplayName, source
+        // file. If the shorter one were taken, the deeper match would be lost.
+        var rest = FindItemsPathSegments.TryConsume(
+            new[] { "Supply", "Supply / Return" },
+            "Supply / Return / Child");
+
+        Assert.Equal("Child", rest);
+    }
+
+    [Fact]
+    public void Consuming_the_whole_remainder_reports_the_node_itself()
+    {
+        Assert.Equal(string.Empty, FindItemsPathSegments.TryConsume(new[] { "/STORE" }, "/STORE"));
+    }
+
+    [Fact]
+    public void A_name_that_is_not_a_segment_boundary_does_not_match()
+    {
+        // "/STO" is a prefix of the text but not of a segment, so it must not
+        // consume anything.
+        Assert.Null(FindItemsPathSegments.TryConsume(new[] { "/STO" }, "/STORE / /Child"));
+    }
+
+    [Fact]
+    public void A_printed_root_segment_is_consumed_then_the_child_follows()
+    {
+        var afterRoot = FindItemsPathSegments.TryConsume(new[] { "6501.5.nwd" }, "6501.5.nwd / /STORE");
+        Assert.Equal("/STORE", afterRoot);
+
+        var afterChild = FindItemsPathSegments.TryConsume(new[] { "/STORE" }, afterRoot);
+        Assert.Equal(string.Empty, afterChild);
+    }
+
+    [Theory]
+    [InlineData(null, "a / b")]
+    [InlineData("x", null)]
+    [InlineData("x", "")]
+    public void TryConsume_is_null_safe(string name, string remaining)
+    {
+        var names = name == null ? null : new[] { name };
+        Assert.Null(FindItemsPathSegments.TryConsume(names, remaining));
+    }
+
+    [Fact]
     public void Separator_is_the_one_the_paths_are_built_with()
     {
         // If BuildItemPath's separator ever changes, this is the single place that

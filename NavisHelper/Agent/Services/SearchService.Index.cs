@@ -93,8 +93,18 @@ namespace NavisHelper.Agent.Services
             if (document == null || document.Models == null)
                 return result;
 
-            var segments = FindItemsPathSegments.Split(parentPath).ToList();
-            if (segments.Count == 0)
+            var printed = (parentPath ?? string.Empty).Trim();
+            if (printed.Length == 0)
+                return result;
+
+            // A path containing the printed separator is resolved against the tree
+            // one node at a time, because a DisplayName may itself contain " / " and
+            // splitting up front would guess the boundaries wrong. A path without it
+            // is a caller-authored slash path and keeps the old segment behaviour.
+            var segments = printed.IndexOf(FindItemsPathSegments.Separator, StringComparison.Ordinal) >= 0
+                ? null
+                : FindItemsPathSegments.Split(printed).ToList();
+            if (segments != null && segments.Count == 0)
                 return result;
 
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -103,9 +113,9 @@ namespace NavisHelper.Agent.Services
                 if (model == null || model.RootItem == null)
                     continue;
 
-                AddResolvedPathCandidate(result, seen, TryResolveChildPath(model.RootItem, segments, 0));
+                AddResolvedPathCandidate(result, seen, ResolveFrom(model.RootItem, printed, segments));
                 foreach (ModelItem child in model.RootItem.Children)
-                    AddResolvedPathCandidate(result, seen, TryResolveChildPath(child, segments, 0));
+                    AddResolvedPathCandidate(result, seen, ResolveFrom(child, printed, segments));
             }
 
             return result;
@@ -134,6 +144,54 @@ namespace NavisHelper.Agent.Services
             }
 
             return result;
+        }
+
+        private static ModelItem ResolveFrom(ModelItem start, string printedPath, IList<string> segments)
+        {
+            return segments == null
+                ? TryResolvePrintedPath(start, printedPath)
+                : TryResolveChildPath(start, segments, 0);
+        }
+
+        /// <summary>
+        /// Resolves a printed path by consuming one node at a time, so a node whose
+        /// own name contains the separator resolves instead of being split in two.
+        /// </summary>
+        private static ModelItem TryResolvePrintedPath(ModelItem start, string remainingPath)
+        {
+            if (start == null || string.IsNullOrEmpty(remainingPath))
+                return null;
+
+            var rest = FindItemsPathSegments.TryConsume(ItemPathCandidateNames(start), remainingPath);
+            if (rest == null)
+                return null;
+            if (rest.Length == 0)
+                return start;
+
+            foreach (ModelItem child in start.Children)
+            {
+                var resolved = TryResolvePrintedPath(child, rest);
+                if (resolved != null)
+                    return resolved;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Every name a path segment may legitimately address for this item. Kept in
+        /// step with ItemNameMatchesSegment, which the segment path still uses.
+        /// </summary>
+        private static IEnumerable<string> ItemPathCandidateNames(ModelItem item)
+        {
+            if (item == null)
+                yield break;
+
+            var sourceFile = TryGetSourceFile(item);
+            yield return item.DisplayName;
+            yield return item.ClassDisplayName;
+            yield return sourceFile;
+            yield return GetRootCandidateFileName(item.DisplayName, sourceFile);
         }
 
         private static ModelItem TryResolveChildPath(ModelItem start, IList<string> segments, int segmentIndex)
