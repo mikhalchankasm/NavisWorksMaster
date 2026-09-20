@@ -93,7 +93,7 @@ namespace NavisHelper.Agent.Services
             if (document == null || document.Models == null)
                 return result;
 
-            var segments = SplitItemPathSegments(parentPath).ToList();
+            var segments = FindItemsPathSegments.Split(parentPath).ToList();
             if (segments.Count == 0)
                 return result;
 
@@ -164,19 +164,6 @@ namespace NavisHelper.Agent.Services
                    string.Equals(item.ClassDisplayName ?? string.Empty, segment, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(TryGetSourceFile(item) ?? string.Empty, segment, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(GetRootCandidateFileName(item.DisplayName, TryGetSourceFile(item)), segment, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static IEnumerable<string> SplitItemPathSegments(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                yield break;
-
-            foreach (var segment in path.Replace('\\', '/').Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries))
-            {
-                var value = segment.Trim();
-                if (!string.IsNullOrWhiteSpace(value))
-                    yield return value;
-            }
         }
 
         private static void AddResolvedPathCandidate(ICollection<ModelItem> result, ISet<string> seen, ModelItem item)
