@@ -13,7 +13,7 @@ had precise numbers for four tools and none for the rest.
 | Navisworks | Manage 2027 |
 | plugin | host-reported `pluginAssemblyLength` 1586688, `pluginAssemblyLastWriteUtc` 2026-09-20T09:09:49Z, sha256 `af60b1b9…` |
 | server | built from `main` at the same commit |
-| tools covered | **35 of 104** advertised tools |
+| tools covered | **62 of 104** advertised tools — 35 in the read-only pass below, plus 27 more clash tools in two later L3 windows |
 
 Every number is `navishelper_timing.elapsed_ms`, which is the **MCP server's** measure
 of the whole call, not the Navisworks host's internal time. `McpToolTimingFilter` starts
@@ -40,8 +40,9 @@ A baseline must not be the thing that changes the model. Left out, and why:
   `markup_*`, `model_color_scheme`, `selection_color_by_property`. These write the
   owner's document or its saved items.
 - **The clash surface** — 29 tools, of which only `clash_bbox_pair_plan` (a dry-run
-  plan) is measured. Runs, imports and matrix creation mutate clash tests and take
-  minutes; they need their own window.
+  plan) appears in the table below. Runs, imports and matrix creation mutate clash tests,
+  so they were measured in their own L3 windows; see [The clash surface](#the-clash-surface),
+  which now covers 28 of the 29.
 - **Long-running jobs** — `dump_subtree_names` and its status/cancel pair, which write a
   file and are designed to be polled.
 - **Lifecycle** — `start_navisworks`, `close_navisworks`,
@@ -179,8 +180,9 @@ than only cheapen it. That is a contract change and is not made here.
 
 ## The clash surface
 
-Measured in an agreed L3 window on 2026-09-20, plugin `20bb4356…`. The session used for this
-work advertises no clash tools, so they were driven through a separately launched server.
+Measured in two agreed L3 windows on 2026-09-20, plugin `20bb4356…`: a first pass over the
+read surface and the dry runs, and a second over the write paths, run control and the
+creators. The session used for this work advertises no clash tools, so they were driven through a separately launched server.
 **That is a property of the profile that session was started with, not of narrowing:**
 `McpToolProfile` defines a `clash` set enumerating all 29, so `--tools=clash` reaches them
 and a reproducer does not need the full `all` catalog.
@@ -216,21 +218,13 @@ was not run. Engine throughput on real geometry is **unmeasured**.
 | `clash_renumber_results` `apply=false` | — | 33 |
 | `clash_generate_report` `apply=false` | — | 99 |
 | `clash_save_viewpoints` `apply=false` | — | 56 |
-| `clash_manage_tests` `operation=delete` `apply=true` | — | 4 tests deleted |
+| `clash_manage_tests` `operation=delete` `apply=true` | — | not timed here — used as cleanup; timed in the second window |
 
 Nothing here is slow. `clash_run_status` at about a second is the run itself finishing, not
 overhead. Every write-capable clash tool defaults to `apply=false`, so the call an agent
 makes first is a dry run, and the dry runs cost between 30 and 99 ms.
 
-**Not measured, and why.** The `apply=true` paths of `clash_group_by_proximity`,
-`clash_group_custom`, `clash_ungroup`, `clash_set_status`, `clash_renumber_results`,
-`clash_generate_report`, `clash_save_viewpoints` and `clash_export_points` all write into the
-document or onto disk; `clash_batchtest_import`, `clash_tests_from_sets` and
-`clash_pair_tests_create` create tests from external input; `clash_isolate_result` and
-`clash_reset_isolation` change visibility; `cancel_clash_run`, `cancel_clash_report` and
-`clash_run_resume` only make sense mid-operation. Nine of 29 tools remain unmeasured.
-
-### What the window actually found
+### What the first window found
 
 Latency was not the useful result. Two contract problems were:
 
@@ -253,6 +247,83 @@ Also worth keeping: every wrong argument in this window was refused with an acti
 message, including `Unknown parameter(s) for tool 'clash_manage_tests': 'action' (did you mean
 'operation'?). The command was not executed.` Eight guesses, eight refusals, nothing silently
 ignored and nothing half-applied.
+
+### The second window: the write paths, run control and the creators
+
+The first window measured 15 of the 29 and left 14, which an earlier revision of this
+document miscounted as "20 of 29 measured, nine remaining". The corrected figures: the
+first window covered 15, a second L3 window on the same day covered the remaining 13, and
+one tool is unmeasurable from inside the product. **28 of 29.**
+
+Same method: one throwaway matrix created from a 4-item selection, run to completion so the
+result-bearing tools have something to read, then deleted. The document ended the window
+with `totalTestCount: 0` and `list_selection_sets` empty, and was never saved.
+
+Run control is only honest against an operation that is actually paused. `clash_run_batch`
+with `batchSize=1` against four tests reports `state: "running"` immediately and reaches
+`paused` only at the batch boundary, so the probe polls `clash_run_status` until it sees
+`paused` before resuming. Measuring `clash_run_resume` against a finished operation would
+measure its refusal.
+
+| tool | `apply=false` | `apply=true` |
+| --- | --- | --- |
+| `clash_group_results` | 42 | 13 |
+| `clash_group_by_proximity` | 47 | 16 |
+| `clash_group_custom` | 14 | 11 |
+| `clash_ungroup` | 16 | 12 |
+| `clash_set_status` `scope=results` | 19 | 11 |
+| `clash_renumber_results` | 33 (first window) | 50 |
+| `clash_reset_isolation` | 15 | 10 |
+| `clash_export_points` | 16 | 14 |
+| `clash_tests_from_sets` (two real sets) | 29 | 18 |
+| `clash_manage_tests` `operation=delete` | 22 | 14 |
+| `clash_manage_tests` `operation=rename` | — | 14 |
+| `clash_manage_tests` `operation=set_settings` | — | 22 |
+| `clash_tests_export` | 13 (empty) / 34 | 72 |
+| `clash_bbox_pair_plan` writing a plan file | 11 (empty) | 135 |
+| `clash_pair_tests_create` from that plan | 114 | — |
+| `clash_isolate_result` (no dry run) | — | 42 |
+| `clash_run_resume` on a paused operation | — | 14 |
+| `cancel_clash_run` on a paused operation | — | 7 |
+| `cancel_clash_report` with no active report | — | 14 |
+
+Nothing in the write half is slow either: every `apply=true` path lands between 7 and 72 ms,
+and the two three-figure numbers are the plan-file pair (`clash_bbox_pair_plan` 135 ms,
+`clash_pair_tests_create` 114 ms), which read and write a file. A dry run is not reliably
+cheaper than the change it describes — `clash_group_results` costs 42 ms to plan and 13 ms
+to apply — because the dry run does the same matching and then stops.
+
+**`clash_batchtest_import` is the one that stays unmeasured**, and not for want of a window:
+it requires a Navisworks-authored `nw-exchange-12.0` XML, while `clash_tests_export` writes
+`navishelper_json`. There is no round trip inside the product that produces valid input for
+it, so measuring it needs a file exported by Navisworks' own Clash Detective UI.
+
+### What the second window found
+
+- **`clash_tests_from_sets` needs selection sets to exist, and says so properly.** The
+  reference model has none, so the first attempt planned zero tests. That is not a silent
+  zero: the response carried `skippedTestCount: 1`, a per-pair `status: "failed"`, and
+  `Selection Set/Search Set exact name was not found: …` in both `errorMessage` and
+  `warnings`. Two sets were created from real leaf items to measure the tool properly, and
+  removed afterwards.
+- **`rootName` meant something other than what `list_root_items` returns.** A
+  `SelectionSetReference` resolves `rootName` against `document.Models`, so on this model
+  only `6501.5.nwd` works; `/STORE` and `/6501.5` — the two federated branches a caller
+  actually wants — were refused with a bare `Model root/source file was not found.` The
+  model reports `modelCount: 1` and `rootItemCount: 3`, so two of the three names a caller
+  is handed cannot be used here. **Fixed in this branch**: the message now says that
+  `rootName` names a model root rather than a tree root item below one, and lists the model
+  roots that exist. The resolver's behaviour is unchanged — widening it to accept tree root
+  items is a contract decision, not a message fix. Verified live on plugin
+  `pluginAssemblyLength: 1588736`, written `2026-09-20T13:47:19Z`: `/STORE` and `/6501.5`
+  now answer `rootName must name a model root, not a tree root item below one. Model roots
+  in this document: '6501.5.nwd'.`, and `6501.5.nwd` still plans its test.
+- **`list_item_children` gives no per-child handle.** `ItemChildInfo` carries `path` but no
+  `matchHandle`; the single `childrenMatchHandle` covers the whole returned page. Building a
+  selection set from one named child therefore takes a second call (list *that* child's
+  children, or search its path). Recorded, not changed.
+- **Every wrong argument was refused, again.** `clash_manage_tests` rejected an extra
+  `testHandle` with `did you mean 'testHandles'?`, and nothing was half-applied.
 
 ## Re-running it comparably
 

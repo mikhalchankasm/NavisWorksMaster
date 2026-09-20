@@ -109,7 +109,7 @@ namespace NavisHelper.Agent.Services
                  string.Equals(System.IO.Path.GetFileName(candidate.SourceFileName), System.IO.Path.GetFileName(reference.SourceFile.Trim()), StringComparison.OrdinalIgnoreCase)))
                 .ToList();
             if (matches.Count == 0)
-                throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, "Model root/source file was not found.");
+                throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, BuildModelRootNotFoundMessage(document, reference));
             if (reference.Occurrence.HasValue)
             {
                 var index = reference.Occurrence.Value - 1;
@@ -131,6 +131,34 @@ namespace NavisHelper.Agent.Services
                 Path = source,
                 Type = "ModelRoot",
             };
+        }
+
+        /// <summary>
+        /// <c>rootName</c> matches a <see cref="Model"/> root, and a federated document reports
+        /// tree root items that are not model roots: on <c>6501.5.nwd</c>, <c>list_root_items</c>
+        /// returns three names and only the first is a model root, so the two a caller actually
+        /// wants -- the federated branches -- were refused with a message that named nothing.
+        /// This one says which vocabulary the parameter uses and lists the roots that exist.
+        /// </summary>
+        private static string BuildModelRootNotFoundMessage(Document document, SelectionSetReference reference)
+        {
+            var available = document.Models.Cast<Model>()
+                .Select(candidate => candidate.RootItem == null
+                    ? PortableFileName(candidate.SourceFileName)
+                    : candidate.RootItem.DisplayName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var message = "Model root/source file was not found.";
+            if (!string.IsNullOrWhiteSpace(reference.RootName))
+                message += " rootName must name a model root, not a tree root item below one.";
+            if (available.Count == 0)
+                return message + " This document has no model roots.";
+            message += " Model roots in this document: " +
+                string.Join(", ", available.Take(5).Select(name => "'" + name + "'"));
+            if (available.Count > 5)
+                message += ", and " + (available.Count - 5).ToString(CultureInfo.InvariantCulture) + " more";
+            return message + ". Reference anything below a model root by selection set name or path.";
         }
 
         private static string BuildModelItemId(Model model, string source)
