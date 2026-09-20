@@ -27,6 +27,41 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 - `host_busy` is retryable short-term MCP host contention. `interactive_busy` means Navisworks is busy with a manual UI operation and should not be auto-retried until the user operation finishes.
 - Thrown MCP/host errors use the text convention `<error_code>: <message>` where possible. Prefer structured `errorCode` / `error_code` fields when present, and treat the prefix as a fallback for clients that only surface plain text.
 
+### Truncation flags: a partial answer always says so, in a boolean
+
+A tool that cannot return everything sets a `*Truncated` boolean rather than failing. A
+boolean is the right contract for a machine client -- better than a warning string it
+would have to parse -- but only if the client knows the field exists, so **every one of
+them is listed here**. `scripts/check_truncation_flags_documented.py` fails the build when
+a new truncation flag appears on a contract without being documented.
+
+**The answer itself is short.** Handle these or the data is wrong, not merely abridged:
+
+| flag | on | meaning |
+| --- | --- | --- |
+| `truncated` | `DumpSubtreeNamesJobStatusResponse`, viewpoint import | the listing or import stopped early |
+| `itemsTruncated`, `resultsTruncated`, `rowsTruncated` | `selection_property_report`, `selection_export_properties`, clash listings and reports | fewer rows than exist. `selection_export_properties` writes a file, so a truncated export is a report short of rows |
+| `propertiesTruncated` | `item_properties_by_handle`, `selection_property_report`, `selection_export_properties`, `model_color_scheme` item facts | fewer properties per item than the item has |
+| `valuesTruncated` | `selection_distinct_property_values` | fewer distinct values than exist, so the set is not the full domain |
+| `depthTruncated` | `selected_items_tree` | the tree was cut at `maxDepth`; deeper nodes exist and are absent |
+| `traversalTruncated` | `find_items_by_bbox`, `isolate_by_box`, clash matrix traversal | the walk stopped at a scan or time limit, so items were never examined. See *find_items_by_bbox* for why narrowing the zone does not help |
+| `responseTruncated` | `last_operation_status` | the command completed but its response had to be reduced to fit the named-pipe frame |
+| `groupsTruncated`, `pairsTruncated`, `candidatePairsTruncated`, `plannedTestsTruncated`, `analysisTruncated`, `classificationTruncated`, `rootItemsTruncated`, `affectedRootSummariesTruncated` | clash planning, grouping and root listings | fewer groups, pairs, planned tests or roots than the operation found |
+
+**Only a preview is short.** The operation's own counts are complete; what is abridged is
+the human-readable sample beside them:
+
+| flag | on |
+| --- | --- |
+| `previewTruncated` | `find_items` and other match previews |
+| `affectedItemsPreviewTruncated` | `hide_selected`, `hide_unselected`, `unhide_selected`, `reveal_selected`, `isolate_selected`, `show_all`, `isolate_by_box` |
+| `preservedUnclassifiedPreviewTruncated` | `isolate_by_box` |
+| `previewItemNamesTruncated` | selection-viewpoint cluster info |
+| `previewRowsTruncated` | clash cluster summaries |
+| `previousTestsPreviewTruncated` | `clash_create_matrix_from_selection` |
+
+A truncated preview is not a truncated result: trust the counts, not the sample.
+
 Common values:
 
 - Clash statuses: `New`, `Active`, `Reviewed`, `Approved`, `Resolved`.
