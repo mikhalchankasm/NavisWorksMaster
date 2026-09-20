@@ -13,6 +13,7 @@ had precise numbers for four tools and none for the rest.
 | Navisworks | Manage 2027 |
 | plugin | host-reported `pluginAssemblyLength` 1586688, `pluginAssemblyLastWriteUtc` 2026-09-20T09:09:49Z, sha256 `af60b1b9…` |
 | server | built from `main` at the same commit |
+| scope of this row | the read-only pass only — the two clash windows ran a **different** plugin (`20bb4356…`) and a separately launched server, and the `rootName` message was checked later still on the branch build (`pluginAssemblyLength` 1588736). Latency is comparable only within one window, so each section states its own build instead of inheriting this one. |
 | tools covered | **62 of 104** advertised tools — 35 in the read-only pass below, plus 27 more clash tools in two later L3 windows |
 
 Every number is `navishelper_timing.elapsed_ms`, which is the **MCP server's** measure
@@ -287,9 +288,10 @@ measure its refusal.
 | `cancel_clash_run` on a paused operation | — | 7 |
 | `cancel_clash_report` with no active report | — | 14 |
 
-Nothing in the write half is slow either: every `apply=true` path lands between 7 and 72 ms,
-and the two three-figure numbers are the plan-file pair (`clash_bbox_pair_plan` 135 ms,
-`clash_pair_tests_create` 114 ms), which read and write a file. A dry run is not reliably
+Nothing in the write half is slow either. Every `apply=true` path that touches only the
+document lands between 7 and 72 ms; the two three-figure numbers are the plan-file pair,
+`clash_bbox_pair_plan` at 135 ms with `apply=true` and `clash_pair_tests_create` at 114 ms
+reading that plan back, and those two also write and read a file on disk. A dry run is not reliably
 cheaper than the change it describes — `clash_group_results` costs 42 ms to plan and 13 ms
 to apply — because the dry run does the same matching and then stops.
 
@@ -318,6 +320,17 @@ it, so measuring it needs a file exported by Navisworks' own Clash Detective UI.
   `pluginAssemblyLength: 1588736`, written `2026-09-20T13:47:19Z`: `/STORE` and `/6501.5`
   now answer `rootName must name a model root, not a tree root item below one. Model roots
   in this document: '6501.5.nwd'.`, and `6501.5.nwd` still plans its test.
+
+  An external Codex review then found that the first version of that message could itself
+  name a root the resolver rejects — it fell back to a model's file name when the model had
+  no `RootItem`, and `rootName` is compared against `RootItem.DisplayName`, so that name
+  would have been refused in turn. The same fallback could also drop a model whose
+  `SourceFileName` is blank but whose `FileName` is set, making the message claim the
+  document has no model roots at all. The shipped version lists `rootName` candidates and
+  `sourceFile`-only models separately. **Neither case exists on this model** — its single
+  model has a root item — so the live string quoted above is what the shipped code produces
+  here, and the two corrected branches are covered by construction rather than by
+  measurement. They need a document with an unnamed model root to exercise.
 - **`list_item_children` gives no per-child handle.** `ItemChildInfo` carries `path` but no
   `matchHandle`; the single `childrenMatchHandle` covers the whole returned page. Building a
   selection set from one named child therefore takes a second call (list *that* child's

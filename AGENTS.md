@@ -66,6 +66,7 @@ command `/claude-review`.
 - Do not set a low `--max-budget-usd`; Claude Code may reject even short prompts.
 - If Claude requests or implies a tool call, treat the external review as failed and continue with a Codex-only review.
 - Treat Claude's output as review input. Apply fixes yourself after evaluating findings.
+- Reverse direction, when Claude is the lead: `scripts/review/codex-review.ps1` -Base main. Read-only sandbox, no MCP servers, findings applied by the lead.
 
 Documentation language policy:
 
