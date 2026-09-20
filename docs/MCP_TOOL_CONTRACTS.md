@@ -47,7 +47,7 @@ Scope inputs:
 | `scopeHandle` | empty | Runtime match handle for `under_handle`; never persist it in a scenario. |
 | `scopeNodePath` | empty | Fast exact tree path for `under_named_node`. Pass the `path` a tool printed, verbatim — the segment separator is `" / "` and node names may themselves contain `/`. |
 | `scopeNodeName` | empty | Exact display-name fallback. It may need a bounded model traversal; prefer path/handle. |
-| `matchDepth` | `all` | `first` returns the shallowest match on each branch and prunes that item's descendants; `all` preserves legacy behavior, which is pruned on `whole_model` and unpruned when scoped — see *Pruning* below. |
+| `matchDepth` | `all` | `first` returns the shallowest match on each branch and prunes that item's descendants, and is answered by the engine at every scope; `all` preserves legacy behavior, which is pruned on `whole_model` and unpruned when scoped — see *Pruning* below. |
 | `countOnly` | `false` | Returns counts, depth histogram, and sample model values without creating a handle or preview. |
 | `preflight` | `false` | Returns the interpreted request and clarification questions without running a search. |
 
@@ -65,16 +65,37 @@ With `countOnly=true`, no match handle is registered.
 
 ### Pruning: `whole_model + matchDepth=all` is pruned, scoped `all` is not
 
-`scope=whole_model` with `matchDepth=all` (and no `starts_with`/`ends_with`
-condition) is answered by the native Navisworks
+`scope=whole_model` with `matchDepth=all` **or** `matchDepth=first` (and no
+`starts_with`/`ends_with` condition) is answered by the native Navisworks
 `Search`, which runs with `PruneBelowMatch = true`: the engine **does not return
-descendants of a matching item**. Every other routing — any non-`whole_model`
-scope, `matchDepth=first`, or a `starts_with`/`ends_with`
-condition — is answered by the manual traversal, and `matchDepth=all` there
-returns nested matches as well. The one exception is an eligible scoped
-`matchDepth=first` request, which the engine answers with pruning on because
-pruning and `first` mean the same thing there; see the next section for what
-makes a request eligible and what that costs in `scannedItemCount`.
+descendants of a matching item**. Any non-`whole_model` scope, or a
+`starts_with`/`ends_with` condition, is answered by the manual traversal, and
+`matchDepth=all` there returns nested matches as well. An eligible scoped
+`matchDepth=first` request also goes to the engine, because pruning and `first`
+mean the same thing; see the next section for what makes a request eligible and
+what that costs in `scannedItemCount`.
+
+`whole_model + matchDepth=first` used to be answered by the manual traversal, and
+on a model of any size that meant it was answered by a failure: measured live on
+`6501.5.nwd`, a single `equals` condition took **45 228 ms** and returned
+`Scoped find_items exceeded the 45 second traversal budget`, while the same
+conditions with `matchDepth=all` came back from the engine in under a second. So
+the cheapest `matchDepth` was the only one that could not be answered. Pruning
+*is* `first`, which is why the engine's result is the right result and not an
+approximation of it, and `first` therefore gets no pruning warning — pruning is
+what it asked for. It gets `WholeModelFirstWarning` instead, which reports the one
+thing the engine cannot: `scannedItemCount` is 0.
+
+One consequence worth stating, because it was not demonstrated either way on the
+reference model. On a model small enough for the whole-model traversal to finish,
+`whole_model + matchDepth=first` now returns the engine's match set rather than
+the traversal's. The two are the same set wherever both address a property the
+same way, and on `6501.5.nwd` they agree — a scoped manual traversal and a
+whole-model engine search both return 0 matches for `Item.Name contains "of ZONE"`
+on a subtree whose children carry exactly that display name, because that branch's
+`internalName` values are empty and neither path matches on `DisplayName`. It is
+the same trade already accepted for `whole_model + countOnly`: an answer that
+arrives beats a more thorough answer that never does.
 
 This asymmetry is the long-standing whole-model contract and is kept
 deliberately; `PruneBelowMatch` is now assigned explicitly rather than inherited

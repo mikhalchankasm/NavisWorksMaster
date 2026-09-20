@@ -47,9 +47,13 @@ namespace NavisHelper.Agent.Services
             var scope = NormalizeFindItemsScope(request.Scope);
             var matchDepth = NormalizeFindItemsMatchDepth(request.MatchDepth);
             var countOnly = request.CountOnly.GetValueOrDefault(false);
-            if (scope != FindItemsScopes.WholeModel ||
-                matchDepth != FindItemsMatchDepths.All ||
-                searches.Any(RequiresLiteralAnchorTraversal))
+            // One decision, in one place. FindItemsNativeSearchPolicy used to
+            // describe itself as mirroring this condition, and a mirror is a second
+            // copy that can drift; the policy now is the condition.
+            if (!FindItemsNativeSearchPolicy.UsesPrunedNativeSearch(
+                    scope,
+                    matchDepth,
+                    searches.Any(RequiresLiteralAnchorTraversal)))
             {
                 if (searches.Count != 1)
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "Scoped/countOnly find_items requires exactly one query/search.");
@@ -111,7 +115,7 @@ namespace NavisHelper.Agent.Services
             // This branch is the pruned native search. Say so whenever pruning
             // could have discarded nested matches, so whole-model and scoped
             // matchDepth=all never disagree silently.
-            var pruningWarning = FindItemsNativeSearchPolicy.BuildPrunedWholeModelWarning(anyMatchHasChildren);
+            var pruningWarning = FindItemsNativeSearchPolicy.BuildPrunedWholeModelWarning(matchDepth, anyMatchHasChildren);
             if (!string.IsNullOrEmpty(pruningWarning))
                 response.Warnings.Add(pruningWarning);
 
