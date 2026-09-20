@@ -65,11 +65,11 @@ With `countOnly=true`, no match handle is registered.
 
 ### Pruning: `whole_model + matchDepth=all` is pruned, scoped `all` is not
 
-`scope=whole_model` with `matchDepth=all` (and `countOnly=false`, and no
-`starts_with`/`ends_with` condition) is answered by the native Navisworks
+`scope=whole_model` with `matchDepth=all` (and no `starts_with`/`ends_with`
+condition) is answered by the native Navisworks
 `Search`, which runs with `PruneBelowMatch = true`: the engine **does not return
 descendants of a matching item**. Every other routing — any non-`whole_model`
-scope, `matchDepth=first`, `countOnly=true`, or a `starts_with`/`ends_with`
+scope, `matchDepth=first`, or a `starts_with`/`ends_with`
 condition — is answered by the manual traversal, and `matchDepth=all` there
 returns nested matches as well. The one exception is an eligible scoped
 `matchDepth=first` request, which the engine answers with pruning on because
@@ -94,6 +94,33 @@ Measured on `6501.5.nwd` (~88k nodes, Navisworks 2027), `Item/Name contains
 
 For a complete subtree answer, scope the search and use `matchDepth=all`.
 
+### `whole_model` + `countOnly=true` is answered by the engine
+
+`countOnly` used to force the manual traversal on every scope so that
+`scannedItemCount` could be reported. For `scope=whole_model` that meant walking
+the entire model, which on any real model exceeds the 45 second budget and returns
+`command_failed` rather than a count. Measured on `6501.5.nwd`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `Item/Name contains "of BRANCH /Copy-of-15.15-…"`, `countOnly` | `command_failed` after 45 264 ms | **115 in 404 ms** |
+| `Item/Name contains "GASKET 1 of BRANCH"`, `countOnly` | `command_failed` | **3616 in 762 ms** |
+
+`matchedItemCount`, `depthHistogram` and `sampleValuesFromModel` are exact, and the
+count now agrees with the same query run without `countOnly` — previously the two
+could not be compared, because one of them never answered. No match handle is
+registered, as before.
+
+`scannedItemCount` is **`0`**, because the engine reports matches rather than how
+many nodes it walked, and the response carries a warning saying so, so that a zero
+is not read as "nothing was scanned". Scoped `countOnly` is unchanged and still
+reports a real `scannedItemCount`: `scope=under_handle` over `/STORE` with
+`matchDepth=all` returns 1626 matches and 6457 scanned nodes in 119 ms.
+
+Being a `whole_model` + `matchDepth=all` call, a `countOnly` count is pruned by the
+contract above, and carries the pruning warning on the same condition as the
+non-`countOnly` form.
+
 ### Scoped `matchDepth=first` is answered by the engine
 
 A scoped search (`current_selection`, `under_handle`, `under_named_node`) with
@@ -106,8 +133,11 @@ A request falls back to the manual traversal, which stays the reference
 behaviour, when any of these hold:
 
 - `matchDepth=all` — pruning is the wrong semantics;
-- `countOnly=true` — the engine reports matches, not nodes walked, and
-  `scannedItemCount` is the answer that call is asking for;
+- `countOnly=true` — a *scoped* count still traverses, because the engine reports
+  matches rather than nodes walked and `scannedItemCount` is what that call is
+  asking for. A scoped subtree is small enough to walk; a whole-model count is
+  not, which is why `scope=whole_model` with `countOnly=true` is answered by the
+  engine instead (see below);
 - the search combines with `any`, or a condition carries `logicalOperator=or` —
   native conditions are ANDed;
 - a comparison other than `equals`/`contains`/`wildcard`;

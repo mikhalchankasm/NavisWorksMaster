@@ -20,9 +20,12 @@ namespace NavisHelper.Agent.Services
             FindItemsSearch search,
             int previewLimit,
             MatchSessionStore sessionStore,
-            out bool anyMatchHasChildren)
+            bool countOnly,
+            out bool anyMatchHasChildren,
+            out List<ModelItem> matchedItemsForStatistics)
         {
             anyMatchHasChildren = false;
+            matchedItemsForStatistics = new List<ModelItem>();
             var started = Stopwatch.StartNew();
             List<ModelItem> matchedItems;
             try
@@ -60,16 +63,22 @@ namespace NavisHelper.Agent.Services
             }
 
             anyMatchHasChildren = AnyMatchHasChildren(matchedItems);
-            var handle = sessionStore.Add(matchedItems);
+            matchedItemsForStatistics = matchedItems;
             var result = new FindItemsResult
             {
                 Query = search.Query,
                 Status = FindItemStatuses.Matched,
             };
 
+            // countOnly registers no handle and builds no preview: the caller asked
+            // for numbers, and a handle it never uses would still pin every match
+            // for the life of the session.
+            if (countOnly)
+                return result;
+
             result.Matches.Add(new FindItemsMatch
             {
-                MatchHandle = handle,
+                MatchHandle = sessionStore.Add(matchedItems),
                 ItemCount = matchedItems.Count,
                 Preview = matchedItems
                     .Take(previewLimit)

@@ -46,9 +46,9 @@ namespace NavisHelper.Agent.Services
 
             var scope = NormalizeFindItemsScope(request.Scope);
             var matchDepth = NormalizeFindItemsMatchDepth(request.MatchDepth);
+            var countOnly = request.CountOnly.GetValueOrDefault(false);
             if (scope != FindItemsScopes.WholeModel ||
                 matchDepth != FindItemsMatchDepths.All ||
-                request.CountOnly.GetValueOrDefault(false) ||
                 searches.Any(RequiresLiteralAnchorTraversal))
             {
                 if (searches.Count != 1)
@@ -60,17 +60,23 @@ namespace NavisHelper.Agent.Services
             {
                 Scope = scope,
                 MatchDepth = matchDepth,
-                CountOnly = false,
+                CountOnly = countOnly,
             };
 
             var anyMatchHasChildren = false;
+            var countOnlyMatches = new List<ModelItem>();
             foreach (var search in searches)
             {
                 EnsureCanStartNextSearch(requestStarted, nextSearchDeadlineMs);
 
                 bool searchMatchHasChildren;
-                var result = FindSingle(document, search, previewLimit, sessionStore, out searchMatchHasChildren);
+                List<ModelItem> searchMatches;
+                var result = FindSingle(
+                    document, search, previewLimit, sessionStore, countOnly,
+                    out searchMatchHasChildren, out searchMatches);
                 anyMatchHasChildren |= searchMatchHasChildren;
+                if (countOnly && searchMatches != null)
+                    countOnlyMatches.AddRange(searchMatches);
                 response.Results.Add(result);
 
                 if (string.Equals(result.Status, FindItemStatuses.Matched, StringComparison.OrdinalIgnoreCase))
@@ -90,10 +96,17 @@ namespace NavisHelper.Agent.Services
                     response.Summary.NotFoundQueries++;
                 }
 
-                response.Summary.TotalItemsInMatches += result.Matches.Sum(m => m.ItemCount);
+                // countOnly registers no match, so the count comes from the items
+                // themselves rather than from a handle's ItemCount.
+                response.Summary.TotalItemsInMatches += countOnly
+                    ? (searchMatches == null ? 0 : searchMatches.Count)
+                    : result.Matches.Sum(m => m.ItemCount);
             }
 
             response.MatchedItemCount = response.Summary.TotalItemsInMatches;
+
+            if (countOnly)
+                AddWholeModelCountOnlyStatistics(response, searches, countOnlyMatches);
 
             // This branch is the pruned native search. Say so whenever pruning
             // could have discarded nested matches, so whole-model and scoped
@@ -103,6 +116,47 @@ namespace NavisHelper.Agent.Services
                 response.Warnings.Add(pruningWarning);
 
             return response;
+        }
+
+        /// <summary>
+        /// Fills the statistics a countOnly caller asked for, from the native
+        /// result: an exact match count, the depth distribution of those matches,
+        /// and sample values as they appear in the model.
+        ///
+        /// scannedItemCount stays 0, because the engine reports matches rather than
+        /// how many nodes it walked. The warning says so, so that a zero is not
+        /// read as "nothing was scanned". That is the whole trade: this call used to
+        /// traverse in order to report a scanned total, and on a model of any size
+        /// it exceeded its 45 second budget instead of answering at all.
+        /// </summary>
+        private static void AddWholeModelCountOnlyStatistics(
+            FindItemsResponse response,
+            IList<FindItemsSearch> searches,
+            IList<ModelItem> matches)
+        {
+            var search = searches == null || searches.Count == 0 ? null : searches[0];
+            var sampleValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var item in matches ?? new List<ModelItem>())
+            {
+                if (item == null)
+                    continue;
+
+                var depth = GetModelItemDepth(item);
+                if (!response.DepthHistogram.ContainsKey(depth))
+                    response.DepthHistogram[depth] = 0;
+                response.DepthHistogram[depth]++;
+
+                if (search != null && sampleValues.Count < MaxSearchSampleValues)
+                {
+                    var sample = ReadSearchSampleValue(item, search);
+                    if (!string.IsNullOrWhiteSpace(sample))
+                        sampleValues.Add(sample);
+                }
+            }
+
+            response.SampleValuesFromModel = sampleValues.ToList();
+            response.Warnings.Add(FindItemsNativeSearchPolicy.WholeModelCountOnlyWarning);
         }
 
         public SelectBySearchResponse SelectBySearch(Document document, SelectBySearchRequest request)
