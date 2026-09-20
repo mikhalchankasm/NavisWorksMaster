@@ -234,36 +234,6 @@ namespace NavisHelper.Agent.Services
                 hasInternalCategoryAndProperty);
         }
 
-        /// <summary>
-        /// Refuses a whole-model request the engine cannot express. The scoped routes
-        /// do not come here: they fall back to the traversal, which can match a
-        /// property in whatever category holds it, and they answer.
-        /// </summary>
-        private static void EnsureNativeSearchCanExpressEveryCondition(IList<FindItemsSearch> searches)
-        {
-            if (searches == null)
-                return;
-
-            foreach (var search in searches)
-            {
-                if (search == null || search.Conditions == null)
-                    continue;
-
-                foreach (var condition in search.Conditions)
-                {
-                    if (condition == null)
-                        continue;
-
-                    if (!CanExpressResolvedPropertyNatively(ResolveProperty(condition)))
-                    {
-                        throw new AgentCommandException(
-                            ErrorCodes.SchemaViolation,
-                            FindItemsNativeSearchPolicy.CategoryRequiredForNativeSearch);
-                    }
-                }
-            }
-        }
-
         private static bool CanFilterAccumulator(FindItemsCondition condition)
         {
             return CanEvaluateConditionManually(condition);
@@ -404,15 +374,41 @@ namespace NavisHelper.Agent.Services
             throw new AgentCommandException(ErrorCodes.SchemaViolation, "Unsupported positive find_items operator: " + comparison);
         }
 
+        /// <summary>
+        /// Builds the engine's condition, and refuses rather than asking it for a
+        /// property in the category named empty-string.
+        ///
+        /// Two things changed here after review, and the first is why the second is
+        /// safe. The candidate is now the first one that carries a **category**, not
+        /// simply the first one. ResolveProperty inserts the caller's own
+        /// category-less candidate ahead of the category-qualified aliases it knows,
+        /// so taking FirstOrDefault sent `""` for a known alias such as
+        /// `property="Type"` even though a usable category was sitting behind it in
+        /// the same list. That produced the false zero for exactly the conditions the
+        /// alias table exists to help.
+        ///
+        /// The refusal then lives here, at the point of use, rather than in a
+        /// precheck. A precheck had to guess which conditions reach the engine, and
+        /// guessed wrong: a whole-model `all` search can hand a category-less
+        /// condition to FilterAccumulator instead, whose manual lookup searches every
+        /// category and answers correctly. Refusing it up front broke a caller that
+        /// was right. Here, a condition that never becomes a native condition never
+        /// reaches the throw, and no second copy of the routing rule can drift from
+        /// the first.
+        ///
+        /// The scoped engine path checks
+        /// <see cref="CanExpressResolvedPropertyNatively"/> before building, so it
+        /// falls back to its traversal and answers instead of arriving here. Only the
+        /// whole-model route, which has no traversal that finishes, gets the refusal.
+        /// </summary>
         private static SearchCondition CreateSearchCondition(ResolvedProperty resolved, FindItemsCondition condition)
         {
-            var candidate = resolved.DisplayCandidates.FirstOrDefault();
+            var candidate = resolved.DisplayCandidates
+                .FirstOrDefault(entry =>
+                    !string.IsNullOrWhiteSpace(entry.Category) &&
+                    !string.IsNullOrWhiteSpace(entry.Property));
             if (!string.IsNullOrWhiteSpace(candidate.Property))
-            {
-                return SearchCondition.HasPropertyByDisplayName(
-                    string.IsNullOrWhiteSpace(candidate.Category) ? string.Empty : candidate.Category,
-                    candidate.Property);
-            }
+                return SearchCondition.HasPropertyByDisplayName(candidate.Category, candidate.Property);
 
             if (!string.IsNullOrWhiteSpace(resolved.InternalCategory) &&
                 !string.IsNullOrWhiteSpace(resolved.InternalProperty))
@@ -420,9 +416,15 @@ namespace NavisHelper.Agent.Services
                 return SearchCondition.HasPropertyByName(resolved.InternalCategory, resolved.InternalProperty);
             }
 
-            return SearchCondition.HasPropertyByDisplayName(
-                NormalizeCategory(condition.Category),
-                NormalizeProperty(condition.Property));
+            var category = NormalizeCategory(condition.Category);
+            if (string.IsNullOrWhiteSpace(category))
+            {
+                throw new AgentCommandException(
+                    ErrorCodes.SchemaViolation,
+                    FindItemsNativeSearchPolicy.CategoryRequiredForNativeSearch);
+            }
+
+            return SearchCondition.HasPropertyByDisplayName(category, NormalizeProperty(condition.Property));
         }
 
         private static VariantData CreateVariantData(FindItemsCondition condition)

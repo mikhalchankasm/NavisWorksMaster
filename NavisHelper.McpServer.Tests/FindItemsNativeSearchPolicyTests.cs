@@ -66,30 +66,55 @@ public sealed class FindItemsNativeSearchPolicyTests
     }
 
     [Fact]
-    public void OnlyTheWholeModelRouteRefuses_TheScopedRouteFallsBack()
+    public void TheRefusalLivesAtThePointOfUse_NotInAPrecheck()
     {
-        // The split is the whole point: scoped requests keep answering, because their
-        // traversal can match a property in whatever category holds it. Refusing
-        // there would break callers that get a correct answer today, and the
-        // whole-model traversal cannot finish, so falling back there would swap a
-        // confident zero for a 45-second failure whose message names the wrong cause.
+        // Re-pointed after review, and it checks more than it used to. A precheck in
+        // FindItems had to guess which conditions reach the engine and guessed wrong:
+        // a whole-model `all` search can hand a category-less condition to
+        // FilterAccumulator, whose manual lookup searches every category and answers
+        // correctly, and the precheck refused that caller. The refusal now sits in
+        // CreateSearchCondition, where a condition that never becomes a native
+        // condition never reaches it, and no second copy of the routing rule exists to
+        // drift from the first.
         var root = FindRepositoryRoot();
 
+        var rules = File.ReadAllText(
+            Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.Rules.cs"));
+        var builderAt = rules.IndexOf(
+            "private static SearchCondition CreateSearchCondition(",
+            StringComparison.Ordinal);
+        Assert.True(builderAt >= 0, "CreateSearchCondition was renamed; re-point this guard.");
+
+        var builder = rules.Substring(builderAt);
+        var builderEnd = builder.IndexOf("private static ", 1, StringComparison.Ordinal);
+        if (builderEnd > 0)
+            builder = builder.Substring(0, builderEnd);
+
+        Assert.Contains(
+            "FindItemsNativeSearchPolicy.CategoryRequiredForNativeSearch",
+            builder,
+            StringComparison.Ordinal);
+
+        // The candidate must be chosen for having a category, not for being first.
+        // ResolveProperty puts the caller's category-less candidate ahead of the
+        // category-qualified aliases it knows, so FirstOrDefault() sent "" for a known
+        // alias that had a usable category sitting behind it in the same list.
+        Assert.DoesNotContain("DisplayCandidates.FirstOrDefault()", builder, StringComparison.Ordinal);
+        Assert.Contains("entry.Category", builder, StringComparison.Ordinal);
+
+        // No precheck anywhere: that is the thing this replaced.
         var commands = File.ReadAllText(
             Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.Commands.cs"));
-        Assert.Contains(
-            "EnsureNativeSearchCanExpressEveryCondition(searches);",
+        Assert.DoesNotContain(
+            "EnsureNativeSearchCanExpressEveryCondition",
             commands,
             StringComparison.Ordinal);
 
+        // And the scoped engine path still falls back before it can reach the throw.
         var scoped = File.ReadAllText(
             Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.NativeScoped.cs"));
         Assert.Contains(
             "if (!CanExpressResolvedPropertyNatively(resolved))",
-            scoped,
-            StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "EnsureNativeSearchCanExpressEveryCondition",
             scoped,
             StringComparison.Ordinal);
     }
