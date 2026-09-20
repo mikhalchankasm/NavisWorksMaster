@@ -411,8 +411,46 @@ Outputs:
 | `navisworksVersion`, `roamerPath`, `filePath` | scalar | Selected executable and file. |
 | `openedRecentFile`, `recentFile` | scalar/object | Present when the file came from Recent File List. |
 | `waitedForHost`, `hostReady`, `host` | scalar/object | `host.instanceId` should be used for follow-up tools when multiple hosts may exist. |
-| `outcome`, `failureReason` | scalar | `host_ready`, `process_exited`, `host_timeout`, or `process_created`. `process_created` is the immediate snapshot used when `waitForHost=false`; it does not claim later host readiness. |
+| `outcome`, `failureReason` | scalar | `host_ready`, `process_exited`, `host_timeout`, `process_created`, or `attached_to_existing_host`. `process_created` is the immediate snapshot used when `waitForHost=false`; it does not claim later host readiness. `attached_to_existing_host` means no process was started -- see *Attaching* below. |
 | `startupElapsedMs`, `elapsedMs`, `elapsedHuman`, `message`, `warnings[]` | scalar/array | `startupElapsedMs` covers process creation and monitoring; legacy `elapsedMs` also includes request preparation such as version/file resolution. |
+
+#### Attaching instead of starting a second process
+
+**A request naming a file that a ready host of the requested version already has
+open attaches to that host and starts nothing.** The response carries
+`processCreated: false`, `outcome: attached_to_existing_host`, `processId` set to that
+host's pid, and the host itself. Measured live on `6501.5.nwd`, Navisworks 2027:
+**42 ms** against roughly 15 500 ms for a launch.
+
+This exists because the alternative was a broken session. Observed live on
+2026-09-20: `start_navisworks` produced a ready 2027 host, `open_latest_navisworks_file`
+produced a **second** process, and every following tool call failed with
+`multiple_hosts_detected` until one instance was closed.
+
+Three cases still start a process, deliberately:
+
+- **A different version.** No host of the requested version can serve the request.
+- **A host that is running but has not registered yet.** Discovery is the readiness
+  record, so an unregistered instance is invisible and cannot be attached to.
+- **A request naming a file no running host has open** — including
+  `start_navisworks` with no file at all, because "start Navisworks" is not "give me
+  whatever is running". **There is no command that opens a document in a running
+  instance**, so this cannot be satisfied by attaching. Making it possible means
+  adding that capability, not changing this decision.
+
+That last case is the reported sequence, and it still ends with two hosts. What
+changed is that the response now says so, in a warning naming
+`multiple_hosts_detected`, `list_navisworks_hosts` and `close_navisworks` — at the
+moment it becomes true, rather than leaving the caller to discover it on its next
+call as an error about a situation this call created.
+
+A separate warning fires when the discovered host runs in a different process than
+the one that was started. `SelectHost`'s last resort matches on document title
+without excluding hosts that were already running, so a launch can report a
+pre-existing host beside the pid it just created — `processId 42284` with
+`host.pid 57488` was observed. The fallback is kept, because it is the only thing
+that finds the host when Navisworks serves the file from another process, but the
+mismatch is now stated instead of left to be noticed.
 
 With the default `waitForHost=true`, the server monitors both host discovery and
 the child process. A nonzero or unavailable early process exit returns

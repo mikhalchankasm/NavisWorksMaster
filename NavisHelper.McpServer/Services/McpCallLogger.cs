@@ -101,9 +101,11 @@ internal sealed class McpCallLogger
     {
         if (response == null)
             throw new ArgumentNullException(nameof(response));
-        if (environmentFacts == null)
-            throw new ArgumentNullException(nameof(environmentFacts));
 
+        // A start that attached to an already-running host launched no process, so
+        // there are no launch-environment facts to report. Rejecting null here turned
+        // that outcome into an ArgumentNullException instead of an answer, which is
+        // how the attach path failed the first time it ran end to end.
         Log(new
         {
             event_name = "start_navisworks",
@@ -125,7 +127,7 @@ internal sealed class McpCallLogger
             exit_code = response.ExitCode,
             failure_reason = response.FailureReason,
             instance_id = response.Host == null ? null : response.Host.InstanceId,
-            environment = new
+            environment = environmentFacts == null ? null : new
             {
                 process_windir_present = environmentFacts.ProcessWindirPresent,
                 process_windir_valid = environmentFacts.ProcessWindirValid,

@@ -76,6 +76,38 @@ internal sealed class NavisworksLaunchService
         response.RoamerPath = roamerPath;
         response.FilePath = effectiveFilePath;
 
+        // Attach before launching. A caller that named a file already open in a ready
+        // host is served by that host; starting a second process there leaves the
+        // session with two and every later call failing on multiple_hosts_detected.
+        var attachTarget = NavisworksAttachPolicy.SelectAttachTarget(hostsBefore, version, effectiveFilePath);
+        if (attachTarget != null)
+        {
+            response.Started = true;
+            response.ProcessCreated = false;
+            response.ProcessId = attachTarget.Pid;
+            response.HostReady = true;
+            response.Host = attachTarget;
+            response.Outcome = StartNavisworksOutcomes.AttachedToExistingHost;
+            response.Message = NavisworksAttachPolicy.AttachedToExistingHostMessage;
+
+            stopwatch.Stop();
+            response.StartupElapsedMs = 0;
+            response.ElapsedMs = stopwatch.ElapsedMilliseconds;
+            response.ElapsedHuman = ElapsedTimeFormatter.Format(response.ElapsedMs);
+            // No process was launched, so there are no launch-environment facts to log.
+            _callLogger.LogStartNavisworks(response, null);
+            return response;
+        }
+
+        // Nothing to attach to, so a process is started. Say now if that leaves more
+        // than one host of this version: the caller otherwise learns it from the next
+        // call, as an error about a situation this call created.
+        var additionalHostWarning = NavisworksAttachPolicy.BuildAdditionalHostWarning(
+            NavisworksAttachPolicy.CountReadyHostsOfVersion(hostsBefore, version),
+            version);
+        if (!string.IsNullOrEmpty(additionalHostWarning))
+            response.Warnings.Add(additionalHostWarning);
+
         var startInfoBuild = _startInfoFactory.Create(roamerPath, effectiveFilePath);
         var startupStopwatch = Stopwatch.StartNew();
         using var process = _processLauncher.Start(startInfoBuild.StartInfo);
@@ -103,6 +135,17 @@ internal sealed class NavisworksLaunchService
         }
 
         ApplyStartupResult(response, startupResult, waitForHost);
+
+        // SelectHost's last resort matches on document title without excluding hosts
+        // that were already running, so a launch can report a pre-existing host beside
+        // the pid it just created. That fallback stays -- it is the only thing that
+        // finds the host when Navisworks serves the file from another process -- but
+        // the caller is told when it fired rather than left to notice the mismatch.
+        var mismatchWarning = NavisworksAttachPolicy.BuildHostProcessMismatchWarning(
+            response.ProcessId,
+            response.Host == null ? (int?)null : response.Host.Pid);
+        if (!string.IsNullOrEmpty(mismatchWarning))
+            response.Warnings.Add(mismatchWarning);
 
         startupStopwatch.Stop();
         stopwatch.Stop();
