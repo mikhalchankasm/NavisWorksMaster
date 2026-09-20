@@ -25,7 +25,14 @@ namespace NavisHelper.Agent.Services
 
             var response = new SelectItemsResponse();
             var itemsToSelect = new List<ModelItem>();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Keyed by ModelItem, whose Equals compares the underlying native object.
+            // This was a HashSet<string> of BuildItemPath, in a variable called
+            // `identity`, and a display-name path is not one: a parent can hold two
+            // genuinely different children with the same name. Measured on
+            // 6501.5.nwd, a handle holding two such siblings selected one of them and
+            // reported selectedItemCount=1, and Navisworks agreed - the other item was
+            // simply never added.
+            var seen = new HashSet<ModelItem>();
 
             foreach (var handle in request.MatchHandles.Where(h => !string.IsNullOrWhiteSpace(h)))
             {
@@ -45,8 +52,7 @@ namespace NavisHelper.Agent.Services
                 var selectedCount = 0;
                 foreach (var item in items)
                 {
-                    var identity = BuildItemPath(item);
-                    if (seen.Add(identity))
+                    if (item != null && seen.Add(item))
                     {
                         itemsToSelect.Add(item);
                         selectedCount++;
