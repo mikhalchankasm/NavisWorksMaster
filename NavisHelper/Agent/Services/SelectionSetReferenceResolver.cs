@@ -109,7 +109,7 @@ namespace NavisHelper.Agent.Services
                  string.Equals(System.IO.Path.GetFileName(candidate.SourceFileName), System.IO.Path.GetFileName(reference.SourceFile.Trim()), StringComparison.OrdinalIgnoreCase)))
                 .ToList();
             if (matches.Count == 0)
-                throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, "Model root/source file was not found.");
+                throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, BuildModelRootNotFoundMessage(document, reference));
             if (reference.Occurrence.HasValue)
             {
                 var index = reference.Occurrence.Value - 1;
@@ -131,6 +131,84 @@ namespace NavisHelper.Agent.Services
                 Path = source,
                 Type = "ModelRoot",
             };
+        }
+
+        /// <summary>
+        /// <c>rootName</c> matches a <see cref="Model"/> root, and a federated document reports
+        /// tree root items that are not model roots: on <c>6501.5.nwd</c>, <c>list_root_items</c>
+        /// returns three names and only the first is a model root, so the two a caller actually
+        /// wants -- the federated branches -- were refused with a message that named nothing.
+        /// This one says which vocabulary the parameter uses and lists the roots that exist.
+        ///
+        /// It lists only what <see cref="ResolveModelRoot"/> will actually accept, and the two
+        /// parameters have different vocabularies: <c>rootName</c> is compared against
+        /// <c>RootItem.DisplayName</c>, so a model with no root item cannot be named by it at
+        /// all, and printing that model's file name under "model roots" would repeat the defect
+        /// this message exists to fix. Such a model is reachable only through
+        /// <c>sourceFile</c>, which also accepts <c>FileName</c> when <c>SourceFileName</c> is
+        /// blank, so it is listed separately instead of dropped.
+        /// </summary>
+        private static string BuildModelRootNotFoundMessage(Document document, SelectionSetReference reference)
+        {
+            var models = document.Models.Cast<Model>().ToList();
+            var rootNames = models
+                .Select(candidate => candidate.RootItem == null ? string.Empty : candidate.RootItem.DisplayName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            // A model whose RootItem is null is not advertised at all: resolution ends
+            // in items.Add(model.RootItem), so naming it by sourceFile would pass the
+            // match and then fail to produce a selection. It is counted instead, so the
+            // message accounts for every model without promising one that cannot work.
+            //
+            // A model that has a RootItem but no display name does resolve, just not
+            // through rootName. Its value is quoted unshortened: the match accepts
+            // SourceFileName whole or by file name, but FileName only whole, so
+            // shortening a path-valued FileName would hand back a value that fails --
+            // the same defect one level down.
+            var sourceOnly = models
+                .Where(candidate => candidate.RootItem != null && string.IsNullOrWhiteSpace(candidate.RootItem.DisplayName))
+                .Select(candidate => !string.IsNullOrWhiteSpace(candidate.SourceFileName)
+                    ? candidate.SourceFileName
+                    : candidate.FileName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var unusableModelCount = models.Count(candidate => candidate.RootItem == null);
+
+            // Which selector actually failed. Both may be supplied -- an exported
+            // transfer plan carries both -- and a valid rootName paired with a wrong
+            // sourceFile also lands here. Blaming rootName unconditionally would send
+            // a caller to change the one field that was already right, and then list
+            // that same name as valid two sentences later.
+            var message = "Model root/source file was not found.";
+            var rootNameGiven = !string.IsNullOrWhiteSpace(reference.RootName);
+            var rootNameIsKnown = rootNameGiven &&
+                rootNames.Any(name => string.Equals(name, reference.RootName.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (rootNameGiven && !rootNameIsKnown)
+                message += " rootName must name a model root, not a tree root item below one.";
+            else if (rootNameIsKnown)
+                message += " rootName '" + reference.RootName.Trim() +
+                    "' does name a model root, so it is the rest of the reference that did not match" +
+                    (string.IsNullOrWhiteSpace(reference.SourceFile) ? "." : " -- check sourceFile.");
+            if (rootNames.Count > 0)
+                message += " Model roots in this document: " + FormatNameList(rootNames) + ".";
+            if (sourceOnly.Count > 0)
+                message += " Reachable by sourceFile only, having no root item name: " + FormatNameList(sourceOnly) + ".";
+            if (unusableModelCount > 0)
+                message += " " + unusableModelCount.ToString(CultureInfo.InvariantCulture) +
+                    " loaded model(s) have no root item and cannot be referenced this way at all.";
+            if (rootNames.Count == 0 && sourceOnly.Count == 0)
+                return message + " Reference the items you want by selection set name or path instead.";
+            return message + " Reference anything below a model root by selection set name or path.";
+        }
+
+        private static string FormatNameList(IList<string> names)
+        {
+            var text = string.Join(", ", names.Take(5).Select(name => "'" + name + "'"));
+            if (names.Count > 5)
+                text += ", and " + (names.Count - 5).ToString(CultureInfo.InvariantCulture) + " more";
+            return text;
         }
 
         private static string BuildModelItemId(Model model, string source)
