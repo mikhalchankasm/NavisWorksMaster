@@ -38,7 +38,7 @@ public sealed class FindItemsPathSegmentsTests
 
         foreach (var name in namesByLevel)
         {
-            var rest = FindItemsPathSegments.TryConsume(new[] { name }, remaining);
+            var rest = FindItemsPathSegments.Continuations(new[] { name }, remaining).FirstOrDefault();
             if (rest == null)
                 return consumed;
 
@@ -129,27 +129,58 @@ public sealed class FindItemsPathSegmentsTests
         // "Supply / Return", and those bytes are indistinguishable from two levels.
         // Splitting up front guesses wrong, so resolution consumes one node at a
         // time against the names the tree actually offers.
-        var rest = FindItemsPathSegments.TryConsume(new[] { "Supply / Return" }, "Supply / Return / Child");
+        var rest = FindItemsPathSegments.Continuations(new[] { "Supply / Return" }, "Supply / Return / Child");
 
-        Assert.Equal("Child", rest);
+        Assert.Equal(new[] { "Child" }, rest);
     }
 
     [Fact]
-    public void The_longest_matching_name_wins()
+    public void Both_readings_of_an_ambiguous_name_are_returned_longest_first()
     {
         // A node can offer several names - DisplayName, ClassDisplayName, source
-        // file. If the shorter one were taken, the deeper match would be lost.
-        var rest = FindItemsPathSegments.TryConsume(
+        // file. When the shorter one is a proper prefix, BOTH readings can lead to a
+        // real node: the node named "Supply / Return" with a child "Child", or the
+        // node named "Supply" with a grandchild reached through "Return".
+        //
+        // This used to return only the longest, which resolved the path by
+        // candidate-name length - a property of the strings, not a fact about the
+        // model. An external review pointed out that the caller then gets a confident
+        // answer about a node it did not name. Both are returned so the caller can
+        // refuse.
+        var rest = FindItemsPathSegments.Continuations(
             new[] { "Supply", "Supply / Return" },
             "Supply / Return / Child");
 
-        Assert.Equal("Child", rest);
+        Assert.Equal(new[] { "Child", "Return / Child" }, rest);
+    }
+
+    [Fact]
+    public void Two_names_leaving_the_same_remainder_are_one_reading_not_two()
+    {
+        // A DisplayName that equals the source file is the common case. Reporting it
+        // twice would make an unambiguous path look ambiguous and refuse a call that
+        // should succeed.
+        var rest = FindItemsPathSegments.Continuations(
+            new[] { "6501.5.nwd", "6501.5.nwd" },
+            "6501.5.nwd / /STORE");
+
+        Assert.Equal(new[] { "/STORE" }, rest);
+    }
+
+    [Fact]
+    public void An_unambiguous_name_yields_exactly_one_continuation()
+    {
+        var rest = FindItemsPathSegments.Continuations(
+            new[] { "Supply", "Группа", "6501.5.rvm" },
+            "Supply / Return / Child");
+
+        Assert.Equal(new[] { "Return / Child" }, rest);
     }
 
     [Fact]
     public void Consuming_the_whole_remainder_reports_the_node_itself()
     {
-        Assert.Equal(string.Empty, FindItemsPathSegments.TryConsume(new[] { "/STORE" }, "/STORE"));
+        Assert.Equal(new[] { string.Empty }, FindItemsPathSegments.Continuations(new[] { "/STORE" }, "/STORE"));
     }
 
     [Fact]
@@ -157,16 +188,16 @@ public sealed class FindItemsPathSegmentsTests
     {
         // "/STO" is a prefix of the text but not of a segment, so it must not
         // consume anything.
-        Assert.Null(FindItemsPathSegments.TryConsume(new[] { "/STO" }, "/STORE / /Child"));
+        Assert.Empty(FindItemsPathSegments.Continuations(new[] { "/STO" }, "/STORE / /Child"));
     }
 
     [Fact]
     public void A_printed_root_segment_is_consumed_then_the_child_follows()
     {
-        var afterRoot = FindItemsPathSegments.TryConsume(new[] { "6501.5.nwd" }, "6501.5.nwd / /STORE");
+        var afterRoot = FindItemsPathSegments.Continuations(new[] { "6501.5.nwd" }, "6501.5.nwd / /STORE").Single();
         Assert.Equal("/STORE", afterRoot);
 
-        var afterChild = FindItemsPathSegments.TryConsume(new[] { "/STORE" }, afterRoot);
+        var afterChild = FindItemsPathSegments.Continuations(new[] { "/STORE" }, afterRoot).Single();
         Assert.Equal(string.Empty, afterChild);
     }
 
@@ -174,10 +205,10 @@ public sealed class FindItemsPathSegmentsTests
     [InlineData(null, "a / b")]
     [InlineData("x", null)]
     [InlineData("x", "")]
-    public void TryConsume_is_null_safe(string name, string remaining)
+    public void Continuations_is_null_safe(string name, string remaining)
     {
         var names = name == null ? null : new[] { name };
-        Assert.Null(FindItemsPathSegments.TryConsume(names, remaining));
+        Assert.Empty(FindItemsPathSegments.Continuations(names, remaining));
     }
 
     [Fact]
@@ -186,7 +217,7 @@ public sealed class FindItemsPathSegmentsTests
         // The reason SplitSlashPath is named for what it accepts. Handing it a
         // printed path tears one real node name into three, which is exactly the
         // defect this whole file exists to prevent; SearchService therefore sends
-        // printed paths to TryConsume and never here.
+        // printed paths to Continuations and never here.
         var torn = FindItemsPathSegments.SplitSlashPath(
             "6501.5.nwd / GASKET 1 of BRANCH /150.=79338/61632.1").ToList();
 
