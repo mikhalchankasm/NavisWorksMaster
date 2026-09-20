@@ -134,6 +134,14 @@ namespace NavisHelper.Agent.Services
                 if (resolved.InheritFromAncestor)
                     return false;
 
+                // A category-less property is inexpressible to the engine, not
+                // ambiguous: it would be asked for the property in the category named
+                // "" and return nothing. Scoped, the traversal can answer it, so this
+                // falls back rather than refusing. The whole-model route refuses
+                // instead, because its traversal cannot finish.
+                if (!CanExpressResolvedPropertyNatively(resolved))
+                    return false;
+
                 var alternatives = BuildNativeAndFastPathConditionAlternatives(resolved, condition);
                 if (alternatives == null || alternatives.Count == 0)
                     return false;

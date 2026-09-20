@@ -20,6 +20,105 @@ namespace NavisHelper.McpServer.Tests;
 /// </summary>
 public sealed class FindItemsNativeSearchPolicyTests
 {
+    /// <summary>
+    /// A category-less condition is inexpressible to the engine, not ambiguous.
+    /// `SearchCondition` has no property-only factory, so `CreateSearchCondition`
+    /// passes `string.Empty` and the engine is asked for the property in the category
+    /// named "" -- which matches nothing and does not error.
+    ///
+    /// Measured live on `6501.5.nwd`: `/DN equals "150mm"` returned 0 from the engine
+    /// and 135 from a traversal over the same nodes, while `AVEVA/DN equals "150mm"`
+    /// returned 135 from both. The category is in every condition of that comparison
+    /// deliberately: a test written against `Item/Name` passes whatever the rule does,
+    /// because the default category happens to be right for it.
+    /// </summary>
+    [Theory]
+    // Neither route to a category: the engine cannot be given this.
+    [InlineData(false, false, true)]
+    // A display candidate carries one.
+    [InlineData(true, false, false)]
+    // A resolved internal category and property carry one.
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    public void ANativeConditionNeedsACategoryFromOneOfTheTwoRoutes(
+        bool hasDisplayCandidateWithCategory,
+        bool hasInternalCategoryAndProperty,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            FindItemsNativeSearchPolicy.NativeConditionNeedsACategory(
+                hasDisplayCandidateWithCategory,
+                hasInternalCategoryAndProperty));
+    }
+
+    [Fact]
+    public void TheRefusalNamesTheConstraintAndBothWaysOut()
+    {
+        var text = FindItemsNativeSearchPolicy.CategoryRequiredForNativeSearch;
+
+        // A caller reading this must learn why 0 was not the answer, and the two
+        // things it can do instead. "Invalid condition" would be useless here.
+        Assert.Contains("without a category", text, StringComparison.Ordinal);
+        Assert.Contains("SearchCondition", text, StringComparison.Ordinal);
+        Assert.Contains("category=\"AVEVA\"", text, StringComparison.Ordinal);
+        Assert.Contains("scope=under_named_node", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheRefusalLivesAtThePointOfUse_NotInAPrecheck()
+    {
+        // Re-pointed after review, and it checks more than it used to. A precheck in
+        // FindItems had to guess which conditions reach the engine and guessed wrong:
+        // a whole-model `all` search can hand a category-less condition to
+        // FilterAccumulator, whose manual lookup searches every category and answers
+        // correctly, and the precheck refused that caller. The refusal now sits in
+        // CreateSearchCondition, where a condition that never becomes a native
+        // condition never reaches it, and no second copy of the routing rule exists to
+        // drift from the first.
+        var root = FindRepositoryRoot();
+
+        var rules = File.ReadAllText(
+            Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.Rules.cs"));
+        var builderAt = rules.IndexOf(
+            "private static SearchCondition CreateSearchCondition(",
+            StringComparison.Ordinal);
+        Assert.True(builderAt >= 0, "CreateSearchCondition was renamed; re-point this guard.");
+
+        var builder = rules.Substring(builderAt);
+        var builderEnd = builder.IndexOf("private static ", 1, StringComparison.Ordinal);
+        if (builderEnd > 0)
+            builder = builder.Substring(0, builderEnd);
+
+        Assert.Contains(
+            "FindItemsNativeSearchPolicy.CategoryRequiredForNativeSearch",
+            builder,
+            StringComparison.Ordinal);
+
+        // The candidate must be chosen for having a category, not for being first.
+        // ResolveProperty puts the caller's category-less candidate ahead of the
+        // category-qualified aliases it knows, so FirstOrDefault() sent "" for a known
+        // alias that had a usable category sitting behind it in the same list.
+        Assert.DoesNotContain("DisplayCandidates.FirstOrDefault()", builder, StringComparison.Ordinal);
+        Assert.Contains("entry.Category", builder, StringComparison.Ordinal);
+
+        // No precheck anywhere: that is the thing this replaced.
+        var commands = File.ReadAllText(
+            Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.Commands.cs"));
+        Assert.DoesNotContain(
+            "EnsureNativeSearchCanExpressEveryCondition",
+            commands,
+            StringComparison.Ordinal);
+
+        // And the scoped engine path still falls back before it can reach the throw.
+        var scoped = File.ReadAllText(
+            Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.NativeScoped.cs"));
+        Assert.Contains(
+            "if (!CanExpressResolvedPropertyNatively(resolved))",
+            scoped,
+            StringComparison.Ordinal);
+    }
+
     [Fact]
     public void WholeModelSearchStaysPruned()
     {

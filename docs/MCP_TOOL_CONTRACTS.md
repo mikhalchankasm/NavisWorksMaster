@@ -63,6 +63,49 @@ global native search first. The output adds `matchedItemCount`,
 `scannedItemCount`, `depthHistogram`, `sampleValuesFromModel`, and `warnings`.
 With `countOnly=true`, no match handle is registered.
 
+### A condition must name its property's category on the whole-model route
+
+`SearchCondition` takes a category with every property — the surface is
+`HasPropertyBy{CombinedName,DisplayName,Name}`, with no property-only factory — so a
+condition that gives no category is **inexpressible** to the engine rather than
+ambiguous. It used to be sent with `string.Empty`, asking for the property in the
+category literally named `""`, which matches nothing and does not error. Measured
+live on `6501.5.nwd`: `/DN equals "150mm"` returned **0** from the engine and **135**
+from a traversal over the same nodes, while `AVEVA/DN equals "150mm"` returned 135
+from both.
+
+An empty category means "any category" to the manual matcher and "the category named
+empty-string" to the engine, so the traversal can express something the engine
+structurally cannot. The two routes are now split by which of them can answer:
+
+| request | before | after |
+| --- | --- | --- |
+| `whole_model`, no category | `0`, `not_found`, warning claiming the count is exact | `schema_violation` naming the constraint and both ways out, 87 ms |
+| `whole_model`, category given | 135 | 135, unchanged |
+| scoped `matchDepth=all`/`countOnly`, no category | answered by the traversal | unchanged |
+| scoped `matchDepth=first`, no category | native, so `0` | **answered by the traversal**, because a category-less condition is no longer eligible for the scoped engine path |
+
+The rule behind that split, because it decides the next case of its kind too:
+**refuse only where no route can answer, and fall back wherever one can.** The
+boundary is not "native versus manual", which is an implementation fact; it is
+whether anything can answer the request. The whole-model route refuses because its
+traversal cannot finish on a model of any size — falling back there would swap a
+confident zero for a 45-second failure whose message talks about narrowing the scope
+rather than naming the category. Every scoped route falls back because its traversal
+can finish.
+
+A caller planning a client should read the asymmetry off the table above rather than
+discover it from an error: **a condition needs its category on `whole_model` and does
+not when scoped.** Every scoped route falls back and answers, so no caller that gets a
+correct answer today loses it — the only behaviour that changes is the one that was
+returning a zero it called exact.
+
+The refusal also covers the case where the property genuinely exists in no category
+and `0` was the right answer. That is accepted deliberately: a caller cannot today
+distinguish "no such property" from "property in a category you did not name", and
+that indistinguishability is the defect. An error stating the constraint is truthful
+under both readings; a `0` is truthful under only one.
+
 ### Pruning: `whole_model + matchDepth=all` is pruned, scoped `all` is not
 
 `scope=whole_model` with `matchDepth=all` (and no `starts_with`/`ends_with`

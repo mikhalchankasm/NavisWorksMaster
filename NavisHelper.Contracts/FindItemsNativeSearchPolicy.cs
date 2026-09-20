@@ -56,6 +56,52 @@ namespace NavisHelper.Agent.Contracts
                 && string.Equals(matchDepth, FindItemsMatchDepths.All, StringComparison.Ordinal);
         }
 
+        /// <summary>
+        /// Whether a resolved property reference can be handed to the engine at all.
+        ///
+        /// `SearchCondition` has no property-only factory: the surface is
+        /// `HasPropertyBy{CombinedName,DisplayName,Name}`, each of which takes a
+        /// category. `CreateSearchCondition` therefore passes `string.Empty` when no
+        /// category is available, and the engine is asked for a property in the
+        /// category literally named "" -- which matches nothing and does not error.
+        ///
+        /// So a category-less condition is not ambiguous, it is inexpressible. An
+        /// empty category means "any category" to the manual matcher and "the
+        /// category named empty-string" to the engine, and the traversal can express
+        /// something the engine structurally cannot. Measured live on 6501.5.nwd:
+        /// `/DN equals "150mm"` returned 0 from the engine and 135 from a traversal
+        /// over the same nodes, while `AVEVA/DN equals "150mm"` returned 135 from
+        /// both.
+        ///
+        /// The two arguments are the two ways a category can arrive -- a display
+        /// candidate that carries one, or a resolved internal category with its
+        /// property. Passed as booleans so the rule can be tested without a live
+        /// document.
+        /// </summary>
+        public static bool NativeConditionNeedsACategory(
+            bool hasDisplayCandidateWithCategory,
+            bool hasInternalCategoryAndProperty)
+        {
+            return !hasDisplayCandidateWithCategory && !hasInternalCategoryAndProperty;
+        }
+
+        /// <summary>
+        /// Refusal text for a whole-model request whose condition names no category.
+        ///
+        /// The whole-model route refuses rather than falling back to the traversal,
+        /// because that traversal cannot finish on a model of any size -- it would
+        /// replace a confident zero with a 45 second failure whose message talks about
+        /// narrowing the scope instead of naming the category. A scoped request does
+        /// fall back, and answers, so no caller that gets a correct answer today loses
+        /// it; the only behaviour that changes is the one that was lying.
+        /// </summary>
+        public const string CategoryRequiredForNativeSearch =
+            "This condition names a property without a category, which the Navisworks search engine cannot express: "
+            + "SearchCondition takes a category with every property, so the engine is asked for the property in the "
+            + "category named \"\" and matches nothing. Name the property's category - for example category=\"AVEVA\" "
+            + "with property=\"DN\", or property=\"AVEVA/DN\" - or scope the search with scope=under_handle or "
+            + "scope=under_named_node, where the traversal matches a property in whatever category holds it.";
+
         public const string WholeModelCountOnlyWarning =
             "scope=whole_model with countOnly=true is answered by the native Navisworks search, which reports "
             + "matches rather than how many nodes it walked, so scannedItemCount is 0. matchedItemCount, "
