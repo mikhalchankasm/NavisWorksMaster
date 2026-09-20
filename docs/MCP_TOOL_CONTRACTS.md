@@ -85,10 +85,18 @@ structurally cannot. The two routes are now split by which of them can answer:
 | scoped `matchDepth=all`/`countOnly`, no category | answered by the traversal | unchanged |
 | scoped `matchDepth=first`, no category | native, so `0` | **answered by the traversal**, because a category-less condition is no longer eligible for the scoped engine path |
 
-The whole-model route refuses instead of falling back, because its traversal cannot
-finish on a model of any size: falling back would swap a confident zero for a
-45-second failure whose message talks about narrowing the scope rather than naming
-the category. Every scoped route falls back and answers, so no caller that gets a
+The rule behind that split, because it decides the next case of its kind too:
+**refuse only where no route can answer, and fall back wherever one can.** The
+boundary is not "native versus manual", which is an implementation fact; it is
+whether anything can answer the request. The whole-model route refuses because its
+traversal cannot finish on a model of any size — falling back there would swap a
+confident zero for a 45-second failure whose message talks about narrowing the scope
+rather than naming the category. Every scoped route falls back because its traversal
+can finish.
+
+A caller planning a client should read the asymmetry off the table above rather than
+discover it from an error: **a condition needs its category on `whole_model` and does
+not when scoped.** Every scoped route falls back and answers, so no caller that gets a
 correct answer today loses it — the only behaviour that changes is the one that was
 returning a zero it called exact.
 
