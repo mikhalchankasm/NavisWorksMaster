@@ -362,9 +362,9 @@ internal sealed class NavisworksTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Returns host-side status for a recent request_id. Use after request_timeout, transport disconnect, or oversized-response suspicion to determine whether the Navisworks-side command eventually completed, failed, or is still running.")]
+    [Description("Returns host-side status for a recent request_id, or for the most recent host operation when no request_id is given. Use after request_timeout, transport disconnect, or oversized-response suspicion to determine whether the Navisworks-side command eventually completed, failed, or is still running.")]
     public Task<LastOperationStatusResponse> LastOperationStatus(
-        [Description("request_id from mcp_recent_calls or the MCP server error log.")] string requestId,
+        [Description("Optional request_id from mcp_recent_calls or the MCP server error log. Leave empty to ask about the most recent host operation, which is what a caller has after a timeout dropped the reply before it carried a request_id. Check the returned command matches the call you lost.")] string requestId = "",
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)

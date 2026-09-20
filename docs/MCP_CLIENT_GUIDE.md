@@ -89,7 +89,7 @@ For larger user-visible workflows that span several MCP tool calls, call `mcp_ta
 
 Every host call is also written to `mcp_recent_calls` with `requestId`, `elapsedMs`, `elapsedHuman`, and `reportElapsedToUser`; use those fields for diagnostics after failures or long runs.
 
-After `request_timeout`, client cancellation, broken pipe, or a suspected oversized response, copy the `requestId` from `mcp_recent_calls` and call `last_operation_status`. Treat `completed` as evidence that the Navisworks-side command already ran; do not blindly retry write tools. Treat `running` as "wait and poll again", and `failed` as the authoritative host-side failure.
+After `request_timeout`, client cancellation, broken pipe, or a suspected oversized response, call `last_operation_status`. Pass the `requestId` from `mcp_recent_calls` when you have one; call it with no arguments when you do not, which is the usual case, because the request id travels with the reply that never arrived. With no arguments it answers about the most recent host operation and sets `resolvedFromMostRecent`, so check the returned `command` is the call you lost. Treat `completed` as evidence that the Navisworks-side command already ran; do not blindly retry write tools. Treat `running` as "wait and poll again", and `failed` as the authoritative host-side failure.
 
 ## Root Filename Search
 
@@ -388,7 +388,7 @@ After many calls, timeouts, or suspicious latency:
 
 1. Call `mcp_health_check`.
 2. Call `mcp_recent_calls` with `lineCount=100`.
-3. For any timed-out or disconnected write call, pass its `requestId` to `last_operation_status` before retrying.
+3. For any timed-out or disconnected write call, call `last_operation_status` before retrying -- with its `requestId` if you have one, with no arguments otherwise.
 4. If health is degraded or the host stopped responding, call `list_navisworks_hosts`.
 5. If no host matches, restart Navisworks and reopen the model.
 

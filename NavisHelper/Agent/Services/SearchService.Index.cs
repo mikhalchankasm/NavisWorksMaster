@@ -80,7 +80,27 @@ namespace NavisHelper.Agent.Services
 
             if (matches.Count > 1)
             {
-                var preview = string.Join("; ", matches.Take(10).Select(BuildItemPath).ToArray());
+                var paths = matches.Take(10).Select(BuildItemPath).ToList();
+                var preview = string.Join("; ", paths.ToArray());
+
+                // When the matches print the same text, a more specific parentPath
+                // cannot exist and a handle will not help either: find_items returns
+                // such siblings in one handle, and a handle holding two items is
+                // refused as an ambiguous parent. Saying "be more specific" there
+                // would send the caller somewhere that cannot work.
+                var everyPathIsTheSame = paths.Count > 1 &&
+                    paths.All(path => string.Equals(path, paths[0], StringComparison.OrdinalIgnoreCase));
+                if (everyPathIsTheSame)
+                {
+                    throw new AgentCommandException(
+                        ErrorCodes.CommandFailed,
+                        "The path " + paths[0] + " addresses " + matches.Count.ToString(CultureInfo.InvariantCulture) +
+                        " distinct nodes that print identically, so it does not identify one parent. A more specific " +
+                        "parentPath does not exist for these nodes and a match handle holds them together. List the " +
+                        "children of a node above them and work down by index, or scope a find_items search under the " +
+                        "one you want.");
+                }
+
                 throw new AgentCommandException(ErrorCodes.CommandFailed, "More than one parent item matched. Use a more specific parentPath or pass parentMatchHandle from find_items. Matches: " + preview);
             }
 
@@ -108,14 +128,15 @@ namespace NavisHelper.Agent.Services
                 return result;
 
             var seen = new HashSet<ModelItem>();
+            var budget = new[] { MaxPrintedPathNodesVisited };
             foreach (Model model in document.Models)
             {
                 if (model == null || model.RootItem == null)
                     continue;
 
-                AddResolvedPathCandidate(result, seen, ResolveFrom(model.RootItem, printed, segments));
+                ResolveFrom(result, seen, model.RootItem, printed, segments, budget);
                 foreach (ModelItem child in model.RootItem.Children)
-                    AddResolvedPathCandidate(result, seen, ResolveFrom(child, printed, segments));
+                    ResolveFrom(result, seen, child, printed, segments, budget);
             }
 
             return result;
@@ -146,36 +167,106 @@ namespace NavisHelper.Agent.Services
             return result;
         }
 
-        private static ModelItem ResolveFrom(ModelItem start, string printedPath, IList<string> segments)
+        /// <summary>
+        /// Upper bound on nodes examined while resolving one printed path across every
+        /// root. The walk is anchored -- a child is entered only when one of its names
+        /// is a prefix of what is left of the path -- so in practice it visits a
+        /// handful. The bound exists because collecting every resolution no longer
+        /// stops at the first success, and a pathological path should fail rather than
+        /// crawl through the model.
+        ///
+        /// Exhausting it raises an error rather than returning what was collected. It
+        /// is shared by `list_item_children` with `parentPath` and by `find_items` with
+        /// `scope=under_named_node`, both of which refuse more than one match, so a
+        /// silent truncation would let either accept a single match that only looks
+        /// unique because the walk stopped early.
+        /// </summary>
+        private const int MaxPrintedPathNodesVisited = 20000;
+
+        private static void ResolveFrom(
+            ICollection<ModelItem> result,
+            ISet<ModelItem> seen,
+            ModelItem start,
+            string printedPath,
+            IList<string> segments,
+            int[] budget)
         {
-            return segments == null
-                ? TryResolvePrintedPath(start, printedPath)
-                : TryResolveChildPath(start, segments, 0);
+            if (segments == null)
+            {
+                CollectPrintedPathResolutions(result, seen, start, printedPath, budget);
+                return;
+            }
+
+            // The caller-authored slash path keeps its first-match behaviour. Its
+            // segments were chosen by the caller rather than printed by a tool, so it
+            // does not carry the same "this text was printed for exactly one node"
+            // promise that the ambiguity check exists to protect.
+            AddResolvedPathCandidate(result, seen, TryResolveChildPath(start, segments, 0));
         }
 
         /// <summary>
-        /// Resolves a printed path by consuming one node at a time, so a node whose
-        /// own name contains the separator resolves instead of being split in two.
+        /// Collects every node a printed path can legitimately address, consuming one
+        /// node at a time so a node whose own name contains the separator resolves
+        /// instead of being split in two.
+        ///
+        /// It used to return the first success. An external review pointed out what
+        /// that costs: when a parent holds both a node named `Supply / Return` and a
+        /// node `Supply` whose child is `Return`, `BuildItemPath` prints the same text
+        /// for two different nodes, so the path resolved according to model child
+        /// order. A path printed for one node then silently answered about the other,
+        /// which is the failure the printed-path work exists to prevent, not a corner
+        /// of it.
+        ///
+        /// The ambiguity check lives in ResolveListChildrenParentWithoutHandle, which
+        /// already refuses more than one match. This only has to stop hiding the
+        /// second one. That check depends on the candidate set being keyed by item
+        /// identity rather than by path -- two nodes in this situation have
+        /// byte-identical paths -- so AddResolvedPathCandidate's identity keying is
+        /// load-bearing here, not a tidy-up.
         /// </summary>
-        private static ModelItem TryResolvePrintedPath(ModelItem start, string remainingPath)
+        private static void CollectPrintedPathResolutions(
+            ICollection<ModelItem> result,
+            ISet<ModelItem> seen,
+            ModelItem start,
+            string remainingPath,
+            int[] budget)
         {
-            if (start == null || string.IsNullOrEmpty(remainingPath))
-                return null;
+            if (result == null || start == null || string.IsNullOrEmpty(remainingPath))
+                return;
 
-            var rest = FindItemsPathSegments.TryConsume(ItemPathCandidateNames(start), remainingPath);
-            if (rest == null)
-                return null;
-            if (rest.Length == 0)
-                return start;
-
-            foreach (ModelItem child in start.Children)
+            if (budget != null)
             {
-                var resolved = TryResolvePrintedPath(child, rest);
-                if (resolved != null)
-                    return resolved;
+                if (budget[0] <= 0)
+                {
+                    // Never return a partial result. An external review found that
+                    // stopping quietly recreates the defect this method exists to
+                    // prevent: if one matching node was collected before the cutoff
+                    // and an identically addressed node lies after it, the caller
+                    // sees exactly one match, accepts it, and answers about a node
+                    // the path does not uniquely name. A refusal is recoverable; a
+                    // confident wrong node is not.
+                    throw new AgentCommandException(
+                        ErrorCodes.CommandFailed,
+                        "Resolving this path examined more than " +
+                        MaxPrintedPathNodesVisited.ToString(CultureInfo.InvariantCulture) +
+                        " nodes without finishing, so the result cannot be known to be complete or unique. " +
+                        "Pass a match handle from find_items, or address a node closer to the one you want.");
+                }
+
+                budget[0]--;
             }
 
-            return null;
+            foreach (var rest in FindItemsPathSegments.Continuations(ItemPathCandidateNames(start), remainingPath))
+            {
+                if (rest.Length == 0)
+                {
+                    AddResolvedPathCandidate(result, seen, start);
+                    continue;
+                }
+
+                foreach (ModelItem child in start.Children)
+                    CollectPrintedPathResolutions(result, seen, child, rest, budget);
+            }
         }
 
         /// <summary>

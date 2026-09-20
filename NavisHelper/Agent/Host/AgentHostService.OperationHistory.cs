@@ -295,14 +295,63 @@ namespace NavisHelper.Agent.Host
             }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
 
+        /// <summary>
+        /// Finds the newest recorded operation that could be the one a caller lost.
+        ///
+        /// Walks the order queue from the back, skipping `last_operation_status`
+        /// itself; see <see cref="OperationHistoryPolicy.CountsAsLastOperation"/> for
+        /// why that one is excluded and nothing else is. Returns an empty string when
+        /// the history holds no such operation.
+        /// </summary>
+        private string FindMostRecentOperationIdLocked()
+        {
+            foreach (var candidate in _operationHistoryOrder.Reverse())
+            {
+                OperationRecord record;
+                if (string.IsNullOrWhiteSpace(candidate) ||
+                    !_operationHistory.TryGetValue(candidate, out record) ||
+                    record == null)
+                {
+                    continue;
+                }
+
+                if (!OperationHistoryPolicy.CountsAsLastOperation(record.Command))
+                    continue;
+
+                return string.IsNullOrWhiteSpace(record.RequestId) ? candidate : record.RequestId;
+            }
+
+            return string.Empty;
+        }
+
         private LastOperationStatusResponse GetLastOperationStatus(LastOperationStatusRequest request)
         {
             var requestId = request == null ? string.Empty : (request.RequestId ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(requestId))
-                throw new AgentCommandException(ErrorCodes.SchemaViolation, "requestId is required.");
+            var resolvedFromMostRecent = false;
 
             lock (_operationHistorySync)
             {
+                if (requestId.Length == 0)
+                {
+                    // A caller whose transport dropped the reply never received a
+                    // request_id, which is exactly the case this command exists for.
+                    // Requiring one made it unusable there, so an empty requestId asks
+                    // about the most recent operation instead of being rejected.
+                    resolvedFromMostRecent = true;
+                    requestId = FindMostRecentOperationIdLocked();
+                    if (requestId.Length == 0)
+                    {
+                        return new LastOperationStatusResponse
+                        {
+                            RequestId = string.Empty,
+                            Found = false,
+                            State = "not_found",
+                            ResolvedFromMostRecent = true,
+                            Message = "No host operation has been recorded yet. The in-memory history is bounded to recent requests and is reset when Navisworks exits.",
+                        };
+                    }
+                }
+
                 OperationRecord record;
                 if (!_operationHistory.TryGetValue(requestId, out record))
                 {
@@ -311,12 +360,14 @@ namespace NavisHelper.Agent.Host
                         RequestId = requestId,
                         Found = false,
                         State = "not_found",
+                        ResolvedFromMostRecent = resolvedFromMostRecent,
                         Message = "No recent host operation was found for this requestId. The in-memory history is bounded to recent requests and is reset when Navisworks exits.",
                     };
                 }
 
                 return new LastOperationStatusResponse
                 {
+                    ResolvedFromMostRecent = resolvedFromMostRecent,
                     RequestId = record.RequestId,
                     Found = true,
                     Command = record.Command,
