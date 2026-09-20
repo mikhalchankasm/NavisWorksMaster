@@ -70,8 +70,8 @@ namespace NavisHelper.Agent.Services
                             " native_hits=" + found.Count +
                             " elapsed_ms=" + GetElapsedMilliseconds(started),
                             "AgentHost");
-                        throw new AgentCommandException(
-                            ErrorCodes.CommandFailed,
+                        throw AbandonNativeScopedSearch(
+                            found,
                             FindItemsNativeScopedPolicy.BuildTraversalBudgetMessage(completedVariants, variants.Count));
                     }
 
