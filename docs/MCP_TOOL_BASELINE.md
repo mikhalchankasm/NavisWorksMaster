@@ -137,6 +137,24 @@ differences anyone would try to measure on this tool. Treat a single bbox number
 order of magnitude rather than a value, and do not accept a before/after pair on it
 without several samples per side.
 
+### What a truncated bbox answer means, and what does not fix it
+
+`find_items_by_bbox` walks `RootItemDescendantsAndSelf` and reads the zone only in
+`MatchesSpatialBox`, **after** an item has been scanned and its bounding box computed. So
+the zone filters results and never the scan: a whole-model zone on this model scans until
+the cap and reports `traversalTruncated`, and a narrower zone truncates identically.
+
+The cap counts *scanned* items and the counter increments before every filter, so
+`sourceFileContains` makes each skipped item cheaper without letting a call reach further
+into the model. Raising `maxScannedItems` is the only lever that extends coverage, and
+the 10-second internal budget is the next wall behind it. On `6501.5.nwd`, with roughly
+270 000 nodes, the default cap of 100 000 covers about 37% and a whole-model zone is
+therefore always a partial answer.
+
+An open question for the owner rather than a decision taken: the cap could count
+*examined* items instead, which would let `sourceFileContains` extend coverage rather
+than only cheapen it. That is a contract change and is not made here.
+
 ## Re-running it comparably
 
 A number here is only comparable to a number taken the same way:
