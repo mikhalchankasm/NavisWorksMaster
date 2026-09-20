@@ -53,5 +53,26 @@ namespace NavisHelper.Agent.Contracts
         {
             return ok == true && string.Equals(state, "completed", StringComparison.OrdinalIgnoreCase);
         }
+
+        /// <summary>
+        /// Whether an operation may be the answer to "what did I just lose?".
+        ///
+        /// `last_operation_status` is recorded in the history like every other
+        /// command, so a caller asking for the most recent operation without a
+        /// requestId would otherwise be told about its own question. It is the one
+        /// command excluded, which also makes repeated asks idempotent: the second
+        /// ask still names the lost call rather than the first ask.
+        ///
+        /// Nothing else is excluded. A cancel is a real operation, and a status poll
+        /// the caller issued deliberately is a fact about the session worth
+        /// reporting; only the question about the answer is not.
+        /// </summary>
+        public static bool CountsAsLastOperation(string command)
+        {
+            if (string.IsNullOrWhiteSpace(command))
+                return false;
+
+            return !string.Equals(command.Trim(), HostCommandNames.LastOperationStatus, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

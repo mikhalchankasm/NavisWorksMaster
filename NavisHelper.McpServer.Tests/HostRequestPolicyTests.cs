@@ -92,4 +92,48 @@ public sealed class HostRequestPolicyTests
     {
         Assert.Equal(expected, OperationHistoryPolicy.IsAuthoritativeSuccessfulCompletion(state, ok));
     }
+
+    /// <summary>
+    /// `last_operation_status` answers "what did I just lose?". It is recorded in the
+    /// history like every other command, so without this exclusion a caller who asks
+    /// without a request_id is told about its own question.
+    ///
+    /// Observed live: a find_items call timed out at the MCP client while the host log
+    /// recorded that same call completing ok in 118 ms. The reply was produced and lost
+    /// in transport, and the caller had no request_id to ask about, because a request_id
+    /// arrives with the reply that never came.
+    /// </summary>
+    [Fact]
+    public void AskingAboutTheAnswerIsNotItselfAnOperation()
+    {
+        Assert.False(OperationHistoryPolicy.CountsAsLastOperation(HostCommandNames.LastOperationStatus));
+    }
+
+    [Theory]
+    [InlineData("find_items")]
+    [InlineData("select_items")]
+    [InlineData("cancel_subtree_names_dump")]
+    [InlineData("clash_report_status")]
+    public void EveryOtherCommandCanBeTheOneThatWasLost(string command)
+    {
+        // A cancel is a real operation, and a status poll the caller issued
+        // deliberately is a fact about the session worth reporting. Only the question
+        // about the answer is excluded.
+        Assert.True(OperationHistoryPolicy.CountsAsLastOperation(command));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AnUnnamedCommandIsNotAnAnswer(string command)
+    {
+        Assert.False(OperationHistoryPolicy.CountsAsLastOperation(command));
+    }
+
+    [Fact]
+    public void TheExclusionIgnoresCaseAndSurroundingSpace()
+    {
+        Assert.False(OperationHistoryPolicy.CountsAsLastOperation("  Last_Operation_Status  "));
+    }
 }

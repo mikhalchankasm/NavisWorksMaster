@@ -330,7 +330,7 @@ Inputs:
 
 | Parameter | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `requestId` | string | required | Request id from `mcp_recent_calls` / MCP server logs. |
+| `requestId` | string | `""` | Request id from `mcp_recent_calls` / MCP server logs. **Leave it empty to ask about the most recent host operation.** A client whose transport dropped the reply never received a request id, because the id arrives with the reply -- so requiring one made this tool unusable in the case it exists for. Measured live: a `find_items` call reported `request_timeout` at the client while the host log recorded that same call completing `ok` in 118 ms. |
 | `instanceId` | string | `""` | Optional explicit Navisworks host. |
 | `navisworksVersion` | string | `""` | Optional version filter. |
 
@@ -343,6 +343,7 @@ Outputs:
 | `ok` | bool? | `true` for completed, `false` for failed, null while running/not found. |
 | `errorCode`, `errorMessage` | string | Populated for failed requests. |
 | `responseTruncated` | bool | `true` when the command completed but the response had to be reduced to fit the named-pipe frame limit. |
+| `resolvedFromMostRecent` | bool | `true` when `requestId` was empty and the host answered about the most recent operation. Compare the returned `command` against the call you lost before trusting the rest -- the host answers about the newest operation it has, which is not necessarily yours. `last_operation_status` is the one command excluded from that search, so repeated asks keep naming the lost call rather than the previous ask. |
 | `responseType`, `startedAtUtc`, `completedAtUtc`, `elapsedMs`, `message` | scalar | Execution diagnostics. |
 
 The history is process-local and bounded; it is reset when Navisworks exits. A timeout entry can initially show `failed/request_timeout` and later be overwritten to `completed` if the UI callback finishes after the client timed out; a completed timeout record is not overwritten back to failed.
