@@ -94,9 +94,10 @@ public sealed class HostRequestPolicyTests
     }
 
     /// <summary>
-    /// `last_operation_status` answers "what did I just lose?". It is recorded in the
-    /// history like every other command, so without this exclusion a caller who asks
-    /// without a request_id is told about its own question.
+    /// `last_operation_status` answers "what did I just lose?", so it must never be
+    /// the answer. It is a status poll and is therefore never recorded in the first
+    /// place, which is what makes repeated asks idempotent: the second ask still
+    /// names the lost call.
     ///
     /// Observed live: a find_items call timed out at the MCP client while the host log
     /// recorded that same call completing ok in 118 ms. The reply was produced and lost
@@ -112,14 +113,51 @@ public sealed class HostRequestPolicyTests
     [Theory]
     [InlineData("find_items")]
     [InlineData("select_items")]
+    // A cancel is not a poll: it changes something, it is recorded, and it can be
+    // the lost call.
     [InlineData("cancel_subtree_names_dump")]
-    [InlineData("clash_report_status")]
-    public void EveryOtherCommandCanBeTheOneThatWasLost(string command)
+    [InlineData("cancel_clash_report")]
+    public void ARecordedCommandCanBeTheOneThatWasLost(string command)
     {
-        // A cancel is a real operation, and a status poll the caller issued
-        // deliberately is a fact about the session worth reporting. Only the question
-        // about the answer is excluded.
         Assert.True(OperationHistoryPolicy.CountsAsLastOperation(command));
+    }
+
+    [Theory]
+    [InlineData("clash_report_status")]
+    [InlineData("clash_run_status")]
+    public void TheOtherStatusPollsAreExcludedToo_BecauseTheyAreNeverRecorded(string command)
+    {
+        // An earlier version of CountsAsLastOperation excluded only
+        // last_operation_status and asserted here that clash_report_status "can be
+        // the one that was lost". It cannot: RecordOperationStarted,
+        // RecordOperationCompleted and RecordOperationFailed all return early for
+        // every status poll, so the history never holds one. An external review
+        // caught the contradiction.
+        Assert.False(OperationHistoryPolicy.CountsAsLastOperation(command));
+    }
+
+    [Fact]
+    public void TheExclusionIsTheStatusPollRuleInverted_NotASecondList()
+    {
+        // Two lists would drift. If a fourth status poll is added to
+        // IsOperationStatusPollCommand, this predicate has to follow it without
+        // being edited.
+        var commands = new[]
+        {
+            HostCommandNames.LastOperationStatus,
+            HostCommandNames.ClashReportStatus,
+            HostCommandNames.ClashRunStatus,
+            HostCommandNames.CancelClashReport,
+            "find_items",
+            "select_items",
+        };
+
+        foreach (var command in commands)
+        {
+            Assert.Equal(
+                !HostRequestPolicy.IsOperationStatusPollCommand(command),
+                OperationHistoryPolicy.CountsAsLastOperation(command));
+        }
     }
 
     [Theory]
@@ -132,8 +170,21 @@ public sealed class HostRequestPolicyTests
     }
 
     [Fact]
-    public void TheExclusionIgnoresCaseAndSurroundingSpace()
+    public void TheExclusionIgnoresCase()
     {
-        Assert.False(OperationHistoryPolicy.CountsAsLastOperation("  Last_Operation_Status  "));
+        Assert.False(OperationHistoryPolicy.CountsAsLastOperation("Last_Operation_Status"));
+    }
+
+    [Fact]
+    public void ThePaddedNameIsNotSpecialCasedHere()
+    {
+        // A first draft of this file asserted that "  Last_Operation_Status  " is
+        // excluded, which would have required trimming in this one predicate while
+        // GetRequestGateBypassKind -- the rule that actually dispatches a command --
+        // does not trim. A padded name is not a bypass command anywhere else, so
+        // tolerating it only here would be an inconsistency dressed as robustness.
+        // Command names arrive from the protocol, not from a text box.
+        Assert.False(HostRequestPolicy.IsOperationStatusPollCommand("  last_operation_status  "));
+        Assert.True(OperationHistoryPolicy.CountsAsLastOperation("  last_operation_status  "));
     }
 }

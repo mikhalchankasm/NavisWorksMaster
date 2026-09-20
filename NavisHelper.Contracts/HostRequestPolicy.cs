@@ -57,22 +57,37 @@ namespace NavisHelper.Agent.Contracts
         /// <summary>
         /// Whether an operation may be the answer to "what did I just lose?".
         ///
-        /// `last_operation_status` is recorded in the history like every other
-        /// command, so a caller asking for the most recent operation without a
-        /// requestId would otherwise be told about its own question. It is the one
-        /// command excluded, which also makes repeated asks idempotent: the second
-        /// ask still names the lost call rather than the first ask.
+        /// This is <see cref="HostRequestPolicy.IsOperationStatusPollCommand"/>
+        /// inverted, and deliberately not its own list. Status polls -- the two
+        /// clash polls and `last_operation_status` itself -- are never written to
+        /// the history at all: `RecordOperationStarted`, `RecordOperationCompleted`
+        /// and `RecordOperationFailed` each return early for them, so that polling
+        /// cannot evict the real operation from a bounded history. This predicate
+        /// therefore states what the history can contain rather than filtering it a
+        /// second time.
         ///
-        /// Nothing else is excluded. A cancel is a real operation, and a status poll
-        /// the caller issued deliberately is a fact about the session worth
-        /// reporting; only the question about the answer is not.
+        /// An earlier version of this method excluded only `last_operation_status`,
+        /// on the stated grounds that it "is recorded in the history like every
+        /// other command" and that a deliberate status poll is "worth reporting".
+        /// Both halves were wrong: none of the three is recorded. An external review
+        /// caught it.
+        ///
+        /// The consequence is a real limitation, not a detail: **if a status poll is
+        /// the call whose reply was lost, an empty `last_operation_status` answers
+        /// about an older, unrelated operation.** That is why the response carries
+        /// the command name and `resolvedFromMostRecent`, and why the contract tells
+        /// the caller to check the command is the one it lost. Recording polls
+        /// instead would trade this for a history that a polling loop can flush.
+        ///
+        /// A cancel is not a poll: it changes something, it is recorded, and it can
+        /// be the lost call.
         /// </summary>
         public static bool CountsAsLastOperation(string command)
         {
             if (string.IsNullOrWhiteSpace(command))
                 return false;
 
-            return !string.Equals(command.Trim(), HostCommandNames.LastOperationStatus, StringComparison.OrdinalIgnoreCase);
+            return !HostRequestPolicy.IsOperationStatusPollCommand(command);
         }
     }
 }
