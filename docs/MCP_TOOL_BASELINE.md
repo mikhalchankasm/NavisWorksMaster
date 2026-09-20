@@ -121,9 +121,31 @@ and a client that guesses a parameter name gets told rather than silently ignore
    `docs/PERSISTENT_SCENARIO_LIBRARY_CONTRACT.md`.
 
 Separately, and *not* a latency exception: **`active_model_context` costs 57 ms on both
-calls.** 57 ms is not slow. It is the only tool that gains nothing from a second call
-while its neighbours halve, and a tool that clients call at the start of every task and
-that redoes the same work every time is worth a look for that reason alone.
+calls.** It is the only tool that gains nothing from a second call while its neighbours
+halve, which looked like a cache that was missing. It is not. The tool is a server-side
+composite of four sequential host calls: `host_status`, `list_root_items`,
+`list_saved_viewpoints`, `list_selection_sets`. There is nothing to warm up, and nothing is
+being redone -- it makes four round trips because it reports four things.
+
+The arithmetic does not close, and saying so is more useful than a tidy sum. This table's
+warm figures for those four are 23, 12, 11 and **39** ms, which is 85 -- more than the 57
+the composite measured. The discrepancy sits in `list_selection_sets`, whose two samples
+here were 13 ms then 39 ms: its warm figure is the unreliable one, and at ~12 ms the four
+would sum to about 58. So four round trips is the explanation for 57 ms; the component
+figures are not precise enough to derive it.
+
+Two ways of "fixing" it that would be wrong, recorded so nobody tries them:
+
+- **Caching it.** The context includes host status and root items; a client calls it to
+  find out what is true *now*.
+- **Running the four calls concurrently.** `AgentHostService` takes its request gate with
+  `Wait(0)` and **rejects** a concurrent request with `host_busy` rather than queueing it.
+  Concurrency here does not make the tool faster, it makes it fail. That constraint
+  applies to every composite tool, not just this one.
+
+The only real reduction available is one host command that gathers all four in a single
+dispatch, saving three round trips. That is a contract addition for roughly 37 ms on a
+call made once per task, so it is recorded here rather than built.
 
 `selection_status` costs 12 ms with nothing selected and 36 ms with one item, because it
 computes a bounding box. `includeBoundingBox=false` is the cheap form.

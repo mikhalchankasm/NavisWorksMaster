@@ -38,6 +38,9 @@ jobs:
       - name: Check agent instruction surface
         run: python scripts/check_agent_docs.py
 
+      - name: Check truncation flags are documented
+        run: python scripts/check_truncation_flags_documented.py
+
       - name: Build contracts
         run: dotnet build NavisHelper.Contracts/NavisHelper.Contracts.csproj -c Release
 
