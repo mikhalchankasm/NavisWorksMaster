@@ -86,7 +86,10 @@ namespace NavisHelper.Agent.Services
                 : request.MatrixExcludeNameContains.Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name.Trim()).ToList();
             var nameContains = request.MatrixNameContains ?? string.Empty;
             var matches = new List<ModelItem>();
-            var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Dedup by item identity: this walks every descendant, where same-named
+            // siblings are common, and a display-name path key would drop all but
+            // one of them from the clash matrix.
+            var seenItems = new HashSet<ModelItem>();
             var totalMatches = 0;
             var scannedItems = 0;
             var traversalStopwatch = Stopwatch.StartNew();
@@ -107,12 +110,18 @@ namespace NavisHelper.Agent.Services
                         continue;
 
                     var path = BuildItemPath(item);
-                    if (!seenPaths.Add(path))
-                        continue;
-
                     var name = GetItemDisplayName(item);
                     var sourceFile = TryGetSourceFile(item) ?? string.Empty;
                     if (!ClashBboxPlanHelper.MatchesRootFilters(name, path, sourceFile, rootNames, nameContains, excludes))
+                        continue;
+
+                    // Dedup below the filter, never above it. This walk materializes a
+                    // wrapper per descendant, so a set fed every scanned item would keep
+                    // up to MaxClashMatrixTraversalItems of them reachable for the call --
+                    // the shape #21 measured, where 268 949 retained wrappers took the
+                    // next whole-model search from 554 ms to 7428 ms. The cost would land
+                    // on whatever runs next, so this tool's own timing would never show it.
+                    if (!seenItems.Add(item))
                         continue;
 
                     totalMatches++;
@@ -136,7 +145,9 @@ namespace NavisHelper.Agent.Services
             request = request ?? new ClashBboxPairPlanRequest();
             var all = new List<ClashBboxRootCandidate>();
             var warnings = new List<string>();
-            var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Dedup by item identity: same-named roots, and same-named items in the
+            // current selection under sourceMode=selection, are distinct candidates.
+            var seenItems = new HashSet<ModelItem>();
             var rootNames = request.RootNames == null
                 ? new List<string>()
                 : request.RootNames.Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -157,7 +168,7 @@ namespace NavisHelper.Agent.Services
                 if (selectedItems != null)
                 {
                     foreach (ModelItem item in selectedItems)
-                        AddClashBboxRootCandidate(all, seenPaths, item, rootNames, nameContains, excludes, warnings, ref index);
+                        AddClashBboxRootCandidate(all, seenItems, item, rootNames, nameContains, excludes, warnings, ref index);
                 }
             }
             else if (document != null && document.Models != null)
@@ -167,9 +178,9 @@ namespace NavisHelper.Agent.Services
                     if (model == null || model.RootItem == null)
                         continue;
 
-                    AddClashBboxRootCandidate(all, seenPaths, model.RootItem, rootNames, nameContains, excludes, warnings, ref index);
+                    AddClashBboxRootCandidate(all, seenItems, model.RootItem, rootNames, nameContains, excludes, warnings, ref index);
                     foreach (ModelItem child in model.RootItem.Children)
-                        AddClashBboxRootCandidate(all, seenPaths, child, rootNames, nameContains, excludes, warnings, ref index);
+                        AddClashBboxRootCandidate(all, seenItems, child, rootNames, nameContains, excludes, warnings, ref index);
                 }
             }
 
@@ -196,7 +207,7 @@ namespace NavisHelper.Agent.Services
 
         private static void AddClashBboxRootCandidate(
             ICollection<ClashBboxRootCandidate> result,
-            ISet<string> seenPaths,
+            ISet<ModelItem> seenItems,
             ModelItem item,
             IList<string> rootNames,
             string nameContains,
@@ -207,10 +218,10 @@ namespace NavisHelper.Agent.Services
             if (item == null)
                 return;
 
-            var path = BuildItemPath(item);
-            if (seenPaths != null && !seenPaths.Add(path))
+            if (seenItems != null && !seenItems.Add(item))
                 return;
 
+            var path = BuildItemPath(item);
             var name = GetItemDisplayName(item);
             var sourceFile = TryGetSourceFile(item) ?? string.Empty;
             if (!ClashBboxPlanHelper.MatchesRootFilters(name, path, sourceFile, rootNames, nameContains, excludeNameContains))

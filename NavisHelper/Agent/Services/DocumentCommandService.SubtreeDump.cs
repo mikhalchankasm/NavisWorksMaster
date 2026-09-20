@@ -649,15 +649,19 @@ namespace NavisHelper.Agent.Services
             if (document == null || document.Models == null)
                 return result;
 
-            var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Dedup by item identity, not by the display-name path. The fallback
+            // below recurses into the tree, where same-named siblings are common,
+            // so a path key would drop real candidates; it is also the only reason
+            // the path was built here at all.
+            var seenItems = new HashSet<ModelItem>();
             foreach (Model model in document.Models)
             {
                 if (model == null || model.RootItem == null)
                     continue;
 
-                AddMatchingDumpRootCandidate(result, model.RootItem, seenPaths, rootName, sourceFile);
+                AddMatchingDumpRootCandidate(result, model.RootItem, seenItems, rootName, sourceFile);
                 foreach (ModelItem child in model.RootItem.Children)
-                    AddMatchingDumpRootCandidate(result, child, seenPaths, rootName, sourceFile);
+                    AddMatchingDumpRootCandidate(result, child, seenItems, rootName, sourceFile);
             }
 
             if (result.Count > 0)
@@ -668,7 +672,7 @@ namespace NavisHelper.Agent.Services
                 if (model == null || model.RootItem == null)
                     continue;
 
-                AddDumpRootCandidatesRecursive(result, model.RootItem, seenPaths, rootName, sourceFile);
+                AddDumpRootCandidatesRecursive(result, model.RootItem, seenItems, rootName, sourceFile);
             }
 
             return result;
@@ -677,7 +681,7 @@ namespace NavisHelper.Agent.Services
         private static bool AddMatchingDumpRootCandidate(
             ICollection<DumpRootCandidate> candidates,
             ModelItem item,
-            ISet<string> seenPaths,
+            ISet<ModelItem> seenItems,
             string rootName,
             string sourceFile)
         {
@@ -688,7 +692,7 @@ namespace NavisHelper.Agent.Services
             if ((!string.IsNullOrWhiteSpace(rootName) && DumpRootCandidateMatches(candidate, rootName)) ||
                 (!string.IsNullOrWhiteSpace(sourceFile) && DumpRootCandidateMatches(candidate, sourceFile)))
             {
-                AddDumpRootCandidate(candidates, candidate, seenPaths);
+                AddDumpRootCandidate(candidates, candidate, seenItems);
                 return true;
             }
 
@@ -698,18 +702,18 @@ namespace NavisHelper.Agent.Services
         private static void AddDumpRootCandidatesRecursive(
             ICollection<DumpRootCandidate> candidates,
             ModelItem item,
-            ISet<string> seenPaths,
+            ISet<ModelItem> seenItems,
             string rootName,
             string sourceFile)
         {
             if (item == null)
                 return;
 
-            if (AddMatchingDumpRootCandidate(candidates, item, seenPaths, rootName, sourceFile))
+            if (AddMatchingDumpRootCandidate(candidates, item, seenItems, rootName, sourceFile))
                 return;
 
             foreach (ModelItem child in item.Children)
-                AddDumpRootCandidatesRecursive(candidates, child, seenPaths, rootName, sourceFile);
+                AddDumpRootCandidatesRecursive(candidates, child, seenItems, rootName, sourceFile);
         }
 
         private static bool IsDumpRootCandidate(ModelItem item)
@@ -731,13 +735,12 @@ namespace NavisHelper.Agent.Services
             };
         }
 
-        private static void AddDumpRootCandidate(ICollection<DumpRootCandidate> candidates, DumpRootCandidate candidate, ISet<string> seenPaths)
+        private static void AddDumpRootCandidate(ICollection<DumpRootCandidate> candidates, DumpRootCandidate candidate, ISet<ModelItem> seenItems)
         {
             if (candidates == null || candidate == null || candidate.Item == null)
                 return;
 
-            var path = BuildItemPath(candidate.Item);
-            if (seenPaths != null && !seenPaths.Add(path))
+            if (seenItems != null && !seenItems.Add(candidate.Item))
                 return;
 
             candidates.Add(candidate);
