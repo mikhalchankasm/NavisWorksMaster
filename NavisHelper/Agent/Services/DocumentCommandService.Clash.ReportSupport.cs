@@ -158,7 +158,9 @@ namespace NavisHelper.Agent.Services
             IEnumerable<string> testHandles,
             string namePrefix,
             int? firstN,
-            bool requireScope)
+            bool requireScope,
+            string acceptedScopes = null,
+            string toolName = null)
         {
             var hasNameScope = HasRequestedClashTestScope(testName, testNames);
             var hasPrefixScope = !string.IsNullOrWhiteSpace(namePrefix);
@@ -167,8 +169,24 @@ namespace NavisHelper.Agent.Services
                 ? new List<string>()
                 : testHandles.Where(handle => !string.IsNullOrWhiteSpace(handle)).ToList();
 
+            // The list names what THIS caller accepts, not what this helper can resolve.
+            // The two differ: four of the five callers that require a scope pass null for
+            // namePrefix and firstN because their tools do not expose them, and one passes
+            // an empty testName for the same reason. The old message offered all five to
+            // everyone, so following it produced "Unknown parameter(s)" from the tool that
+            // had just asked for it -- hit twice while measuring the clash surface.
             if (requireScope && !hasNameScope && !hasPrefixScope && !hasFirstNScope && handles.Count == 0)
-                throw new AgentCommandException(ErrorCodes.SchemaViolation, "Specify testName, testNames, testHandles, namePrefix, or firstN for selected Clash Detective test operations.");
+            {
+                var scopes = string.IsNullOrWhiteSpace(acceptedScopes)
+                    ? "testName, testNames, testHandles, namePrefix, or firstN"
+                    : acceptedScopes;
+                var context = string.IsNullOrWhiteSpace(toolName)
+                    ? "selected Clash Detective test operations"
+                    : toolName;
+                throw new AgentCommandException(
+                    ErrorCodes.SchemaViolation,
+                    "Specify " + scopes + " for " + context + ".");
+            }
 
             var result = new List<ClashTest>();
             if (hasNameScope)
