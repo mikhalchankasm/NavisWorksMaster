@@ -46,6 +46,13 @@ namespace NavisHelper.Agent.Contracts
         public DateTime? CompletedAtUtc { get; set; }
         public long ElapsedMs { get; set; }
         public string Message { get; set; }
+
+        /// <summary>
+        /// True when the caller passed no requestId and the host answered about the
+        /// most recent operation it had. The caller compares <see cref="Command"/>
+        /// against the call it lost before trusting the rest.
+        /// </summary>
+        public bool ResolvedFromMostRecent { get; set; }
     }
 
     public sealed class SelectionStatusRequest
