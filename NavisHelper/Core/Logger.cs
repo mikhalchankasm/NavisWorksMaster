@@ -80,10 +80,48 @@ namespace NavisHelper.Core
             }
         }
 
+        /// <summary>
+        /// Environment variable that moves the default log file.
+        ///
+        /// This file is compiled into NavisHelper.McpServer.Tests, so a test run
+        /// writes to the same `%TEMP%\navishelper_log.txt` that a live Navisworks
+        /// host is writing to. Two sessions reading that log to diagnose a live
+        /// problem found each other's xUnit stack traces interleaved with rig
+        /// traffic, and had to work out whose worktree each trace came from before
+        /// they could use the file. Diagnosis is what this log is for, so polluting
+        /// it defeats its purpose.
+        /// </summary>
+        public const string LogFileOverrideVariable = "NAVISHELPER_LOG_FILE";
+
+        /// <summary>
+        /// The default log path, given the override's value. Separated from the
+        /// environment read so it can be tested without setting a process-wide
+        /// variable that parallel tests would race on.
+        /// </summary>
+        public static string ResolveDefaultLogFilePath(string overrideValue)
+        {
+            if (!string.IsNullOrWhiteSpace(overrideValue))
+                return overrideValue.Trim();
+
+            return Path.Combine(Path.GetTempPath(), "navishelper_log.txt");
+        }
+
         public static string GetLogFilePath(string modelPath = null)
         {
             if (string.IsNullOrEmpty(modelPath))
-                return Path.Combine(Path.GetTempPath(), "navishelper_log.txt");
+            {
+                string overrideValue = null;
+                try
+                {
+                    overrideValue = Environment.GetEnvironmentVariable(LogFileOverrideVariable);
+                }
+                catch
+                {
+                    // Reading the environment must never break a log write.
+                }
+
+                return ResolveDefaultLogFilePath(overrideValue);
+            }
 
             string directory = Path.GetDirectoryName(modelPath);
             if (string.IsNullOrEmpty(directory))
