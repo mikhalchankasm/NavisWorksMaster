@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Runtime;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Agent.Session;
+using NavisHelper.Core;
 
 namespace NavisHelper.Agent.Services
 {
@@ -58,9 +60,11 @@ namespace NavisHelper.Agent.Services
             while (stack.Count > 0)
             {
                 if (started.ElapsedMilliseconds > MaxScopedTraversalMilliseconds)
-                    throw new AgentCommandException(ErrorCodes.CommandFailed, "Scoped find_items exceeded the 45 second traversal budget. Narrow the scope or use matchDepth=first/countOnly.");
+                    throw AbandonScopedTraversal(visited, matchedSet, matchedItems, stack,
+                        "Scoped find_items exceeded the 45 second traversal budget. Narrow the scope or use matchDepth=first/countOnly.");
                 if (response.ScannedItemCount >= MaxScopedScannedItems)
-                    throw new AgentCommandException(ErrorCodes.CommandFailed, "Scoped find_items exceeded the 1,000,000 item traversal limit. Narrow the scope.");
+                    throw AbandonScopedTraversal(visited, matchedSet, matchedItems, stack,
+                        "Scoped find_items exceeded the 1,000,000 item traversal limit. Narrow the scope.");
 
                 var node = stack.Pop();
                 var item = node.Item;
@@ -433,6 +437,52 @@ namespace NavisHelper.Agent.Services
             var comparison = NormalizeComparison(condition.Operator);
             return property.Equals(DefaultProperty, StringComparison.OrdinalIgnoreCase) &&
                    (comparison == FindItemsComparisons.Contains || comparison == FindItemsComparisons.Wildcard);
+        }
+
+        /// <summary>
+        /// Releases an abandoned traversal before reporting it, and returns the
+        /// exception for the caller to throw.
+        ///
+        /// A traversal that hits its budget on a large model has materialized up to
+        /// MaxScopedScannedItems ModelItem wrappers into `visited`. They stay
+        /// reachable while these collections do, and the loaded heap makes every
+        /// later search in the session dramatically slower. Measured live on
+        /// 6501.5.nwd: a whole-model search returning 3616 matches took 554 ms in a
+        /// fresh process and 7428 ms immediately after one budget-exceeded
+        /// traversal, with the whole difference in path building rather than in the
+        /// engine. Dropping the references and collecting here stops one failed call
+        /// from degrading the calls after it. The cost is paid only on a path that
+        /// has already spent its entire budget.
+        /// </summary>
+        private static AgentCommandException AbandonScopedTraversal(
+            HashSet<ModelItem> visited,
+            HashSet<ModelItem> matchedSet,
+            List<ModelItem> matchedItems,
+            Stack<ScopedSearchNode> stack,
+            string message)
+        {
+            var abandoned = visited == null ? 0 : visited.Count;
+
+            if (visited != null)
+                visited.Clear();
+            if (matchedSet != null)
+                matchedSet.Clear();
+            if (matchedItems != null)
+                matchedItems.Clear();
+            if (stack != null)
+                stack.Clear();
+
+            var releaseStarted = Stopwatch.StartNew();
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            releaseStarted.Stop();
+
+            Logger.Info(
+                "find_items scoped_traversal_abandoned visited_items=" + abandoned +
+                " release_ms=" + releaseStarted.ElapsedMilliseconds,
+                "AgentHost");
+
+            return new AgentCommandException(ErrorCodes.CommandFailed, message);
         }
 
         private static bool ShouldTryNativeScopedSearch(

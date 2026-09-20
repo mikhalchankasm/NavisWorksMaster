@@ -267,6 +267,43 @@ public sealed class FindItemsNativeScopedPolicyTests
         Assert.Contains("FindItemsNativeScopedPolicy.TraversalBudgetMilliseconds", body, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Abandoned_scoped_traversal_is_released_before_it_is_reported()
+    {
+        // A traversal that hits its budget on a large model has materialized
+        // hundreds of thousands of ModelItem wrappers into `visited`. Measured live
+        // on 6501.5.nwd: 268 949 of them, after which a whole-model search
+        // returning 3616 matches took 7428 ms instead of 554 ms, with the whole
+        // difference in path building rather than in the engine. Releasing them
+        // costs 96 ms on a call that has already spent 45 000, and restores the
+        // next search to 519 ms. A bare throw here silently reintroduces that,
+        // because nothing about the failed call looks wrong afterwards.
+        var source = ReadRepositoryFile("NavisHelper/Agent/Services/SearchService.Scoped.cs");
+
+        var helper = source.IndexOf(
+            "private static AgentCommandException AbandonScopedTraversal(",
+            StringComparison.Ordinal);
+        Assert.True(helper >= 0, "AbandonScopedTraversal was renamed; re-point this guard.");
+
+        foreach (var budgetMessage in new[]
+                 {
+                     "exceeded the 45 second traversal budget",
+                     "exceeded the 1,000,000 item traversal limit",
+                 })
+        {
+            var at = source.IndexOf(budgetMessage, StringComparison.Ordinal);
+            Assert.True(at >= 0, budgetMessage + " was reworded; re-point this guard.");
+
+            // Look back from the message to the statement that raises it.
+            var statement = source.LastIndexOf("throw", at, StringComparison.Ordinal);
+            Assert.True(statement >= 0, "no throw found for: " + budgetMessage);
+
+            var raising = source.Substring(statement, at - statement);
+            Assert.Contains("AbandonScopedTraversal", raising, StringComparison.Ordinal);
+            Assert.DoesNotContain("new AgentCommandException", raising, StringComparison.Ordinal);
+        }
+    }
+
     private static string ReadRepositoryFile(string relativePath)
     {
         var path = Path.Combine(FindRepositoryRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));

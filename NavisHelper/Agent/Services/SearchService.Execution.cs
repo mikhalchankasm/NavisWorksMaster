@@ -124,6 +124,12 @@ namespace NavisHelper.Agent.Services
             if (!hasConditionLevelLogic && TryExecuteNativeAndFastPath(document, orderedConditions, combineAll, searchStarted, out nativeAndMatches))
                 return nativeAndMatches;
 
+            // Post-engine accumulation and ordering are both keyed by ModelItem and
+            // both dominated the total on a broad whole-model query, so they are
+            // reported separately rather than folded into one elapsed number.
+            var accumulateMs = 0L;
+            var sortMs = 0L;
+
             foreach (var condition in orderedConditions)
             {
                 if (combineAll && accumulator != null && CanFilterAccumulator(condition))
@@ -155,6 +161,7 @@ namespace NavisHelper.Agent.Services
                     "find_items condition_stage_done query=\"" + search.Query + "\" mode=native_condition hits=" + currentMatches.Count + " condition_elapsed_ms=" + conditionStarted.ElapsedMilliseconds + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
                     "AgentHost");
 
+                var accumulateStarted = Stopwatch.StartNew();
                 var currentMap = ToMatchSet(currentMatches);
 
                 if (accumulator == null)
@@ -172,6 +179,9 @@ namespace NavisHelper.Agent.Services
                     accumulator.IntersectWith(currentMap);
                 }
 
+                accumulateStarted.Stop();
+                accumulateMs += accumulateStarted.ElapsedMilliseconds;
+
                 if (!hasConditionLevelLogic && combineAll && accumulator.Count == 0)
                     break;
             }
@@ -179,7 +189,18 @@ namespace NavisHelper.Agent.Services
             if (accumulator == null || accumulator.Count == 0)
                 return new List<ModelItem>();
 
-            return SortMatchesByPath(accumulator.ToList());
+            var sortStarted = Stopwatch.StartNew();
+            var ordered = SortMatchesByPath(accumulator.ToList());
+            sortStarted.Stop();
+            sortMs = sortStarted.ElapsedMilliseconds;
+
+            Logger.Info(
+                "find_items search_phases query=\"" + search.Query + "\" hits=" + ordered.Count +
+                " accumulate_ms=" + accumulateMs + " sort_ms=" + sortMs +
+                " elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
+                "AgentHost");
+
+            return ordered;
         }
 
         private static bool TryExecuteNativeAndFastPath(
