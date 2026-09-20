@@ -26,6 +26,19 @@ unchanged and is never silently rewritten.
   conditions and supports `whole_model`, `direct_children_of`, and
   `descendants_of`. Parent-scoped searches require `parentConditions` to resolve
   exactly one item and fail closed at `maxMatchedItems`.
+- **A parent-scoped selection costs the size of its answer, not the size of its
+  scope.** The scope is tested by walking up from each match -- `item.Parent` for
+  `direct_children_of`, the ancestor chain for `descendants_of` -- rather than by
+  materializing every child or descendant of the parent into a set and
+  intersecting. Measured live on `6501.5.nwd`: selecting 4 items under a parent with
+  roughly 88 000 descendants went from **4 462 ms to 553 ms**, with an identical
+  result. Do not reintroduce the set: it made a four-item answer pay for an
+  88 000-node subtree it then discarded.
+
+  The sets are equal by construction, not approximately: `parent.Children` is
+  exactly the items whose `Parent` is the parent, `parent.Descendants` is exactly
+  the items strictly below it, and both exclude the parent itself, as the ancestor
+  walk does.
 - `clash_create_matrix_from_selection` contract v2 accepts
   `pairNameTemplate`/`pairNameStartIndex`. Tokens are `{index}`, `{aName}`,
   `{bName}`, `{aCode}`, `{bCode}`. Transforms are `zeroPad:N`,

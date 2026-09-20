@@ -159,6 +159,44 @@ namespace NavisHelper.Agent.Services
             response.Warnings.Add(FindItemsNativeSearchPolicy.WholeModelCountOnlyWarning);
         }
 
+        /// <summary>
+        /// Whether a match lies inside the requested scope, asked of the match rather
+        /// than of the subtree.
+        ///
+        /// The scope used to be built the other way round: every child, or every
+        /// descendant, of the parent went into a HashSet and the matches were
+        /// intersected against it. That makes the cost of a scoped selection the size
+        /// of the scope instead of the size of the answer. Measured live on
+        /// `6501.5.nwd`, selecting 4 items under a parent with roughly 88 000
+        /// descendants took 4 462 ms, nearly all of it spent materializing a subtree in
+        /// order to discard it.
+        ///
+        /// Walking up from the match costs the number of matches times the depth, which
+        /// is bounded by the answer rather than by the model, and allocates nothing that
+        /// outlives the call.
+        ///
+        /// The set is identical, not merely similar. `parent.Children` is exactly the
+        /// items whose `Parent` is the parent, and `parent.Descendants` is exactly the
+        /// items strictly below it -- which is what an ancestor walk starting at
+        /// `item.Parent` finds. Both exclude the parent itself, before and after.
+        /// </summary>
+        private static bool IsWithinSelectionScope(ModelItem item, ModelItem parent, bool directChildrenOnly)
+        {
+            if (item == null || parent == null)
+                return false;
+
+            if (directChildrenOnly)
+                return parent.Equals(item.Parent);
+
+            for (var ancestor = item.Parent; ancestor != null; ancestor = ancestor.Parent)
+            {
+                if (parent.Equals(ancestor))
+                    return true;
+            }
+
+            return false;
+        }
+
         public SelectBySearchResponse SelectBySearch(Document document, SelectBySearchRequest request)
         {
             if (document == null)
@@ -211,19 +249,10 @@ namespace NavisHelper.Agent.Services
                         parents.Count.ToString(CultureInfo.InvariantCulture) + ".");
 
                 var parent = parents[0];
-                var allowedItems = new HashSet<ModelItem>();
-                if (scope == SelectBySearchScopes.DirectChildrenOf)
-                {
-                    foreach (ModelItem child in parent.Children)
-                        allowedItems.Add(child);
-                }
-                else
-                {
-                    foreach (ModelItem descendant in parent.Descendants)
-                        allowedItems.Add(descendant);
-                }
-
-                matched = matched.Where(item => allowedItems.Contains(item)).ToList();
+                var directChildrenOnly = scope == SelectBySearchScopes.DirectChildrenOf;
+                matched = matched
+                    .Where(item => IsWithinSelectionScope(item, parent, directChildrenOnly))
+                    .ToList();
             }
 
             var maxMatchedItems = request.MaxMatchedItems.GetValueOrDefault(5000);
