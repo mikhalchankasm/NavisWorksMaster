@@ -6,13 +6,13 @@ using Xunit;
 namespace NavisHelper.McpServer.Tests;
 
 /// <summary>
-/// `Logger.cs` is compiled into this test project, so a test run used to append to
-/// the same `%TEMP%\navishelper_log.txt` a live Navisworks host writes to. Two
-/// sessions reading that log to diagnose a live problem found each other's xUnit
-/// stack traces interleaved with rig traffic.
+/// Covers the log-path override. Why it exists is documented once, on
+/// <see cref="Logger.LogFileOverrideVariable"/>.
 /// </summary>
 public sealed class LoggerLogFilePathTests
 {
+    private static string HostLogPath => Path.Combine(Path.GetTempPath(), "navishelper_log.txt");
+
     [Fact]
     public void An_override_moves_the_default_log_file()
     {
@@ -27,11 +27,9 @@ public sealed class LoggerLogFilePathTests
     [InlineData("   ")]
     public void Without_an_override_the_shared_path_is_unchanged(string overrideValue)
     {
-        // The live plugin must keep writing where the host reports it writes, so an
+        // The live plugin must keep writing where host_status reports it writes, so an
         // unset or blank variable is not a behaviour change.
-        var expected = Path.Combine(Path.GetTempPath(), "navishelper_log.txt");
-
-        Assert.Equal(expected, Logger.ResolveDefaultLogFilePath(overrideValue));
+        Assert.Equal(HostLogPath, Logger.ResolveDefaultLogFilePath(overrideValue));
     }
 
     [Fact]
@@ -45,16 +43,33 @@ public sealed class LoggerLogFilePathTests
     [Fact]
     public void This_assembly_is_redirected_away_from_the_host_log()
     {
-        // The executed criterion for the defect: with the module initializer in
-        // place, the path this assembly logs to is not the host's.
-        var hostPath = Path.Combine(Path.GetTempPath(), "navishelper_log.txt");
-        var actual = Logger.GetLogFilePath();
-
-        Assert.NotEqual(hostPath, actual);
+        Assert.NotEqual(HostLogPath, Logger.GetLogFilePath());
         Assert.False(
             string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(Logger.LogFileOverrideVariable)),
             "the module initializer did not set " + Logger.LogFileOverrideVariable +
             "; this assembly would write into the live host's log.");
+    }
+
+    [Fact]
+    public void Neither_candidate_path_is_the_host_log()
+    {
+        // The redirect sets the fallback first and only then tries for the tidier
+        // location, so a throw from CreateDirectory leaves the suite redirected rather
+        // than pointed at the host's file. Both candidates therefore have to be safe,
+        // not just the preferred one.
+        Assert.NotEqual(HostLogPath, TestLogFileRedirect.PreferredPath(AppContext.BaseDirectory));
+        Assert.NotEqual(HostLogPath, TestLogFileRedirect.FallbackPath(Path.GetTempPath()));
+    }
+
+    [Fact]
+    public void The_fallback_needs_no_directory_created()
+    {
+        // It is reached because directory creation failed, so it must not need any.
+        var fallback = TestLogFileRedirect.FallbackPath(Path.GetTempPath());
+
+        Assert.Equal(
+            Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar),
+            Path.GetFullPath(Path.GetDirectoryName(fallback)).TrimEnd(Path.DirectorySeparatorChar));
     }
 
     [Fact]
@@ -64,8 +79,8 @@ public sealed class LoggerLogFilePathTests
         // deliberate per-model artifact and is not redirected.
         var modelPath = Path.Combine(Path.GetTempPath(), "SomeModel.nwd");
 
-        var actual = Logger.GetLogFilePath(modelPath);
-
-        Assert.Equal(Path.Combine(Path.GetTempPath(), "SomeModel_navishelper_log.txt"), actual);
+        Assert.Equal(
+            Path.Combine(Path.GetTempPath(), "SomeModel_navishelper_log.txt"),
+            Logger.GetLogFilePath(modelPath));
     }
 }

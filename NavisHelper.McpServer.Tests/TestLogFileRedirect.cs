@@ -6,42 +6,59 @@ using NavisHelper.Core;
 namespace NavisHelper.McpServer.Tests;
 
 /// <summary>
-/// Keeps this test assembly out of the live host's log file.
+/// Points this assembly's logging at its own file. Why that matters is documented
+/// once, on <see cref="Logger.LogFileOverrideVariable"/>.
 ///
-/// `NavisHelper/Core/Logger.cs` is compiled into this project, so without this the
-/// suite appends to the same `%TEMP%\navishelper_log.txt` that a running Navisworks
-/// host writes to. That is not cosmetic: two sessions diagnosing a live problem
-/// from that log found each other's xUnit stack traces interleaved with rig
-/// traffic, and had to identify which worktree each trace came from before the file
-/// was usable. The log exists to answer questions about the host.
-///
-/// The redirect runs before any test, and before anything a test touches can log,
-/// because a module initializer runs at assembly load.
+/// Runs at assembly load, so nothing a test touches can log before it.
 /// </summary>
 internal static class TestLogFileRedirect
 {
+    /// <summary>
+    /// Where the suite logs when its output directory is writable.
+    /// </summary>
+    internal static string PreferredPath(string baseDirectory)
+    {
+        return Path.Combine(baseDirectory, "logs", "navishelper_tests_log.txt");
+    }
+
+    /// <summary>
+    /// Where it logs when the preferred directory cannot be created — a read-only
+    /// output directory, for instance. Still not the host's file, which is the
+    /// property that matters, and it needs no directory created.
+    /// </summary>
+    internal static string FallbackPath(string temporaryDirectory)
+    {
+        return Path.Combine(temporaryDirectory, "navishelper_tests_log.txt");
+    }
+
     [ModuleInitializer]
     internal static void Redirect()
     {
         try
         {
             // Already set by a runner or a developer: leave it alone. Overriding an
-            // explicit choice is worse than the pollution this exists to stop.
+            // explicit choice is worse than what this prevents.
             var existing = Environment.GetEnvironmentVariable(Logger.LogFileOverrideVariable);
             if (!string.IsNullOrWhiteSpace(existing))
                 return;
 
-            var directory = Path.Combine(AppContext.BaseDirectory, "logs");
-            Directory.CreateDirectory(directory);
             Environment.SetEnvironmentVariable(
                 Logger.LogFileOverrideVariable,
-                Path.Combine(directory, "navishelper_tests_log.txt"));
+                FallbackPath(Path.GetTempPath()));
+
+            // Only now try for the tidier location. Setting the fallback first means a
+            // throw here leaves the suite redirected rather than pointed at the host's
+            // log: swallowing the failure without a fallback would let every test that
+            // logs before the guard test runs pollute the file this exists to protect.
+            var preferred = PreferredPath(AppContext.BaseDirectory);
+            Directory.CreateDirectory(Path.GetDirectoryName(preferred));
+            Environment.SetEnvironmentVariable(Logger.LogFileOverrideVariable, preferred);
         }
         catch
         {
             // A test run must not fail because a log could not be redirected. The
-            // cost of failing here is worse than the pollution: the suite is the
-            // gate, and the log is a diagnostic.
+            // suite is the gate; the log is a diagnostic. If even the fallback could
+            // not be set, LoggerLogFilePathTests fails and says so.
         }
     }
 }
