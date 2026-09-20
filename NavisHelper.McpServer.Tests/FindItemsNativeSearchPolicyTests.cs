@@ -20,6 +20,80 @@ namespace NavisHelper.McpServer.Tests;
 /// </summary>
 public sealed class FindItemsNativeSearchPolicyTests
 {
+    /// <summary>
+    /// A category-less condition is inexpressible to the engine, not ambiguous.
+    /// `SearchCondition` has no property-only factory, so `CreateSearchCondition`
+    /// passes `string.Empty` and the engine is asked for the property in the category
+    /// named "" -- which matches nothing and does not error.
+    ///
+    /// Measured live on `6501.5.nwd`: `/DN equals "150mm"` returned 0 from the engine
+    /// and 135 from a traversal over the same nodes, while `AVEVA/DN equals "150mm"`
+    /// returned 135 from both. The category is in every condition of that comparison
+    /// deliberately: a test written against `Item/Name` passes whatever the rule does,
+    /// because the default category happens to be right for it.
+    /// </summary>
+    [Theory]
+    // Neither route to a category: the engine cannot be given this.
+    [InlineData(false, false, true)]
+    // A display candidate carries one.
+    [InlineData(true, false, false)]
+    // A resolved internal category and property carry one.
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    public void ANativeConditionNeedsACategoryFromOneOfTheTwoRoutes(
+        bool hasDisplayCandidateWithCategory,
+        bool hasInternalCategoryAndProperty,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            FindItemsNativeSearchPolicy.NativeConditionNeedsACategory(
+                hasDisplayCandidateWithCategory,
+                hasInternalCategoryAndProperty));
+    }
+
+    [Fact]
+    public void TheRefusalNamesTheConstraintAndBothWaysOut()
+    {
+        var text = FindItemsNativeSearchPolicy.CategoryRequiredForNativeSearch;
+
+        // A caller reading this must learn why 0 was not the answer, and the two
+        // things it can do instead. "Invalid condition" would be useless here.
+        Assert.Contains("without a category", text, StringComparison.Ordinal);
+        Assert.Contains("SearchCondition", text, StringComparison.Ordinal);
+        Assert.Contains("category=\"AVEVA\"", text, StringComparison.Ordinal);
+        Assert.Contains("scope=under_named_node", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OnlyTheWholeModelRouteRefuses_TheScopedRouteFallsBack()
+    {
+        // The split is the whole point: scoped requests keep answering, because their
+        // traversal can match a property in whatever category holds it. Refusing
+        // there would break callers that get a correct answer today, and the
+        // whole-model traversal cannot finish, so falling back there would swap a
+        // confident zero for a 45-second failure whose message names the wrong cause.
+        var root = FindRepositoryRoot();
+
+        var commands = File.ReadAllText(
+            Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.Commands.cs"));
+        Assert.Contains(
+            "EnsureNativeSearchCanExpressEveryCondition(searches);",
+            commands,
+            StringComparison.Ordinal);
+
+        var scoped = File.ReadAllText(
+            Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.NativeScoped.cs"));
+        Assert.Contains(
+            "if (!CanExpressResolvedPropertyNatively(resolved))",
+            scoped,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "EnsureNativeSearchCanExpressEveryCondition",
+            scoped,
+            StringComparison.Ordinal);
+    }
+
     [Fact]
     public void WholeModelSearchStaysPruned()
     {

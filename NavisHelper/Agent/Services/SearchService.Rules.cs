@@ -204,6 +204,66 @@ namespace NavisHelper.Agent.Services
             return true;
         }
 
+        /// <summary>
+        /// Whether the engine can be given this resolved property at all.
+        ///
+        /// See <see cref="FindItemsNativeSearchPolicy.NativeConditionNeedsACategory"/>
+        /// for why a missing category is inexpressible rather than ambiguous. The
+        /// default Item.Name target is always expressible: it carries its own category
+        /// aliases from DisplayNameProperties.
+        /// </summary>
+        private static bool CanExpressResolvedPropertyNatively(ResolvedProperty resolved)
+        {
+            if (resolved == null)
+                return false;
+
+            if (resolved.IsDefaultItemNameTarget)
+                return true;
+
+            var hasDisplayCandidateWithCategory = resolved.DisplayCandidates != null &&
+                resolved.DisplayCandidates.Any(candidate =>
+                    !string.IsNullOrWhiteSpace(candidate.Category) &&
+                    !string.IsNullOrWhiteSpace(candidate.Property));
+
+            var hasInternalCategoryAndProperty =
+                !string.IsNullOrWhiteSpace(resolved.InternalCategory) &&
+                !string.IsNullOrWhiteSpace(resolved.InternalProperty);
+
+            return !FindItemsNativeSearchPolicy.NativeConditionNeedsACategory(
+                hasDisplayCandidateWithCategory,
+                hasInternalCategoryAndProperty);
+        }
+
+        /// <summary>
+        /// Refuses a whole-model request the engine cannot express. The scoped routes
+        /// do not come here: they fall back to the traversal, which can match a
+        /// property in whatever category holds it, and they answer.
+        /// </summary>
+        private static void EnsureNativeSearchCanExpressEveryCondition(IList<FindItemsSearch> searches)
+        {
+            if (searches == null)
+                return;
+
+            foreach (var search in searches)
+            {
+                if (search == null || search.Conditions == null)
+                    continue;
+
+                foreach (var condition in search.Conditions)
+                {
+                    if (condition == null)
+                        continue;
+
+                    if (!CanExpressResolvedPropertyNatively(ResolveProperty(condition)))
+                    {
+                        throw new AgentCommandException(
+                            ErrorCodes.SchemaViolation,
+                            FindItemsNativeSearchPolicy.CategoryRequiredForNativeSearch);
+                    }
+                }
+            }
+        }
+
         private static bool CanFilterAccumulator(FindItemsCondition condition)
         {
             return CanEvaluateConditionManually(condition);

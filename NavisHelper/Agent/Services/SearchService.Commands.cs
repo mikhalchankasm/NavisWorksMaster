@@ -56,6 +56,11 @@ namespace NavisHelper.Agent.Services
                 return ExecuteScopedFindItems(document, request, searches[0], previewLimit, sessionStore);
             }
 
+            // Only the whole-model route gets here, and it has no traversal it can
+            // fall back to on a model of any size. A condition the engine cannot
+            // express is refused with the reason rather than answered with 0.
+            EnsureNativeSearchCanExpressEveryCondition(searches);
+
             var response = new FindItemsResponse
             {
                 Scope = scope,
