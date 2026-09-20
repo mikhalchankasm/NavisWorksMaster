@@ -302,6 +302,20 @@ public sealed class FindItemsNativeScopedPolicyTests
             Assert.Contains("AbandonScopedTraversal", raising, StringComparison.Ordinal);
             Assert.DoesNotContain("new AgentCommandException", raising, StringComparison.Ordinal);
         }
+
+        // The native scoped path abandons whatever earlier variants already
+        // accumulated, so the same rule applies to it. It was written with a bare
+        // throw and an external review caught the omission.
+        var native = ReadRepositoryFile("NavisHelper/Agent/Services/SearchService.NativeScoped.cs");
+        var budgetThrow = native.IndexOf("BuildTraversalBudgetMessage", StringComparison.Ordinal);
+        Assert.True(budgetThrow >= 0, "the native budget failure was reshaped; re-point this guard.");
+
+        var nativeStatement = native.LastIndexOf("throw", budgetThrow, StringComparison.Ordinal);
+        Assert.True(nativeStatement >= 0, "no throw found for the native budget failure");
+
+        var nativeRaising = native.Substring(nativeStatement, budgetThrow - nativeStatement);
+        Assert.Contains("AbandonNativeScopedSearch", nativeRaising, StringComparison.Ordinal);
+        Assert.DoesNotContain("new AgentCommandException", nativeRaising, StringComparison.Ordinal);
     }
 
     private static string ReadRepositoryFile(string relativePath)

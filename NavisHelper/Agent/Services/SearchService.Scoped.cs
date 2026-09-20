@@ -472,13 +472,40 @@ namespace NavisHelper.Agent.Services
             if (stack != null)
                 stack.Clear();
 
+            return ReleaseAbandonedItems("scoped_traversal_abandoned", abandoned, message);
+        }
+
+        /// <summary>
+        /// Same invariant for the native scoped path: it abandons whatever the
+        /// engine has already handed back across earlier variants, so those
+        /// wrappers must be released before the failure is reported. Fewer items
+        /// than a manual traversal holds, but the rule does not depend on the
+        /// count, and a wide matchDepth=first scope can still accumulate
+        /// thousands.
+        /// </summary>
+        private static AgentCommandException AbandonNativeScopedSearch(
+            FindItemsMatchSet<ModelItem> found,
+            string message)
+        {
+            var abandoned = found == null ? 0 : found.Count;
+            if (found != null)
+                found.Clear();
+
+            return ReleaseAbandonedItems("scoped_native_abandoned", abandoned, message);
+        }
+
+        private static AgentCommandException ReleaseAbandonedItems(
+            string logEvent,
+            int abandonedItems,
+            string message)
+        {
             var releaseStarted = Stopwatch.StartNew();
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             GC.Collect(2, GCCollectionMode.Forced, true, true);
             releaseStarted.Stop();
 
             Logger.Info(
-                "find_items scoped_traversal_abandoned visited_items=" + abandoned +
+                "find_items " + logEvent + " abandoned_items=" + abandonedItems +
                 " release_ms=" + releaseStarted.ElapsedMilliseconds,
                 "AgentHost");
 
