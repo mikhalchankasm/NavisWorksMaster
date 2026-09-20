@@ -53,3 +53,6 @@ Desktop.ini
 .DS_Store
 docs/INVENTORY.md
 docs/PRERELEASE-AUDIT.md
+
+# Codex executor run directories: logs, provenance, and a credential copy.
+.codex-runs/

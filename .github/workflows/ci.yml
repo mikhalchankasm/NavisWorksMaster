@@ -38,6 +38,9 @@ jobs:
       - name: Check agent instruction surface
         run: python scripts/check_agent_docs.py
 
+      - name: Check Codex executor boundary
+        run: python scripts/check_codex_executor.py
+
       - name: Build contracts
         run: dotnet build NavisHelper.Contracts/NavisHelper.Contracts.csproj -c Release
 
