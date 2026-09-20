@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NavisHelper.Agent.Contracts;
 using Xunit;
@@ -224,6 +225,49 @@ public sealed class FindItemsPathSegmentsTests
         Assert.Equal(
             new[] { "6501.5.nwd", "GASKET 1 of BRANCH", "150.=79338", "61632.1" },
             torn);
+    }
+
+    /// <summary>
+    /// The printed-path walk no longer stops at the first success, so it carries a
+    /// node budget. An external review found that exhausting that budget quietly
+    /// recreates the defect the walk exists to prevent: with one matching node
+    /// collected before the cutoff and an identically addressed node after it, both
+    /// callers -- `list_item_children` with `parentPath` and `find_items` with
+    /// `scope=under_named_node` -- see exactly one match and accept it.
+    ///
+    /// This is a source guard rather than an executed criterion, because the walk
+    /// needs a live Navisworks tree and I could not construct a path on the reference
+    /// model that reaches a bound of 20 000 against an observed handful of nodes. It
+    /// pins the one thing that would silently undo the fix: the exhausted branch must
+    /// throw, not return.
+    /// </summary>
+    [Fact]
+    public void Exhausting_the_printed_path_budget_throws_rather_than_returning_a_partial_result()
+    {
+        var source = ReadRepositoryFile("NavisHelper/Agent/Services/SearchService.Index.cs");
+
+        var at = source.IndexOf("if (budget[0] <= 0)", StringComparison.Ordinal);
+        Assert.True(at >= 0, "the printed-path budget check was reshaped; re-point this guard.");
+
+        // The branch body, up to the decrement that follows it.
+        var end = source.IndexOf("budget[0]--;", at, StringComparison.Ordinal);
+        Assert.True(end > at, "the printed-path budget decrement moved; re-point this guard.");
+
+        var branch = source.Substring(at, end - at);
+        Assert.Contains("throw new AgentCommandException", branch, StringComparison.Ordinal);
+        Assert.DoesNotContain("return;", branch, StringComparison.Ordinal);
+    }
+
+    private static string ReadRepositoryFile(string relativePath)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
+            directory = directory.Parent;
+
+        Assert.NotNull(directory);
+        var path = Path.Combine(directory!.FullName, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Assert.True(File.Exists(path), path + " is missing; re-point this guard.");
+        return File.ReadAllText(path);
     }
 
     [Fact]

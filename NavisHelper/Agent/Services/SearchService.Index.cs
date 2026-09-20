@@ -174,6 +174,12 @@ namespace NavisHelper.Agent.Services
         /// handful. The bound exists because collecting every resolution no longer
         /// stops at the first success, and a pathological path should fail rather than
         /// crawl through the model.
+        ///
+        /// Exhausting it raises an error rather than returning what was collected. It
+        /// is shared by `list_item_children` with `parentPath` and by `find_items` with
+        /// `scope=under_named_node`, both of which refuse more than one match, so a
+        /// silent truncation would let either accept a single match that only looks
+        /// unique because the walk stopped early.
         /// </summary>
         private const int MaxPrintedPathNodesVisited = 20000;
 
@@ -231,7 +237,22 @@ namespace NavisHelper.Agent.Services
             if (budget != null)
             {
                 if (budget[0] <= 0)
-                    return;
+                {
+                    // Never return a partial result. An external review found that
+                    // stopping quietly recreates the defect this method exists to
+                    // prevent: if one matching node was collected before the cutoff
+                    // and an identically addressed node lies after it, the caller
+                    // sees exactly one match, accepts it, and answers about a node
+                    // the path does not uniquely name. A refusal is recoverable; a
+                    // confident wrong node is not.
+                    throw new AgentCommandException(
+                        ErrorCodes.CommandFailed,
+                        "Resolving this path examined more than " +
+                        MaxPrintedPathNodesVisited.ToString(CultureInfo.InvariantCulture) +
+                        " nodes without finishing, so the result cannot be known to be complete or unique. " +
+                        "Pass a match handle from find_items, or address a node closer to the one you want.");
+                }
+
                 budget[0]--;
             }
 
