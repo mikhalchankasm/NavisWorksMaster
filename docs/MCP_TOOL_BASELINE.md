@@ -123,10 +123,16 @@ and a client that guesses a parameter name gets told rather than silently ignore
 Separately, and *not* a latency exception: **`active_model_context` costs 57 ms on both
 calls.** It is the only tool that gains nothing from a second call while its neighbours
 halve, which looked like a cache that was missing. It is not. The tool is a server-side
-composite of four sequential host calls -- `host_status`, `list_root_items`,
-`list_saved_viewpoints`, `list_selection_sets` -- whose warm figures in this table are 23,
-12, 11 and 12 ms. The sum is 58. There is nothing to warm up, and nothing is being redone:
-it makes four round trips because it reports four things.
+composite of four sequential host calls: `host_status`, `list_root_items`,
+`list_saved_viewpoints`, `list_selection_sets`. There is nothing to warm up, and nothing is
+being redone -- it makes four round trips because it reports four things.
+
+The arithmetic does not close, and saying so is more useful than a tidy sum. This table's
+warm figures for those four are 23, 12, 11 and **39** ms, which is 85 -- more than the 57
+the composite measured. The discrepancy sits in `list_selection_sets`, whose two samples
+here were 13 ms then 39 ms: its warm figure is the unreliable one, and at ~12 ms the four
+would sum to about 58. So four round trips is the explanation for 57 ms; the component
+figures are not precise enough to derive it.
 
 Two ways of "fixing" it that would be wrong, recorded so nobody tries them:
 
