@@ -23,15 +23,15 @@ namespace NavisHelper.Agent.Services
             var selectedCount = selectedItems.Count;
             var selectionSnapshot = SnapshotSelection(selectedItems);
 
-            var itemsToKeepVisible = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var itemsToKeepVisible = new HashSet<ModelItem>();
             foreach (ModelItem item in selectedItems)
             {
-                CollectItemPaths(item, itemsToKeepVisible);
+                CollectSubtreeItems(item, itemsToKeepVisible);
 
                 var current = item;
                 while (current != null)
                 {
-                    itemsToKeepVisible.Add(BuildItemPath(current));
+                    itemsToKeepVisible.Add(current);
                     current = current.Parent;
                 }
             }
@@ -88,13 +88,13 @@ namespace NavisHelper.Agent.Services
                 throw new AgentCommandException(ErrorCodes.NoSelection, "There is no active selection.");
             var selectedCount = selectedItems.Count;
 
-            var selectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenItems = new HashSet<ModelItem>();
             var itemsToHide = new List<ModelItem>();
             var rootSummaries = new VisibilityRootSummaryAccumulator();
 
             foreach (ModelItem item in selectedItems)
             {
-                CollectVisibleSelectedItems(item, selectedPaths, itemsToHide, GetRootItem(item), rootSummaries);
+                CollectVisibleSelectedItems(item, seenItems, itemsToHide, GetRootItem(item), rootSummaries);
             }
             var rootSummaryResult = rootSummaries.Build();
 
@@ -142,13 +142,13 @@ namespace NavisHelper.Agent.Services
             var selectedCount = selectedItems.Count;
             var selectionSnapshot = SnapshotSelection(selectedItems);
 
-            var selectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenItems = new HashSet<ModelItem>();
             var itemsToReveal = new List<ModelItem>();
             var rootSummaries = new VisibilityRootSummaryAccumulator();
 
             foreach (ModelItem item in selectedItems)
             {
-                CollectHiddenSelectedItems(item, selectedPaths, itemsToReveal, false, GetRootItem(item), rootSummaries);
+                CollectHiddenSelectedItems(item, seenItems, itemsToReveal, false, GetRootItem(item), rootSummaries);
             }
             var rootSummaryResult = rootSummaries.Build();
 
@@ -196,13 +196,13 @@ namespace NavisHelper.Agent.Services
             var selectedCount = selectedItems.Count;
             var selectionSnapshot = SnapshotSelection(selectedItems);
 
-            var selectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenItems = new HashSet<ModelItem>();
             var itemsToReveal = new List<ModelItem>();
             var rootSummaries = new VisibilityRootSummaryAccumulator();
 
             foreach (ModelItem item in selectedItems)
             {
-                CollectHiddenSelectedItems(item, selectedPaths, itemsToReveal, true, GetRootItem(item), rootSummaries);
+                CollectHiddenSelectedItems(item, seenItems, itemsToReveal, true, GetRootItem(item), rootSummaries);
             }
             var rootSummaryResult = rootSummaries.Build();
 
