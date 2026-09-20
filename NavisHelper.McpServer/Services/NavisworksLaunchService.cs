@@ -76,6 +76,35 @@ internal sealed class NavisworksLaunchService
         response.RoamerPath = roamerPath;
         response.FilePath = effectiveFilePath;
 
+        // Attach before launching, but only to a host proven to hold the requested
+        // file. Discovery reports a document title, which is a file name: two models of
+        // the same name in different directories are indistinguishable there, and
+        // attaching on the name alone would report success without opening what was
+        // asked for, leaving later write tools pointed at the wrong model.
+        var attachTarget = await ResolveProvenAttachTargetAsync(
+            NavisworksAttachPolicy.SelectAttachCandidate(hostsBefore, version, effectiveFilePath),
+            effectiveFilePath,
+            response,
+            cancellationToken).ConfigureAwait(false);
+        if (attachTarget != null)
+        {
+            response.Started = true;
+            response.ProcessCreated = false;
+            response.ProcessId = attachTarget.Pid;
+            response.HostReady = true;
+            response.Host = attachTarget;
+            response.Outcome = StartNavisworksOutcomes.AttachedToExistingHost;
+            response.Message = NavisworksAttachPolicy.AttachedToExistingHostMessage;
+
+            stopwatch.Stop();
+            response.StartupElapsedMs = 0;
+            response.ElapsedMs = stopwatch.ElapsedMilliseconds;
+            response.ElapsedHuman = ElapsedTimeFormatter.Format(response.ElapsedMs);
+            // No process was launched, so there are no launch-environment facts to log.
+            _callLogger.LogStartNavisworks(response, null);
+            return response;
+        }
+
         var startInfoBuild = _startInfoFactory.Create(roamerPath, effectiveFilePath);
         var startupStopwatch = Stopwatch.StartNew();
         using var process = _processLauncher.Start(startInfoBuild.StartInfo);
@@ -104,6 +133,28 @@ internal sealed class NavisworksLaunchService
 
         ApplyStartupResult(response, startupResult, waitForHost);
 
+        // Count hosts again rather than predicting from the pre-launch count. Roamer can
+        // hand a file off into an instance that is already running, in which case the
+        // launch adds no host and a warning derived before the launch would have been
+        // false -- telling the caller to close an instance that does not exist.
+        var hostsOfVersionAfter = NavisworksAttachPolicy.CountReadyHostsOfVersion(
+            _hostBridgeClient.ListNavisworksHosts().Hosts,
+            version);
+        var additionalHostWarning = NavisworksAttachPolicy.BuildAdditionalHostWarning(hostsOfVersionAfter, version);
+        if (!string.IsNullOrEmpty(additionalHostWarning))
+            response.Warnings.Add(additionalHostWarning);
+
+        // SelectHost's last resort matches on document title without excluding hosts
+        // that were already running, so a launch can report a pre-existing host beside
+        // the pid it just created. That fallback stays -- it is the only thing that
+        // finds the host when Navisworks serves the file from another process -- but
+        // the caller is told when it fired rather than left to notice the mismatch.
+        var mismatchWarning = NavisworksAttachPolicy.BuildHostProcessMismatchWarning(
+            response.ProcessId,
+            response.Host == null ? (int?)null : response.Host.Pid);
+        if (!string.IsNullOrEmpty(mismatchWarning))
+            response.Warnings.Add(mismatchWarning);
+
         startupStopwatch.Stop();
         stopwatch.Stop();
         response.StartupElapsedMs = startupStopwatch.ElapsedMilliseconds;
@@ -112,6 +163,51 @@ internal sealed class NavisworksLaunchService
         _callLogger.LogStartNavisworks(response, startInfoBuild.EnvironmentFacts);
 
         return response;
+    }
+
+    /// <summary>
+    /// Turns a name-matched candidate into a host proven to hold the requested file, or
+    /// null so the caller launches.
+    ///
+    /// Discovery carries a document title, not a path, so the proof needs one extra
+    /// call: <c>host_status</c> on that instance reports <c>DocumentFileName</c>. An
+    /// unproven candidate launches, and the response says why -- a wrong attach is
+    /// worse than a redundant process, because the next write tool would act on the
+    /// wrong model.
+    /// </summary>
+    private async Task<NavisworksHostInfo> ResolveProvenAttachTargetAsync(
+        NavisworksHostInfo candidate,
+        string requestedFilePath,
+        StartNavisworksResponse response,
+        CancellationToken cancellationToken)
+    {
+        if (candidate == null)
+            return null;
+
+        HostStatusResponse status = null;
+        try
+        {
+            status = await _hostBridgeClient.HostStatusAsync(
+                new HostStatusRequest(),
+                cancellationToken,
+                new HostTargetOptions { InstanceId = candidate.InstanceId }).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // The host answered discovery and then did not answer this, so it is not a
+            // host to hand the caller. Launching is the safe outcome, not an error.
+            status = null;
+        }
+
+        if (NavisworksAttachPolicy.DocumentPathMatches(
+                status == null ? null : status.DocumentFileName,
+                requestedFilePath))
+        {
+            return candidate;
+        }
+
+        response.Warnings.Add(NavisworksAttachPolicy.CandidateDocumentNotProvenMessage);
+        return null;
     }
 
     internal static void ApplyStartupResult(

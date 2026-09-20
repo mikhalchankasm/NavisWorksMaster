@@ -122,6 +122,13 @@ namespace NavisHelper.Agent.Contracts
         public const string HostReady = "host_ready";
         public const string ProcessExited = "process_exited";
         public const string HostTimeout = "host_timeout";
+
+        /// <summary>
+        /// No process was started: a ready host of the requested version already had
+        /// the requested document open. ProcessCreated is false and ProcessId is that
+        /// host's pid.
+        /// </summary>
+        public const string AttachedToExistingHost = "attached_to_existing_host";
     }
 
     public sealed class McpTaskTimerStartResponse
