@@ -45,7 +45,7 @@ Scope inputs:
 | --- | --- | --- |
 | `scope` | `whole_model` | `whole_model`, `current_selection`, `under_handle`, or `under_named_node`. |
 | `scopeHandle` | empty | Runtime match handle for `under_handle`; never persist it in a scenario. |
-| `scopeNodePath` | empty | Fast exact tree path for `under_named_node`. |
+| `scopeNodePath` | empty | Fast exact tree path for `under_named_node`. Pass the `path` a tool printed, verbatim — the segment separator is `" / "` and node names may themselves contain `/`. |
 | `scopeNodeName` | empty | Exact display-name fallback. It may need a bounded model traversal; prefer path/handle. |
 | `matchDepth` | `all` | `first` returns the shallowest match on each branch and prunes that item's descendants; `all` preserves legacy behavior, which is pruned on `whole_model` and unpruned when scoped — see *Pruning* below. |
 | `countOnly` | `false` | Returns counts, depth histogram, and sample model values without creating a handle or preview. |
@@ -93,6 +93,24 @@ Measured on `6501.5.nwd` (~88k nodes, Navisworks 2027), `Item/Name contains
 | `scope=under_handle` over `/STORE` only, `matchDepth=first` | 11 |
 
 For a complete subtree answer, scope the search and use `matchDepth=all`.
+
+### The printed path is the path `scopeNodePath` accepts
+
+Every tool that reports an item reports a `path` joined with `" / "`, and
+`scopeNodePath` takes that path back. This did not hold until the split stopped
+using the bare `/` character: node names in a plant model begin with `/`, so
+`"6501.5.nwd / /STORE"` became `["6501.5.nwd", "STORE"]` and matched nothing.
+Measured on `6501.5.nwd`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `find_items`, `under_named_node`, `scopeNodePath` from `list_root_items` | `schema_violation: resolved 0` | 11 matches in 75 ms |
+| `list_item_children` with `parentPath` from its own output | `Parent item was not found by fast path` | 3 children in 71 ms |
+| a six-segment path with Cyrillic and slashes | `resolved 0` | 8 matches in 26 ms |
+
+Each result is identical to the same scope addressed by handle, so the documented
+fast option no longer costs an extra round trip. A plain `a/b/c` or `a\c` path
+still splits on the character, for callers that never had a printed path.
 
 ### `whole_model` + `countOnly=true` is answered by the engine
 
