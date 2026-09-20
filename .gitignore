@@ -54,5 +54,6 @@ Desktop.ini
 docs/INVENTORY.md
 docs/PRERELEASE-AUDIT.md
 
-# Codex executor run directories: logs, provenance, and a credential copy.
+# Codex executor run directories from before they moved under %LOCALAPPDATA%.
+# Runs no longer land here; this keeps an older checkout from committing one.
 .codex-runs/

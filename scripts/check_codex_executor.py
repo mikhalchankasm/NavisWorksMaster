@@ -138,7 +138,7 @@ def check_credentials_are_never_clobbered(failures):
 
         garbage = tmp / "run_garbage.json"
         garbage.write_text("not json at all", encoding="utf-8")
-        status = ce.write_back_credentials(garbage, real)
+        status = ce.write_back_credentials(garbage, real, "{}")
         if not status.startswith("REFUSED"):
             failures.append("write_back_credentials accepted a credential that does not parse")
         if "other_provider" not in real.read_text(encoding="utf-8"):
@@ -146,7 +146,7 @@ def check_credentials_are_never_clobbered(failures):
 
         refreshed = tmp / "run_good.json"
         refreshed.write_text(json.dumps({"tokens": {"refresh": "new"}}), encoding="utf-8")
-        status = ce.write_back_credentials(refreshed, real)
+        status = ce.write_back_credentials(refreshed, real, "{}")
         if not status.startswith("written back"):
             failures.append("write_back_credentials did not carry a refreshed credential back: " + status)
 
@@ -155,6 +155,86 @@ def check_credentials_are_never_clobbered(failures):
             failures.append("the refreshed token was not written back")
         if merged.get("other_provider") != "keep":
             failures.append("write-back dropped another provider's route instead of merging")
+
+
+def check_credentials_never_sit_where_the_executor_can_read_them(failures):
+    """A credential the executor can read is a credential it can send.
+
+    The run directory holds a copy of the operator's subscription token, and the
+    hosted web__run tool reaches the public internet. While the run directory lived
+    inside the repository, the executor's own working root contained the token.
+    """
+    if str(ce.RUNS_DIR).lower().startswith(str(ce.REPO_ROOT).lower()):
+        failures.append(
+            "RUNS_DIR is inside REPO_ROOT (%s): the credential copy would sit in the "
+            "executor's readable working root, and web__run egress is open" % ce.RUNS_DIR
+        )
+
+    env = ce.sanitize_environment({"APPDATA": "C:/Users/Operator/AppData/Roaming",
+                                   "LOCALAPPDATA": "C:/Users/Operator/AppData/Local",
+                                   "PATH": "/usr/bin"},
+                                  Path("D:/run/home"), Path("D:/run/tmp"),
+                                  Path("D:/run/home/.codex"))
+    for name in ("APPDATA", "LOCALAPPDATA"):
+        value = env.get(name, "")
+        if "Operator" in value or not value.startswith(str(Path("D:/run/home"))):
+            failures.append(
+                "%s still points at the operator profile (%s); anything under the real "
+                "AppData is readable, and exfiltratable" % (name, value)
+            )
+
+
+def check_a_refused_write_back_keeps_the_copy(failures):
+    """The only valid rotated token must not be deleted because a merge failed."""
+    status = ce.remove_credential_copy(Path("D:/does-not-exist/auth.json"),
+                                       "REFUSED: the operator credential does not parse")
+    if not status.startswith("kept"):
+        failures.append(
+            "remove_credential_copy deleted the run copy after a refused write-back; "
+            "that copy can hold the only valid rotated token"
+        )
+
+    for safe in ("unchanged", "written back (tokens); previous kept as auth.json.bak"):
+        status = ce.remove_credential_copy(Path("D:/does-not-exist/auth.json"), safe)
+        if status.startswith("kept"):
+            failures.append("remove_credential_copy kept the copy after a successful write-back")
+
+
+def check_overlapping_runs_cannot_restore_a_retired_token(failures):
+    """Two runs copy the same old token; the later one must not undo the rotation."""
+    import json
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as raw:
+        tmp = Path(raw)
+        original = json.dumps({"tokens": {"refresh": "old"}, "other": "keep"})
+
+        real = tmp / "auth.json"
+        # Run A has already rotated the operator's token.
+        real.write_text(json.dumps({"tokens": {"refresh": "rotated-by-A"}, "other": "keep"}),
+                        encoding="utf-8")
+
+        # Run B started from the same snapshot and changed nothing.
+        run_b = tmp / "run_b.json"
+        run_b.write_text(original, encoding="utf-8")
+
+        status = ce.write_back_credentials(run_b, real, original)
+        if status != "unchanged":
+            failures.append("a run that changed nothing reported a write-back: " + status)
+
+        after = json.loads(real.read_text(encoding="utf-8"))
+        if after.get("tokens", {}).get("refresh") != "rotated-by-A":
+            failures.append(
+                "an overlapping run restored a retired token over a rotation; write-back "
+                "must compare against the snapshot the run started from"
+            )
+
+
+def check_the_guarded_repository_is_the_one_the_executor_was_given(failures):
+    """Fingerprinting the wrong checkout reports "unchanged" whatever happened."""
+    inside = ce.git_root(Path(__file__).resolve().parent)
+    if inside != ce.REPO_ROOT:
+        failures.append("git_root did not resolve this repository from a subdirectory: %s" % inside)
 
 
 def check_launch_line_keeps_its_isolation_flags(failures):
@@ -211,6 +291,10 @@ def main() -> int:
     check_redaction_runs_before_the_tail(failures)
     check_dirty_file_contents_are_fingerprinted(failures)
     check_credentials_are_never_clobbered(failures)
+    check_credentials_never_sit_where_the_executor_can_read_them(failures)
+    check_a_refused_write_back_keeps_the_copy(failures)
+    check_overlapping_runs_cannot_restore_a_retired_token(failures)
+    check_the_guarded_repository_is_the_one_the_executor_was_given(failures)
     check_launch_line_keeps_its_isolation_flags(failures)
     check_brief_limit_matches_the_template(failures)
     check_probe_briefs_exist(failures)

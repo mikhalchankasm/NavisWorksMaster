@@ -56,6 +56,19 @@ codex-cli 0.155.1, by execution rather than self-report:
   Treat this as a live limitation of the boundary, not a residual risk that has
   been argued away: do not hand this executor a brief whose material you would
   not put on a public URL.
+
+Because that egress cannot be closed, everything sensitive moves out of reach
+instead. Run directories, which hold a copy of the operator's credential, live
+under `%LOCALAPPDATA%` and never inside a working root. `APPDATA` and
+`LOCALAPPDATA` are redirected into the run home alongside `HOME`, so the real
+profile is not where the executor looks.
+
+**What that does not achieve, stated plainly:** `--approve-for-me` restricts
+writes, not reads. An executor that deliberately walks an absolute path can still
+read outside its workspace, so environment redirection prevents incidental
+discovery and not a determined search. Closing that needs a read sandbox this CLI
+does not offer. Until then the boundary rests on the brief being trusted, which is
+why the brief is written by the curator and never taken from an untrusted source.
 """
 
 from __future__ import annotations
@@ -73,7 +86,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RUNS_DIR = REPO_ROOT / ".codex-runs"
+
+# Run directories live OUTSIDE any working root an executor is given. They hold a
+# copy of the operator's credential, and the hosted web__run tool reaches the
+# public internet, so a credential anywhere the executor can read is a credential
+# it can put into an outbound URL. This was inside the repository until a review
+# pointed out that combination.
+RUNS_DIR = Path(
+    os.environ.get("LOCALAPPDATA") or Path.home()
+) / "NavisHelper" / "codex-runs"
 
 # Codex reads its own config from CODEX_HOME and much else from the home
 # directory by convention, so both move. TEMP moves too: a provider that drops a
@@ -91,6 +112,13 @@ CODEX_HOME_VARIABLE = "CODEX_HOME"
 # when it detects that its home sits under a temporary directory, and warns
 # instead of failing, which is easy to miss.
 TEMP_VARIABLES = ("TEMP", "TMP")
+
+# Redirected for the same reason as HOME. Leaving these pointed at the operator's
+# real profile let any executor command read credentials and configuration stored
+# under the real AppData directories, and the hosted web__run tool can carry what
+# it finds outbound. The launcher has to seed them, because the CLI keeps its
+# downloaded runtime under LOCALAPPDATA and will re-create what it needs.
+APPDATA_VARIABLES = ("APPDATA", "LOCALAPPDATA")
 
 # Anything that could hand the executor a credential, a model endpoint or an MCP
 # server is dropped. Matching is by prefix on the variable name, never by value.
@@ -124,8 +152,6 @@ KEPT_ENVIRONMENT = (
     "NUMBER_OF_PROCESSORS",
     "PROCESSOR_ARCHITECTURE",
     "OS",
-    "LOCALAPPDATA",
-    "APPDATA",
     "PROGRAMFILES",
     "PROGRAMFILES(X86)",
     "PROGRAMDATA",
@@ -230,12 +256,15 @@ def sanitize_environment(parent, run_home: Path, run_temp=None, codex_home=None)
         env[name] = str(run_home)
     for name in TEMP_VARIABLES:
         env[name] = str(run_temp or (run_home.parent / "tmp"))
+    for name in APPDATA_VARIABLES:
+        env[name] = str(run_home / "AppData" / name.title())
     env[CODEX_HOME_VARIABLE] = str(codex_home or (run_home / ".codex"))
 
     # Belt and braces: if a kept variable ever overlaps a dropped prefix, the
     # drop wins.
     for name in list(env):
-        if name in HOME_VARIABLES or name in TEMP_VARIABLES or name == CODEX_HOME_VARIABLE:
+        if (name in HOME_VARIABLES or name in TEMP_VARIABLES
+                or name in APPDATA_VARIABLES or name == CODEX_HOME_VARIABLE):
             continue
         if any(name.upper().startswith(prefix) for prefix in DROPPED_ENVIRONMENT_PREFIXES):
             del env[name]
@@ -251,6 +280,7 @@ def dropped_environment_names(parent):
         if name not in KEPT_ENVIRONMENT
         and name not in HOME_VARIABLES
         and name not in TEMP_VARIABLES
+        and name not in APPDATA_VARIABLES
         and name != CODEX_HOME_VARIABLE
     )
 
@@ -289,8 +319,15 @@ def collect_secret_values(auth_path: Path):
     if not auth_path.is_file():
         return []
     try:
-        data = json.loads(auth_path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
+        return collect_secret_values_from_text(auth_path.read_text(encoding="utf-8"))
+    except OSError:
+        return []
+
+
+def collect_secret_values_from_text(raw):
+    try:
+        data = json.loads(raw)
+    except ValueError:
         return []
 
     found = []
@@ -338,6 +375,16 @@ def _git(args, cwd):
     return result.stdout.strip()
 
 
+def git_root(path: Path):
+    """The repository the executor was actually pointed at.
+
+    Fingerprinting REPO_ROOT while --cwd selects a different checkout would report
+    "unchanged" no matter what the executor did there.
+    """
+    top = _git(["rev-parse", "--show-toplevel"], path)
+    return Path(top) if top else path
+
+
 def checkout_fingerprint(repo: Path):
     """HEAD plus the content of everything already dirty.
 
@@ -380,11 +427,19 @@ def fingerprint_changes(before, after):
 # --------------------------------------------------------------------------- #
 
 
-def write_back_credentials(run_auth: Path, real_auth: Path):
+def write_back_credentials(run_auth: Path, real_auth: Path, original_raw):
     """Carry a refreshed credential back before the copy is discarded.
 
-    Refuses anything that does not parse, and merges only the keys handed over,
-    because the real file can hold several providers.
+    Three things this has to get right, each of which can log the operator out:
+
+    * **Only the keys this run changed.** Comparing against the snapshot the run
+      started from, not against the current file. Two overlapping runs both copy
+      the same old token; if the second blindly merged every key from its copy, it
+      would restore the retired token over the first run's rotation.
+    * **Under a lock, re-reading the real file inside it.** The current file may
+      have rotated while this run was working.
+    * **Refuse anything that does not parse**, on either side, and say so, rather
+      than overwriting a good file with a bad one.
     """
     if not run_auth.is_file():
         return "no credential in the run home"
@@ -392,8 +447,7 @@ def write_back_credentials(run_auth: Path, real_auth: Path):
         return "no operator credential to merge into; left the run copy in place"
 
     run_raw = run_auth.read_text(encoding="utf-8")
-    real_raw = real_auth.read_text(encoding="utf-8")
-    if run_raw == real_raw:
+    if original_raw is not None and run_raw == original_raw:
         return "unchanged"
 
     try:
@@ -404,30 +458,77 @@ def write_back_credentials(run_auth: Path, real_auth: Path):
         return "REFUSED: the run credential is not a non-empty object; operator store untouched"
 
     try:
-        real_data = json.loads(real_raw)
+        original_data = json.loads(original_raw) if original_raw else {}
     except ValueError:
-        return "REFUSED: the operator credential does not parse; refusing to overwrite it"
+        original_data = {}
+    if not isinstance(original_data, dict):
+        original_data = {}
 
-    merged = dict(real_data)
-    for key in run_data:
-        merged[key] = run_data[key]
+    changed = {
+        key: value
+        for key, value in run_data.items()
+        if original_data.get(key, object()) != value
+    }
+    if not changed:
+        return "unchanged"
 
-    backup = real_auth.with_name(real_auth.name + ".before-codex-run.bak")
-    if not backup.exists():
-        backup.write_text(real_raw, encoding="utf-8")
+    lock = real_auth.with_name(real_auth.name + ".codex-writeback.lock")
+    acquired = False
+    for _ in range(50):
+        try:
+            handle = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(handle)
+            acquired = True
+            break
+        except OSError:
+            time.sleep(0.2)
+    if not acquired:
+        return "REFUSED: another run holds the write-back lock; run copy left in place"
 
-    real_auth.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    return "written back (%s); previous kept as %s" % (", ".join(sorted(run_data)), backup.name)
+    try:
+        real_raw = real_auth.read_text(encoding="utf-8")
+        try:
+            real_data = json.loads(real_raw)
+        except ValueError:
+            return "REFUSED: the operator credential does not parse; refusing to overwrite it"
+        if not isinstance(real_data, dict):
+            return "REFUSED: the operator credential is not an object; refusing to overwrite it"
+
+        merged = dict(real_data)
+        merged.update(changed)
+
+        backup = real_auth.with_name(real_auth.name + ".before-codex-run.bak")
+        if not backup.exists():
+            backup.write_text(real_raw, encoding="utf-8")
+
+        real_auth.write_text(
+            json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        return "written back (%s); previous kept as %s" % (", ".join(sorted(changed)), backup.name)
+    finally:
+        try:
+            lock.unlink()
+        except OSError:
+            pass
 
 
-def remove_credential_copy(run_auth: Path):
-    """Remove only the credential, keeping the run's logs and provenance.
+def remove_credential_copy(run_auth: Path, write_back_status):
+    """Remove only the credential, and only once it is safe to lose.
 
     EXECUTOR_SETUP prescribes deleting the whole run directory. Keeping it and
     deleting just the credential is a deliberate deviation: the provenance record
-    is the only evidence of what an executor did, and a refreshed token that
-    failed to write back is still recoverable from disk rather than lost.
+    is the only evidence of what an executor did.
+
+    The status gate is the part that matters. If the write-back was refused, this
+    copy may hold the only valid rotated token, and deleting it would log the
+    operator out while the docstring above promised recovery.
     """
+    safe = isinstance(write_back_status, str) and (
+        write_back_status == "unchanged" or write_back_status.startswith("written back")
+    )
+    if not safe:
+        return "kept: write-back did not succeed (%s)" % write_back_status
+
     try:
         if run_auth.is_file():
             run_auth.chmod(run_auth.stat().st_mode | stat.S_IWRITE)
@@ -533,6 +634,8 @@ def prepare_run(brief_text, cwd: Path, timeout_seconds: int, label: str, environ
     codex_home.mkdir(parents=True, exist_ok=True)
     run_temp = run_dir / "tmp"
     run_temp.mkdir(parents=True, exist_ok=True)
+    for name in APPDATA_VARIABLES:
+        (home / "AppData" / name.title()).mkdir(parents=True, exist_ok=True)
 
     # Rebuild .gitconfig from identity alone.
     name = _git(["config", "user.name"], REPO_ROOT)
@@ -581,8 +684,9 @@ def run(plan: RunPlan, real_auth: Path):
     if real_auth.is_file():
         shutil.copyfile(str(real_auth), str(run_auth))
 
-    secrets = collect_secret_values(run_auth)
-    before = checkout_fingerprint(REPO_ROOT)
+    original_credential = run_auth.read_text(encoding="utf-8") if run_auth.is_file() else None
+    guarded_repo = git_root(plan.cwd)
+    before = checkout_fingerprint(guarded_repo)
 
     started = time.time()
     timed_out = False
@@ -611,13 +715,20 @@ def run(plan: RunPlan, real_auth: Path):
             stderr = stderr.decode("utf-8", "replace")
 
     duration = round(time.time() - started, 1)
-    after = checkout_fingerprint(REPO_ROOT)
+    after = checkout_fingerprint(guarded_repo)
+
+    # Collect secrets AFTER the run as well as before. A token rotated during the
+    # run is a value nothing collected earlier knows about, and it is exactly the
+    # value most likely to appear in the output that is about to be written.
+    secrets = collect_secret_values(run_auth)
+    if original_credential is not None:
+        secrets += collect_secret_values_from_text(original_credential)
 
     (plan.run_dir / "stdout.jsonl").write_text(redact(stdout, secrets), encoding="utf-8")
     (plan.run_dir / "stderr.txt").write_text(redact(stderr, secrets), encoding="utf-8")
 
-    credential_status = write_back_credentials(run_auth, real_auth)
-    credential_removal = remove_credential_copy(run_auth)
+    credential_status = write_back_credentials(run_auth, real_auth, original_credential)
+    credential_removal = remove_credential_copy(run_auth, credential_status)
 
     record = {
         "label": plan.run_dir.name,
@@ -631,6 +742,7 @@ def run(plan: RunPlan, real_auth: Path):
         "exit_code": exit_code,
         "timed_out": timed_out,
         "duration_seconds": duration,
+        "guarded_repository": str(guarded_repo),
         "checkout_before": before,
         "checkout_after": after,
         "checkout_changes": fingerprint_changes(before, after),
