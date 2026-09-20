@@ -40,9 +40,17 @@ namespace NavisHelper.Agent.Services
         };
 
 
+        /// <summary>
+        /// Membership across two traversals rather than dedup within one: the set is
+        /// built from the selection in HideUnselected and tested here against every
+        /// node in the model. Keyed by item identity, because keyed by path,
+        /// selecting one of two same-named siblings spared both from hiding and this
+        /// method then descended into the unselected twin and hid its children as
+        /// though it had been selected.
+        /// </summary>
         private static void CollectItemsToHide(
             ModelItem item,
-            ISet<string> itemsToKeepVisible,
+            ISet<ModelItem> itemsToKeepVisible,
             ICollection<ModelItem> itemsToHide,
             ModelItem rootItem,
             VisibilityRootSummaryAccumulator rootSummaries)
@@ -50,7 +58,7 @@ namespace NavisHelper.Agent.Services
             if (item == null)
                 return;
 
-            if (itemsToKeepVisible.Contains(BuildItemPath(item)))
+            if (itemsToKeepVisible.Contains(item))
             {
                 foreach (ModelItem childItem in item.Children)
                 {
@@ -64,9 +72,16 @@ namespace NavisHelper.Agent.Services
             rootSummaries.Add(rootItem, item);
         }
 
+        /// <summary>
+        /// The set is output dedup, not a traversal guard: selected subtrees can
+        /// overlap, so the same node is reachable twice and must be hidden once.
+        /// The recursion below runs either way. It asks whether this is the same
+        /// node, which is item identity -- keyed by display-name path it hid one
+        /// of two same-named siblings and left the other visible.
+        /// </summary>
         private static void CollectVisibleSelectedItems(
             ModelItem item,
-            ISet<string> selectedPaths,
+            ISet<ModelItem> seenItems,
             ICollection<ModelItem> itemsToHide,
             ModelItem rootItem,
             VisibilityRootSummaryAccumulator rootSummaries)
@@ -74,8 +89,7 @@ namespace NavisHelper.Agent.Services
             if (item == null)
                 return;
 
-            var path = BuildItemPath(item);
-            if (selectedPaths.Add(path) && !item.IsHidden)
+            if (seenItems.Add(item) && !item.IsHidden)
             {
                 itemsToHide.Add(item);
                 rootSummaries.Add(rootItem, item);
@@ -83,13 +97,13 @@ namespace NavisHelper.Agent.Services
 
             foreach (ModelItem childItem in item.Children)
             {
-                CollectVisibleSelectedItems(childItem, selectedPaths, itemsToHide, rootItem, rootSummaries);
+                CollectVisibleSelectedItems(childItem, seenItems, itemsToHide, rootItem, rootSummaries);
             }
         }
 
         private static void CollectHiddenSelectedItems(
             ModelItem item,
-            ISet<string> selectedPaths,
+            ISet<ModelItem> seenItems,
             ICollection<ModelItem> itemsToReveal,
             bool includeHiddenAncestors,
             ModelItem rootItem,
@@ -98,20 +112,26 @@ namespace NavisHelper.Agent.Services
             if (item == null)
                 return;
 
-            AddHiddenItem(item, selectedPaths, itemsToReveal, rootItem, rootSummaries);
+            AddHiddenItem(item, seenItems, itemsToReveal, rootItem, rootSummaries);
 
             if (includeHiddenAncestors)
-                AddHiddenAncestors(item, selectedPaths, itemsToReveal, rootItem, rootSummaries);
+                AddHiddenAncestors(item, seenItems, itemsToReveal, rootItem, rootSummaries);
 
             foreach (ModelItem childItem in item.Children)
             {
-                CollectHiddenSelectedItems(childItem, selectedPaths, itemsToReveal, includeHiddenAncestors, rootItem, rootSummaries);
+                CollectHiddenSelectedItems(childItem, seenItems, itemsToReveal, includeHiddenAncestors, rootItem, rootSummaries);
             }
         }
 
+        /// <summary>
+        /// Output dedup, keyed by item identity for the same reason as
+        /// CollectVisibleSelectedItems. Note the short-circuit: a visible item is
+        /// never recorded, so the set holds exactly the nodes already added to
+        /// itemsToReveal. AddHiddenAncestors depends on that.
+        /// </summary>
         private static void AddHiddenItem(
             ModelItem item,
-            ISet<string> selectedPaths,
+            ISet<ModelItem> seenItems,
             ICollection<ModelItem> itemsToReveal,
             ModelItem rootItem,
             VisibilityRootSummaryAccumulator rootSummaries)
@@ -119,17 +139,31 @@ namespace NavisHelper.Agent.Services
             if (item == null)
                 return;
 
-            var path = BuildItemPath(item);
-            if (item.IsHidden && selectedPaths.Add(path))
+            if (item.IsHidden && seenItems.Add(item))
             {
                 itemsToReveal.Add(item);
                 rootSummaries.Add(rootItem, item);
             }
         }
 
+        /// <summary>
+        /// Two uses of one set, both item identity.
+        ///
+        /// Contains is a short-circuit, not a correctness requirement: the set holds
+        /// exactly the nodes already added to itemsToReveal, so reaching one means
+        /// its ancestors were walked on an earlier chain. Deleting the break would
+        /// produce identical output, because Add already refuses the repeats higher
+        /// up. That is what settles the key: it asks whether this exact node was
+        /// already processed.
+        ///
+        /// Keyed by path it was worse than a wrong dedup. Walking up through a
+        /// hidden ancestor whose display-name path equalled an already-revealed one
+        /// broke the loop, so that ancestor stayed hidden and nothing above it on
+        /// that chain was examined.
+        /// </summary>
         private static void AddHiddenAncestors(
             ModelItem item,
-            ISet<string> selectedPaths,
+            ISet<ModelItem> seenItems,
             ICollection<ModelItem> itemsToReveal,
             ModelItem rootItem,
             VisibilityRootSummaryAccumulator rootSummaries)
@@ -137,11 +171,10 @@ namespace NavisHelper.Agent.Services
             var current = item == null ? null : item.Parent;
             while (current != null)
             {
-                var path = BuildItemPath(current);
-                if (selectedPaths.Contains(path))
+                if (seenItems.Contains(current))
                     break;
 
-                if (current.IsHidden && selectedPaths.Add(path))
+                if (current.IsHidden && seenItems.Add(current))
                 {
                     itemsToReveal.Add(current);
                     rootSummaries.Add(rootItem, current);
@@ -1101,15 +1134,15 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private static void CollectItemPaths(ModelItem item, ISet<string> items)
+        private static void CollectSubtreeItems(ModelItem item, ISet<ModelItem> items)
         {
             if (item == null)
                 return;
 
-            items.Add(BuildItemPath(item));
+            items.Add(item);
             foreach (ModelItem childItem in item.Children)
             {
-                CollectItemPaths(childItem, items);
+                CollectSubtreeItems(childItem, items);
             }
         }
 
