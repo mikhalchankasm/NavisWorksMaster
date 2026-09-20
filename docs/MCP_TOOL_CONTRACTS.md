@@ -109,7 +109,7 @@ Measured on `6501.5.nwd`:
 | a six-segment path with Cyrillic and slashes | `resolved 0` | 8 matches in 26 ms |
 
 Each result is identical to the same scope addressed by handle, so the documented
-fast option no longer costs an extra round trip. A plain `a/b/c` or `a\c` path
+fast option no longer costs an extra round trip. A plain `a/b/c` or `a\b\c` path
 still splits on the character, for callers that never had a printed path.
 
 ### `whole_model` + `countOnly=true` is answered by the engine
