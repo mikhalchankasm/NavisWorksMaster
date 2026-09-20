@@ -192,8 +192,17 @@ internal sealed class ScenarioLibraryService
             existing = ReadById(scenarioId, out var errorCode, out var errorMessage);
             if (existing == null)
                 return Fail(response, errorCode, errorMessage);
-            if (string.IsNullOrWhiteSpace(expectedSha256) ||
-                !string.Equals(existing.Sha256, NormalizeSha(expectedSha256), StringComparison.OrdinalIgnoreCase))
+            // Не сливать два разных случая в одно сообщение. Отсутствующий expectedSha256 --
+            // это незаполненная защита от одновременной правки, а не изменившийся сценарий:
+            // сказать «изменился после чтения» значит назвать причину, которой не было, и
+            // дать совет «перечитайте и повторите», который сам по себе не поможет никогда.
+            if (string.IsNullOrWhiteSpace(expectedSha256))
+            {
+                return Fail(response, "scenario_conflict",
+                    "Для обновления сценария укажите expectedSha256: его возвращают get_scenario и list_scenarios как поле sha256. " +
+                    "Защита от одновременной правки не заполнена, поэтому изменился сценарий или нет -- неизвестно.");
+            }
+            if (!string.Equals(existing.Sha256, NormalizeSha(expectedSha256), StringComparison.OrdinalIgnoreCase))
             {
                 return Fail(response, "scenario_conflict", "Сценарий изменился после чтения. Получите актуальную версию и повторите сохранение.");
             }
@@ -283,8 +292,15 @@ internal sealed class ScenarioLibraryService
 
         if (!confirmDelete)
             return Fail(response, "scenario_delete_confirmation_required", "Для удаления сценария укажите confirm_delete=true после проверки preview.");
-        if (string.IsNullOrWhiteSpace(expectedSha256) ||
-            !string.Equals(record.Sha256, NormalizeSha(expectedSha256), StringComparison.OrdinalIgnoreCase))
+        // То же разделение, что и при сохранении: без expectedSha256 удаление отклоняется
+        // потому, что защита не заполнена, а не потому, что файл кто-то менял.
+        if (string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            return Fail(response, "scenario_conflict",
+                "Для удаления сценария укажите expectedSha256: его возвращают get_scenario и list_scenarios как поле sha256. " +
+                "Защита от одновременной правки не заполнена, поэтому изменился сценарий или нет -- неизвестно.");
+        }
+        if (!string.Equals(record.Sha256, NormalizeSha(expectedSha256), StringComparison.OrdinalIgnoreCase))
         {
             return Fail(response, "scenario_conflict", "Сценарий изменился после чтения. Удаление отменено.");
         }

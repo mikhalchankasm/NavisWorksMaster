@@ -14,7 +14,7 @@ had precise numbers for four tools and none for the rest.
 | plugin | host-reported `pluginAssemblyLength` 1586688, `pluginAssemblyLastWriteUtc` 2026-09-20T09:09:49Z, sha256 `af60b1b9…` |
 | server | built from `main` at the same commit |
 | scope of this row | the read-only pass only — the two clash windows ran a **different** plugin (`20bb4356…`) and a separately launched server, and the `rootName` message was checked later still on the branch build (`pluginAssemblyLength` 1588736). Latency is comparable only within one window, so each section states its own build instead of inheriting this one. |
-| tools covered | **62 of 104** advertised tools — 35 in the read-only pass below, plus 27 more clash tools in two later L3 windows |
+| tools covered | **92 of 104** advertised tools carry a measured number, counted against `tools/list` and against this document's own tables rather than by hand — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, and `start_navisworks` / `close_navisworks` / `delete_scenario` stated in prose. The remaining **12** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
 
 Every number is `navishelper_timing.elapsed_ms`, which is the **MCP server's** measure
 of the whole call, not the Navisworks host's internal time. `McpToolTimingFilter` starts
@@ -39,13 +39,17 @@ A baseline must not be the thing that changes the model. Left out, and why:
 - **Document-mutating tools** — `create_viewpoint`, `create_selection_set`,
   `create_search_set`, `save_document`, `save_document_as`, `saved_viewpoints_*`,
   `markup_*`, `model_color_scheme`, `selection_color_by_property`. These write the
-  owner's document or its saved items.
+  owner's document or its saved items. **Most were measured later**, in the third window
+  below, where everything created carries one prefix and is deleted again; `save_document`
+  and `save_document_as` remain unmeasured on purpose, because the point of these windows
+  is that the document is never saved.
 - **The clash surface** — 29 tools, of which only `clash_bbox_pair_plan` (a dry-run
   plan) appears in the table below. Runs, imports and matrix creation mutate clash tests,
   so they were measured in their own L3 windows; see [The clash surface](#the-clash-surface),
   which now covers 28 of the 29.
 - **Long-running jobs** — `dump_subtree_names` and its status/cancel pair, which write a
-  file and are designed to be polled.
+  file and are designed to be polled. **Measured in the third window** against a real job,
+  including the cancel: 106 ms to start, 319 ms for the first poll, 8 ms to cancel.
 - **Lifecycle** — `start_navisworks`, `close_navisworks`,
   `open_latest_navisworks_file`. Measured separately while fixing the attach behaviour:
   a launch is roughly 15 500 ms, attaching to a ready host that already holds the
@@ -337,6 +341,106 @@ it, so measuring it needs a file exported by Navisworks' own Clash Detective UI.
   children, or search its path). Recorded, not changed.
 - **Every wrong argument was refused, again.** `clash_manage_tests` rejected an extra
   `testHandle` with `did you mean 'testHandles'?`, and nothing was half-applied.
+
+## The third window: everything the first two left
+
+Measured in an agreed L3 window on 2026-09-20, on the plugin the host itself reported:
+`pluginAssemblyLength` 1590272, written `2026-09-20T20:41:41Z`, sha256 `684ac7ff…`, built
+from `main` at `86d243b`. The document started with **0 clash tests, 0 selection sets and
+0 saved viewpoints** and ended the same way; it was never saved, and the close reported
+`discardedUnsavedChanges: true`.
+
+Everything created carried one prefix and was deleted by name. The scenario library was
+redirected with `NAVISHELPER_SCENARIO_DIR` to a temporary directory, so the operator's own
+two saved scenarios were not read, rewritten or counted — verified before and after.
+
+| tool | case | ms |
+| --- | --- | --- |
+| `mcp_task_timer_start` | start | 14 |
+| `mcp_task_timer_finish` | finish | 1 |
+| `last_operation_status` | most recent operation | 75 |
+| `isolate_selected` | apply=false / apply=true | 125 / 296 |
+| `hide_unselected` | apply=false / apply=true | 21 / 72 |
+| `unhide_selected` | apply=true | 25 |
+| `reveal_selected` | apply=true | 26 |
+| `capture_current_view` | png to a temp path | 27 |
+| `start_subtree_names_dump` | `/STORE`, csv | 106 |
+| `dump_subtree_names_status` | first poll, 5 000 items processed | 319 |
+| `cancel_subtree_names_dump` | a genuinely running job | 8 |
+| `isolate_by_box` | apply=false / apply=true | **2 953 / 5 761** |
+| `save_scenario` | apply=true | 37, 60 |
+| `get_scenario` | by id | 4 |
+| `resolve_scenario` | with parameter values | 9 |
+| `delete_scenario` | refused without the guard / applied with it | 0 / 12 |
+| `select_selection_set` | apply=false / apply=true | 31 / 21 |
+| `selection_sets_manage` | rename, apply=false / apply=true | 26 / 26 |
+| `selection_sets_reorder` | apply=false / apply=true | 35 / 13 |
+| `selection_sets_build_viewpoints` | one overview step, false / true | 53 / 19 |
+| `activate_saved_viewpoint` | apply=false / apply=true | 19 / 22 |
+| `saved_viewpoints_export` | json to a temp path | 26 |
+| `saved_viewpoints_manage` | rename, apply=true | 33 |
+| `saved_viewpoints_reorder` | apply=false / apply=true | 33 / 14 |
+| `markup_selection` | one selection, fitToSelection | 73 |
+| `live_markers` | apply=false / on / off | 29 / 15 / 15 |
+| `section_box_viewpoint` | from the selection | 49 |
+| `build_mtr_viewpoints` | createPlan=true, no section box | 28 |
+| `saved_viewpoints_import` | every input available in-product | refused, see below |
+
+### What the third window found
+
+**`isolate_by_box` is the second slow tool, and bimodal like the first.** Five samples on
+one unchanged build: **2 500, 2 953, 5 761, 7 560, 9 590 ms.** Same shape as
+`find_items_by_bbox` and the same warning applies — treat a single number as an order of
+magnitude, and do not accept a before/after pair without several samples per side. Nothing
+else in this window exceeded 320 ms.
+
+**An `_export` / `_import` pair here is not a round trip, and that is now two instances.**
+`saved_viewpoints_export` writes csv, json or md — "use before bulk rename/reorder work so
+duplicate names can be reviewed". `saved_viewpoints_import` reads *Navisworks-authored
+Saved Viewpoints XML*. So the export cannot feed the import, which was confirmed three
+ways: its own json, that json renamed `.xml`, and the default csv all fail with
+`Failed to read saved viewpoints XML`. The other instance is `clash_tests_export`
+(`navishelper_json`) against `clash_batchtest_import` (`nw-exchange-12.0`). Both pairs are
+individually documented and correct; it is the naming symmetry that misleads. Recorded
+here so the next reader does not spend the window discovering it a third time.
+
+**A structured refusal arrives with `navishelper_timing.status: "ok"`.** `delete_scenario`
+without `expectedSha256` answered `ok: false`, `applied: false`,
+`errorCode: "scenario_conflict"` in the payload — while the timing envelope said `ok`, and
+a harness that trusted the envelope recorded it as a successful 0 ms call. That is how this
+window nearly reported a refusal as a measurement. Schema violations and command failures
+*do* set the envelope to `error`, so the split is between transport-level failure and a
+structured domain refusal. Not changed here, because the mapping is shared by every tool
+and narrowing it is a contract decision; but any client checking only the envelope will
+read some refusals as successes.
+
+**The scenario guard blamed a change that had not happened.** Missing `expectedSha256` and
+a *stale* one produced one message: "Сценарий изменился после чтения" — and for delete, no
+mention of `expectedSha256` at all. Nothing had changed; the caller had simply not supplied
+the guard, and the advice to re-read and retry cannot fix that. **Fixed in this branch** at
+both sites, save and delete: a missing guard now names the parameter and where to get it
+(`get_scenario` and `list_scenarios` both return `sha256`), and a stale one keeps the
+original wording. Covered by a test that was proved to bite — reverting the delete site
+alone fails exactly one assertion.
+
+## What still has no number
+
+Twelve tools, and the reason for each, so the gap is a decision rather than an oversight:
+
+| tool | why |
+| --- | --- |
+| `save_document`, `save_document_as` | never run on purpose. Every window depends on the document not being saved. |
+| `clash_batchtest_import` | needs a Navisworks-authored `nw-exchange-12.0` XML; no tool in the product writes one. |
+| `saved_viewpoints_import` | needs Navisworks-authored Saved Viewpoints XML, for the same reason. Its refusal path was measured; the import path was not. |
+| `create_selection_set`, `create_viewpoint` | exercised as scaffolding in the third window — the sets and viewpoints the other tools needed — but their own timings were not recorded, so they are not claimed here. |
+| `create_search_set` | not exercised; it needs a search condition rather than handles. |
+| `model_color_scheme`, `selection_color_by_property` | write display overrides across the model; they need a window of their own with a stated restore. |
+| `selection_export_properties` | writes a report file; harmless, simply not reached. |
+| `dump_subtree_names` | the synchronous variant. Its asynchronous trio was measured instead, which is the form the contract recommends for a subtree this size. |
+| `open_latest_navisworks_file` | a lifecycle tool measured only indirectly, through the launch figure. |
+
+The first seven of those are one short window away. `save_document*` and the two import
+tools are not, and saying which is which matters more than the count.
 
 ## Re-running it comparably
 
