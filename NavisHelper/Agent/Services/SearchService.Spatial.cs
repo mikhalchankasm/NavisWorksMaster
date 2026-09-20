@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Diagnostics;
 using System.Linq;
 using Autodesk.Navisworks.Api;
@@ -76,14 +77,28 @@ namespace NavisHelper.Agent.Services
                     response.ScannedItemCount++;
                     if (!includeHidden && item.IsHidden)
                         continue;
-                    if (!includeContainers && item.Children != null && item.Children.Count() > 0)
+
+                    // Any(), not Count() > 0. ModelItemEnumerableCollection implements
+                    // IEnumerable<ModelItem> and nothing else -- no ICollection<T>, no
+                    // Count property, checked against the 2027 assembly -- so LINQ's
+                    // Count() enumerates every child, allocating a wrapper each, to
+                    // answer whether there is at least one. Any() stops at the first.
+                    if (!includeContainers && item.Children != null && item.Children.Any())
                         continue;
 
-                    var sourceFile = TryGetSourceFile(item) ?? string.Empty;
-                    if (!string.IsNullOrEmpty(sourceFileContains) &&
-                        sourceFile.IndexOf(sourceFileContains, StringComparison.OrdinalIgnoreCase) < 0)
+                    // Deferred. TryGetSourceFile walks every property category on the
+                    // item and, failing that, every ancestor doing the same -- the most
+                    // expensive thing available per item. It used to run for every
+                    // scanned item, including the ones about to fail the box test, and
+                    // including when no source-file filter was asked for at all. It is
+                    // now read only when it is the filter, or when the item is going
+                    // into the result and the record needs it.
+                    string sourceFile = null;
+                    if (!string.IsNullOrEmpty(sourceFileContains))
                     {
-                        continue;
+                        sourceFile = TryGetSourceFile(item) ?? string.Empty;
+                        if (sourceFile.IndexOf(sourceFileContains, StringComparison.OrdinalIgnoreCase) < 0)
+                            continue;
                     }
 
                     BoundingBox3D box;
@@ -113,7 +128,12 @@ namespace NavisHelper.Agent.Services
 
                     // The path is still what the result is presented and sorted by;
                     // it is simply no longer what identity is decided by, and it is
-                    // now built only for the items that are actually returned.
+                    // now built only for the items that are actually returned. The
+                    // source file is read here for the same reason, unless the filter
+                    // already needed it above.
+                    if (sourceFile == null)
+                        sourceFile = TryGetSourceFile(item) ?? string.Empty;
+
                     matches.Add(new SpatialMatch(item, BuildItemPath(item), sourceFile, box));
                 }
             }
@@ -126,8 +146,27 @@ namespace NavisHelper.Agent.Services
                 response.Preview = matches.Take(previewLimit).Select(BuildSpatialPreviewItem).ToList();
             }
 
+            // "Narrow the zone" is not on this list, and used to be. The zone is read
+            // only by MatchesSpatialBox, after an item has been scanned and its box
+            // computed, so it cannot reduce scannedItemCount: a caller that followed
+            // that advice narrowed the zone, hit the identical truncation, and had no
+            // way to tell that the answer was still partial for the same reason.
+            //
+            // sourceFileContains is not on it either. It makes each skipped item
+            // cheaper, but the cap counts scanned items and the counter increments
+            // before every filter, so it does not let a call reach further into the
+            // model. Raising maxScannedItems is the only lever that extends coverage,
+            // and the 10 second budget is the next wall behind it.
             if (response.TraversalTruncated)
-                response.Warnings.Add("Traversal stopped at the safety limit; narrow the zone, sourceFileContains, or maxScannedItems.");
+            {
+                response.Warnings.Add(
+                    "Traversal stopped at " + response.ScannedItemCount.ToString(CultureInfo.InvariantCulture) +
+                    " scanned items, so this answer is partial and items outside it were never examined. " +
+                    "Raise maxScannedItems (maximum " + SpatialSearchOptionsHelper.MaxMaxScannedItems.ToString(CultureInfo.InvariantCulture) +
+                    "); a " + MaxSpatialSearchMilliseconds.ToString(CultureInfo.InvariantCulture) +
+                    " ms budget stops the traversal after that. Narrowing the zone does NOT help: the zone filters " +
+                    "results, not the scan, so every item is scanned either way.");
+            }
             if (response.ResultsTruncated)
                 response.Warnings.Add("Result limit reached; narrow the zone or increase maxResults up to the documented maximum.");
 
