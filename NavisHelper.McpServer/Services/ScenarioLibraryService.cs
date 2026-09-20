@@ -192,10 +192,12 @@ internal sealed class ScenarioLibraryService
             existing = ReadById(scenarioId, out var errorCode, out var errorMessage);
             if (existing == null)
                 return Fail(response, errorCode, errorMessage);
-            // Не сливать два разных случая в одно сообщение. Отсутствующий expectedSha256 --
-            // это незаполненная защита от одновременной правки, а не изменившийся сценарий:
-            // сказать «изменился после чтения» значит назвать причину, которой не было, и
-            // дать совет «перечитайте и повторите», который сам по себе не поможет никогда.
+            // Two different situations must not collapse into one message. A missing
+            // expectedSha256 is an unfilled concurrency guard, not a changed scenario:
+            // saying "changed after it was read" names a cause that did not happen, and
+            // the advice to re-read and retry cannot help, because re-reading does not
+            // supply a parameter. The message says only what is known -- and without the
+            // caller's hash, whether the file changed is precisely what is not known.
             if (string.IsNullOrWhiteSpace(expectedSha256))
             {
                 return Fail(response, "scenario_conflict",
@@ -292,8 +294,8 @@ internal sealed class ScenarioLibraryService
 
         if (!confirmDelete)
             return Fail(response, "scenario_delete_confirmation_required", "Для удаления сценария укажите confirm_delete=true после проверки preview.");
-        // То же разделение, что и при сохранении: без expectedSha256 удаление отклоняется
-        // потому, что защита не заполнена, а не потому, что файл кто-то менял.
+        // The same split as on save: without expectedSha256 the delete is refused because
+        // the guard is unfilled, not because anyone changed the file.
         if (string.IsNullOrWhiteSpace(expectedSha256))
         {
             return Fail(response, "scenario_conflict",

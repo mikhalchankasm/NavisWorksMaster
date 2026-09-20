@@ -27,6 +27,33 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 - `host_busy` is retryable short-term MCP host contention. `interactive_busy` means Navisworks is busy with a manual UI operation and should not be auto-retried until the user operation finishes.
 - Thrown MCP/host errors use the text convention `<error_code>: <message>` where possible. Prefer structured `errorCode` / `error_code` fields when present, and treat the prefix as a fallback for clients that only surface plain text.
 
+### `navishelper_timing.status` is the transport's verdict, not the tool's
+
+A schema violation or a failed host call sets `status` to `error`. A **structured refusal**
+does not: it answers with `status: "ok"` while the payload carries `ok: false`, `applied:
+false` and an `errorCode`. `delete_scenario` without `expectedSha256` is the measured
+example — a client that read only the envelope recorded it as a successful 0 ms call.
+
+So: read `ok` and `errorCode` from the payload whenever a tool has them, and treat
+`status` as "the call arrived and came back", not "the thing you asked for happened".
+
+### An `_export` / `_import` pair is not necessarily a round trip
+
+Two pairs in this catalogue share a name and not a format, and in both the export cannot
+feed the import:
+
+| export | writes | its `_import` sibling reads |
+| --- | --- | --- |
+| `saved_viewpoints_export` | csv, json or md | Navisworks-authored Saved Viewpoints **XML** |
+| `clash_tests_export` | `navishelper_json` | `nw-exchange-12.0` XML from Clash Detective |
+
+Both exports exist for review — duplicate names, paths, indices before a bulk rename —
+and both imports exist to ingest what Navisworks itself wrote. Neither is a defect on its
+own; the trap is the naming symmetry, and it was measured three ways on the viewpoint pair
+(its own json, that json renamed `.xml`, and the default csv all fail with `Failed to read
+saved viewpoints XML`). If you need a round trip, there is not one: re-create from the
+export's contents with the create tools.
+
 ### Truncation flags: a partial answer always says so, in a boolean
 
 A tool that cannot return everything sets a `*Truncated` boolean rather than failing. A
