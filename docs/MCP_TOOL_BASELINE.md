@@ -177,6 +177,81 @@ An open question for the owner rather than a decision taken: the cap could count
 *examined* items instead, which would let `sourceFileContains` extend coverage rather
 than only cheapen it. That is a contract change and is not made here.
 
+## The clash surface
+
+Measured in an agreed L3 window on 2026-09-20, plugin `20bb4356…`. These 29 tools are not
+reachable from a session started with a narrowed tool profile, so they were driven through a
+server built with the default `all` profile.
+
+**The reference model contains no clash tests.** Every result-bearing tool therefore
+measures an empty path unless tests exist, so one throwaway matrix was created from a
+4-item selection, run, read, and deleted again. The document was never saved and ended the
+window with the test count back at zero; `close_navisworks` reported
+`documentWasModified: true` and `discardedUnsavedChanges: true`, which is the expected end
+state for that sequence and the reason `mode=discard` was used.
+
+**These are per-call overheads, not clash-engine throughput.** Four leaf items give one pair
+per test, which runs in milliseconds. `clash_run_batch`'s own contract says an overrun is
+reported only after Navisworks returns and "a single synchronous test cannot be force-aborted
+safely", so a real test over a 270 000-node model has no reliable timebox inside a window and
+was not run. Engine throughput on real geometry is **unmeasured**.
+
+| tool | empty document | 4 tests, 1 pair each |
+| --- | --- | --- |
+| `clash_list_tests` | 13 | 27 |
+| `clash_list_results` | 12 | 45 |
+| `clash_list_clusters` | 18 | 69 |
+| `clash_root_matrix` | `schema_violation`: no tests matched | 23 |
+| `clash_report_status` | 4 | 7 |
+| `clash_bbox_pair_plan` `sourceMode=selection` | 11 | — |
+| `clash_tests_export` | 13 | 34 |
+| `clash_ignore_rules` `action=list` | — | 30 |
+| `clash_create_matrix_from_selection` `apply=false` | — | 60 |
+| `clash_create_matrix_from_selection` `apply=true` | — | 72 |
+| `clash_run_batch` `apply=false` | — | 30 |
+| `clash_run_batch` `apply=true` | — | 20 |
+| `clash_run_status` waiting for completion | — | **1 059** |
+| `clash_renumber_results` `apply=false` | — | 33 |
+| `clash_generate_report` `apply=false` | — | 99 |
+| `clash_save_viewpoints` `apply=false` | — | 56 |
+| `clash_manage_tests` `operation=delete` `apply=true` | — | 4 tests deleted |
+
+Nothing here is slow. `clash_run_status` at about a second is the run itself finishing, not
+overhead. Every write-capable clash tool defaults to `apply=false`, so the call an agent
+makes first is a dry run, and the dry runs cost between 30 and 99 ms.
+
+**Not measured, and why.** The `apply=true` paths of `clash_group_by_proximity`,
+`clash_group_custom`, `clash_ungroup`, `clash_set_status`, `clash_renumber_results`,
+`clash_generate_report`, `clash_save_viewpoints` and `clash_export_points` all write into the
+document or onto disk; `clash_batchtest_import`, `clash_tests_from_sets` and
+`clash_pair_tests_create` create tests from external input; `clash_isolate_result` and
+`clash_reset_isolation` change visibility; `cancel_clash_run`, `cancel_clash_report` and
+`clash_run_resume` only make sense mid-operation. Nine of 29 tools remain unmeasured.
+
+### What the window actually found
+
+Latency was not the useful result. Two contract problems were:
+
+- **Four scope error messages named parameters their tool rejects.** The shared
+  `ResolveClashTests` guard offered `testName, testNames, testHandles, namePrefix, or firstN`
+  to every caller, but four of the five callers that require a scope pass `null` for
+  `namePrefix` and `firstN` because their tools do not expose them. Following the advice from
+  `clash_export_points` produced `Unknown parameter(s) for tool 'clash_export_points':
+  'namePrefix'` from the tool that had just asked for it. Hit twice while measuring. Each
+  message now lists only what its own tool accepts and names the tool, matching
+  `clash_group_results` and `clash_renumber_results`, which already did.
+- **The scope vocabulary differs per tool with no visible rule.** `clash_manage_tests` takes
+  all five, `clash_run_batch` takes four but not `testName`, `clash_tests_export` takes three,
+  `clash_export_points` two, `clash_generate_report` and `clash_save_viewpoints` only
+  `testName`/`testNames`, `clash_list_results` only `testName`. Not changed here -- widening a
+  scope surface is a contract decision -- but recorded, because a caller that learns one
+  tool's scoping cannot carry it to the next.
+
+Also worth keeping: every wrong argument in this window was refused with an actionable
+message, including `Unknown parameter(s) for tool 'clash_manage_tests': 'action' (did you mean
+'operation'?). The command was not executed.` Eight guesses, eight refusals, nothing silently
+ignored and nothing half-applied.
+
 ## Re-running it comparably
 
 A number here is only comparable to a number taken the same way:

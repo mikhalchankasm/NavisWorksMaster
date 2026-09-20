@@ -246,7 +246,7 @@ namespace NavisHelper.Agent.Services
             var clash = document.GetClash();
             var testsData = clash.TestsData;
             var tests = ClashApiCompat.GetClashTests(clash).ToList();
-            var matchedTests = ResolveClashTests(tests, request.TestName, request.TestNames, request.TestHandles, null, null, true).ToList();
+            var matchedTests = ResolveClashTests(tests, request.TestName, request.TestNames, request.TestHandles, null, null, true, "testName, testNames, or testHandles", "clash_group_by_proximity").ToList();
             var response = new ClashGroupByProximityResponse
             {
                 GroupMode = groupMode,
@@ -456,7 +456,7 @@ namespace NavisHelper.Agent.Services
 
             var clash = document.GetClash();
             var tests = ClashApiCompat.GetClashTests(clash).ToList();
-            var matchedTests = ResolveClashTests(tests, string.Empty, request.TestNames, request.TestHandles, null, null, true).ToList();
+            var matchedTests = ResolveClashTests(tests, string.Empty, request.TestNames, request.TestHandles, null, null, true, "testNames or testHandles", "clash_export_points").ToList();
             var origin = request.Origin ?? new Point3Info();
             var angle = request.RotationDeg.GetValueOrDefault(0) * Math.PI / 180.0;
             var cos = Math.Cos(angle);
