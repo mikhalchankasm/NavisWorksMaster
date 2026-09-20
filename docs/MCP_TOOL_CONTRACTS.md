@@ -416,11 +416,20 @@ Outputs:
 
 #### Attaching instead of starting a second process
 
-**A request naming a file that a ready host of the requested version already has
+**A request naming a file that a ready host of the requested version is proven to have
 open attaches to that host and starts nothing.** The response carries
 `processCreated: false`, `outcome: attached_to_existing_host`, `processId` set to that
 host's pid, and the host itself. Measured live on `6501.5.nwd`, Navisworks 2027:
-**42 ms** against roughly 15 500 ms for a launch.
+**123 ms** against roughly 15 500 ms for a launch.
+
+*Proven* is load-bearing. Discovery reports a document **title**, which is a file name,
+so `C:\A\model.nwd` and `D:\B\model.nwd` are indistinguishable in the host list.
+A name match is therefore only a candidate: the server confirms it with `host_status`
+on that instance and compares the full `documentFileName`, and **launches instead when
+the path cannot be confirmed**, saying so in a warning. Attaching on a name alone would
+report success without opening the requested file, and the next write tool would act on
+a different model. That one extra round trip is the difference between 42 ms and 123 ms
+and it is worth paying.
 
 This exists because the alternative was a broken session. Observed live on
 2026-09-20: `start_navisworks` produced a ready 2027 host, `open_latest_navisworks_file`
@@ -440,9 +449,14 @@ Three cases still start a process, deliberately:
 
 That last case is the reported sequence, and it still ends with two hosts. What
 changed is that the response now says so, in a warning naming
-`multiple_hosts_detected`, `list_navisworks_hosts` and `close_navisworks` — at the
-moment it becomes true, rather than leaving the caller to discover it on its next
-call as an error about a situation this call created.
+`multiple_hosts_detected`, `list_navisworks_hosts` and `close_navisworks` — rather than
+leaving the caller to discover it on its next call as an error about a situation this
+call created.
+
+That warning is derived from the host count **after** the launch, not predicted from the
+count before it. `Roamer.exe` can hand a file off into an instance that is already
+running, in which case the launch adds no host, and a prediction would have told the
+caller to close an instance that does not exist.
 
 A separate warning fires when the discovered host runs in a different process than
 the one that was started. `SelectHost`'s last resort matches on document title

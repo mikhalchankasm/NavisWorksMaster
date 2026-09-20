@@ -9,23 +9,28 @@ namespace NavisHelper.Agent.Contracts
     /// Decides whether starting Navisworks should attach to a host that is already
     /// running, or launch another process.
     ///
-    /// Observed live on 2026-09-20, Navisworks 2027: `start_navisworks` produced a
-    /// ready host with no document, `open_latest_navisworks_file` then produced a
-    /// **second** process, and every following call failed with
-    /// `multiple_hosts_detected` until one was closed. A second session reproduced it
-    /// with the requested file already open in the running host, which is the case
-    /// where launching another process is provably wrong: the caller asked for that
-    /// file, it is open, and a ready host is serving it.
+    /// The account of why this exists, what it deliberately does not cover, and the
+    /// live measurements behind it lives in `docs/MCP_TOOL_CONTRACTS.md` under
+    /// *Attaching instead of starting a second process*. Not repeated here: three
+    /// copies of one dated observation drift, and the repository keeps a fact in one
+    /// place.
     ///
-    /// There is no host command that opens a document in a running instance. That is
-    /// what bounds this policy: a request naming a file the running host does not have
-    /// open cannot be satisfied by attaching, so it still launches. Fixing that case
-    /// means adding the capability, not changing this decision.
+    /// The rule this type enforces: **attach only to a host proven to hold the
+    /// requested document.** Discovery exposes a document *title*, which is a file
+    /// name and not an identity, so a name match is a candidate and nothing more.
     /// </summary>
     public static class NavisworksAttachPolicy
     {
         /// <summary>
-        /// The host to attach to, or null to launch a process.
+        /// A host that *may* be serving this request, or null to launch a process.
+        ///
+        /// This is a candidate, not a decision. Discovery reports a document title --
+        /// a file name -- so `C:\A\model.nwd` and `D:\B\model.nwd` are
+        /// indistinguishable here. Attaching on a name alone would report success
+        /// without opening the requested file, and later write tools would target the
+        /// wrong model. The caller must prove identity with
+        /// <see cref="DocumentPathMatches"/> against the host's full document path
+        /// before attaching, and launch when it cannot.
         ///
         /// A blank <paramref name="requestedFilePath"/> always launches. A caller
         /// asking only to start Navisworks may legitimately want another instance, and
@@ -36,10 +41,9 @@ namespace NavisHelper.Agent.Contracts
         /// A host only appears in the discovery list once it has registered, which is
         /// the same record <c>FindHost</c> treats as readiness, so a listed host of the
         /// right version is a ready host. A running-but-not-yet-registered instance is
-        /// invisible here and therefore still launches, which is the case the task
-        /// asked to preserve.
+        /// invisible here and therefore still launches.
         /// </summary>
-        public static NavisworksHostInfo SelectAttachTarget(
+        public static NavisworksHostInfo SelectAttachCandidate(
             IEnumerable<NavisworksHostInfo> hosts,
             string navisworksVersion,
             string requestedFilePath)
@@ -59,6 +63,45 @@ namespace NavisHelper.Agent.Contracts
                 .OrderByDescending(host => host.StartedAtUtc)
                 .FirstOrDefault();
         }
+
+        /// <summary>
+        /// Whether a host's full document path is the file that was requested.
+        ///
+        /// This is the proof a name match cannot give. Both sides are compared as full
+        /// paths, case-insensitively, because Windows paths are. A blank on either side
+        /// proves nothing and therefore fails: an unproven match must launch rather
+        /// than attach, because the cost of attaching to the wrong model is a write
+        /// tool acting on it.
+        /// </summary>
+        public static bool DocumentPathMatches(string hostDocumentFileName, string requestedFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(hostDocumentFileName) || string.IsNullOrWhiteSpace(requestedFilePath))
+                return false;
+
+            try
+            {
+                var hostPath = Path.GetFullPath(hostDocumentFileName.Trim());
+                var requestedPath = Path.GetFullPath(requestedFilePath.Trim());
+                return string.Equals(hostPath, requestedPath, StringComparison.OrdinalIgnoreCase);
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+            catch (NotSupportedException)
+            {
+                return false;
+            }
+            catch (PathTooLongException)
+            {
+                return false;
+            }
+        }
+
+        public const string CandidateDocumentNotProvenMessage =
+            "A Navisworks host of this version reports a document with the same file name, but its full path could not "
+            + "be confirmed as the requested file, so a process was started instead of attaching to it. Attaching on a "
+            + "matching name alone would risk later tools acting on a different model.";
 
         /// <summary>
         /// The document title a host must report to be serving this request. Public
@@ -104,19 +147,24 @@ namespace NavisHelper.Agent.Contracts
             + "reported instead. Pass instanceId from this response, or from list_navisworks_hosts, to target it.";
 
         /// <summary>
-        /// Warning for a launch that leaves more than one host of the same version
-        /// running. Said at the moment it becomes true, because the caller discovers it
-        /// otherwise on its next call, as an error about a situation this one created.
+        /// Warning for a session that now holds more than one host of the same version.
+        ///
+        /// Derived from the count **after** the launch, not before it. A pre-launch
+        /// count of one predicts a second host, and that prediction can be wrong:
+        /// Roamer can hand a file off into an instance that is already running, in
+        /// which case nothing was added and the warning would have told the caller to
+        /// close an instance that does not exist. Counting afterwards states what is,
+        /// which is the only thing worth saying at this level of certainty.
         /// </summary>
-        public static string BuildAdditionalHostWarning(int readyHostsOfVersionBefore, string navisworksVersion)
+        public static string BuildAdditionalHostWarning(int readyHostsOfVersionAfter, string navisworksVersion)
         {
-            if (readyHostsOfVersionBefore <= 0)
+            if (readyHostsOfVersionAfter <= 1)
                 return null;
 
             var version = string.IsNullOrWhiteSpace(navisworksVersion) ? "that version" : navisworksVersion;
-            return "A process was started while " + readyHostsOfVersionBefore.ToString(System.Globalization.CultureInfo.InvariantCulture) +
-                   " Navisworks " + version + " host(s) were already running, because no running host had the requested " +
-                   "document open and no command opens a document in a running instance. Every tool call now needs an " +
+            return readyHostsOfVersionAfter.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                   " Navisworks " + version + " hosts are now running, because no running host held the requested " +
+                   "document and no command opens a document in a running instance. Every tool call now needs an " +
                    "explicit instanceId, or it fails with multiple_hosts_detected. Use list_navisworks_hosts, and " +
                    "close_navisworks to retire the one you do not want.";
         }
