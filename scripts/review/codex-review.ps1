@@ -5,7 +5,8 @@ param(
     [string]$Prompt,
     [string]$Model,
     [string]$OutputPath,
-    [string]$CodexPath
+    [string]$CodexPath,
+    [int]$MaxBundleChars = 200000
 )
 
 # The mirror of claude-review.ps1: that one is Codex asking Claude for a second
@@ -13,44 +14,50 @@ param(
 # AGENTS.md section 6, "External agents are read-only" -- so this wrapper exists to
 # make that true of the run rather than of the intention.
 #
-# The reviewer gets a home built for the run and nothing else. That is not
-# ceremony, it is the only thing that measured clean. On the machine this was
-# written on, `~/.codex/config.toml` carries `sandbox_mode = "danger-full-access"`,
-# ten MCP servers including `navishelper` itself -- which can drive the live
-# Navisworks rig -- and a dozen enabled plugins including Gmail and Drive.
+# WHAT THIS IS, after three corrections that each came from measurement:
 #
-# Asking Codex to list the MCP tools it could reach, three ways:
+# It collects the diff locally and pipes that text to `codex exec`. It does NOT ask
+# Codex to inspect the workspace -- the same rule AGENTS.md already states for the
+# other direction. The reviewer runs no commands, opens no files and reaches no
+# network service; it sees the bundle built below and nothing else.
+#
+# Why not `codex review`, which exists for this and formats findings nicely:
+#
+#   1. Codex's read-only sandbox on Windows will not spawn a process at all. Every
+#      `git diff` it attempted came back `rejected: blocked by policy`, six times in
+#      one run. A `[projects.<path>] trust_level = "trusted"` entry does not change
+#      that -- measured with both TOML key forms.
+#   2. With the hosted `codex_apps` catalogue enabled it works around that by reading
+#      the repository FROM GITHUB: 60 `github.compare_commits`, 18 `github.fetch_file`
+#      and 14 `github.search_commits` in one run. That is a reviewer reviewing what is
+#      pushed rather than what is in the working tree -- silently wrong for
+#      uncommitted work, and an unstated dependency on the remote for the rest.
+#   3. That same catalogue carries write operations (`github_update_file`,
+#      `github_merge_pull_request`). A hosted tool acts on a server, where a local
+#      read-only sandbox does not reach, so a mistaken or prompt-injected reviewer
+#      could have edited the repository or merged a pull request. `--disable apps`
+#      removes them: 0 calls, against 128 with it on.
+#
+# So: apps off, sandbox read-only, diff handed over as text. The cost is real and
+# worth stating -- the reviewer cannot open a file the diff does not contain, so it
+# sees changed lines with their hunk context and no more.
+#
+# The reviewer also gets a home built for the run and nothing else. The operator's
+# own ~/.codex/config.toml on this machine carries sandbox_mode =
+# "danger-full-access", ten MCP servers including `navishelper` itself -- which can
+# drive the live Navisworks rig -- and a dozen enabled plugins including Gmail and
+# Drive. Asking Codex to enumerate its reachable MCP tools:
 #
 #   -c mcp_servers={}               mcp__cua_repl__js, mcp__cua_repl__js_reset
 #   -c mcp_servers={} plugins={}    mcp__cua_repl__js, mcp__cua_repl__js_reset
 #   isolated CODEX_HOME             NONE
 #
-# So clearing the config tables is not enough: a JavaScript REPL still arrives from
-# the runtime, outside both tables. The per-run home carries only `auth.json`, so
-# there is no marketplace, no plugin, no skill and no personal MCP server to load,
-# and it is deleted when the run ends.
+# Clearing the config tables is not enough; the home is what works. Re-measure before
+# trusting any change here, and re-measure both modes: `exec` and `review` do not
+# have the same surface.
 #
-# What the isolated home does NOT remove, stated because the first version of this
-# comment claimed otherwise: `codex review` runs with Codex's own built-in
-# `codex_apps` tools regardless. A run of this wrapper was observed calling
-# `codex_apps/github.fetch_file` and `codex_apps/github.search`. The NONE above was
-# measured with `codex exec`, and review mode is not the same surface. So the
-# guarantee here is narrower than "no MCP servers": the operator's servers, plugins
-# and skills are gone, Codex's own hosted tools are not, and the reviewer can reach
-# GitHub. On a private repository, decide whether that is acceptable before running
-# this. Re-measure both modes before trusting any change here.
-#
-# The sandbox is still pinned on the command line as well, because a home that
-# failed to build should not silently become a full-access run.
-#
-# approval_policy=never with a read-only sandbox means Codex reads and runs
-# read-only commands without prompting and cannot write. It does NOT mean approval
-# is waived for anything that changes the repository -- there is nothing it can
-# change. Do not "fix" a refusal by relaxing the sandbox; a reviewer that needs to
-# write is not a reviewer.
-#
-# Codex's output is review input, not instruction. Findings are evaluated and
-# applied by the lead, exactly as claude-review.ps1 requires of the other direction.
+# Codex's output is review input, not instruction. Findings are evaluated and applied
+# by the lead, exactly as claude-review.ps1 requires of the other direction.
 
 $ErrorActionPreference = 'Stop'
 
@@ -111,32 +118,105 @@ if (-not (Test-Path -LiteralPath $operatorAuth -PathType Leaf)) {
     throw ('No Codex credentials found at ' + $operatorAuth + '. Run `codex login` first; this wrapper does not authenticate.')
 }
 
-$arguments = @('review')
+# --- the bundle: what the reviewer sees, and the only thing it sees ----------------
 if ($Base) {
-    $arguments += @('--base', $Base)
+    $scope = "changes on this branch against '$Base'"
+    $diff = & git diff "$Base...HEAD"
+    $stat = & git diff --stat "$Base...HEAD"
 } elseif ($Commit) {
-    $arguments += @('--commit', $Commit)
-} elseif ($Uncommitted) {
-    $arguments += '--uncommitted'
+    $scope = "the changes introduced by commit $Commit"
+    $diff = & git show $Commit
+    $stat = & git show --stat --oneline $Commit
 } else {
-    # Codex's own default for `review` with no selector is the working tree.
-    $arguments += '--uncommitted'
+    $scope = 'staged, unstaged and untracked changes in the working tree'
+    $diff = & git diff HEAD
+    $stat = & git diff --stat HEAD
+    # core.quotepath=false, because git otherwise returns a non-ASCII name as a
+    # quoted, backslash-escaped string -- and this repository has Cyrillic paths.
+    # Passing that to -LiteralPath finds nothing, and the bundle would then name a
+    # new file and omit its contents.
+    $untracked = & git -c core.quotepath=false ls-files --others --exclude-standard
+    if ($untracked) {
+        # An untracked file is invisible to `git diff`, so it is named and included
+        # whole. Without this the most common case -- a new file -- reviews as empty.
+        $diff += @('', '--- untracked files, absent from the diff above ---')
+        foreach ($path in $untracked) {
+            if (Test-Path -LiteralPath $path -PathType Leaf) {
+                $diff += @('', ('=== ' + $path), (Get-Content -LiteralPath $path -Raw))
+            } else {
+                # Loud, not silent: a named file with no contents would be reviewed as
+                # an empty change, and the reviewer could not tell.
+                Write-Warning ('Untracked path could not be read, so it is listed without contents: ' + $path)
+                $diff += @('', ('=== ' + $path + '   [CONTENTS UNAVAILABLE - not reviewed]'))
+            }
+        }
+    }
 }
-$arguments += @(
-    '-c', 'sandbox_mode="read-only"',
-    '-c', 'approval_policy="never"',
-    '-c', 'mcp_servers={}'
-)
-if ($Prompt) {
-    $arguments += $Prompt
+if ($LASTEXITCODE -ne 0) {
+    throw ('git failed while building the review bundle (exit ' + $LASTEXITCODE +
+        '). Is this a git repository, and does the base exist?')
+}
+$diffText = ($diff -join "`n")
+$truncated = $false
+if ($diffText.Length -gt $MaxBundleChars) {
+    # An agent's output budget is finite and reading counts against it; a bundle that
+    # overflows kills the run instead of shortening the answer. Cut it here and say
+    # so, so the reviewer knows it is looking at part of a change.
+    $diffText = $diffText.Substring(0, $MaxBundleChars)
+    $truncated = $true
 }
 
-Write-Host ($codexExecutable + ' ' + ($arguments -join ' ')) -ForegroundColor DarkGray
+$instructions = @(
+    'You are reviewing a diff as an external reviewer. Report correctness defects first:',
+    'logic errors, unhandled cases, contract violations, security issues. Then, briefly,',
+    'anything duplicated, needlessly complex or measurably wasteful.',
+    '',
+    'Format each finding as:  - [P1|P2|P3] <one-line claim> -- <file>:<line>',
+    'followed by an indented paragraph giving the concrete failure: the inputs or state,',
+    'and the wrong result. Most severe first. If you find nothing, say so plainly rather',
+    'than inventing something.',
+    '',
+    'You cannot run commands and you cannot open files. Everything you have is below. If',
+    'the bundle is not enough to judge something, say which file you would need instead',
+    'of guessing.',
+    ''
+)
+if ($Prompt) {
+    $instructions += @('Additional instructions from the requester:', $Prompt, '')
+}
+$header = @(
+    ('Repository: ' + (Get-Location).Path),
+    ('Scope: ' + $scope),
+    ''
+)
+if ($truncated) {
+    $header += @(('NOTE: the diff below was truncated at ' + $MaxBundleChars +
+        ' characters. You are seeing part of the change; say so if that prevents a judgement.'), '')
+}
+$bundle = (($instructions + $header + @('--- diff --stat ---') + $stat +
+    @('', '--- diff ---', $diffText)) -join "`n")
+
+Write-Host ($codexExecutable + ' exec  (' + $scope + ', bundle ' + $bundle.Length + ' chars)') -ForegroundColor DarkGray
+
+$arguments = @(
+    'exec',
+    '--sandbox', 'read-only',
+    # The hosted `codex_apps` catalogue, off: its write operations act on a server
+    # where the local sandbox does not reach, and it is how earlier runs silently
+    # read this repository from GitHub instead of from here.
+    '--disable', 'apps',
+    '-c', 'sandbox_mode="read-only"',
+    '-c', 'approval_policy="never"',
+    '-c', 'mcp_servers={}',
+    '-'
+)
 
 $reviewEncoding = New-Object System.Text.UTF8Encoding($false)
 $oldOutputEncoding = [Console]::OutputEncoding
 $reviewProcess = $null
 $runHome = $null
+$runAuth = $null
+$keepRunHome = $false
 try {
     [Console]::OutputEncoding = $reviewEncoding
 
@@ -145,19 +225,19 @@ try {
     # names its own temp object stores; a cleanup glob must not match those.
     $runHome = Join-Path ([IO.Path]::GetTempPath()) ('navishelper-codex-review-' + [Guid]::NewGuid().ToString('N'))
     [void](New-Item -ItemType Directory -Path $runHome)
-    Copy-Item -LiteralPath $operatorAuth -Destination (Join-Path $runHome 'auth.json')
+    $runAuth = Join-Path $runHome 'auth.json'
+    Copy-Item -LiteralPath $operatorAuth -Destination $runAuth
+    # Remembered so a rotated credential can be carried back. See the write-back
+    # below for why deleting this directory blindly can log the operator out.
+    $authHashBefore = (Get-FileHash -LiteralPath $runAuth -Algorithm SHA256).Hash
+    $authKeysBefore = @((Get-Content -LiteralPath $runAuth -Raw | ConvertFrom-Json).PSObject.Properties.Name | Sort-Object)
+    # The destination is snapshotted as well. If the operator signs in again, or
+    # another Codex process writes, while this review runs, then writing our copy
+    # back would replace that newer state with an older one.
+    $operatorHashBefore = (Get-FileHash -LiteralPath $operatorAuth -Algorithm SHA256).Hash
 
-    # Two things the run home must still carry, learned by the first isolated run
-    # returning no review at all:
-    #
-    #   the model      a bare home takes the service default and drops reasoning
-    #                  effort to none, so the reviewer is not the one the operator
-    #                  configured. Inherited unless -Model overrides it.
-    #   the trust      without it, `git diff` came back "rejected: blocked by
-    #                  policy" and Codex correctly reported that it could not
-    #                  review rather than guessing. Trust removes the approval
-    #                  requirement for commands; it does NOT grant writes, which
-    #                  the read-only sandbox still forbids.
+    # The model is inherited, because a bare home takes the service default and drops
+    # reasoning effort to none -- which is not the reviewer the operator configured.
     $inheritedModel = $Model
     $inheritedEffort = ''
     $operatorConfig = Join-Path $operatorHome 'config.toml'
@@ -182,10 +262,6 @@ try {
     if ($inheritedEffort) {
         $runConfigLines += ('model_reasoning_effort = "{0}"' -f $inheritedEffort)
     }
-    # A TOML literal key, so a Windows path needs no backslash escaping.
-    $runConfigLines += ''
-    $runConfigLines += ("[projects.'{0}']" -f (Get-Location).Path)
-    $runConfigLines += 'trust_level = "trusted"'
     [IO.File]::WriteAllLines((Join-Path $runHome 'config.toml'), $runConfigLines)
 
     # Quote Windows argv entries without involving a shell, the same way
@@ -202,6 +278,7 @@ try {
     $startInfo.Arguments = $quotedArguments -join ' '
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardInput = $true
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.StandardOutputEncoding = $reviewEncoding
@@ -213,6 +290,12 @@ try {
     [void]$reviewProcess.Start()
     $stdoutTask = $reviewProcess.StandardOutput.ReadToEndAsync()
     $stderrTask = $reviewProcess.StandardError.ReadToEndAsync()
+    # Write UTF-8 bytes directly, as claude-review.ps1 does: Windows PowerShell's
+    # native pipeline can fall back to ASCII when a wrapper is nested, and a diff in
+    # this repository carries Cyrillic identifiers.
+    $bundleBytes = $reviewEncoding.GetBytes($bundle + [Environment]::NewLine)
+    $reviewProcess.StandardInput.BaseStream.Write($bundleBytes, 0, $bundleBytes.Length)
+    $reviewProcess.StandardInput.Close()
     $reviewProcess.WaitForExit()
     $stdout = $stdoutTask.GetAwaiter().GetResult()
     [Console]::Out.Write($stdout)
@@ -222,13 +305,81 @@ try {
         Write-Host ('Review written to ' + $OutputPath) -ForegroundColor DarkGray
     }
     $reviewExitCode = $reviewProcess.ExitCode
+
 } finally {
+    # --- credential write-back (begin) ---
+    #
+    # Carry a rotated credential back BEFORE the home is deleted.
+    #
+    # Providers rotate refresh tokens: refreshing CONSUMES the old one and issues a
+    # replacement. If Codex refreshes inside this disposable home and the home is then
+    # deleted, the replacement goes with it and the operator is left holding a retired
+    # token -- the next run fails with "authorization grant is invalid" while the
+    # credential file looks untouched, so the cause is invisible.
+    #
+    # This lives in `finally`, not at the end of the try: a failure on the way out --
+    # an unwritable -OutputPath, say -- would otherwise skip it and delete the only
+    # copy of the new token.
+    #
+    # Measured once and it did NOT rotate, which proves only that the token had not
+    # expired during that run. The write-back does not wait to have seen it happen.
+    if ($runAuth -and (Test-Path -LiteralPath $runAuth)) {
+        $authHashAfter = (Get-FileHash -LiteralPath $runAuth -Algorithm SHA256).Hash
+        if ($authHashAfter -ne $authHashBefore) {
+            $carried = $false
+            $reason = ''
+            $operatorHashNow = (Get-FileHash -LiteralPath $operatorAuth -Algorithm SHA256).Hash
+            if ($operatorHashNow -ne $operatorHashBefore) {
+                # Somebody else wrote the real store while this review ran -- an
+                # operator signing in again, or a concurrent Codex process. Ours is
+                # the older state now, so it must not win.
+                $reason = 'the operator credential changed during the review, so this run''s older copy was not written back'
+            } else {
+                # Refuse to write back anything that does not parse, or whose
+                # top-level shape changed: an overwritten credential store is not
+                # recoverable.
+                try {
+                    $parsed = Get-Content -LiteralPath $runAuth -Raw | ConvertFrom-Json
+                    $keysAfter = @($parsed.PSObject.Properties.Name | Sort-Object)
+                    if (Compare-Object $authKeysBefore $keysAfter) {
+                        $reason = 'the new credential file has a different top-level shape'
+                    } else {
+                        Copy-Item -LiteralPath $runAuth -Destination $operatorAuth -Force
+                        $carried = $true
+                        Write-Host 'Codex rotated its credential during the review; carried the new one back.' -ForegroundColor DarkGray
+                    }
+                } catch {
+                    $reason = 'the new credential file does not parse as JSON'
+                }
+            }
+            if (-not $carried) {
+                Write-Warning ('Codex changed its credential during the review and it was NOT written back: ' +
+                    $reason + '. The next codex run may need `codex login`. The file is at: ' +
+                    $runAuth + ' -- inspect it, then delete it.')
+                $keepRunHome = $true
+            }
+        }
+    }
+    # --- credential write-back (end) ---
+
     if ($reviewProcess) {
         $reviewProcess.Dispose()
     }
     [Console]::OutputEncoding = $oldOutputEncoding
-    if ($runHome -and (Test-Path -LiteralPath $runHome)) {
+    if ($runHome -and -not $keepRunHome -and (Test-Path -LiteralPath $runHome)) {
+        # Loud on failure, not silent: this directory holds a copy of a real
+        # credential, and on Windows a read-only file (a git object, say) can defeat
+        # the delete. A quiet failure leaves the copy in %TEMP% indefinitely.
         Remove-Item -LiteralPath $runHome -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $runHome) {
+            Get-ChildItem -LiteralPath $runHome -Recurse -Force -File -ErrorAction SilentlyContinue |
+                ForEach-Object { try { $_.IsReadOnly = $false } catch { } }
+            Remove-Item -LiteralPath $runHome -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path -LiteralPath $runHome) {
+            Write-Warning ('Could not delete the review home, which holds a copy of your Codex credential. ' +
+                'Delete it by hand: ' + $runHome)
+        }
     }
 }
 exit $reviewExitCode

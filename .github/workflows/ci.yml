@@ -56,6 +56,13 @@ jobs:
       - name: Run MCP helper tests
         run: dotnet test NavisHelper.McpServer.Tests/NavisHelper.McpServer.Tests.csproj -c Release --no-restore
 
+      # Fixture-only: no Codex, no network, no credential. It guards the write-back
+      # that carries a rotated Codex token out of the reviewer's disposable home,
+      # whose failure mode is the operator being logged out on their next run.
+      - name: Check the Codex reviewer's credential write-back
+        shell: pwsh
+        run: ./scripts/review/tests/check_codex_review_writeback.ps1
+
       - name: Publish OpenRouter AI worker for distribution smoke
         shell: powershell
         run: |
