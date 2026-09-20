@@ -109,13 +109,19 @@ namespace NavisHelper.Agent.Services
                     if (item == null)
                         continue;
 
-                    if (!seenItems.Add(item))
-                        continue;
-
                     var path = BuildItemPath(item);
                     var name = GetItemDisplayName(item);
                     var sourceFile = TryGetSourceFile(item) ?? string.Empty;
                     if (!ClashBboxPlanHelper.MatchesRootFilters(name, path, sourceFile, rootNames, nameContains, excludes))
+                        continue;
+
+                    // Dedup below the filter, never above it. This walk materializes a
+                    // wrapper per descendant, so a set fed every scanned item would keep
+                    // up to MaxClashMatrixTraversalItems of them reachable for the call --
+                    // the shape #21 measured, where 268 949 retained wrappers took the
+                    // next whole-model search from 554 ms to 7428 ms. The cost would land
+                    // on whatever runs next, so this tool's own timing would never show it.
+                    if (!seenItems.Add(item))
                         continue;
 
                     totalMatches++;
