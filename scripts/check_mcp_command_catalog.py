@@ -52,7 +52,9 @@ def extract_tools(root: Path) -> list[ToolInfo]:
     method_regex = re.compile(r"\bpublic\s+(?:async\s+)?[\w<>,\[\]\.\s]+\s+(?P<name>[A-Z]\w*)\s*\(")
     description_regex = re.compile(r'\[Description\("(?P<text>(?:\\.|[^"\\])*)"\)\]')
 
-    for path in sorted(tools_dir.glob("*.cs")):
+    # rglob so that moving a tool container into a subdirectory cannot make
+    # this catalog silently cover fewer tools while still passing.
+    for path in sorted(tools_dir.rglob("*.cs")):
         lines = path.read_text(encoding="utf-8-sig").splitlines()
         index = 0
         while index < len(lines):

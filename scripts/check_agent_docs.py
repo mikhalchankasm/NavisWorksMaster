@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -258,12 +259,18 @@ def check_permissions(root: Path, failures: list[str]) -> None:
         if rule not in deny:
             failures.append(f"the deny list is missing {rule!r}")
 
-    # Every live-system script must be denied by name. Relying on the allowlist
-    # simply not matching is how a live run gets auto-approved by a wider rule
-    # added later.
+    # Every live-system script must be denied, and the guard has to be able to see
+    # it in order to say so. Relying on the allowlist simply not matching is how a
+    # live run gets auto-approved by a wider rule added later.
+    #
+    # rglob, not glob: scripts/live-smoke/ already existed while a non-recursive
+    # glob read nothing about it and passed. That is the failure shape that stays
+    # green, so when a pin is repointed the answer to "does it read more or less
+    # now?" has to be more. At the time of this change it reads 12 scripts where
+    # the non-recursive glob read 11.
     live_scripts = sorted(
-        path.name
-        for path in (root / "scripts").glob("*")
+        path.relative_to(root).as_posix()
+        for path in (root / "scripts").rglob("*")
         if path.is_file()
         and path.suffix in {".ps1", ".py"}
         and ("smoke" in path.name or "stress" in path.name or "soak" in path.name
@@ -271,19 +278,80 @@ def check_permissions(root: Path, failures: list[str]) -> None:
              or path.name.startswith("test_"))
         and "scenario_library" not in path.name
     )
+    deny_rules = [_parse_permission_rule(rule) for rule in deny]
     for script in live_scripts:
-        if not any(script in rule for rule in deny):
+        covering = [rule for rule in deny_rules if _rule_covers(rule, script)]
+        if not covering:
             failures.append(
-                f"scripts/{script} can touch a live system or installer but is not denied by name"
+                f"{script} can touch a live system or installer but no deny rule "
+                "covers it"
             )
-        # ...and in the interpreter form the documentation actually uses.
-        if script.endswith(".ps1") and not any(
-            "-File" in rule and script in rule for rule in deny
-        ):
-            failures.append(
-                f"scripts/{script} is denied only as a bare path; the documented "
-                "powershell -File form is not covered"
-            )
+            continue
+
+        # Each type is required in the form the documentation actually runs it,
+        # because another form is a different command prefix and therefore a
+        # different rule.
+        if script.endswith(".ps1"):
+            if not any(rule.is_bare_path for rule in covering):
+                failures.append(f"{script} is not denied as a bare path")
+            if not any(rule.has_file_flag for rule in covering):
+                failures.append(
+                    f"{script} is denied only as a bare path; the documented "
+                    "powershell -File form is not covered"
+                )
+        elif script.endswith(".py"):
+            if not any(rule.is_python_form or rule.is_bare_path for rule in covering):
+                failures.append(
+                    f"{script} is denied, but not in the `python {script}` form it "
+                    "is actually run with"
+                )
+
+
+@dataclass(frozen=True)
+class PermissionRule:
+    """One deny pattern, reduced to the path it blocks and how it invokes it.
+
+    Permission patterns match a **command prefix**, so the path a rule blocks is
+    the last token of the command it names with the trailing wildcard removed.
+    A rule may therefore block a whole directory: `Bash(scripts/live-smoke/*)`
+    covers every script under it, more broadly than naming the file would. The
+    live-script check has to accept that instead of demanding a redundant
+    per-file rule, which is why coverage is a prefix test and not a substring
+    search for the file name.
+    """
+
+    path: str
+    is_bare_path: bool
+    has_file_flag: bool
+    is_python_form: bool
+
+
+def _parse_permission_rule(rule: str) -> PermissionRule:
+    inner = rule
+    if "(" in rule and rule.endswith(")"):
+        inner = rule[rule.index("(") + 1 : -1]
+    inner = inner.rstrip("*")
+    tokens = inner.split()
+    if not tokens:
+        return PermissionRule("", False, False, False)
+
+    path = tokens[-1].replace("\\", "/")
+    if path.startswith("./"):
+        path = path[2:]
+    return PermissionRule(
+        path=path,
+        is_bare_path=len(tokens) == 1,
+        has_file_flag="-File" in tokens,
+        is_python_form=tokens[0] in {"python", "python.exe", "py"},
+    )
+
+
+def _rule_covers(rule: PermissionRule, script: str) -> bool:
+    if not rule.path:
+        return False
+    if rule.path.endswith("/"):
+        return script.startswith(rule.path)
+    return script == rule.path
 
 
 def main() -> int:
