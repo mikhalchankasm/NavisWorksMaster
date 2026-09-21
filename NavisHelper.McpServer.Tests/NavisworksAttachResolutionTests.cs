@@ -282,6 +282,37 @@ public sealed class NavisworksAttachResolutionTests
     }
 
     [Fact]
+    public async Task ACandidateThatBlocksDoesNotConsumeTheWholeWaitOrHideTheRealHost()
+    {
+        // Each candidate gets its own short deadline. Sharing one -- the time left in the
+        // startup wait -- let the first candidate that blocks swallow the entire budget,
+        // so the candidates behind it were never asked and discovery was never polled
+        // again. The host that actually holds the file is second here, which is the point.
+        var blocks = Host("blocks", RequestedFilePath);
+        var holdsTheFile = Host("holds-the-file", RequestedFilePath);
+        var probed = new List<string>();
+
+        var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
+            new[] { blocks, holdsTheFile },
+            RequestedFilePath,
+            new NavisworksLaunchService.HandoffProofLedger(),
+            async (candidate, token) =>
+            {
+                probed.Add(candidate.InstanceId);
+                if (candidate.InstanceId == "blocks")
+                    await Task.Delay(TimeSpan.FromMinutes(5), token);
+
+                return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
+            },
+            Now,
+            CancellationToken.None,
+            perProbeTimeout: TimeSpan.FromMilliseconds(120));
+
+        Assert.Same(holdsTheFile, target);
+        Assert.Equal(new[] { "blocks", "holds-the-file" }, probed);
+    }
+
+    [Fact]
     public async Task ARefusalExpiresSoAHostStillBeingHandedTheFileIsNotWrittenOff()
     {
         // Why a refusal is not final. Roamer changes an existing instance's document while

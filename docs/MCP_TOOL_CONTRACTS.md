@@ -624,44 +624,53 @@ that held B, while the process it had just started was still loading C and regis
 its own host seconds later. Waiting for the launched pid is both correct and, here,
 the only way to get the host the caller asked about.
 
-The pre-launch snapshot is matched to current hosts by `instanceId`, not pid, because
-a pid freed by a closed instance can be reused by the next process — matched by pid,
-a genuinely new host would be read against a record belonging to a different one. When
-a record carries no `instanceId` the comparison falls back to the pid and can rule out
-such a new host; that direction is deliberate, because ruling one out ends in a
-truthful `host_timeout` while failing to would let the launch claim a host it never
-opened, and a host with no `instanceId` cannot be addressed by the tools that follow.
+**Only one thing is answered without a round trip: a host registered under the pid this
+launch started.** That is an identity rather than a name. Everything else — a host that
+appeared since the launch, a host that was already running — is a *candidate*, and is
+accepted only once `host_status` confirms its full document path against the requested
+one, exactly as on the attach path before a launch.
 
-**A pre-existing host is only ever accepted after its full path is proven**, exactly as
-on the attach path before a launch. `host_status` on that instance is compared against
-the requested path, and a mismatch keeps the wait running rather than answering with
-that host. A title match is what makes an instance a *candidate*; the path is what makes
-it the answer.
+That applies to newly appeared hosts too, and it has to. An instance somebody opens
+while this launch is still loading can carry the same file name from a different
+directory, and accepting it on that name is the same defect as accepting a pre-existing
+one.
 
-Nothing narrows the candidates by name beyond that title match. An earlier version
+Nothing narrows the candidates by name beyond the title match. An earlier version
 offered only hosts that had *acquired* the expected title since the launch, as a way to
 spend fewer round trips, and that filter threw away the case this path exists for: when
 Roamer hands `D:\C\model.nwd` to an instance already showing `D:\B\model.nwd` the
 document changes and the title does not, so the one host that really took the file
 looked ineligible and the launch reported `host_timeout` over a document open on screen.
 
-Each candidate is probed at most once every two seconds, and a **proof is final while a
-refusal is not**. That asymmetry is deliberate. A host confirmed to hold the requested
-path will not stop holding it in a way this call should care about, but a host that
-answers with a different path may be a stranger *or* may be part-way through being handed
-the requested file — and caching that refusal for the whole wait would turn the second
-case into a `host_timeout` over a document that finished loading a moment later. A
-candidate that does not answer at all is not recorded either way: an instance loading a
-large model is busy, not disqualified, so the next poll asks again immediately.
+The second discovery list, read immediately before the process is started, now decides
+only **which candidate is asked first** — hosts that appeared since it was taken are the
+likelier answer and each probe costs a round trip. Because every candidate is proven by
+path anyway, a stale list, or a pid reused between the two reads, costs a round trip
+spent in the wrong order and never a wrong host. That is also why the window between
+that read and the launch needs no closing, which is just as well: the launch boundary is
+only knowable once the process exists.
 
-The lookup is bounded by the time left in the wait. It can now include a round trip into
-an instance somebody else is using, and without that bound a single unresponsive
-candidate would hold `start_navisworks` open past any `waitTimeoutSeconds`.
+Each candidate is probed at most once every two seconds, under its own five-second
+deadline, and a **proof is final while a refusal is not**. Both asymmetries are
+deliberate:
 
-The second discovery list, read immediately before the process is started, is what "a
-host that registered since the launch" is measured against. The window between that read
-and the launch itself cannot be closed from inside the call, because the launch boundary
-is only knowable once the process exists.
+- A host confirmed to hold the requested path will not stop holding it in a way this
+  call should care about. A host that answers with a *different* path may be a stranger
+  — or may be part-way through being handed the requested file, since Roamer changes an
+  instance's document while its title stays put. Caching that refusal for the whole wait
+  would turn the second case into a `host_timeout` over a document that finished loading
+  a moment later.
+- A candidate that does not answer at all is recorded neither way, because an instance
+  loading a large model is busy rather than disqualified, so the next poll asks again
+  immediately.
+- The per-candidate deadline is separate from the wait's. Sharing one deadline let the
+  first candidate that blocked consume the whole startup budget, so the candidates behind
+  it were never asked and discovery was never polled again — and a host that did hold the
+  file, second in the list, lost to an instance that had simply stopped answering.
+
+The lookup as a whole is additionally bounded by the time left in the wait, so
+`waitTimeoutSeconds` keeps meaning what it says now that the lookup can make a round trip
+into an instance somebody else is using.
 
 With the default `waitForHost=true`, the server monitors both host discovery and
 the child process. A nonzero or unavailable early process exit returns

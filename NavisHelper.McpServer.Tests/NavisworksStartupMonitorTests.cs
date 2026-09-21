@@ -252,8 +252,11 @@ public sealed class NavisworksStartupMonitorTests
     }
 
     [Fact]
-    public void SelectHost_ExcludingExitedLauncherPidAllowsDifferentPidHandoff()
+    public void SelectProvableCandidates_ExcludingExitedLauncherPidStillOffersTheDifferentPidHandoff()
     {
+        // The launcher exited and a different pid serves the document. That host is a
+        // candidate rather than an answer: it is identified here by a file name, and only
+        // the path proof can say whether it holds the requested file or a same-named one.
         var staleLauncherHost = new NavisworksHostInfo
         {
             InstanceId = "launcher",
@@ -268,15 +271,55 @@ public sealed class NavisworksStartupMonitorTests
             DocumentTitle = "model.nwd",
             StartedAtUtc = DateTime.UtcNow.AddSeconds(1),
         };
+        var hosts = new[] { staleLauncherHost, handedOffHost };
 
-        var selected = NavisworksLaunchService.SelectHost(
-            new[] { staleLauncherHost, handedOffHost },
+        Assert.Null(NavisworksLaunchService.SelectHost(
+            hosts,
             expectedTitle: "model.nwd",
             processId: 100,
+            excludedProcessId: 100));
+
+        var candidates = NavisworksLaunchService.SelectProvableCandidates(
+            hosts,
+            expectedTitle: "model.nwd",
             hostsBefore: Array.Empty<NavisworksHostInfo>(),
             excludedProcessId: 100);
 
-        Assert.Same(handedOffHost, selected);
+        Assert.Same(handedOffHost, Assert.Single(candidates));
+    }
+
+    [Fact]
+    public void SelectProvableCandidates_AHostThatRegisteredSinceTheLaunchIsAskedFirst()
+    {
+        // Ordering only, and it is the one thing `hostsBefore` still decides here. A host
+        // that appeared since the launch is the likelier answer, so it is worth the first
+        // round trip -- but it is proven like any other, because another instance opening
+        // a same-named file after the snapshot would otherwise win on its name alone.
+        var alreadyRunning = new NavisworksHostInfo
+        {
+            InstanceId = "already-running",
+            Pid = 28760,
+            DocumentTitle = "model.nwd",
+            StartedAtUtc = DateTime.UtcNow,
+        };
+        var appearedSince = new NavisworksHostInfo
+        {
+            InstanceId = "appeared-since",
+            Pid = 70360,
+            DocumentTitle = "model.nwd",
+            StartedAtUtc = DateTime.UtcNow.AddMinutes(-9),
+        };
+
+        var candidates = NavisworksLaunchService.SelectProvableCandidates(
+            new[] { alreadyRunning, appearedSince },
+            expectedTitle: "model.nwd",
+            hostsBefore: new[] { alreadyRunning },
+            excludedProcessId: null);
+
+        // Ahead of `alreadyRunning` despite being the older record of the two.
+        Assert.Equal(
+            new[] { "appeared-since", "already-running" },
+            candidates.Select(host => host.InstanceId));
     }
 
     [Fact]
@@ -299,7 +342,6 @@ public sealed class NavisworksStartupMonitorTests
             new[] { otherHost, launcherHost },
             expectedTitle: "model.nwd",
             processId: 100,
-            hostsBefore: Array.Empty<NavisworksHostInfo>(),
             excludedProcessId: null);
 
         Assert.Same(launcherHost, selected);
@@ -327,7 +369,6 @@ public sealed class NavisworksStartupMonitorTests
             hosts,
             expectedTitle: "6501.5.nwd",
             processId: 72976,
-            hostsBefore: hosts,
             excludedProcessId: null));
     }
 
@@ -349,9 +390,10 @@ public sealed class NavisworksStartupMonitorTests
             StartedAtUtc = DateTime.UtcNow.AddMinutes(-5),
         };
 
-        var candidates = NavisworksLaunchService.SelectHandoffCandidates(
+        var candidates = NavisworksLaunchService.SelectProvableCandidates(
             new[] { handedTheRequestedFile },
             expectedTitle: "6501.5.nwd",
+            hostsBefore: Array.Empty<NavisworksHostInfo>(),
             excludedProcessId: null);
 
         Assert.Same(handedTheRequestedFile, Assert.Single(candidates));
@@ -386,9 +428,10 @@ public sealed class NavisworksStartupMonitorTests
             StartedAtUtc = DateTime.UtcNow,
         };
 
-        var candidates = NavisworksLaunchService.SelectHandoffCandidates(
+        var candidates = NavisworksLaunchService.SelectProvableCandidates(
             new[] { older, differentDocument, newer },
             expectedTitle: "6501.5.nwd",
+            hostsBefore: Array.Empty<NavisworksHostInfo>(),
             excludedProcessId: null);
 
         Assert.Equal(new[] { "newer", "older" }, candidates.Select(host => host.InstanceId));
@@ -407,9 +450,10 @@ public sealed class NavisworksStartupMonitorTests
             StartedAtUtc = DateTime.UtcNow,
         };
 
-        Assert.Empty(NavisworksLaunchService.SelectHandoffCandidates(
+        Assert.Empty(NavisworksLaunchService.SelectProvableCandidates(
             new[] { exitedLauncher },
             expectedTitle: "6501.5.nwd",
+            hostsBefore: Array.Empty<NavisworksHostInfo>(),
             excludedProcessId: 72976));
     }
 
@@ -427,9 +471,10 @@ public sealed class NavisworksStartupMonitorTests
             StartedAtUtc = DateTime.UtcNow.AddMinutes(-5),
         };
 
-        Assert.Empty(NavisworksLaunchService.SelectHandoffCandidates(
+        Assert.Empty(NavisworksLaunchService.SelectProvableCandidates(
             new[] { running },
             expectedTitle: string.Empty,
+            hostsBefore: Array.Empty<NavisworksHostInfo>(),
             excludedProcessId: null));
     }
 

@@ -132,14 +132,15 @@ internal sealed class NavisworksLaunchService
 
         var startInfoBuild = _startInfoFactory.Create(roamerPath, effectiveFilePath);
 
-        // Snapshot discovery again, as close to the launch as this method can get. This is
-        // what "a host that registered since the launch" is measured against, and the list
-        // taken at the top of the method is as much as a probe budget old -- 60 seconds.
-        // Measured from that one, an instance somebody started by hand while the candidate
-        // probes ran would count as this launch's own host.
+        // Snapshot discovery again, as close to the launch as this method can get. The
+        // list taken at the top of the method is as much as a probe budget old -- 60
+        // seconds -- and this one decides which candidates are asked first.
         //
-        // The window between this call and Start cannot be closed from here, because the
-        // launch boundary is only knowable once the process exists.
+        // Only the order. Every candidate is confirmed by path before it is accepted, so
+        // a stale snapshot, or a pid reused between the two reads, costs a round trip
+        // spent in the wrong order and never a wrong host. That is also why the window
+        // between this call and Start does not need closing -- which is just as well,
+        // since the launch boundary is only knowable once the process exists.
         var hostsAtLaunch = _hostBridgeClient.ListNavisworksHosts().Hosts;
 
         var startupStopwatch = Stopwatch.StartNew();
@@ -296,6 +297,11 @@ internal sealed class NavisworksLaunchService
     /// have, so more candidates never cost more wall clock than one candidate did.
     private static readonly TimeSpan DefaultAttachProbeBudget = TimeSpan.FromSeconds(60);
 
+    // One candidate, not the whole wait. Long enough for a busy instance to answer a
+    // status call, short enough that an instance which never answers costs one poll
+    // rather than every remaining one.
+    private static readonly TimeSpan DefaultPerProbeTimeout = TimeSpan.FromSeconds(5);
+
     internal static void ApplyStartupResult(
         StartNavisworksResponse response,
         NavisworksStartupMonitorResult startupResult,
@@ -354,12 +360,12 @@ internal sealed class NavisworksLaunchService
             .Where(host => string.Equals(host.NavisworksVersion, navisworksVersion, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        var host = SelectHost(hosts, expectedTitle, processId, hostsAtLaunch, excludedProcessId);
+        var host = SelectHost(hosts, expectedTitle, processId, excludedProcessId);
         if (host != null)
             return host;
 
         return await ResolveProvenHandoffAsync(
-            SelectHandoffCandidates(hosts, expectedTitle, excludedProcessId),
+            SelectProvableCandidates(hosts, expectedTitle, hostsAtLaunch, excludedProcessId),
             filePath,
             ledger,
             (target, token) => _hostBridgeClient.HostStatusAsync(
@@ -391,12 +397,14 @@ internal sealed class NavisworksLaunchService
         HandoffProofLedger ledger,
         Func<NavisworksHostInfo, CancellationToken, Task<HostStatusResponse>> probeHostStatusAsync,
         DateTimeOffset nowUtc,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan? perProbeTimeout = null)
     {
         if (candidates == null || candidates.Count == 0)
             return null;
 
         ledger ??= new HandoffProofLedger();
+        var probeTimeout = perProbeTimeout ?? DefaultPerProbeTimeout;
 
         foreach (var candidate in candidates)
         {
@@ -408,9 +416,17 @@ internal sealed class NavisworksLaunchService
                 continue;
 
             HostStatusResponse status;
+            // Each candidate gets its own short deadline rather than whatever is left of
+            // the startup wait. Sharing one deadline lets the first candidate that blocks
+            // consume the entire budget, so the candidates behind it are never asked and
+            // discovery is never polled again -- and a host that does hold the requested
+            // file, sitting second in the list, loses to an instance that simply stopped
+            // answering.
+            using var probeBudget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            probeBudget.CancelAfter(probeTimeout);
             try
             {
-                status = await probeHostStatusAsync(candidate, cancellationToken).ConfigureAwait(false);
+                status = await probeHostStatusAsync(candidate, probeBudget.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -436,74 +452,79 @@ internal sealed class NavisworksLaunchService
     /// <summary>
     /// The host this launch produced, identified without a round trip, or null.
     ///
-    /// Two tiers, both of which identify the host by something other than a file name:
-    /// the pid that was started, and a host that registered after the launch. Null does
-    /// not mean "no host" -- a hand-off registers no new host, and
-    /// <see cref="SelectHandoffCandidates"/> covers that case at the cost of a probe.
+    /// One case only: a host registered under the pid this launch started. That is an
+    /// identity, not a name, which is what makes it safe to answer with directly.
+    ///
+    /// An earlier version had a second tier here -- any host that registered after the
+    /// launch and whose document *title* matched. That is a name, and it could be
+    /// somebody else's: another instance opening `B\model.nwd` after the snapshot would
+    /// win a request for `C\model.nwd` before the launched pid registered. Every other
+    /// reading now goes through <see cref="SelectProvableCandidates"/> and is confirmed
+    /// by path.
     /// </summary>
     internal static NavisworksHostInfo SelectHost(
         IReadOnlyList<NavisworksHostInfo> hosts,
         string expectedTitle,
         int? processId,
-        IReadOnlyList<NavisworksHostInfo> hostsBefore,
         int? excludedProcessId)
     {
+        if (!processId.HasValue)
+            return null;
+
         hosts ??= Array.Empty<NavisworksHostInfo>();
-        hostsBefore ??= Array.Empty<NavisworksHostInfo>();
-        var candidates = Selectable(hosts, excludedProcessId);
+        var byPid = Selectable(hosts, excludedProcessId)
+            .FirstOrDefault(host => host.Pid == processId.Value);
 
-        if (processId.HasValue)
-        {
-            var byPid = candidates.FirstOrDefault(host => host.Pid == processId.Value);
-            if (byPid != null && HostDocumentMatches(byPid, expectedTitle))
-                return byPid;
-        }
-
-        var beforePids = new HashSet<int>(hostsBefore.Select(host => host.Pid));
-        return candidates
-            .Where(host => !beforePids.Contains(host.Pid))
-            .Where(host => HostDocumentMatches(host, expectedTitle))
-            .OrderByDescending(host => host.StartedAtUtc)
-            .FirstOrDefault();
+        return byPid != null && HostDocumentMatches(byPid, expectedTitle) ? byPid : null;
     }
 
     /// <summary>
-    /// Hosts that were already running and may have been handed the file, newest first,
-    /// for a caller that will prove each one's full path before accepting it.
+    /// Every host that might be serving this request, in the order worth asking, for a
+    /// caller that will prove each one's full path before accepting it.
     ///
-    /// Roamer can hand the file to an existing instance rather than open it itself, and
-    /// then no new host appears. Without this a launch would time out on a document open
-    /// on screen, which is why the case is covered at all.
+    /// Two readings are covered, and neither can be told from the other by name. A host
+    /// that registered after the launch may be the process Roamer started under a pid
+    /// this call never saw. A host that was already running may have been handed the
+    /// file, because Roamer can give it to an existing instance rather than open it
+    /// itself, in which case no new host appears at all -- without which a launch would
+    /// time out on a document open on screen.
     ///
     /// These are candidates, never an answer. Discovery reports a document title -- a
     /// file name -- so a same-named model in another directory is indistinguishable here.
     /// Measured live, a request for D:\nh-l3-c\6501.5.nwd returned in 140 ms naming the
     /// host that held D:\nh-l3-b\6501.5.nwd while the process it had started was still
-    /// loading C. The caller must confirm the full path with <c>host_status</c>, exactly
-    /// as the attach path does before a launch.
+    /// loading C. The caller confirms the full path with <c>host_status</c>, exactly as
+    /// the attach path does before a launch.
     ///
-    /// Every name-matching host is offered, and nothing here tries to guess which one the
-    /// launch caused. An earlier version offered only hosts that *acquired* the expected
-    /// title since the launch, as a way to spend fewer round trips. That filter threw
-    /// away the case this whole path exists for: when Roamer hands `D:\C\model.nwd` to an
-    /// instance already showing `D:\B\model.nwd`, the title never changes, so the one
-    /// host that really did take the file looked ineligible and the launch reported
-    /// `host_timeout` over a document open on screen. A filter that can exclude the right
-    /// answer is not worth a round trip.
+    /// Nothing here narrows by name beyond the title. An earlier version offered only
+    /// hosts that *acquired* the expected title since the launch, to spend fewer round
+    /// trips, and that threw away the case this path exists for: when Roamer hands
+    /// `D:\C\model.nwd` to an instance already showing `D:\B\model.nwd` the title never
+    /// changes, so the one host that really took the file looked ineligible.
+    ///
+    /// <paramref name="hostsBefore"/> only orders the result. Hosts that appeared since
+    /// it was taken are asked first, because they are the likelier answer and each probe
+    /// costs a round trip. Being wrong about that -- a reused pid, a stale snapshot --
+    /// changes who is asked first and nothing else, which is why a pid comparison is
+    /// enough here where identity would not be.
     /// </summary>
-    internal static IReadOnlyList<NavisworksHostInfo> SelectHandoffCandidates(
+    internal static IReadOnlyList<NavisworksHostInfo> SelectProvableCandidates(
         IReadOnlyList<NavisworksHostInfo> hosts,
         string expectedTitle,
+        IReadOnlyList<NavisworksHostInfo> hostsBefore,
         int? excludedProcessId)
     {
         if (string.IsNullOrWhiteSpace(expectedTitle))
             return Array.Empty<NavisworksHostInfo>();
 
         hosts ??= Array.Empty<NavisworksHostInfo>();
+        var beforePids = new HashSet<int>((hostsBefore ?? Array.Empty<NavisworksHostInfo>())
+            .Select(host => host.Pid));
 
         return Selectable(hosts, excludedProcessId)
             .Where(host => HostDocumentMatches(host, expectedTitle))
-            .OrderByDescending(host => host.StartedAtUtc)
+            .OrderBy(host => beforePids.Contains(host.Pid) ? 1 : 0)
+            .ThenByDescending(host => host.StartedAtUtc)
             .ToList();
     }
 
