@@ -211,7 +211,7 @@ public sealed class NavisworksAttachResolutionTests
             {
                 DocumentFileName = DocumentOf(candidate),
             }),
-            Now,
+            () => Now,
             CancellationToken.None);
 
         Assert.Null(target);
@@ -241,7 +241,7 @@ public sealed class NavisworksAttachResolutionTests
                         DocumentFileName = DocumentOf(candidate),
                     });
                 },
-                Now,
+                () => Now,
                 CancellationToken.None);
 
             Assert.Same(handoff, target);
@@ -274,7 +274,7 @@ public sealed class NavisworksAttachResolutionTests
                         DocumentFileName = DocumentOf(candidate),
                     });
                 },
-                Now,
+                () => Now,
                 CancellationToken.None));
         }
 
@@ -304,7 +304,7 @@ public sealed class NavisworksAttachResolutionTests
 
                 return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
             },
-            Now,
+            () => Now,
             CancellationToken.None,
             perProbeTimeout: TimeSpan.FromMilliseconds(120));
 
@@ -342,7 +342,7 @@ public sealed class NavisworksAttachResolutionTests
 
                 return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
             },
-            Now,
+            () => Now,
             waitDeadline.Token,
             // Far below the five-second default, so only a shared budget reaches the
             // second candidate before the deadline above fires.
@@ -371,7 +371,7 @@ public sealed class NavisworksAttachResolutionTests
             {
                 DocumentFileName = DocumentOf(candidate),
             }),
-            Now,
+            () => Now,
             CancellationToken.None);
 
         Assert.Null(duringTransition);
@@ -388,7 +388,7 @@ public sealed class NavisworksAttachResolutionTests
             {
                 DocumentFileName = DocumentOf(candidate),
             }),
-            Now.AddSeconds(1),
+            () => Now.AddSeconds(1),
             CancellationToken.None));
 
         // Past it, the question is asked again and the host is found.
@@ -400,7 +400,7 @@ public sealed class NavisworksAttachResolutionTests
             {
                 DocumentFileName = DocumentOf(candidate),
             }),
-            Now.AddSeconds(3),
+            () => Now.AddSeconds(3),
             CancellationToken.None);
 
         Assert.Same(transitioning, afterTransition);
@@ -430,7 +430,7 @@ public sealed class NavisworksAttachResolutionTests
                     await Task.Delay(TimeSpan.FromMinutes(5), token);
                     return new HostStatusResponse { DocumentFileName = RequestedFilePath };
                 },
-                Now,
+                () => Now,
                 CancellationToken.None,
                 perProbeTimeout: TimeSpan.FromMilliseconds(80)));
         }
@@ -440,6 +440,44 @@ public sealed class NavisworksAttachResolutionTests
         // And still only a throttle, not a verdict: past the interval it is asked again,
         // because an instance that was busy may since have answered.
         Assert.True(ledger.ShouldProbe("blocks", Now.AddSeconds(3)));
+    }
+
+    [Fact]
+    public async Task ARefusalIsStampedWhenTheProbeEndsNotWhenItStarted()
+    {
+        // The probe itself takes time -- up to its whole deadline, five seconds by default,
+        // against a two-second retry interval. Stamping the refusal with the time the probe
+        // *began* records it as already expired, so the next poll re-probes the same blocked
+        // instance immediately and the throttle does nothing. The clock therefore has to be
+        // read when the verdict is recorded, which is why this takes a clock and not a
+        // timestamp.
+        var blocks = Host("blocks", RequestedFilePath);
+        var ledger = new NavisworksLaunchService.HandoffProofLedger(
+            retryRefusalsAfter: TimeSpan.FromSeconds(2));
+        var clock = Now;
+        var probes = 0;
+
+        for (var poll = 0; poll < 2; poll++)
+        {
+            Assert.Null(await NavisworksLaunchService.ResolveProvenHandoffAsync(
+                new[] { blocks },
+                RequestedFilePath,
+                ledger,
+                async (_, token) =>
+                {
+                    probes++;
+                    // The probe burns more than the retry interval before failing, which is
+                    // the situation a fixed clock cannot reproduce.
+                    clock = clock.AddSeconds(5);
+                    await Task.Delay(TimeSpan.FromMinutes(5), token);
+                    return new HostStatusResponse { DocumentFileName = RequestedFilePath };
+                },
+                () => clock,
+                CancellationToken.None,
+                perProbeTimeout: TimeSpan.FromMilliseconds(80)));
+        }
+
+        Assert.Equal(1, probes);
     }
 
     [Fact]
@@ -461,7 +499,7 @@ public sealed class NavisworksAttachResolutionTests
                 probes++;
                 throw new InvalidOperationException("still loading");
             },
-            Now,
+            () => Now,
             CancellationToken.None);
 
         Assert.Null(first);
@@ -478,7 +516,7 @@ public sealed class NavisworksAttachResolutionTests
                 probes++;
                 return Task.FromResult(new HostStatusResponse { DocumentFileName = DocumentOf(candidate) });
             },
-            Now,
+            () => Now,
             CancellationToken.None);
 
         Assert.Same(loading, second);
@@ -504,7 +542,7 @@ public sealed class NavisworksAttachResolutionTests
                     token.ThrowIfCancellationRequested();
                     return Task.FromResult<HostStatusResponse>(null);
                 },
-                Now,
+                () => Now,
                 cts.Token));
     }
 
@@ -524,7 +562,7 @@ public sealed class NavisworksAttachResolutionTests
                 probed.Add(candidate.InstanceId);
                 return Task.FromResult(new HostStatusResponse { DocumentFileName = DocumentOf(candidate) });
             },
-            Now,
+            () => Now,
             CancellationToken.None);
 
         Assert.Same(proven, target);

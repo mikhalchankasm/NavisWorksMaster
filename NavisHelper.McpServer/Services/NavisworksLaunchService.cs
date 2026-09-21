@@ -378,7 +378,7 @@ internal sealed class NavisworksLaunchService
                 new HostStatusRequest(),
                 token,
                 new HostTargetOptions { InstanceId = target.InstanceId }),
-            DateTimeOffset.UtcNow,
+            () => DateTimeOffset.UtcNow,
             cancellationToken,
             remainingWait).ConfigureAwait(false);
     }
@@ -403,7 +403,7 @@ internal sealed class NavisworksLaunchService
         string requestedFilePath,
         HandoffProofLedger ledger,
         Func<NavisworksHostInfo, CancellationToken, Task<HostStatusResponse>> probeHostStatusAsync,
-        DateTimeOffset nowUtc,
+        Func<DateTimeOffset> utcNow,
         CancellationToken cancellationToken,
         TimeSpan? remainingWait = null,
         TimeSpan? perProbeTimeout = null)
@@ -433,7 +433,7 @@ internal sealed class NavisworksLaunchService
             if (ledger.IsProven(key))
                 return candidate;
 
-            if (!ledger.ShouldProbe(key, nowUtc))
+            if (!ledger.ShouldProbe(key, utcNow()))
                 continue;
 
             HostStatusResponse status;
@@ -461,7 +461,12 @@ internal sealed class NavisworksLaunchService
                 // blocked instance every 250 ms, so a host further down the list was never
                 // reached at all. The refusal still expires, so an instance that was merely
                 // busy gets asked again.
-                ledger.Record(key, proven: false, nowUtc);
+                //
+                // Recorded at the clock *now*, which is why this takes a clock rather than a
+                // timestamp: a probe that burns five seconds against a two-second retry
+                // interval would otherwise be stamped already-expired and re-probed on the
+                // very next poll, which is the behaviour this exists to stop.
+                ledger.Record(key, proven: false, utcNow());
                 continue;
             }
             catch (Exception)
@@ -472,7 +477,7 @@ internal sealed class NavisworksLaunchService
             }
 
             var proven = NavisworksAttachPolicy.DocumentPathMatches(status?.DocumentFileName, requestedFilePath);
-            ledger.Record(key, proven, nowUtc);
+            ledger.Record(key, proven, utcNow());
             if (proven)
                 return candidate;
         }
