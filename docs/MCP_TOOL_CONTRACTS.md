@@ -632,6 +632,14 @@ such a new host; that direction is deliberate, because ruling one out ends in a
 truthful `host_timeout` while failing to would let the launch claim a host it never
 opened, and a host with no `instanceId` cannot be addressed by the tools that follow.
 
+"Since that launch" is measured from a discovery list read **immediately before the
+process is started**, not from the one used to pick attach candidates. Those candidate
+probes can run for up to the 60-second probe budget, and a baseline taken before them
+would read every document a person opened by hand in that minute as this launch's
+hand-off — the same wrong host, arriving through the baseline instead of through the
+title. The window between that second read and the launch itself cannot be closed from
+inside the call, because the launch boundary is only knowable once the process exists.
+
 **An acquired title is evidence, not proof.** A host that was already running and
 opens some *other* same-named model while this launch is still loading becomes
 eligible under this rule and would be returned. The residual gap is far narrower than

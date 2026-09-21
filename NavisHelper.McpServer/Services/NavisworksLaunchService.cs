@@ -131,6 +131,19 @@ internal sealed class NavisworksLaunchService
         cancellationToken.ThrowIfCancellationRequested();
 
         var startInfoBuild = _startInfoFactory.Create(roamerPath, effectiveFilePath);
+
+        // Snapshot discovery again, as close to the launch as this method can get. The
+        // list taken at the top is as much as a probe budget old -- 60 seconds -- and
+        // SelectHost's last resort asks whether a host acquired the requested title
+        // *since this launch*. Measured from the older list, a document somebody opened
+        // by hand while the probes ran reads as this launch's hand-off, and the call
+        // reports a host it never opened: the same false attach this guard exists to
+        // prevent, just arriving through the baseline instead of through the title.
+        //
+        // The remaining window -- this call, then Start -- cannot be closed from here,
+        // because the launch boundary is only knowable once the process exists.
+        var hostsAtLaunch = _hostBridgeClient.ListNavisworksHosts().Hosts;
+
         var startupStopwatch = Stopwatch.StartNew();
         using var process = _processLauncher.Start(startInfoBuild.StartInfo);
         response.ProcessCreated = true;
@@ -146,7 +159,7 @@ internal sealed class NavisworksLaunchService
                     version,
                     effectiveFilePath,
                     response.ProcessId,
-                    hostsBefore,
+                    hostsAtLaunch,
                     excludedProcessId),
                 TimeSpan.FromSeconds(ClampWaitTimeoutSeconds(waitTimeoutSeconds)),
                 cancellationToken).ConfigureAwait(false);
@@ -346,6 +359,12 @@ internal sealed class NavisworksLaunchService
     /// launch, and it is needed whole rather than as a set of pids: the last resort
     /// below turns on what a pre-existing host's document title *was*, not merely on
     /// whether that host existed.
+    ///
+    /// It must be read at the launch boundary, not earlier. The caller takes one
+    /// discovery list to pick attach candidates and a second one immediately before
+    /// starting the process; this parameter wants the second. A list taken before the
+    /// candidate probes is up to a minute old, and every document opened by hand in
+    /// that minute would read here as this launch's hand-off.
     /// </summary>
     internal static NavisworksHostInfo SelectHost(
         IReadOnlyList<NavisworksHostInfo> hosts,
