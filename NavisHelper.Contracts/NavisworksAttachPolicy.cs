@@ -22,15 +22,25 @@ namespace NavisHelper.Agent.Contracts
     public static class NavisworksAttachPolicy
     {
         /// <summary>
-        /// A host that *may* be serving this request, or null to launch a process.
+        /// Every host that *may* be serving this request, newest first, or an empty
+        /// list to launch a process.
         ///
-        /// This is a candidate, not a decision. Discovery reports a document title --
+        /// These are candidates, not a decision. Discovery reports a document title --
         /// a file name -- so `C:\A\model.nwd` and `D:\B\model.nwd` are
         /// indistinguishable here. Attaching on a name alone would report success
         /// without opening the requested file, and later write tools would target the
         /// wrong model. The caller must prove identity with
-        /// <see cref="DocumentPathMatches"/> against the host's full document path
-        /// before attaching, and launch when it cannot.
+        /// <see cref="DocumentPathMatches"/> against each host's full document path,
+        /// attach to the first that proves, and launch when none does.
+        ///
+        /// All of them, not only the newest, because the newest host holding a
+        /// same-named file need not be the one holding *this* file. With
+        /// `D:\A\model.nwd` open in an older host and `D:\B\model.nwd` in a newer
+        /// one, offering only the newer one lets a request for `D:\A\model.nwd` fail
+        /// its path proof and start a third process while the file it asked for is
+        /// already open -- roughly 15 500 ms instead of 123 ms, and a redundant
+        /// Navisworks window left behind. Newest first remains the preference among
+        /// candidates that are otherwise equal.
         ///
         /// A blank <paramref name="requestedFilePath"/> always launches. A caller
         /// asking only to start Navisworks may legitimately want another instance, and
@@ -43,17 +53,17 @@ namespace NavisHelper.Agent.Contracts
         /// right version is a ready host. A running-but-not-yet-registered instance is
         /// invisible here and therefore still launches.
         /// </summary>
-        public static NavisworksHostInfo SelectAttachCandidate(
+        public static IReadOnlyList<NavisworksHostInfo> SelectAttachCandidates(
             IEnumerable<NavisworksHostInfo> hosts,
             string navisworksVersion,
             string requestedFilePath)
         {
             var expectedTitle = GetExpectedDocumentTitle(requestedFilePath);
             if (string.IsNullOrWhiteSpace(expectedTitle))
-                return null;
+                return EmptyCandidates;
 
             if (hosts == null)
-                return null;
+                return EmptyCandidates;
 
             return hosts
                 .Where(host => host != null)
@@ -61,8 +71,11 @@ namespace NavisHelper.Agent.Contracts
                                string.Equals(host.NavisworksVersion, navisworksVersion, StringComparison.OrdinalIgnoreCase))
                 .Where(host => string.Equals(host.DocumentTitle, expectedTitle, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(host => host.StartedAtUtc)
-                .FirstOrDefault();
+                .ToList();
         }
+
+        private static readonly IReadOnlyList<NavisworksHostInfo> EmptyCandidates =
+            new NavisworksHostInfo[0];
 
         /// <summary>
         /// Whether a host's full document path is the file that was requested.
@@ -102,6 +115,23 @@ namespace NavisHelper.Agent.Contracts
             "A Navisworks host of this version reports a document with the same file name, but its full path could not "
             + "be confirmed as the requested file, so a process was started instead of attaching to it. Attaching on a "
             + "matching name alone would risk later tools acting on a different model.";
+
+        /// <summary>
+        /// The unproven-candidate message for however many candidates were examined.
+        /// Every candidate is checked before a process is started, so a message naming
+        /// a single host would understate what was ruled out.
+        /// </summary>
+        public static string BuildCandidateDocumentNotProvenMessage(int candidateCount)
+        {
+            if (candidateCount <= 1)
+                return CandidateDocumentNotProvenMessage;
+
+            return candidateCount.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                   " Navisworks hosts of this version report a document with the same file name, but none of their "
+                   + "full paths could be confirmed as the requested file, so a process was started instead of "
+                   + "attaching to any of them. Attaching on a matching name alone would risk later tools acting on a "
+                   + "different model.";
+        }
 
         /// <summary>
         /// The document title a host must report to be serving this request. Public

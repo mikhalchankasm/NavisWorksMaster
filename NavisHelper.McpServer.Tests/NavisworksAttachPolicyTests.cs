@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NavisHelper.Agent.Contracts;
 using Xunit;
 
@@ -33,10 +34,9 @@ public sealed class NavisworksAttachPolicyTests
     {
         var hosts = new List<NavisworksHostInfo> { Host(31924, "2027", "6501.5.nwd") };
 
-        var candidate = NavisworksAttachPolicy.SelectAttachCandidate(hosts, "2027", @"D:\Downloads\6501.5.nwd");
+        var candidates = NavisworksAttachPolicy.SelectAttachCandidates(hosts, "2027", @"D:\Downloads\6501.5.nwd");
 
-        Assert.NotNull(candidate);
-        Assert.Equal(31924, candidate.Pid);
+        Assert.Equal(31924, Assert.Single(candidates).Pid);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class NavisworksAttachPolicyTests
         // the caller was not told what it had just created -- see the warning tests.
         var hosts = new List<NavisworksHostInfo> { Host(50424, "2027", string.Empty) };
 
-        Assert.Null(NavisworksAttachPolicy.SelectAttachCandidate(hosts, "2027", @"D:\Downloads\6501.5.nwd"));
+        Assert.Empty(NavisworksAttachPolicy.SelectAttachCandidates(hosts, "2027", @"D:\Downloads\6501.5.nwd"));
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class NavisworksAttachPolicyTests
     {
         var hosts = new List<NavisworksHostInfo> { Host(1000, "2026", "6501.5.nwd") };
 
-        Assert.Null(NavisworksAttachPolicy.SelectAttachCandidate(hosts, "2027", @"D:\Downloads\6501.5.nwd"));
+        Assert.Empty(NavisworksAttachPolicy.SelectAttachCandidates(hosts, "2027", @"D:\Downloads\6501.5.nwd"));
     }
 
     [Theory]
@@ -69,7 +69,7 @@ public sealed class NavisworksAttachPolicyTests
         // legitimately want a second instance.
         var hosts = new List<NavisworksHostInfo> { Host(50424, "2027", "6501.5.nwd") };
 
-        Assert.Null(NavisworksAttachPolicy.SelectAttachCandidate(hosts, "2027", requestedFilePath));
+        Assert.Empty(NavisworksAttachPolicy.SelectAttachCandidates(hosts, "2027", requestedFilePath));
     }
 
     [Fact]
@@ -78,12 +78,12 @@ public sealed class NavisworksAttachPolicyTests
         // A host appears in the discovery list only once registered, so a
         // running-but-not-yet-ready instance is invisible here. An empty list is exactly
         // how it presents.
-        Assert.Null(NavisworksAttachPolicy.SelectAttachCandidate(new List<NavisworksHostInfo>(), "2027", @"D:\x\6501.5.nwd"));
-        Assert.Null(NavisworksAttachPolicy.SelectAttachCandidate(null, "2027", @"D:\x\6501.5.nwd"));
+        Assert.Empty(NavisworksAttachPolicy.SelectAttachCandidates(new List<NavisworksHostInfo>(), "2027", @"D:\x\6501.5.nwd"));
+        Assert.Empty(NavisworksAttachPolicy.SelectAttachCandidates(null, "2027", @"D:\x\6501.5.nwd"));
     }
 
     [Fact]
-    public void TheMostRecentlyStartedMatchingHostWins()
+    public void MatchingHostsComeBackNewestFirst()
     {
         var hosts = new List<NavisworksHostInfo>
         {
@@ -92,7 +92,63 @@ public sealed class NavisworksAttachPolicyTests
             Host(3, "2027", "other.nwd", startedMinutesAgo: 0),
         };
 
-        Assert.Equal(2, NavisworksAttachPolicy.SelectAttachCandidate(hosts, "2027", @"D:\Downloads\6501.5.nwd").Pid);
+        var candidates = NavisworksAttachPolicy.SelectAttachCandidates(hosts, "2027", @"D:\Downloads\6501.5.nwd");
+
+        // Newest first is a preference between equals, not a filter: the older host is
+        // still offered, because it may be the one holding the requested path.
+        Assert.Equal(new[] { 2, 1 }, candidates.Select(host => host.Pid).ToArray());
+    }
+
+    [Fact]
+    public void AnOlderHostHoldingTheRequestedFileIsNotHiddenByANewerOne()
+    {
+        // The defect this covers: only the newest same-named host used to be offered,
+        // so a request for the file open in the older one failed its path proof and
+        // started a third process -- roughly 15 500 ms against 123 ms for an attach,
+        // and a redundant Navisworks window left behind.
+        var hosts = new List<NavisworksHostInfo>
+        {
+            Host(1, "2027", "model.nwd", startedMinutesAgo: 30),
+            Host(2, "2027", "model.nwd", startedMinutesAgo: 1),
+        };
+        var hostDocumentPaths = new Dictionary<int, string>
+        {
+            { 1, @"D:\A\model.nwd" },
+            { 2, @"D:\B\model.nwd" },
+        };
+
+        var candidates = NavisworksAttachPolicy.SelectAttachCandidates(hosts, "2027", @"D:\A\model.nwd");
+
+        // The launch service's loop: candidates in order, attach to the first whose
+        // full path proves.
+        var attachTarget = candidates.FirstOrDefault(host =>
+            NavisworksAttachPolicy.DocumentPathMatches(hostDocumentPaths[host.Pid], @"D:\A\model.nwd"));
+
+        Assert.NotNull(attachTarget);
+        Assert.Equal(1, attachTarget.Pid);
+    }
+
+    [Fact]
+    public void NoCandidateHoldingTheRequestedFileStillLaunches()
+    {
+        // Every candidate is examined and none proves, so a process must still start.
+        // Widening the search must not turn "nothing holds this file" into an attach.
+        var hosts = new List<NavisworksHostInfo>
+        {
+            Host(1, "2027", "model.nwd", startedMinutesAgo: 30),
+            Host(2, "2027", "model.nwd", startedMinutesAgo: 1),
+        };
+        var hostDocumentPaths = new Dictionary<int, string>
+        {
+            { 1, @"D:\B\model.nwd" },
+            { 2, @"D:\C\model.nwd" },
+        };
+
+        var candidates = NavisworksAttachPolicy.SelectAttachCandidates(hosts, "2027", @"D:\A\model.nwd");
+
+        Assert.Equal(2, candidates.Count);
+        Assert.All(candidates, host => Assert.False(
+            NavisworksAttachPolicy.DocumentPathMatches(hostDocumentPaths[host.Pid], @"D:\A\model.nwd")));
     }
 
     [Fact]
@@ -105,7 +161,7 @@ public sealed class NavisworksAttachPolicyTests
         // act on the wrong model.
         var hosts = new List<NavisworksHostInfo> { Host(7, "2027", "6501.5.nwd") };
 
-        Assert.NotNull(NavisworksAttachPolicy.SelectAttachCandidate(hosts, "2027", @"C:\elsewhere\6501.5.nwd"));
+        Assert.NotEmpty(NavisworksAttachPolicy.SelectAttachCandidates(hosts, "2027", @"C:\elsewhere\6501.5.nwd"));
         Assert.False(NavisworksAttachPolicy.DocumentPathMatches(@"D:\Downloads\6501.5.nwd", @"C:\elsewhere\6501.5.nwd"));
     }
 
@@ -144,6 +200,21 @@ public sealed class NavisworksAttachPolicyTests
 
         Assert.Contains("same file name", text, StringComparison.Ordinal);
         Assert.Contains("full path", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheUnprovenMessageCountsEveryCandidateItRuledOut()
+    {
+        // A launch past several same-named hosts ruled out all of them; saying "a host"
+        // would understate what was checked.
+        Assert.Equal(
+            NavisworksAttachPolicy.CandidateDocumentNotProvenMessage,
+            NavisworksAttachPolicy.BuildCandidateDocumentNotProvenMessage(1));
+
+        var many = NavisworksAttachPolicy.BuildCandidateDocumentNotProvenMessage(3);
+
+        Assert.Contains("3 Navisworks hosts", many, StringComparison.Ordinal);
+        Assert.Contains("none of their full paths", many, StringComparison.Ordinal);
     }
 
     [Theory]

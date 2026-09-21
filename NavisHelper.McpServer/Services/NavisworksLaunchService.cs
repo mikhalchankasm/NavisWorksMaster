@@ -17,12 +17,21 @@ internal sealed class NavisworksLaunchService
         HostBridgeClient hostBridgeClient,
         McpCallLogger callLogger,
         NavisworksRecentFilesService recentFilesService)
+        : this(hostBridgeClient, callLogger, recentFilesService, new SystemNavisworksProcessLauncher())
+    {
+    }
+
+    internal NavisworksLaunchService(
+        HostBridgeClient hostBridgeClient,
+        McpCallLogger callLogger,
+        NavisworksRecentFilesService recentFilesService,
+        INavisworksProcessLauncher processLauncher)
     {
         _hostBridgeClient = hostBridgeClient;
         _callLogger = callLogger;
         _recentFilesService = recentFilesService;
         _startInfoFactory = new NavisworksProcessStartInfoFactory();
-        _processLauncher = new SystemNavisworksProcessLauncher();
+        _processLauncher = processLauncher ?? new SystemNavisworksProcessLauncher();
         _startupMonitor = new NavisworksStartupMonitor();
     }
 
@@ -34,6 +43,11 @@ internal sealed class NavisworksLaunchService
         int waitTimeoutSeconds,
         CancellationToken cancellationToken)
     {
+        // Starting Navisworks costs roughly fifteen seconds and leaves a window open.
+        // A request the caller has already abandoned buys neither, so nothing below
+        // runs for one.
+        cancellationToken.ThrowIfCancellationRequested();
+
         var stopwatch = Stopwatch.StartNew();
         var response = new StartNavisworksResponse
         {
@@ -80,11 +94,17 @@ internal sealed class NavisworksLaunchService
         // file. Discovery reports a document title, which is a file name: two models of
         // the same name in different directories are indistinguishable there, and
         // attaching on the name alone would report success without opening what was
-        // asked for, leaving later write tools pointed at the wrong model.
+        // asked for, leaving later write tools pointed at the wrong model. Every
+        // name-matching host is offered, not only the newest, because the newest one
+        // holding a same-named file need not be the one holding this file.
         var attachTarget = await ResolveProvenAttachTargetAsync(
-            NavisworksAttachPolicy.SelectAttachCandidate(hostsBefore, version, effectiveFilePath),
+            NavisworksAttachPolicy.SelectAttachCandidates(hostsBefore, version, effectiveFilePath),
             effectiveFilePath,
             response,
+            (target, token) => _hostBridgeClient.HostStatusAsync(
+                new HostStatusRequest(),
+                token,
+                new HostTargetOptions { InstanceId = target.InstanceId }),
             cancellationToken).ConfigureAwait(false);
         if (attachTarget != null)
         {
@@ -104,6 +124,12 @@ internal sealed class NavisworksLaunchService
             _callLogger.LogStartNavisworks(response, null);
             return response;
         }
+
+        // Last check before the only irreversible step in this method. Resolving the
+        // version, listing hosts and probing a candidate all take time the caller may
+        // have spent cancelling; creating the process anyway would leave a Navisworks
+        // window open for a request whose answer nobody reads.
+        cancellationToken.ThrowIfCancellationRequested();
 
         var startInfoBuild = _startInfoFactory.Create(roamerPath, effectiveFilePath);
         var startupStopwatch = Stopwatch.StartNew();
@@ -166,47 +192,62 @@ internal sealed class NavisworksLaunchService
     }
 
     /// <summary>
-    /// Turns a name-matched candidate into a host proven to hold the requested file, or
-    /// null so the caller launches.
+    /// Turns name-matched candidates into the host proven to hold the requested file,
+    /// or null so the caller launches.
     ///
     /// Discovery carries a document title, not a path, so the proof needs one extra
-    /// call: <c>host_status</c> on that instance reports <c>DocumentFileName</c>. An
-    /// unproven candidate launches, and the response says why -- a wrong attach is
-    /// worse than a redundant process, because the next write tool would act on the
-    /// wrong model.
+    /// call per candidate: <c>host_status</c> on that instance reports
+    /// <c>DocumentFileName</c>. Candidates arrive newest first and every one is tried,
+    /// because the newest host with a same-named document need not be the one holding
+    /// the requested path -- stopping at the first would launch a redundant process
+    /// past a host that already has the file open. Only when none proves does the
+    /// caller launch, and the response says why: a wrong attach is worse than a
+    /// redundant process, because the next write tool would act on the wrong model.
     /// </summary>
-    private async Task<NavisworksHostInfo> ResolveProvenAttachTargetAsync(
-        NavisworksHostInfo candidate,
+    internal static async Task<NavisworksHostInfo> ResolveProvenAttachTargetAsync(
+        IReadOnlyList<NavisworksHostInfo> candidates,
         string requestedFilePath,
         StartNavisworksResponse response,
+        Func<NavisworksHostInfo, CancellationToken, Task<HostStatusResponse>> probeHostStatusAsync,
         CancellationToken cancellationToken)
     {
-        if (candidate == null)
+        if (candidates == null || candidates.Count == 0)
             return null;
 
-        HostStatusResponse status = null;
-        try
+        foreach (var candidate in candidates)
         {
-            status = await _hostBridgeClient.HostStatusAsync(
-                new HostStatusRequest(),
-                cancellationToken,
-                new HostTargetOptions { InstanceId = candidate.InstanceId }).ConfigureAwait(false);
-        }
-        catch (Exception)
-        {
-            // The host answered discovery and then did not answer this, so it is not a
-            // host to hand the caller. Launching is the safe outcome, not an error.
-            status = null;
+            HostStatusResponse status = null;
+            try
+            {
+                status = await probeHostStatusAsync(candidate, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // The caller cancelled, which is not evidence about the host, and not a
+                // reason to move to the next candidate either. Swallowing it here would
+                // send the request on to launch a Navisworks nobody asked for. The
+                // transport turns its own timeout into HostCallException, so an
+                // unresponsive host still arrives at the catch below.
+                throw;
+            }
+            catch (Exception)
+            {
+                // The host answered discovery and then did not answer this, so it is not
+                // a host to hand the caller. The next candidate may still be, and if none
+                // is, launching is the safe outcome rather than an error.
+                status = null;
+            }
+
+            if (NavisworksAttachPolicy.DocumentPathMatches(
+                    status == null ? null : status.DocumentFileName,
+                    requestedFilePath))
+            {
+                return candidate;
+            }
         }
 
-        if (NavisworksAttachPolicy.DocumentPathMatches(
-                status == null ? null : status.DocumentFileName,
-                requestedFilePath))
-        {
-            return candidate;
-        }
-
-        response.Warnings.Add(NavisworksAttachPolicy.CandidateDocumentNotProvenMessage);
+        response.Warnings.Add(
+            NavisworksAttachPolicy.BuildCandidateDocumentNotProvenMessage(candidates.Count));
         return null;
     }
 
