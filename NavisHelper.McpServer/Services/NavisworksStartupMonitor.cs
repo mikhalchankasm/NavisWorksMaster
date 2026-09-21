@@ -22,7 +22,7 @@ internal sealed class NavisworksStartupMonitor
 
     public async Task<NavisworksStartupMonitorResult> WaitForHostAsync(
         INavisworksProcess process,
-        Func<int?, NavisworksHostInfo> findHost,
+        Func<int?, CancellationToken, Task<NavisworksHostInfo>> findHost,
         TimeSpan timeout,
         CancellationToken cancellationToken)
     {
@@ -43,7 +43,7 @@ internal sealed class NavisworksStartupMonitor
                 if (exitCode != 0)
                     return NavisworksStartupMonitorResult.Exited(exitCode);
 
-                var handedOffHost = findHost(process.Id);
+                var handedOffHost = await findHost(process.Id, cancellationToken).ConfigureAwait(false);
                 if (IsReadyHandoff(process, handedOffHost))
                     return NavisworksStartupMonitorResult.HostReady(handedOffHost, processExited: true, exitCode);
 
@@ -51,7 +51,7 @@ internal sealed class NavisworksStartupMonitor
                 continue;
             }
 
-            var host = findHost(null);
+            var host = await findHost(null, cancellationToken).ConfigureAwait(false);
             if (host != null)
             {
                 if (process.HasExited)
@@ -78,7 +78,7 @@ internal sealed class NavisworksStartupMonitor
             var exitCode = process.TryGetExitCode();
             if (exitCode == 0)
             {
-                var handedOffHost = findHost(process.Id);
+                var handedOffHost = await findHost(process.Id, cancellationToken).ConfigureAwait(false);
                 return IsReadyHandoff(process, handedOffHost)
                     ? NavisworksStartupMonitorResult.HostReady(handedOffHost, processExited: true, exitCode)
                     : NavisworksStartupMonitorResult.HostTimeout(processExited: true, exitCode);

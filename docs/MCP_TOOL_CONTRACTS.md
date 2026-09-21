@@ -632,30 +632,28 @@ such a new host; that direction is deliberate, because ruling one out ends in a
 truthful `host_timeout` while failing to would let the launch claim a host it never
 opened, and a host with no `instanceId` cannot be addressed by the tools that follow.
 
-"Since that launch" is measured from a discovery list read **immediately before the
-process is started**, not from the one used to pick attach candidates. Those candidate
-probes can run for up to the 60-second probe budget, and a baseline taken before them
-would read every document a person opened by hand in that minute as this launch's
-hand-off — the same wrong host, arriving through the baseline instead of through the
-title. The window between that second read and the launch itself cannot be closed from
-inside the call, because the launch boundary is only knowable once the process exists.
+**A pre-existing host is only ever accepted after its full path is proven**, exactly as
+on the attach path before a launch. `host_status` on that instance is compared against
+the requested path, and a mismatch keeps the wait running rather than answering with
+that host. The title match is what makes an instance a *candidate*; the path is what
+makes it the answer.
 
-**An acquired title is evidence, not proof.** A host that was already running and
-opens some *other* same-named model while this launch is still loading becomes
-eligible under this rule and would be returned. The residual gap is far narrower than
-the one it replaces — it needs a second instance to open a same-named file from a
-different directory inside the startup window — but it is the same shape, and it is
-not closed. Closing it means proving the full path, which discovery does not carry:
-a `host_status` round trip per poll against an instance somebody may be working in.
+"Acquired since this launch" is therefore a cost filter, not the correctness mechanism.
+It is measured from a discovery list read **immediately before the process is started**,
+not from the one used to pick attach candidates, because those candidate probes can run
+for up to the 60-second probe budget and every document a person opened by hand in that
+minute would otherwise look like this launch's hand-off. Getting that boundary wrong now
+costs a wasted round trip instead of a wrong host, which is also why the residual window
+between that read and the launch itself is affordable — it cannot be closed from inside
+the call, since the launch boundary is only knowable once the process exists.
 
-The cost of this rule, so the next person does not rediscover it as a regression: a
-host that *already* held the requested file and did not answer its pre-launch
-`host_status` probe is no longer picked up by the fallback either, so such a launch
-ends in `host_timeout` where it previously reported that host. Closing that gap needs
-a full-path proof inside the wait loop, which means a `host_status` round trip per poll
-against an instance the user may be working in; a truthful `host_timeout` was preferred
-to a host claim the response cannot support. `list_navisworks_hosts` shows the instance
-either way.
+Each candidate instance is probed **once per launch**, and the verdict is remembered for
+the rest of the wait. The wait polls every 250 ms for up to five minutes, so re-asking
+each time would put hundreds of round trips into an instance somebody may be working in,
+to repeat a question whose answer changes only if that instance loads another document —
+and then its title moves and the filter re-evaluates it anyway. A candidate that does not
+answer at all is *not* recorded as ruled out: an instance still loading a large model may
+simply be busy, and the next poll asks again.
 
 With the default `waitForHost=true`, the server monitors both host discovery and
 the child process. A nonzero or unavailable early process exit returns
