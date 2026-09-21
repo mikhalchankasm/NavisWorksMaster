@@ -138,7 +138,7 @@ background:
 | L0 | while working | `dotnet test NavisHelper.McpServer.Tests/NavisHelper.McpServer.Tests.csproj -c Release --filter <the affected area>` |
 | L1 | before the PR | nothing locally — CI runs the four `scripts/check_*.py` guards, the non-Navisworks builds and the full test suite |
 | L2 | before merge | once, on the final SHA: the full plugin matrix `Release2024`/`Release2025`/`Release2026`/`Release2027` at `-p:Platform=x64`, which CI cannot run because runners have no Navisworks SDK |
-| L3 | live Navisworks | only in an agreed window, batched across tasks |
+| L3 | live Navisworks | only in an agreed window, batched across tasks; `scripts/check_installed_bundle_drift.py` first |
 
 Never repeat a level on an unchanged SHA to get a different result.
 
