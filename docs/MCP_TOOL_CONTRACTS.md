@@ -908,6 +908,40 @@ Operations:
 - `reset` with `apply=false`: reports whether the current host session can restore the scheme.
 - `reset` with `apply=true`: resets touched materials, then restores their captured effective permanent color/transparency in batches.
 
+**`reset` restores only what `model_color_scheme` itself applied.** It works from a captured
+scheme, so `hadActiveScheme: false` means there is nothing for it to undo — and colour
+overrides written by **`selection_color_by_property` are not covered by it**. Measured on
+2026-09-22: after `selection_color_by_property apply=true` coloured 44 items,
+`model_color_scheme operation=reset apply=true` answered `reset: false`,
+`hadActiveScheme: false`, and those 44 stayed coloured.
+
+`selection_color_by_property` therefore has **no undo through the MCP surface**, although
+its own description calls the overrides permanent. The only way back is to close the
+document without saving — `close_navisworks` with `mode=discard` — which is what the
+measurement window used as its stated restore. Anyone applying it to a document they intend
+to keep should know that before the call, not after.
+
+Two more things about that tool, recorded here because **it has no section of its own in
+this document** — itself a gap, since it writes permanent overrides:
+
+- **`itemLimit` defaults to 100, and it is a sample rather than the selection.** Measured
+  against the same 5376-item selection: 151 ms and 44 groups at the default, 648 ms and 654
+  groups at `itemLimit=5000`. The response says so in `itemsTruncated: true`, but a caller
+  reading `selectedItemCount: 5376` beside `coloredItemCount: 44` without raising the limit
+  is reading a partial answer that looks complete.
+- **A category or property filter matching nothing returns quickly and honestly.**
+  `categoryFilters: ["Item"]` on this model answered `matchedItemCount: 0` with
+  `status: "ok"` in 455 ms, because its RVM branch keeps properties under Cyrillic category
+  names and an `AVEVA` category. That is the correct answer and a useless timing; check
+  `matchedItemCount` before believing a number.
+
+**`clearSelectionAfterApply` defaults to `true`**, so a successful `apply` leaves the
+selection empty. That is deliberate — Navisworks selection highlighting would otherwise mask
+the colours it just wrote — but it means **any selection-scoped tool called next operates on
+nothing**. The measurement window walked into this: `selection_color_by_property` timed at
+11–25 ms immediately after, which was the cost of an empty selection rather than of the
+tool.
+
 Rule semantics:
 
 - Rules are ordered and use first-match-wins priority.

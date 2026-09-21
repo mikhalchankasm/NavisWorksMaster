@@ -14,7 +14,7 @@ had precise numbers for four tools and none for the rest.
 | plugin | host-reported `pluginAssemblyLength` 1586688, `pluginAssemblyLastWriteUtc` 2026-09-20T09:09:49Z, sha256 `af60b1b9…` |
 | server | built from `main` at the same commit |
 | scope of this row | the read-only pass only — the two clash windows ran a **different** plugin (`20bb4356…`) and a separately launched server, and the `rootName` message was checked later still on the branch build (`pluginAssemblyLength` 1588736). Latency is comparable only within one window, so each section states its own build instead of inheriting this one. |
-| tools covered | **92 of 104** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across four windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 92 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **12** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
+| tools covered | **99 of 104** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across five windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, 15 cases covering 7 tools in a fourth, and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 92 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **5** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
 
 Every number is `navishelper_timing.elapsed_ms`, which is the **MCP server's** measure
 of the whole call, not the Navisworks host's internal time. `McpToolTimingFilter` starts
@@ -423,36 +423,132 @@ both sites, save and delete: a missing guard now names the parameter and where t
 original wording. Covered by a test that was proved to bite — reverting the delete site
 alone fails exactly one assertion.
 
+## The fourth window: the eight that were one window away
+
+Measured in an agreed L3 window on **2026-09-22**, Navisworks Manage 2027, on
+`D:\Downloads\6501.5.nwd` — the same model as every other window here. The plugin the host
+reported: `pluginAssemblyLength` **1593344**, written `2026-09-21T22:14:29Z`,
+`pluginVersion` 2.9.0.0, built from `main` at `6ebd168`. `check_installed_bundle_drift.py`
+passed before the window and again after it, so the numbers belong to that build.
+
+The selection-scoped tools ran against **everything under `/STORE`: 5376 items**, selected
+by `find_items` with `scope=under_handle`. The document was never saved and the close
+reported `mode=discard`, so nothing below survived the window.
+
+| tool | case | first | warm |
+| --- | --- | --- | --- |
+| `open_latest_navisworks_file` | opened `6501.5.nwd`, `outcome=host_ready` | **18 526** | — |
+| `create_selection_set` | `apply=false` | 139 | 155 |
+| `create_selection_set` | `apply=true`, 5376 items | 396 | 509 |
+| `create_search_set` | `apply=false` | 145 | 107 |
+| `create_search_set` | `apply=true` | 120 | 110 |
+| `create_viewpoint` | `apply=false` | 16 | 10 |
+| `create_viewpoint` | `apply=true` | 13 | 14 |
+| `selection_export_properties` | `apply=false` | 84 | 101 |
+| `selection_export_properties` | `apply=true`, wrote 1 096 615 bytes | 146 | 70 |
+| `model_color_scheme` | `operation=analyze`, `scope=selection` | **3 069** | **2 879** |
+| `model_color_scheme` | `operation=apply`, `apply=false` | **1 203** | **1 343** |
+| `model_color_scheme` | `operation=apply`, `apply=true`, 5376 items | **1 925** | — |
+| `model_color_scheme` | `operation=reset`, `apply=true` | 96 | — |
+| `selection_color_by_property` | `apply=false`, `itemLimit=100` (default) | 151 | 205 |
+| `selection_color_by_property` | `apply=false`, `itemLimit=5000` | 648 | 720 |
+| `selection_color_by_property` | `apply=true`, `itemLimit=100`, coloured 44 | 510 | — |
+
+Every `apply=true` was checked for an **effect**, not just a return: both sets appear in
+`list_selection_sets`, the viewpoint in `list_saved_viewpoints`, the export file is
+1 096 615 bytes on disk, and the colour calls reported `applied: true` with a non-zero
+`coloredItemCount`. A fast number from a call that did nothing is the trap this document
+records for `delete_scenario`, and it is worth re-checking each time rather than trusting
+the envelope.
+
+**`model_color_scheme` is the third slow tool.** Analyze reads up to
+`maxPropertiesPerItem` properties per eligible item and 3 s is the honest cost of that on
+5376 items; the dry-run is cheaper because it classifies rather than surveys. Nothing here
+is pathological, but it is the only tool in this window above a second.
+
+### `selection_color_by_property` scales with `itemLimit`, not with the selection
+
+151 ms at the default `itemLimit=100` and 648 ms at 5000, against the same 5376-item
+selection — 44 groups against 654. The default inspects 100 items and sets
+`itemsTruncated: true`, so **the default is a sample, not the selection**. A caller reading
+`selectedItemCount: 5376` beside `coloredItemCount: 44` and no raised limit is reading a
+partial answer.
+
+### Two traps this window walked into
+
+Both cost a measurement and are recorded so the next person does not repeat them:
+
+- **`model_color_scheme` clears the selection.** `clearSelectionAfterApply` defaults to
+  `true`, so any selection-scoped tool measured *after* an `apply=true` measures an empty
+  selection. The first `selection_color_by_property` numbers taken here were 11–25 ms of
+  nothing.
+- **A category filter that matches no property returns quickly and truthfully.** With
+  `categoryFilters: ["Item"]` the tool reported `matchedItemCount: 0` and
+  `status: "ok"` — correct, and useless as a timing. This model's RVM branch carries its
+  properties under Cyrillic category names plus an `AVEVA` category; `AVEVA`/`Ref` is what
+  the numbers above used.
+
+### `dump_subtree_names`: the synchronous variant cannot be measured on this model
+
+All three roots refuse. The limit is **5000 items** (`MaxSynchronousDumpItems`, with a 25 s
+companion budget), and `/STORE`, `/6501.5` and `6501.5.nwd` each exceed it:
+
+| root | ms | outcome |
+| --- | --- | --- |
+| `/STORE` | 586 | `status: "error"` — *Synchronous dump limit exceeded* |
+| `/6501.5` | 504 | same |
+| `6501.5.nwd` | 600 | same |
+
+The refusal is not free — it walks to the limit before giving up — and it arrives as a
+transport-level `error`, so a caller cannot mistake it for a dump. Measuring the success
+path needs a model with a root under 5000 items, which is a different model rather than
+another window, so this tool stays in [What still has no number](#what-still-has-no-number)
+with that reason.
+
+### `find_items_by_bbox` pruning, observed live
+
+The prune added in #47 measured on the same document. `6501.5.nwd` holds **one** appended
+model, so pruning here is all-or-nothing; a query that cannot match now costs milliseconds
+instead of the full budget:
+
+| query | scanned | matched | pruned | ms |
+| --- | --- | --- | --- | --- |
+| a zone covering everything | 70 574 | 64 261 | 0 | 10 135 (truncated at the budget) |
+| a zone far outside the model | **0** | 0 | **1** | **32** |
+| `sourceFileContains` matching nothing | **0** | 0 | **1** | **19** |
+| `sourceFileContains` naming the real file | 43 666 | 40 073 | 0 | 10 019 (truncated) |
+
+**19–32 ms against roughly 10 000 ms**, and the scan count is zero rather than at the cap.
+Before the prune both of those queries walked the model to the ten-second budget to return
+nothing.
+
+Two limits, stated rather than implied. This document has **one** `Model`, so the window
+shows the prune firing and not partial pruning across several appended files — that needs
+an NWF with several. And the equality check the prune's correctness rests on, that pruning
+never loses a match, is **not** done by these numbers: it needs the same query against a
+build with pruning removed, which is the two-build comparison this rig has not run yet.
+
 ## What still has no number
 
-Twelve tools, and the reason for each, so the gap is a decision rather than an oversight:
+Five tools, and the reason for each, so the gap is a decision rather than an oversight:
 
 | tool | why |
 | --- | --- |
 | `save_document`, `save_document_as` | never run on purpose. Every window depends on the document not being saved. |
 | `clash_batchtest_import` | needs a Navisworks-authored `nw-exchange-12.0` XML; no tool in the product writes one. |
 | `saved_viewpoints_import` | needs Navisworks-authored Saved Viewpoints XML, for the same reason. Its refusal path was measured; the import path was not. |
-| `create_selection_set`, `create_viewpoint` | exercised as scaffolding in the third window — the sets and viewpoints the other tools needed — but their own timings were not recorded, so they are not claimed here. |
-| `create_search_set` | not exercised; it needs a search condition rather than handles. |
-| `model_color_scheme`, `selection_color_by_property` | write display overrides across the model; they need a window of their own with a stated restore. |
-| `selection_export_properties` | writes a report file; harmless, simply not reached. |
-| `dump_subtree_names` | the synchronous variant. Its asynchronous trio was measured instead, which is the form the contract recommends for a subtree this size. |
-| `open_latest_navisworks_file` | a lifecycle tool measured only indirectly, through the launch figure. |
+| `dump_subtree_names` | the synchronous variant. Its refusal was measured in the fourth window — 504–600 ms — but every root of this model exceeds the 5000-item synchronous limit, so the success path needs a *smaller model*, not another window. Its asynchronous trio is measured and is the form the contract recommends for a subtree this size. |
 
-**4** of those are not reachable in a window at all, and saying which is which matters
+**5** of those are not reachable in a window at all, and saying which is which matters
 more than the count:
 
-- **out of reach** — `save_document` and `save_document_as`, because every window
-  depends on the document not being saved; `clash_batchtest_import` and
-  `saved_viewpoints_import`, because each needs a Navisworks-authored XML that no tool
-  in the product writes.
-- **one short window away** — the remaining **8**: `create_selection_set`,
-  `create_viewpoint`, `create_search_set`, `model_color_scheme`,
-  `selection_color_by_property`, `selection_export_properties`, `dump_subtree_names`
-  and `open_latest_navisworks_file`. Two of them need a stated restore
-  (`model_color_scheme` and `selection_color_by_property` write display overrides
-  across the model), which is why they were not folded into a window measuring
-  something else.
+- **out of reach** — `save_document` and `save_document_as`, because every window depends on
+  the document not being saved; `clash_batchtest_import` and `saved_viewpoints_import`,
+  because each needs a Navisworks-authored XML that no tool in the product writes; and
+  `dump_subtree_names`, because the synchronous variant refuses on every root of this model
+  and measuring it needs a model with a root under 5000 items.
+- **one short window away** — the remaining **0**: none. The eight that were one window away
+  were measured on 2026-09-22; see [The fourth window](#the-fourth-window-the-eight-that-were-one-window-away).
 
 Listed by name rather than by position in the table above, because a count of rows is
 wrong as soon as a row moves.
