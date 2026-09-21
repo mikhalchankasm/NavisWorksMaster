@@ -407,6 +407,42 @@ public sealed class NavisworksAttachResolutionTests
     }
 
     [Fact]
+    public async Task ACandidateThatBurnsItsWholeDeadlineIsNotAskedAgainNextPoll()
+    {
+        // A probe that used its entire deadline without answering is the expensive kind of
+        // failure, and it is recorded so the next poll moves past it. Left unrecorded, the
+        // same blocked instance was re-probed every 250 ms for the length of the wait,
+        // spending most of each poll on a host that had already failed to answer.
+        var blocks = Host("blocks", RequestedFilePath);
+        var ledger = new NavisworksLaunchService.HandoffProofLedger(
+            retryRefusalsAfter: TimeSpan.FromSeconds(2));
+        var probes = 0;
+
+        for (var poll = 0; poll < 3; poll++)
+        {
+            Assert.Null(await NavisworksLaunchService.ResolveProvenHandoffAsync(
+                new[] { blocks },
+                RequestedFilePath,
+                ledger,
+                async (_, token) =>
+                {
+                    probes++;
+                    await Task.Delay(TimeSpan.FromMinutes(5), token);
+                    return new HostStatusResponse { DocumentFileName = RequestedFilePath };
+                },
+                Now,
+                CancellationToken.None,
+                perProbeTimeout: TimeSpan.FromMilliseconds(80)));
+        }
+
+        Assert.Equal(1, probes);
+
+        // And still only a throttle, not a verdict: past the interval it is asked again,
+        // because an instance that was busy may since have answered.
+        Assert.True(ledger.ShouldProbe("blocks", Now.AddSeconds(3)));
+    }
+
+    [Fact]
     public async Task AnUnresponsiveCandidateIsAskedAgainOnTheNextPoll()
     {
         // Not the same as a candidate that answered and failed. An instance still loading

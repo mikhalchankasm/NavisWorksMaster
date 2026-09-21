@@ -42,6 +42,16 @@ REACHABLE_COUNT_RE = re.compile(r"the remaining \*\*(\d+)\*\*")
 OUT_OF_REACH_COUNT_RE = re.compile(r"\*\*(\d+)\*\* of those are not reachable")
 BACKTICKED = re.compile(r"`([a-z0-9_]+)`")
 
+# A cell holding a timing rather than prose: a number, or a pair like `0 / 12`. Emphasis
+# is stripped first, because the slow tools are called out in bold (`**2 953 / 5 761**`),
+# and the digit groups use a non-breaking space. This is what separates a measurement row
+# from any other table that happens to name a tool.
+TIMING_CELL = re.compile(r"^\s*\d[\d\s/,.—-]*$")
+
+
+def is_timing_cell(cell: str) -> bool:
+    return TIMING_CELL.match(cell.replace("*", "")) is not None
+
 # Measured, but stated in a sentence rather than tabulated -- they are lifecycle tools
 # whose timing only makes sense with the surrounding story. Listed explicitly so the
 # "every tool appears in a table row" rule can stay strict about everything else; a tool
@@ -114,6 +124,9 @@ def check(
             f"updated -- fix the '**{measured} of {total}**' row."
         )
 
+    section = gap_section(text)
+    listed = gap_table_tools(section)
+
     # A matching total is not enough. Swap a measured tool for one nobody measured and the
     # count is unchanged, the gap table still lists the same twelve, and every check above
     # passes while the new tool has no number anywhere.
@@ -125,14 +138,22 @@ def check(
     # rather than waved through by a loose rule.
     in_rows = set()
     for line in text.splitlines():
-        # Any cell, not just the first: the read-only pass tabulates a group in cell one
-        # and the tool in cell two (`| query | `find_items` scoped, first | ...`).
+        if not line.startswith("|"):
+            continue
         # The coverage row is a table row too, and it names tools while summarising, so it
         # cannot be allowed to vouch for them.
-        if line.startswith("|") and "advertised tools carry a measured number" not in line:
-            in_rows.update(BACKTICKED.findall(line))
+        if "advertised tools carry a measured number" in line:
+            continue
+        # And a row only counts if it carries a timing. Being mentioned in some unrelated
+        # table is not a measurement, so a tool named only there would otherwise sail
+        # through with the headline bumped by one.
+        if not any(is_timing_cell(cell) for cell in line.split("|")):
+            continue
+        # Any cell, not just the first: the read-only pass tabulates a group in cell one
+        # and the tool in cell two (`| query | `find_items` scoped, first | ...`).
+        in_rows.update(BACKTICKED.findall(line))
 
-    unaccounted = sorted(advertised - in_rows - measured_in_prose)
+    unaccounted = sorted(advertised - in_rows - set(listed) - measured_in_prose)
     if unaccounted:
         problems.append(
             f"these advertised tools appear in no table row, so they are neither measured "
@@ -152,8 +173,6 @@ def check(
             f"MEASURED_IN_PROSE names tools that no longer exist in source: {stale_exceptions}"
         )
 
-    section = gap_section(text)
-    listed = gap_table_tools(section)
     duplicates = sorted({name for name in listed if listed.count(name) > 1})
     if duplicates:
         problems.append(f"the gap table names these tools more than once: {duplicates}")
@@ -308,6 +327,16 @@ def selftest() -> int:
         # `delta` stops being mentioned at all. Every count still agrees -- which is the
         # point: a matching total hides a tool that fell out of the document.
         FIXTURE_GOOD.replace("| `delta` | 12 | 5 |\n", ""),
+        "appear in no table row",
+    ))
+
+    cases.append((
+        "a tool named only in a table that carries no timing is not accounted for",
+        # The row exists, so the looser "appears in some table" rule passed it. It has no
+        # number in it, so it is not a measurement.
+        FIXTURE_GOOD.replace(
+            "| `delta` | 12 | 5 |",
+            "| `delta` | covered by the same scenario as gamma | see above |"),
         "appear in no table row",
     ))
 

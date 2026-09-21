@@ -453,11 +453,21 @@ internal sealed class NavisworksLaunchService
             {
                 throw;
             }
+            catch (OperationCanceledException)
+            {
+                // This candidate used up its whole deadline without answering, which is the
+                // expensive kind of failure. Recording it as refused hands the next poll to
+                // the candidates behind it; leaving it unrecorded meant re-probing the same
+                // blocked instance every 250 ms, so a host further down the list was never
+                // reached at all. The refusal still expires, so an instance that was merely
+                // busy gets asked again.
+                ledger.Record(key, proven: false, nowUtc);
+                continue;
+            }
             catch (Exception)
             {
-                // An instance that does not answer is not disqualified: it may be mid-load
-                // and answer on a later poll. Nothing is recorded, so the next poll asks
-                // again immediately rather than waiting out a refusal interval.
+                // Some other transient failure, which costs nothing and says nothing about
+                // the document. Not recorded, so the next poll asks again immediately.
                 continue;
             }
 
