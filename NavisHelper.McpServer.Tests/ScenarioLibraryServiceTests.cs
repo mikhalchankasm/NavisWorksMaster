@@ -73,6 +73,47 @@ public sealed class ScenarioLibraryServiceTests : IDisposable
     }
 
     [Fact]
+    public void SaveAndDelete_MissingExpectedShaSaysWhichParameterIsMissing()
+    {
+        // A missing guard and a stale one are different situations. Both used to answer
+        // "Сценарий изменился после чтения", which names a cause that did not happen and
+        // advises a re-read that cannot help: re-reading does not supply the parameter.
+        var saved = Save(CreateTemplateDraft());
+        var update = CreateTemplateDraft();
+        update.Description = "Обновлённое описание";
+
+        var saveMissing = _service.Save(update, saved.ScenarioId, null, true, true, false);
+        var saveStale = _service.Save(update, saved.ScenarioId, "deadbeef", true, true, false);
+        var deleteMissing = _service.Delete(saved.ScenarioId, "   ", true, true);
+        var deleteStale = _service.Delete(saved.ScenarioId, "deadbeef", true, true);
+
+        foreach (var missing in new[] { saveMissing, deleteMissing })
+        {
+            Assert.False(missing.Ok);
+            Assert.Equal("scenario_conflict", missing.ErrorCode);
+            Assert.Contains("expectedSha256", missing.ErrorMessage);
+            Assert.Contains("sha256", missing.ErrorMessage);
+            Assert.DoesNotContain("изменился после чтения", missing.ErrorMessage);
+            // And it must not claim the opposite either. Without the caller's hash this
+            // code cannot know whether another process updated the file, so an earlier
+            // version of this message asserting "Сценарий не изменился" was as unfounded
+            // as the wording it replaced.
+            Assert.DoesNotContain("не изменился", missing.ErrorMessage);
+        }
+
+        foreach (var stale in new[] { saveStale, deleteStale })
+        {
+            Assert.False(stale.Ok);
+            Assert.Equal("scenario_conflict", stale.ErrorCode);
+            Assert.Contains("изменился", stale.ErrorMessage);
+            Assert.DoesNotContain("expectedSha256", stale.ErrorMessage);
+        }
+
+        // The refusals changed nothing: the scenario is still deletable with its own hash.
+        Assert.True(_service.Delete(saved.ScenarioId, saved.Sha256, true, true).Applied);
+    }
+
+    [Fact]
     public void Delete_PreviewsThenDeletesExactFile()
     {
         var saved = Save(CreateTemplateDraft());

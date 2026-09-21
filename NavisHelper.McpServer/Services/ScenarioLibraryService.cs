@@ -192,8 +192,19 @@ internal sealed class ScenarioLibraryService
             existing = ReadById(scenarioId, out var errorCode, out var errorMessage);
             if (existing == null)
                 return Fail(response, errorCode, errorMessage);
-            if (string.IsNullOrWhiteSpace(expectedSha256) ||
-                !string.Equals(existing.Sha256, NormalizeSha(expectedSha256), StringComparison.OrdinalIgnoreCase))
+            // Two different situations must not collapse into one message. A missing
+            // expectedSha256 is an unfilled concurrency guard, not a changed scenario:
+            // saying "changed after it was read" names a cause that did not happen, and
+            // the advice to re-read and retry cannot help, because re-reading does not
+            // supply a parameter. The message says only what is known -- and without the
+            // caller's hash, whether the file changed is precisely what is not known.
+            if (string.IsNullOrWhiteSpace(expectedSha256))
+            {
+                return Fail(response, "scenario_conflict",
+                    "Для обновления сценария укажите expectedSha256: его возвращают get_scenario и list_scenarios как поле sha256. " +
+                    "Защита от одновременной правки не заполнена, поэтому изменился сценарий или нет -- неизвестно.");
+            }
+            if (!string.Equals(existing.Sha256, NormalizeSha(expectedSha256), StringComparison.OrdinalIgnoreCase))
             {
                 return Fail(response, "scenario_conflict", "Сценарий изменился после чтения. Получите актуальную версию и повторите сохранение.");
             }
@@ -283,8 +294,15 @@ internal sealed class ScenarioLibraryService
 
         if (!confirmDelete)
             return Fail(response, "scenario_delete_confirmation_required", "Для удаления сценария укажите confirm_delete=true после проверки preview.");
-        if (string.IsNullOrWhiteSpace(expectedSha256) ||
-            !string.Equals(record.Sha256, NormalizeSha(expectedSha256), StringComparison.OrdinalIgnoreCase))
+        // The same split as on save: without expectedSha256 the delete is refused because
+        // the guard is unfilled, not because anyone changed the file.
+        if (string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            return Fail(response, "scenario_conflict",
+                "Для удаления сценария укажите expectedSha256: его возвращают get_scenario и list_scenarios как поле sha256. " +
+                "Защита от одновременной правки не заполнена, поэтому изменился сценарий или нет -- неизвестно.");
+        }
+        if (!string.Equals(record.Sha256, NormalizeSha(expectedSha256), StringComparison.OrdinalIgnoreCase))
         {
             return Fail(response, "scenario_conflict", "Сценарий изменился после чтения. Удаление отменено.");
         }

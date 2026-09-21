@@ -120,9 +120,83 @@ if (-not (Test-Path -LiteralPath $operatorAuth -PathType Leaf)) {
 
 # --- the bundle: what the reviewer sees, and the only thing it sees ----------------
 if ($Base) {
-    $scope = "changes on this branch against '$Base'"
-    $diff = & git diff "$Base...HEAD"
+    # Two traps, both found by running this against a stale base and getting a review of
+    # months-old code back:
+    #
+    #   * a bare `main` is the LOCAL branch, which in a worktree checkout can sit far
+    #     behind its remote -- here it was 10d29f4 against origin/main at 86d243b, and the
+    #     diff came to 467 KB of unrelated history that then hit the truncation cap;
+    #   * `<base>...HEAD` is a range of COMMITS, so staged and unstaged work is absent.
+    #     A review of "the branch" that silently skips what is not committed yet is worse
+    #     than no review, because it looks like one.
+    #
+    # So: the resolved commit is reported, a diverging remote-tracking ref of the same name
+    # is named, and the working tree is appended to the committed range.
+    # ^{commit}, not the bare name: `rev-parse --verify` is happy with a blob or tree
+    # SHA too, and the triple-dot diff below then exits 128 for something that looked
+    # like a valid base.
+    $baseSha = (& git rev-parse --short --verify ($Base + '^{commit}') 2>$null)
+    if ($LASTEXITCODE -ne 0 -or -not $baseSha) {
+        throw ("Base '" + $Base + "' does not resolve to a commit in this repository.")
+    }
+    $remoteSha = (& git rev-parse --short --verify ("refs/remotes/origin/" + $Base) 2>$null)
+    if ($remoteSha -and $remoteSha -ne $baseSha) {
+        Write-Warning ("Base '" + $Base + "' resolves to " + $baseSha + ", while origin/" + $Base +
+            " is " + $remoteSha + ". Reviewing against the local ref as asked; pass -Base origin/" +
+            $Base + " to compare against the remote instead.")
+    }
+    $headSha = (& git rev-parse --short --verify HEAD)
+    $scope = "changes against '$Base' ($baseSha), HEAD at $headSha, plus the working tree"
+    $diff = @(('--- committed on this branch, ' + $Base + '...HEAD ---'), '')
+    $diff += (& git diff "$Base...HEAD")
+    # Checked here, immediately. The working-tree and untracked commands below succeed
+    # and overwrite $LASTEXITCODE, so a check after them reads their status and not this
+    # one -- the bundle would carry only uncommitted work while the header claimed the
+    # whole base range.
+    if ($LASTEXITCODE -ne 0) {
+        throw ("git diff " + $Base + "...HEAD failed with exit " + $LASTEXITCODE +
+            "; the review bundle would have claimed a range it does not contain.")
+    }
     $stat = & git diff --stat "$Base...HEAD"
+    if ($LASTEXITCODE -ne 0) {
+        throw ("git diff --stat " + $Base + "...HEAD failed with exit " + $LASTEXITCODE + ".")
+    }
+    $working = & git diff HEAD
+    # Checked here for the same reason as the range above, and because the failure is
+    # silent in the worst way: a failed `git diff HEAD` produces no stdout, so the
+    # branch below would label the working tree clean, and the `ls-files` that follows
+    # would overwrite the status that proved otherwise. The reviewer would then be told
+    # it is seeing uncommitted work that was never in the bundle.
+    if ($LASTEXITCODE -ne 0) {
+        throw ("git diff HEAD failed with exit " + $LASTEXITCODE +
+            "; the bundle would have claimed to include the working tree without doing so.")
+    }
+    if ($working) {
+        $diff += @('', '--- staged and unstaged, not yet committed ---', '')
+        $diff += $working
+        $stat = @($stat) + @('', 'working tree:') + (& git diff --stat HEAD)
+        if ($LASTEXITCODE -ne 0) {
+            throw ("git diff --stat HEAD failed with exit " + $LASTEXITCODE + ".")
+        }
+    } else {
+        $diff += @('', '--- the working tree is clean; everything above is committed ---')
+    }
+    $untracked = & git -c core.quotepath=false ls-files --others --exclude-standard
+    if ($LASTEXITCODE -ne 0) {
+        throw ("git ls-files failed with exit " + $LASTEXITCODE +
+            "; a new file could have been left out of the bundle unnoticed.")
+    }
+    if ($untracked) {
+        $diff += @('', '--- untracked files, absent from every diff above ---')
+        foreach ($path in $untracked) {
+            if (Test-Path -LiteralPath $path -PathType Leaf) {
+                $diff += @('', ('=== ' + $path), (Get-Content -LiteralPath $path -Raw))
+            } else {
+                Write-Warning ('Untracked path could not be read, so it is listed without contents: ' + $path)
+                $diff += @('', ('=== ' + $path + '   [CONTENTS UNAVAILABLE - not reviewed]'))
+            }
+        }
+    }
 } elseif ($Commit) {
     $scope = "the changes introduced by commit $Commit"
     $diff = & git show $Commit
@@ -152,6 +226,9 @@ if ($Base) {
         }
     }
 }
+# For -Commit and the working-tree default this is still the first check after their
+# git calls. The -Base path checks each command as it runs, above, because the commands
+# that follow it would overwrite the status being tested.
 if ($LASTEXITCODE -ne 0) {
     throw ('git failed while building the review bundle (exit ' + $LASTEXITCODE +
         '). Is this a git repository, and does the base exist?')
