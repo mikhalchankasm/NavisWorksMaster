@@ -522,11 +522,17 @@ instead of the full budget:
 Before the prune both of those queries walked the model to the ten-second budget to return
 nothing.
 
-Two limits, stated rather than implied. This document has **one** `Model`, so the window
+One limit, stated rather than implied: this document has **one** `Model`, so the window
 shows the prune firing and not partial pruning across several appended files — that needs
-an NWF with several. And the equality check the prune's correctness rests on, that pruning
-never loses a match, is **not** done by these numbers: it needs the same query against a
-build with pruning removed, which is the two-build comparison this rig has not run yet.
+an NWF with several.
+
+The equality check the prune's correctness rests on — that pruning never loses a match —
+**was run**, later the same day and on `6513.nwd`, because that model's walk completes
+where this one runs out of budget and a truncated zero would prove nothing. Nine queries
+against a build with pruning removed returned identical match counts, including six slabs
+placed immediately outside the extents the prune itself reported, each of which walked all
+41 016 items and found nothing. The full table is in
+`docs/MCP_TOOL_CONTRACTS.md` under *find_items_by_bbox*.
 
 ## What still has no number
 

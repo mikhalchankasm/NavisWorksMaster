@@ -498,13 +498,39 @@ not skipped, and a warning says so. A prune is only worth having because it is p
 empty; "we could not tell" is not that, and recording it as such would silently drop
 matches.
 
-**One assumption, and how it is checked.** Pruning by extents assumes a model's extents
-enclose its descendants' boxes, which is what model extents mean but cannot be proven from
+**One assumption, and it has been checked.** Pruning by extents assumes a model's extents
+enclose its descendants' boxes, which is what extents mean but cannot be proven from
 outside the Navisworks API. A wrong assumption can only *lose* matches, never invent them,
-so the rig check is a comparison: the same query with pruning reachable and with the zone
-widened to cover everything must report the same `matchedItemCount`. The file test carries
-the weaker assumption that a model's items report that model's source file, and the same
-comparison covers it.
+so the check is a comparison against a build with pruning removed.
+
+Run on the rig on 2026-09-22, on `D:\Downloads\6513.nwd` — chosen because its walk
+**completes**: 41 016 items scanned with `traversalTruncated: false`, where `6501.5.nwd`
+runs out of the ten-second budget and a truncated zero would prove nothing. The model's own
+extents were located first by bisecting on `prunedModelCount` itself, which makes the prune
+its own oracle, and six slabs were placed immediately outside the six faces it reported.
+
+| query | pruning on | pruning off | equal |
+| --- | --- | --- | --- |
+| just outside the x-low face | 0 matched, 0 scanned, 96 ms | 0 matched, 41 016 scanned, 927 ms | yes |
+| just outside the x-high face | 0, 0, 15 ms | 0, 41 016, 830 ms | yes |
+| just outside the y-low face | 0, 0, 14 ms | 0, 41 016, 634 ms | yes |
+| just outside the y-high face | 0, 0, 13 ms | 0, 41 016, 682 ms | yes |
+| just outside the z-low face | 0, 0, 13 ms | 0, 41 016, 614 ms | yes |
+| just outside the z-high face | 0, 0, 12 ms | 0, 41 016, 627 ms | yes |
+| a zone covering everything | 26 762, 41 016, 2 196 ms | 26 762, 41 016, 1 563 ms | yes |
+| `sourceFileContains` matching nothing | 0, 0, 12 ms | 0, 41 016, 1 006 ms | yes |
+
+**Every count is identical, and every run completed**, so the zeros are complete answers
+rather than truncated ones — which is what makes this a comparison and not a coincidence.
+With pruning off, each of the six slabs outside the reported extents walked all 41 016 items
+and found nothing: no item on this model lies beyond its model's extents. The file test is
+covered by the last row for the same reason.
+
+What the comparison does **not** cover, stated so nobody reads more into it: one document,
+and one with `modelCount: 1`, so partial pruning across several appended files is still
+unverified — that needs an NWF with several. And the assumption is checked, not proven; a
+model whose items escape its extents would break it, and the same comparison is how such a
+model would show up.
 
 ## Host Diagnostics Tools
 
