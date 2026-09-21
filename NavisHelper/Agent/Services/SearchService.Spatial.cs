@@ -205,7 +205,7 @@ namespace NavisHelper.Agent.Services
                 if (rootItem == null)
                     continue;
 
-                if (!SpatialModelPruning.ModelFileCanSatisfyFilter(TryGetModelSourceFile(model), sourceFileContains))
+                if (!SpatialModelPruning.ModelFileCanSatisfyFilter(TryGetModelSourceFile(model, response), sourceFileContains))
                 {
                     response.PrunedModelCount++;
                     continue;
@@ -246,14 +246,20 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private static string TryGetModelSourceFile(Model model)
+        private static string TryGetModelSourceFile(Model model, FindItemsByBboxResponse response)
         {
             try
             {
                 return model.SourceFileName;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                // Said out loud, not swallowed. The contract promises that a model whose file
+                // name cannot be read is scanned rather than skipped *and* that the caller is
+                // told, because the alternative is a silently slower call with no explanation
+                // for why a source-file filter pruned nothing.
+                if (response.Warnings.Count < 10)
+                    response.Warnings.Add("Could not read a model's source file, so it was scanned rather than skipped: " + ex.Message);
                 return null;
             }
         }
