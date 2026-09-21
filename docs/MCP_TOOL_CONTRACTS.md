@@ -456,9 +456,55 @@ Outputs:
 | `min`, `max`, `matchMode` | scalar/object | Echo normalized spatial query. |
 | `scannedItemCount`, `matchedItemCount`, `returnedItemCount` | int | Scan count, unique matches observed, and bounded returned matches. |
 | `traversalTruncated`, `resultsTruncated` | bool | Safety/runtime or result-limit truncation indicators. Do not treat a truncated result as exhaustive. |
+| `prunedModelCount` | int | Appended models skipped whole, before any of their items was enumerated. See *Pruning whole models* below. |
 | `matchHandle` | string | Present when at least one match is returned; pass to `select_items`, visibility tools, or `create_selection_set`. |
 | `preview[]` | array | Bounded `displayName`, `path`, `sourceFile`, `min`, and `max` data. |
 | `warnings[]` | string[] | Non-fatal unreadable-bbox or truncation warnings. |
+
+#### Pruning whole models
+
+**`maxScannedItems` counts items the traversal *examined*, not items in the zone**, and
+every filter in the walk runs after the counter has already counted the item. That is why
+`traversalTruncated` used to leave a caller with one move — raise the cap toward its
+500 000 ceiling and hope to land inside the host's ten-second budget — and why the
+truncation warning says in so many words that **narrowing the zone does not help**.
+
+An appended model is now skipped **whole**, before any of its items is enumerated, when it
+cannot hold a match at all:
+
+| ruled out by | test |
+| --- | --- |
+| its own extents | the model's bounding box does not overlap the requested zone |
+| its source file | `sourceFileContains` is set and the model's file cannot contain it |
+
+`prunedModelCount` reports how many were skipped. Their items never reach
+`scannedItemCount`, which is the whole point — the two numbers together say how much of
+the model the call actually walked.
+
+The extents test needs no `matchMode`, and that is worth stating because it looks like it
+should. If a model's extents miss the zone then no descendant box can overlap it
+(`intersects`), none can lie wholly inside it (`contains`, which implies overlap), and no
+box's centre can fall in it (`center`, since a centre lies within its own box). Non-overlap
+rules out all three.
+
+**What this does not change.** Narrowing the zone still does not reduce the scan *within* a
+model — the per-item zone test is still read after the counter. Pruning only removes models
+that are entirely elsewhere, so it pays on a federated model whose parts occupy different
+volumes and pays nothing when every part spans the site. A `sourceFileContains` filter is
+the lever that always prunes.
+
+**Fail open, deliberately.** A model whose extents or file name cannot be read is scanned,
+not skipped, and a warning says so. A prune is only worth having because it is provably
+empty; "we could not tell" is not that, and recording it as such would silently drop
+matches.
+
+**One assumption, and how it is checked.** Pruning by extents assumes a model's extents
+enclose its descendants' boxes, which is what model extents mean but cannot be proven from
+outside the Navisworks API. A wrong assumption can only *lose* matches, never invent them,
+so the rig check is a comparison: the same query with pruning reachable and with the zone
+widened to cover everything must report the same `matchedItemCount`. The file test carries
+the weaker assumption that a model's items report that model's source file, and the same
+comparison covers it.
 
 ## Host Diagnostics Tools
 
