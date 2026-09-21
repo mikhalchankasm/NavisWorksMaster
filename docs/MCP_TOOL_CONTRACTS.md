@@ -626,7 +626,19 @@ the only way to get the host the caller asked about.
 
 The pre-launch snapshot is matched to current hosts by `instanceId`, not pid, because
 a pid freed by a closed instance can be reused by the next process — matched by pid,
-a genuinely new host would be read against a record belonging to a different one.
+a genuinely new host would be read against a record belonging to a different one. When
+a record carries no `instanceId` the comparison falls back to the pid and can rule out
+such a new host; that direction is deliberate, because ruling one out ends in a
+truthful `host_timeout` while failing to would let the launch claim a host it never
+opened, and a host with no `instanceId` cannot be addressed by the tools that follow.
+
+**An acquired title is evidence, not proof.** A host that was already running and
+opens some *other* same-named model while this launch is still loading becomes
+eligible under this rule and would be returned. The residual gap is far narrower than
+the one it replaces — it needs a second instance to open a same-named file from a
+different directory inside the startup window — but it is the same shape, and it is
+not closed. Closing it means proving the full path, which discovery does not carry:
+a `host_status` round trip per poll against an instance somebody may be working in.
 
 The cost of this rule, so the next person does not rediscover it as a regression: a
 host that *already* held the requested file and did not answer its pre-launch

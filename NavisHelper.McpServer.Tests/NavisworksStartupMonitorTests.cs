@@ -438,6 +438,39 @@ public sealed class NavisworksStartupMonitorTests
     }
 
     [Fact]
+    public void SelectHost_WithoutInstanceIdsAPidReuseIsResolvedTowardsTheSaferAnswer()
+    {
+        // Falling back to pids cannot tell a pid-reusing host from its predecessor, so
+        // this genuine new host is ruled out and the launch ends in host_timeout. That
+        // direction is deliberate: ruling one out costs a truthful timeout, while
+        // failing to would let the launch claim a host it never opened. A host with no
+        // instance id could not be addressed by the tools that follow in any case.
+        var closedHostThatOwnedThePid = new NavisworksHostInfo
+        {
+            InstanceId = string.Empty,
+            Pid = 28760,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = DateTime.UtcNow.AddMinutes(-9),
+        };
+        var newHostReusingThePid = new NavisworksHostInfo
+        {
+            InstanceId = string.Empty,
+            Pid = 28760,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = DateTime.UtcNow,
+        };
+
+        var selected = NavisworksLaunchService.SelectHost(
+            new[] { newHostReusingThePid },
+            expectedTitle: "6501.5.nwd",
+            processId: 72976,
+            hostsBefore: new[] { closedHostThatOwnedThePid },
+            excludedProcessId: null);
+
+        Assert.Null(selected);
+    }
+
+    [Fact]
     public void ObserveWithoutWait_AliveProcess_ReturnsProcessCreatedWithoutDelay()
     {
         using var process = new FakeProcess();

@@ -392,6 +392,13 @@ internal sealed class NavisworksLaunchService
         // D:\nh-l3-b\6501.5.nwd, while the process it had just started was still loading
         // C and registered its own host seconds later. Skipping that host lets the poll
         // run on until the launched pid registers, which is the answer asked for.
+        //
+        // An acquired title is evidence, not proof: a pre-existing host that opens some
+        // *other* same-named model while this launch is still loading becomes eligible
+        // here and would be returned. Proving it needs the full path, which discovery
+        // does not carry -- a host_status round trip per poll against an instance
+        // somebody may be working in. The narrower rule is what is affordable here;
+        // docs/MCP_TOOL_CONTRACTS.md records the remaining gap and its price.
         return candidates
             .Where(host => HostDocumentMatches(host, expectedTitle))
             .Where(host => !HeldExpectedTitleBeforeLaunch(hostsBefore, host, expectedTitle))
@@ -411,6 +418,12 @@ internal sealed class NavisworksLaunchService
     // Instance ids are preferred over pids because a pid can be reused by a later
     // process, which would make a brand-new host look like one of the hosts observed
     // before the launch. Pids are the fallback for a record that carries no instance id.
+    //
+    // That fallback can misread a pid-reusing host as its predecessor and rule out a
+    // genuine new host, and it is kept because that is the safe direction: ruling one
+    // out ends in a truthful host_timeout, while failing to would let a launch claim a
+    // host it never opened. A host with no instance id could not be addressed by the
+    // tools that follow anyway -- they target hosts by instance id.
     private static bool IsSameHostRecord(NavisworksHostInfo left, NavisworksHostInfo right)
     {
         if (!string.IsNullOrWhiteSpace(left.InstanceId) && !string.IsNullOrWhiteSpace(right.InstanceId))
