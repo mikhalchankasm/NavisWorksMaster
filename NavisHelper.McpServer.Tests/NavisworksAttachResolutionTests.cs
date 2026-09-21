@@ -167,6 +167,11 @@ public sealed class NavisworksAttachResolutionTests
         Assert.Null(target);
     }
 
+    // A fixed clock: these tests are about what the ledger records, not about elapsed
+    // time. The one test that needs a refusal to expire moves it forward explicitly.
+    private static readonly DateTimeOffset Now =
+        new DateTimeOffset(2026, 9, 21, 12, 0, 0, TimeSpan.Zero);
+
     private static string RequestedFilePath =>
         Path.GetFullPath(Path.Combine(Path.GetTempPath(), "navishelper-attach-resolution", "model.nwd"));
 
@@ -196,27 +201,30 @@ public sealed class NavisworksAttachResolutionTests
         // another directory, so the launch must keep waiting for its own process rather
         // than answer with this host.
         var wrongDirectory = Host("stranger", "D:\\nh-l3-b\\6501.5.nwd");
-        var verdicts = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var ledger = new NavisworksLaunchService.HandoffProofLedger();
 
         var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
             new[] { wrongDirectory },
             RequestedFilePath,
-            verdicts,
+            ledger,
             (candidate, _) => Task.FromResult(new HostStatusResponse
             {
                 DocumentFileName = DocumentOf(candidate),
             }),
+            Now,
             CancellationToken.None);
 
         Assert.Null(target);
-        Assert.False(verdicts["stranger"]);
+        // Recorded as refused, so the next poll within the retry interval skips it.
+        Assert.False(ledger.IsProven("stranger"));
+        Assert.False(ledger.ShouldProbe("stranger", Now));
     }
 
     [Fact]
     public async Task AProvenHandoffIsReturnedAndRemembered()
     {
         var handoff = Host("handoff", RequestedFilePath);
-        var verdicts = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var ledger = new NavisworksLaunchService.HandoffProofLedger();
         var probes = 0;
 
         for (var poll = 0; poll < 3; poll++)
@@ -224,7 +232,7 @@ public sealed class NavisworksAttachResolutionTests
             var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
                 new[] { handoff },
                 RequestedFilePath,
-                verdicts,
+                ledger,
                 (candidate, _) =>
                 {
                     probes++;
@@ -233,6 +241,7 @@ public sealed class NavisworksAttachResolutionTests
                         DocumentFileName = DocumentOf(candidate),
                     });
                 },
+                Now,
                 CancellationToken.None);
 
             Assert.Same(handoff, target);
@@ -248,7 +257,7 @@ public sealed class NavisworksAttachResolutionTests
     public async Task ARuledOutCandidateIsNotProbedAgainOnEveryPoll()
     {
         var wrongDirectory = Host("stranger", "D:\\nh-l3-b\\6501.5.nwd");
-        var verdicts = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var ledger = new NavisworksLaunchService.HandoffProofLedger();
         var probes = 0;
 
         for (var poll = 0; poll < 4; poll++)
@@ -256,7 +265,7 @@ public sealed class NavisworksAttachResolutionTests
             Assert.Null(await NavisworksLaunchService.ResolveProvenHandoffAsync(
                 new[] { wrongDirectory },
                 RequestedFilePath,
-                verdicts,
+                ledger,
                 (candidate, _) =>
                 {
                     probes++;
@@ -265,10 +274,65 @@ public sealed class NavisworksAttachResolutionTests
                         DocumentFileName = DocumentOf(candidate),
                     });
                 },
+                Now,
                 CancellationToken.None));
         }
 
         Assert.Equal(1, probes);
+    }
+
+    [Fact]
+    public async Task ARefusalExpiresSoAHostStillBeingHandedTheFileIsNotWrittenOff()
+    {
+        // Why a refusal is not final. Roamer changes an existing instance's document while
+        // that instance keeps the same title, so a candidate can answer with its previous
+        // path and hold the requested one moments later. Caching the refusal for the whole
+        // wait would turn that into a host_timeout over a document that did finish loading.
+        var transitioning = Host("transitioning", "D:\\nh-l3-b\\6501.5.nwd");
+        var ledger = new NavisworksLaunchService.HandoffProofLedger(
+            retryRefusalsAfter: TimeSpan.FromSeconds(2));
+
+        var duringTransition = await NavisworksLaunchService.ResolveProvenHandoffAsync(
+            new[] { transitioning },
+            RequestedFilePath,
+            ledger,
+            (candidate, _) => Task.FromResult(new HostStatusResponse
+            {
+                DocumentFileName = DocumentOf(candidate),
+            }),
+            Now,
+            CancellationToken.None);
+
+        Assert.Null(duringTransition);
+
+        // The hand-off completes: this instance now holds the requested file.
+        Documents["transitioning"] = RequestedFilePath;
+
+        // Still inside the retry interval, so it is not asked again yet.
+        Assert.Null(await NavisworksLaunchService.ResolveProvenHandoffAsync(
+            new[] { transitioning },
+            RequestedFilePath,
+            ledger,
+            (candidate, _) => Task.FromResult(new HostStatusResponse
+            {
+                DocumentFileName = DocumentOf(candidate),
+            }),
+            Now.AddSeconds(1),
+            CancellationToken.None));
+
+        // Past it, the question is asked again and the host is found.
+        var afterTransition = await NavisworksLaunchService.ResolveProvenHandoffAsync(
+            new[] { transitioning },
+            RequestedFilePath,
+            ledger,
+            (candidate, _) => Task.FromResult(new HostStatusResponse
+            {
+                DocumentFileName = DocumentOf(candidate),
+            }),
+            Now.AddSeconds(3),
+            CancellationToken.None);
+
+        Assert.Same(transitioning, afterTransition);
     }
 
     [Fact]
@@ -278,32 +342,36 @@ public sealed class NavisworksAttachResolutionTests
         // a large model may not answer at all, and recording that as a verdict would rule
         // out the very host the launch is waiting for.
         var loading = Host("loading", RequestedFilePath);
-        var verdicts = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var ledger = new NavisworksLaunchService.HandoffProofLedger();
         var probes = 0;
 
         var first = await NavisworksLaunchService.ResolveProvenHandoffAsync(
             new[] { loading },
             RequestedFilePath,
-            verdicts,
+            ledger,
             (_, _) =>
             {
                 probes++;
                 throw new InvalidOperationException("still loading");
             },
+            Now,
             CancellationToken.None);
 
         Assert.Null(first);
-        Assert.Empty(verdicts);
+        // Nothing recorded at all, so the very next poll asks again rather than waiting
+        // out a refusal interval it never earned.
+        Assert.True(ledger.ShouldProbe("loading", Now));
 
         var second = await NavisworksLaunchService.ResolveProvenHandoffAsync(
             new[] { loading },
             RequestedFilePath,
-            verdicts,
+            ledger,
             (candidate, _) =>
             {
                 probes++;
                 return Task.FromResult(new HostStatusResponse { DocumentFileName = DocumentOf(candidate) });
             },
+            Now,
             CancellationToken.None);
 
         Assert.Same(loading, second);
@@ -322,13 +390,14 @@ public sealed class NavisworksAttachResolutionTests
             NavisworksLaunchService.ResolveProvenHandoffAsync(
                 new[] { Host("candidate", RequestedFilePath) },
                 RequestedFilePath,
-                new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase),
+                new NavisworksLaunchService.HandoffProofLedger(),
                 (_, token) =>
                 {
                     cts.Cancel();
                     token.ThrowIfCancellationRequested();
                     return Task.FromResult<HostStatusResponse>(null);
                 },
+                Now,
                 cts.Token));
     }
 
@@ -342,12 +411,13 @@ public sealed class NavisworksAttachResolutionTests
         var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
             new[] { proven, other },
             RequestedFilePath,
-            new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase),
+            new NavisworksLaunchService.HandoffProofLedger(),
             (candidate, _) =>
             {
                 probed.Add(candidate.InstanceId);
                 return Task.FromResult(new HostStatusResponse { DocumentFileName = DocumentOf(candidate) });
             },
+            Now,
             CancellationToken.None);
 
         Assert.Same(proven, target);

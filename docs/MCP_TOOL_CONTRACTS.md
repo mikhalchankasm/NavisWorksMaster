@@ -635,25 +635,33 @@ opened, and a host with no `instanceId` cannot be addressed by the tools that fo
 **A pre-existing host is only ever accepted after its full path is proven**, exactly as
 on the attach path before a launch. `host_status` on that instance is compared against
 the requested path, and a mismatch keeps the wait running rather than answering with
-that host. The title match is what makes an instance a *candidate*; the path is what
-makes it the answer.
+that host. A title match is what makes an instance a *candidate*; the path is what makes
+it the answer.
 
-"Acquired since this launch" is therefore a cost filter, not the correctness mechanism.
-It is measured from a discovery list read **immediately before the process is started**,
-not from the one used to pick attach candidates, because those candidate probes can run
-for up to the 60-second probe budget and every document a person opened by hand in that
-minute would otherwise look like this launch's hand-off. Getting that boundary wrong now
-costs a wasted round trip instead of a wrong host, which is also why the residual window
-between that read and the launch itself is affordable — it cannot be closed from inside
-the call, since the launch boundary is only knowable once the process exists.
+Nothing narrows the candidates by name beyond that title match. An earlier version
+offered only hosts that had *acquired* the expected title since the launch, as a way to
+spend fewer round trips, and that filter threw away the case this path exists for: when
+Roamer hands `D:\C\model.nwd` to an instance already showing `D:\B\model.nwd` the
+document changes and the title does not, so the one host that really took the file
+looked ineligible and the launch reported `host_timeout` over a document open on screen.
 
-Each candidate instance is probed **once per launch**, and the verdict is remembered for
-the rest of the wait. The wait polls every 250 ms for up to five minutes, so re-asking
-each time would put hundreds of round trips into an instance somebody may be working in,
-to repeat a question whose answer changes only if that instance loads another document —
-and then its title moves and the filter re-evaluates it anyway. A candidate that does not
-answer at all is *not* recorded as ruled out: an instance still loading a large model may
-simply be busy, and the next poll asks again.
+Each candidate is probed at most once every two seconds, and a **proof is final while a
+refusal is not**. That asymmetry is deliberate. A host confirmed to hold the requested
+path will not stop holding it in a way this call should care about, but a host that
+answers with a different path may be a stranger *or* may be part-way through being handed
+the requested file — and caching that refusal for the whole wait would turn the second
+case into a `host_timeout` over a document that finished loading a moment later. A
+candidate that does not answer at all is not recorded either way: an instance loading a
+large model is busy, not disqualified, so the next poll asks again immediately.
+
+The lookup is bounded by the time left in the wait. It can now include a round trip into
+an instance somebody else is using, and without that bound a single unresponsive
+candidate would hold `start_navisworks` open past any `waitTimeoutSeconds`.
+
+The second discovery list, read immediately before the process is started, is what "a
+host that registered since the launch" is measured against. The window between that read
+and the launch itself cannot be closed from inside the call, because the launch boundary
+is only knowable once the process exists.
 
 With the default `waitForHost=true`, the server monitors both host discovery and
 the child process. A nonzero or unavailable early process exit returns

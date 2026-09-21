@@ -104,6 +104,21 @@ def check(text: str, advertised: set[str]) -> list[str]:
             f"updated -- fix the '**{measured} of {total}**' row."
         )
 
+    # A matching total is not enough. Remove one measured tool and add one that nobody
+    # measured and the count is unchanged, the gap table still lists the same twelve, and
+    # every check above passes while the new tool has no number anywhere. So require that
+    # each advertised tool is at least *named* in the document: either measured in one of
+    # its tables or listed as a gap. This does not confirm a number exists, only that no
+    # tool is missing from the document altogether, which is the failure a matching total
+    # hides.
+    mentioned = set(BACKTICKED.findall(text))
+    unmentioned = sorted(advertised - mentioned)
+    if unmentioned:
+        problems.append(
+            f"these advertised tools are not named anywhere in the baseline, so they are "
+            f"neither measured nor listed as a gap: {unmentioned}"
+        )
+
     section = gap_section(text)
     listed = gap_table_tools(section)
     duplicates = sorted({name for name in listed if listed.count(name) > 1})
@@ -185,6 +200,13 @@ FIXTURE_GOOD = """# Baseline
 
 | tools covered | **2 of 4** advertised tools carry a measured number. The remaining **2** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
 
+## The read-only pass
+
+| tool | first | warm |
+| --- | --- | --- |
+| `gamma` | 11 | 4 |
+| `delta` | 12 | 5 |
+
 ## What still has no number
 
 | tool | why |
@@ -246,6 +268,13 @@ def selftest() -> int:
         FIXTURE_GOOD.replace("**1** of those are not reachable",
                              "**4** of those are not reachable"),
         "says 4 tools are out of reach, but the bullet names 1",
+    ))
+    cases.append((
+        "a tool replaced another one, so the total still matches but nobody wrote it down",
+        # `delta` stops being mentioned at all. Every count still agrees -- which is the
+        # point: a matching total hides a tool that fell out of the document.
+        FIXTURE_GOOD.replace("| `delta` | 12 | 5 |\n", ""),
+        "not named anywhere in the baseline",
     ))
 
     failures = 0

@@ -306,14 +306,14 @@ public sealed class NavisworksStartupMonitorTests
     }
 
     [Fact]
-    public void SelectHandoffCandidates_APreExistingSameNamedHostIsNotOfferedForALaunchStillStarting()
+    public void SelectHost_NeverAnswersWithAHostThatWasAlreadyRunning()
     {
         // Measured on the live rig: two instances held same-named models from different
         // directories, a request for a third such path launched its own process, and
         // start_navisworks returned in 140 ms naming the instance that held D:\nh-l3-b,
-        // because discovery compares document *titles* -- file names -- and the launched
-        // pid had not registered yet. It registered seconds later holding the requested
-        // file. Reporting the stranger makes every later tool address the wrong model.
+        // because discovery compares document *titles* -- file names. Neither tier here
+        // identifies a host by a name alone, so this returns null and the caller either
+        // waits for its own pid or proves a candidate's full path.
         var strangerHoldingASameNamedFile = new NavisworksHostInfo
         {
             InstanceId = "stranger",
@@ -323,159 +323,102 @@ public sealed class NavisworksStartupMonitorTests
         };
         var hosts = new[] { strangerHoldingASameNamedFile };
 
-        // Neither tier identifies it, and it is not even offered for proof, so no round
-        // trip is spent on it: the poll simply runs on until the launched pid registers.
         Assert.Null(NavisworksLaunchService.SelectHost(
             hosts,
             expectedTitle: "6501.5.nwd",
             processId: 72976,
             hostsBefore: hosts,
             excludedProcessId: null));
-
-        Assert.Empty(NavisworksLaunchService.SelectHandoffCandidates(
-            hosts,
-            expectedTitle: "6501.5.nwd",
-            hostsBefore: hosts,
-            excludedProcessId: null));
     }
 
     [Fact]
-    public void SelectHandoffCandidates_AHostThatPickedUpTheRequestedTitleIsOfferedForProof()
+    public void SelectHandoffCandidates_AHostHandedASameNamedFileIsStillOffered()
     {
-        // The case the fallback exists for, and the reason it is narrowed rather than
-        // removed: Roamer can hand the file to an instance that is already running, which
-        // registers no new host, so without this a launch would time out on a document
-        // that is open on screen. The hand-off shows as a title this host did not carry
-        // before the launch -- which makes it a candidate, not an answer. The caller still
-        // has to confirm the full path.
-        var beforeLaunch = new NavisworksHostInfo
-        {
-            InstanceId = "existing",
-            Pid = 28760,
-            DocumentTitle = "something-else.nwd",
-            StartedAtUtc = DateTime.UtcNow.AddMinutes(-5),
-        };
-        var afterHandoff = new NavisworksHostInfo
+        // The case an earlier version of this code got wrong, which is why it has a test
+        // of its own. Roamer hands D:\C\6501.5.nwd to an instance already showing
+        // D:\B\6501.5.nwd: the document changes, the *title* does not. Filtering on
+        // "acquired the expected title since the launch" dropped exactly this host -- the
+        // one that really did take the file -- and the launch reported host_timeout over a
+        // document open on screen. Nothing here may exclude a host on the strength of its
+        // name; that is the path proof's job.
+        var handedTheRequestedFile = new NavisworksHostInfo
         {
             InstanceId = "existing",
             Pid = 28760,
             DocumentTitle = "6501.5.nwd",
-            StartedAtUtc = beforeLaunch.StartedAtUtc,
+            StartedAtUtc = DateTime.UtcNow.AddMinutes(-5),
         };
 
         var candidates = NavisworksLaunchService.SelectHandoffCandidates(
-            new[] { afterHandoff },
+            new[] { handedTheRequestedFile },
             expectedTitle: "6501.5.nwd",
-            hostsBefore: new[] { beforeLaunch },
             excludedProcessId: null);
 
-        Assert.Same(afterHandoff, Assert.Single(candidates));
+        Assert.Same(handedTheRequestedFile, Assert.Single(candidates));
     }
 
     [Fact]
-    public void SelectHandoffCandidates_OnlyTheHostThatAcquiredTheTitleIsOfferedEvenWhenAStrangerIsNewer()
+    public void SelectHandoffCandidates_EveryNameMatchingHostIsOfferedNewestFirst()
     {
-        // Both pre-existing hosts report the requested title and the stranger is the
-        // newer of the two, so ordering alone would offer the wrong one first and spend
-        // the probe on it. Eligibility is not about recency.
-        var strangerBefore = new NavisworksHostInfo
+        // All of them, because the newest host holding a same-named file need not be the
+        // one holding this file -- the same reason the attach path probes every candidate
+        // rather than only the newest. Newest first is a preference between candidates
+        // that are otherwise equal, not a decision.
+        var older = new NavisworksHostInfo
         {
-            InstanceId = "stranger",
+            InstanceId = "older",
+            Pid = 70360,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = DateTime.UtcNow.AddMinutes(-9),
+        };
+        var newer = new NavisworksHostInfo
+        {
+            InstanceId = "newer",
             Pid = 28760,
             DocumentTitle = "6501.5.nwd",
             StartedAtUtc = DateTime.UtcNow.AddMinutes(-1),
         };
-        var handoffBefore = new NavisworksHostInfo
+        var differentDocument = new NavisworksHostInfo
         {
-            InstanceId = "handoff",
-            Pid = 70360,
+            InstanceId = "unrelated",
+            Pid = 11111,
             DocumentTitle = "something-else.nwd",
-            StartedAtUtc = DateTime.UtcNow.AddMinutes(-9),
-        };
-        var handoffAfter = new NavisworksHostInfo
-        {
-            InstanceId = "handoff",
-            Pid = 70360,
-            DocumentTitle = "6501.5.nwd",
-            StartedAtUtc = handoffBefore.StartedAtUtc,
-        };
-
-        var candidates = NavisworksLaunchService.SelectHandoffCandidates(
-            new[] { strangerBefore, handoffAfter },
-            expectedTitle: "6501.5.nwd",
-            hostsBefore: new[] { strangerBefore, handoffBefore },
-            excludedProcessId: null);
-
-        Assert.Same(handoffAfter, Assert.Single(candidates));
-    }
-
-    [Fact]
-    public void SelectHandoffCandidates_APidReusedByANewHostIsNotMistakenForThePreLaunchRecord()
-    {
-        // The pre-launch snapshot is matched by instance id, because a pid freed by a
-        // closed instance can be handed to the next process. Matching on the pid alone
-        // would read this host's title from a record belonging to a different host and
-        // rule out a host that really did acquire the document.
-        var closedHostThatOwnedThePid = new NavisworksHostInfo
-        {
-            InstanceId = "closed",
-            Pid = 28760,
-            DocumentTitle = "6501.5.nwd",
-            StartedAtUtc = DateTime.UtcNow.AddMinutes(-9),
-        };
-        var newHostReusingThePid = new NavisworksHostInfo
-        {
-            InstanceId = "fresh",
-            Pid = 28760,
-            DocumentTitle = "6501.5.nwd",
             StartedAtUtc = DateTime.UtcNow,
         };
 
         var candidates = NavisworksLaunchService.SelectHandoffCandidates(
-            new[] { newHostReusingThePid },
+            new[] { older, differentDocument, newer },
             expectedTitle: "6501.5.nwd",
-            hostsBefore: new[] { closedHostThatOwnedThePid },
             excludedProcessId: null);
 
-        Assert.Same(newHostReusingThePid, Assert.Single(candidates));
+        Assert.Equal(new[] { "newer", "older" }, candidates.Select(host => host.InstanceId));
     }
 
     [Fact]
-    public void SelectHandoffCandidates_WithoutInstanceIdsAPidReuseIsResolvedTowardsTheSaferAnswer()
+    public void SelectHandoffCandidates_TheExcludedProcessIsNotOffered()
     {
-        // Falling back to pids cannot tell a pid-reusing host from its predecessor, so
-        // this host is not offered and the launch ends in host_timeout. That direction is
-        // deliberate: not offering one costs a truthful timeout, while offering it spends
-        // a probe on an instance that cannot be addressed afterwards anyway -- the tools
-        // that follow target hosts by instance id.
-        var closedHostThatOwnedThePid = new NavisworksHostInfo
+        // The launcher's own pid is excluded once it is known to have exited, so a stale
+        // record for it cannot be re-offered as somebody else's hand-off.
+        var exitedLauncher = new NavisworksHostInfo
         {
-            InstanceId = string.Empty,
-            Pid = 28760,
-            DocumentTitle = "6501.5.nwd",
-            StartedAtUtc = DateTime.UtcNow.AddMinutes(-9),
-        };
-        var newHostReusingThePid = new NavisworksHostInfo
-        {
-            InstanceId = string.Empty,
-            Pid = 28760,
+            InstanceId = "launcher",
+            Pid = 72976,
             DocumentTitle = "6501.5.nwd",
             StartedAtUtc = DateTime.UtcNow,
         };
 
         Assert.Empty(NavisworksLaunchService.SelectHandoffCandidates(
-            new[] { newHostReusingThePid },
+            new[] { exitedLauncher },
             expectedTitle: "6501.5.nwd",
-            hostsBefore: new[] { closedHostThatOwnedThePid },
-            excludedProcessId: null));
+            excludedProcessId: 72976));
     }
 
     [Fact]
     public void SelectHandoffCandidates_ARequestNamingNoFileOffersNothing()
     {
-        // `start_navisworks` with no file may legitimately want another instance, and
-        // with no document named there is nothing to check a running host against.
-        // Offering one would turn "start Navisworks" into "give me whatever is running".
+        // `start_navisworks` with no file may legitimately want another instance, and with
+        // no document named there is nothing to check a running host against. Offering one
+        // would turn "start Navisworks" into "give me whatever is running".
         var running = new NavisworksHostInfo
         {
             InstanceId = "running",
@@ -487,8 +430,70 @@ public sealed class NavisworksStartupMonitorTests
         Assert.Empty(NavisworksLaunchService.SelectHandoffCandidates(
             new[] { running },
             expectedTitle: string.Empty,
-            hostsBefore: Array.Empty<NavisworksHostInfo>(),
             excludedProcessId: null));
+    }
+
+    [Fact]
+    public async Task WaitForHostAsync_AHostLookupThatNeverAnswersStillEndsAtTheTimeout()
+    {
+        // The lookup used to be a local discovery read. It can now include a host_status
+        // round trip into an instance somebody else is using, and a busy instance may leave
+        // it outstanding -- so the wait has to bound it by its own remaining time. Without
+        // that, one unresponsive candidate holds start_navisworks open past any
+        // waitTimeoutSeconds and no further poll ever happens.
+        using var process = new FakeProcess();
+        var monitor = new NavisworksStartupMonitor(TimeSpan.FromMilliseconds(5));
+        var stopwatch = Stopwatch.StartNew();
+
+        var result = await monitor.WaitForHostAsync(
+            process,
+            async (_, token) =>
+            {
+                await Task.Delay(TimeSpan.FromMinutes(5), token);
+                return new NavisworksHostInfo { InstanceId = "never-answers" };
+            },
+            TimeSpan.FromMilliseconds(200),
+            CancellationToken.None);
+
+        Assert.Equal(StartNavisworksOutcomes.HostTimeout, result.Outcome);
+        Assert.Null(result.Host);
+        Assert.True(
+            stopwatch.Elapsed < TimeSpan.FromSeconds(20),
+            "the wait must end near its timeout, took " + stopwatch.Elapsed);
+    }
+
+    [Fact]
+    public async Task WaitForHostAsync_ALookupBudgetExpiringIsNotReportedAsCallerCancellation()
+    {
+        // The budget that bounds the lookup is linked to the caller's token, so the
+        // distinction has to be kept: an expired budget means "no host this poll", while
+        // the caller cancelling must surface as cancellation.
+        using var process = new FakeProcess();
+        var monitor = new NavisworksStartupMonitor(TimeSpan.FromMilliseconds(5));
+        using var cts = new CancellationTokenSource();
+
+        var timedOut = await monitor.WaitForHostAsync(
+            process,
+            async (_, token) =>
+            {
+                await Task.Delay(TimeSpan.FromMinutes(5), token);
+                return new NavisworksHostInfo { InstanceId = "never-answers" };
+            },
+            TimeSpan.FromMilliseconds(150),
+            cts.Token);
+
+        Assert.Equal(StartNavisworksOutcomes.HostTimeout, timedOut.Outcome);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => monitor.WaitForHostAsync(
+            process,
+            async (_, token) =>
+            {
+                cts.Cancel();
+                await Task.Delay(TimeSpan.FromMinutes(5), token);
+                return new NavisworksHostInfo { InstanceId = "never-answers" };
+            },
+            TimeSpan.FromSeconds(30),
+            cts.Token));
     }
 
     [Fact]

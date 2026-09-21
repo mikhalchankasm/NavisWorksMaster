@@ -132,17 +132,14 @@ internal sealed class NavisworksLaunchService
 
         var startInfoBuild = _startInfoFactory.Create(roamerPath, effectiveFilePath);
 
-        // Snapshot discovery again, as close to the launch as this method can get. The
-        // list taken at the top is as much as a probe budget old -- 60 seconds -- and
-        // SelectHandoffCandidates asks which hosts acquired the requested title since
-        // this launch. Read from the older list, every document somebody opened by hand
-        // while the probes ran looks like this launch's hand-off.
+        // Snapshot discovery again, as close to the launch as this method can get. This is
+        // what "a host that registered since the launch" is measured against, and the list
+        // taken at the top of the method is as much as a probe budget old -- 60 seconds.
+        // Measured from that one, an instance somebody started by hand while the candidate
+        // probes ran would count as this launch's own host.
         //
-        // What that costs is a wasted round trip, not a wrong answer: a candidate is only
-        // ever accepted after its full path is proven, so this snapshot decides how many
-        // instances get probed, not which host is reported. That is why the residual
-        // window between this call and Start is affordable -- it cannot be closed from
-        // here anyway, since the launch boundary is only knowable once the process exists.
+        // The window between this call and Start cannot be closed from here, because the
+        // launch boundary is only knowable once the process exists.
         var hostsAtLaunch = _hostBridgeClient.ListNavisworksHosts().Hosts;
 
         var startupStopwatch = Stopwatch.StartNew();
@@ -154,8 +151,9 @@ internal sealed class NavisworksLaunchService
         NavisworksStartupMonitorResult startupResult;
         if (waitForHost)
         {
-            // One verdict per instance for the whole wait, not per poll.
-            var pathProofByInstance = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            // Shared across every poll of this wait, so a candidate is not re-probed on
+            // each one.
+            var ledger = new HandoffProofLedger();
             startupResult = await _startupMonitor.WaitForHostAsync(
                 process,
                 (excludedProcessId, token) => FindHostAsync(
@@ -164,7 +162,7 @@ internal sealed class NavisworksLaunchService
                     response.ProcessId,
                     hostsAtLaunch,
                     excludedProcessId,
-                    pathProofByInstance,
+                    ledger,
                     token),
                 TimeSpan.FromSeconds(ClampWaitTimeoutSeconds(waitTimeoutSeconds)),
                 cancellationToken).ConfigureAwait(false);
@@ -348,7 +346,7 @@ internal sealed class NavisworksLaunchService
         int? processId,
         IReadOnlyList<NavisworksHostInfo> hostsAtLaunch,
         int? excludedProcessId,
-        IDictionary<string, bool> pathProofByInstance,
+        HandoffProofLedger ledger,
         CancellationToken cancellationToken)
     {
         var expectedTitle = string.IsNullOrWhiteSpace(filePath) ? string.Empty : Path.GetFileName(filePath);
@@ -361,13 +359,14 @@ internal sealed class NavisworksLaunchService
             return host;
 
         return await ResolveProvenHandoffAsync(
-            SelectHandoffCandidates(hosts, expectedTitle, hostsAtLaunch, excludedProcessId),
+            SelectHandoffCandidates(hosts, expectedTitle, excludedProcessId),
             filePath,
-            pathProofByInstance,
+            ledger,
             (target, token) => _hostBridgeClient.HostStatusAsync(
                 new HostStatusRequest(),
                 token,
                 new HostTargetOptions { InstanceId = target.InstanceId }),
+            DateTimeOffset.UtcNow,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -382,32 +381,31 @@ internal sealed class NavisworksLaunchService
     /// a host it never opened whenever a same-named model is opened elsewhere during
     /// startup.
     ///
-    /// <paramref name="pathProofByInstance"/> carries one verdict per instance for the
-    /// whole wait. The poll runs every 250 ms for up to five minutes, so re-asking each
-    /// time would put hundreds of round trips into an instance somebody may be working
-    /// in, to repeat a question whose answer changes only if that instance loads another
-    /// document -- and then its title moves and the pre-filter re-evaluates it anyway.
+    /// <paramref name="ledger"/> keeps the cost bounded. The wait polls every 250 ms for
+    /// up to five minutes, and probing every candidate on every poll would put hundreds of
+    /// round trips into an instance somebody may be working in.
     /// </summary>
     internal static async Task<NavisworksHostInfo> ResolveProvenHandoffAsync(
         IReadOnlyList<NavisworksHostInfo> candidates,
         string requestedFilePath,
-        IDictionary<string, bool> pathProofByInstance,
+        HandoffProofLedger ledger,
         Func<NavisworksHostInfo, CancellationToken, Task<HostStatusResponse>> probeHostStatusAsync,
+        DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
         if (candidates == null || candidates.Count == 0)
             return null;
 
+        ledger ??= new HandoffProofLedger();
+
         foreach (var candidate in candidates)
         {
             var key = candidate.InstanceId ?? string.Empty;
-            if (pathProofByInstance != null && pathProofByInstance.TryGetValue(key, out var alreadyProven))
-            {
-                if (alreadyProven)
-                    return candidate;
+            if (ledger.IsProven(key))
+                return candidate;
 
+            if (!ledger.ShouldProbe(key, nowUtc))
                 continue;
-            }
 
             HostStatusResponse status;
             try
@@ -420,16 +418,14 @@ internal sealed class NavisworksLaunchService
             }
             catch (Exception)
             {
-                // An instance that does not answer is not disqualified for the rest of the
-                // wait: it may be mid-load and answer on a later poll. No verdict is
-                // recorded, so the next poll asks again.
+                // An instance that does not answer is not disqualified: it may be mid-load
+                // and answer on a later poll. Nothing is recorded, so the next poll asks
+                // again immediately rather than waiting out a refusal interval.
                 continue;
             }
 
             var proven = NavisworksAttachPolicy.DocumentPathMatches(status?.DocumentFileName, requestedFilePath);
-            if (pathProofByInstance != null)
-                pathProofByInstance[key] = proven;
-
+            ledger.Record(key, proven, nowUtc);
             if (proven)
                 return candidate;
         }
@@ -486,27 +482,27 @@ internal sealed class NavisworksLaunchService
     /// loading C. The caller must confirm the full path with <c>host_status</c>, exactly
     /// as the attach path does before a launch.
     ///
-    /// The title filter is a *pre-filter*, not the proof: only a host that acquired the
-    /// expected title since <paramref name="hostsBefore"/> was taken is offered, which
-    /// keeps the common case free of round trips -- nothing acquired the title, nothing
-    /// is probed. Correctness rests on the caller's path proof, so a stale
-    /// <paramref name="hostsBefore"/> costs a wasted probe rather than a wrong host.
+    /// Every name-matching host is offered, and nothing here tries to guess which one the
+    /// launch caused. An earlier version offered only hosts that *acquired* the expected
+    /// title since the launch, as a way to spend fewer round trips. That filter threw
+    /// away the case this whole path exists for: when Roamer hands `D:\C\model.nwd` to an
+    /// instance already showing `D:\B\model.nwd`, the title never changes, so the one
+    /// host that really did take the file looked ineligible and the launch reported
+    /// `host_timeout` over a document open on screen. A filter that can exclude the right
+    /// answer is not worth a round trip.
     /// </summary>
     internal static IReadOnlyList<NavisworksHostInfo> SelectHandoffCandidates(
         IReadOnlyList<NavisworksHostInfo> hosts,
         string expectedTitle,
-        IReadOnlyList<NavisworksHostInfo> hostsBefore,
         int? excludedProcessId)
     {
         if (string.IsNullOrWhiteSpace(expectedTitle))
             return Array.Empty<NavisworksHostInfo>();
 
         hosts ??= Array.Empty<NavisworksHostInfo>();
-        hostsBefore ??= Array.Empty<NavisworksHostInfo>();
 
         return Selectable(hosts, excludedProcessId)
             .Where(host => HostDocumentMatches(host, expectedTitle))
-            .Where(host => !HeldExpectedTitleBeforeLaunch(hostsBefore, host, expectedTitle))
             .OrderByDescending(host => host.StartedAtUtc)
             .ToList();
     }
@@ -518,30 +514,54 @@ internal sealed class NavisworksLaunchService
             ? hosts.Where(host => host.Pid != excludedProcessId.Value).ToList()
             : hosts.ToList();
 
-    private static bool HeldExpectedTitleBeforeLaunch(
-        IReadOnlyList<NavisworksHostInfo> hostsBefore,
-        NavisworksHostInfo host,
-        string expectedTitle)
+    /// <summary>
+    /// What one launch has already asked each instance, so the startup wait does not
+    /// re-ask on every poll.
+    ///
+    /// A proof is final: a host confirmed to hold the requested path is not going to stop
+    /// holding it in a way this launch should care about. A refusal is not, and that
+    /// asymmetry is the point. Two documents can share a file name, so an instance that
+    /// answers with a different path may be a stranger -- or may be part-way through being
+    /// handed the requested one, because Roamer changes a host's document while that host
+    /// keeps the same title. Caching a refusal for the whole wait would turn the second
+    /// case into a `host_timeout` over a document that finished loading a moment later.
+    /// Refusals therefore expire, and the instance is asked again.
+    /// </summary>
+    internal sealed class HandoffProofLedger
     {
-        var before = hostsBefore.FirstOrDefault(candidate => IsSameHostRecord(candidate, host));
-        return before != null && HostDocumentMatches(before, expectedTitle);
-    }
+        private static readonly TimeSpan DefaultRetryRefusalsAfter = TimeSpan.FromSeconds(2);
 
-    // Instance ids are preferred over pids because a pid can be reused by a later
-    // process, which would make a brand-new host look like one of the hosts observed
-    // before the launch. Pids are the fallback for a record that carries no instance id.
-    //
-    // That fallback can misread a pid-reusing host as its predecessor and rule out a
-    // genuine new host, and it is kept because that is the safe direction: ruling one
-    // out ends in a truthful host_timeout, while failing to would let a launch claim a
-    // host it never opened. A host with no instance id could not be addressed by the
-    // tools that follow anyway -- they target hosts by instance id.
-    private static bool IsSameHostRecord(NavisworksHostInfo left, NavisworksHostInfo right)
-    {
-        if (!string.IsNullOrWhiteSpace(left.InstanceId) && !string.IsNullOrWhiteSpace(right.InstanceId))
-            return string.Equals(left.InstanceId, right.InstanceId, StringComparison.OrdinalIgnoreCase);
+        private readonly TimeSpan _retryRefusalsAfter;
+        private readonly Dictionary<string, DateTimeOffset> _refusedAtUtc =
+            new Dictionary<string, DateTimeOffset>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _proven = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        return left.Pid == right.Pid;
+        internal HandoffProofLedger(TimeSpan? retryRefusalsAfter = null)
+        {
+            // Two seconds against a 250 ms poll: a refused instance is asked roughly once
+            // per eight polls instead of every one, which is the difference between a
+            // couple of round trips during a normal startup and several hundred.
+            _retryRefusalsAfter = retryRefusalsAfter ?? DefaultRetryRefusalsAfter;
+        }
+
+        internal bool IsProven(string instanceId) => _proven.Contains(instanceId ?? string.Empty);
+
+        internal bool ShouldProbe(string instanceId, DateTimeOffset nowUtc) =>
+            !_refusedAtUtc.TryGetValue(instanceId ?? string.Empty, out var refusedAt) ||
+            nowUtc - refusedAt >= _retryRefusalsAfter;
+
+        internal void Record(string instanceId, bool proven, DateTimeOffset nowUtc)
+        {
+            var key = instanceId ?? string.Empty;
+            if (proven)
+            {
+                _proven.Add(key);
+                _refusedAtUtc.Remove(key);
+                return;
+            }
+
+            _refusedAtUtc[key] = nowUtc;
+        }
     }
 
     private static int ClampWaitTimeoutSeconds(int timeoutSeconds) => Math.Clamp(timeoutSeconds, 1, 300);
