@@ -439,7 +439,7 @@ Twelve tools, and the reason for each, so the gap is a decision rather than an o
 | `dump_subtree_names` | the synchronous variant. Its asynchronous trio was measured instead, which is the form the contract recommends for a subtree this size. |
 | `open_latest_navisworks_file` | a lifecycle tool measured only indirectly, through the launch figure. |
 
-Four of those are not reachable in a window at all, and saying which is which matters
+**4** of those are not reachable in a window at all, and saying which is which matters
 more than the count:
 
 - **out of reach** — `save_document` and `save_document_as`, because every window

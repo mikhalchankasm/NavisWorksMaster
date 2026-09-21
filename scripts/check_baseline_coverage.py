@@ -39,6 +39,7 @@ REACHABLE_LABEL = "- **one short window away**"
 COVERAGE_RE = re.compile(r"\*\*(\d+) of (\d+)\*\* advertised tools")
 REMAINING_RE = re.compile(r"The remaining \*\*(\d+)\*\* are named in")
 REACHABLE_COUNT_RE = re.compile(r"the remaining \*\*(\d+)\*\*")
+OUT_OF_REACH_COUNT_RE = re.compile(r"\*\*(\d+)\*\* of those are not reachable")
 BACKTICKED = re.compile(r"`([a-z0-9_]+)`")
 
 
@@ -162,6 +163,21 @@ def check(text: str, advertised: set[str]) -> list[str]:
             f"{len(reachable)}"
         )
 
+    # Both sides of the split, not just one. Checking the reachable count while leaving
+    # the out-of-reach count as unchecked prose lets a tool move between the bullets and
+    # leave the sentence above them stale -- the same rot this guard exists to catch.
+    stated_out = OUT_OF_REACH_COUNT_RE.search(section)
+    if stated_out is None:
+        problems.append(
+            "the gap section states no out-of-reach count; write it as "
+            "'**N** of those are not reachable' so it can be checked"
+        )
+    elif int(stated_out.group(1)) != len(out_of_reach):
+        problems.append(
+            f"the section says {stated_out.group(1)} tools are out of reach, but the "
+            f"bullet names {len(out_of_reach)}"
+        )
+
     return problems
 
 
@@ -176,7 +192,7 @@ FIXTURE_GOOD = """# Baseline
 | `alpha` | never run on purpose. |
 | `beta` | needs an authored XML. |
 
-Some of those are not reachable at all:
+**1** of those are not reachable in a window at all:
 
 - **out of reach** — `alpha`, because every window depends on it not running.
 - **one short window away** — the remaining **1**: `beta`, which needs
@@ -224,6 +240,12 @@ def selftest() -> int:
         FIXTURE_GOOD.replace("the remaining **1**: `beta`",
                              "the remaining **2**: `alpha`, `beta`"),
         "both reachable and out of reach",
+    ))
+    cases.append((
+        "the out-of-reach count went stale while the reachable one was updated",
+        FIXTURE_GOOD.replace("**1** of those are not reachable",
+                             "**4** of those are not reachable"),
+        "says 4 tools are out of reach, but the bullet names 1",
     ))
 
     failures = 0
