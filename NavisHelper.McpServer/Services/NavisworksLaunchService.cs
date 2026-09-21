@@ -420,11 +420,18 @@ internal sealed class NavisworksLaunchService
         var probeTimeout = perProbeTimeout ?? DefaultPerProbeTimeout;
         if (remainingWait.HasValue && remainingWait.Value > TimeSpan.Zero)
         {
-            var share = TimeSpan.FromTicks(Math.Max(
-                remainingWait.Value.Ticks / Math.Max(candidates.Count, 1),
-                MinimumPerProbeTimeout.Ticks));
-            if (share < probeTimeout)
-                probeTimeout = share;
+            var fairShare = remainingWait.Value.Ticks / Math.Max(candidates.Count, 1);
+
+            // The floor keeps a share from being too short for a healthy host to answer,
+            // but it must never be the reason a candidate goes unexamined: raising each
+            // deadline above its fair share means the last candidates are cut off by the
+            // outer deadline instead. Where the floor does not fit, the fair share wins.
+            var share = MinimumPerProbeTimeout.Ticks * candidates.Count <= remainingWait.Value.Ticks
+                ? Math.Max(fairShare, MinimumPerProbeTimeout.Ticks)
+                : fairShare;
+
+            if (share > 0 && share < probeTimeout.Ticks)
+                probeTimeout = TimeSpan.FromTicks(share);
         }
 
         foreach (var candidate in candidates)
@@ -466,7 +473,14 @@ internal sealed class NavisworksLaunchService
                 // timestamp: a probe that burns five seconds against a two-second retry
                 // interval would otherwise be stamped already-expired and re-probed on the
                 // very next poll, which is the behaviour this exists to stop.
-                ledger.Record(key, proven: false, utcNow());
+                //
+                // Only when there is somebody else to hand the poll to. The throttle exists
+                // so the candidates behind this one get a turn; with a single candidate it
+                // buys nothing and can cost the tail of a short wait -- a six-second wait
+                // whose only candidate spends five seconds not answering would sit out its
+                // last second, even if that instance started answering immediately after.
+                if (candidates.Count > 1)
+                    ledger.Record(key, proven: false, utcNow());
                 continue;
             }
             catch (Exception)

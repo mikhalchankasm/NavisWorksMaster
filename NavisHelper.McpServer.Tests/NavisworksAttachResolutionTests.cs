@@ -414,6 +414,7 @@ public sealed class NavisworksAttachResolutionTests
         // same blocked instance was re-probed every 250 ms for the length of the wait,
         // spending most of each poll on a host that had already failed to answer.
         var blocks = Host("blocks", RequestedFilePath);
+        var stranger = Host("stranger", "D:\\nh-l3-b\\6501.5.nwd");
         var ledger = new NavisworksLaunchService.HandoffProofLedger(
             retryRefusalsAfter: TimeSpan.FromSeconds(2));
         var probes = 0;
@@ -421,11 +422,14 @@ public sealed class NavisworksAttachResolutionTests
         for (var poll = 0; poll < 3; poll++)
         {
             Assert.Null(await NavisworksLaunchService.ResolveProvenHandoffAsync(
-                new[] { blocks },
+                new[] { blocks, stranger },
                 RequestedFilePath,
                 ledger,
-                async (_, token) =>
+                async (candidate, token) =>
                 {
+                    if (candidate.InstanceId != "blocks")
+                        return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
+
                     probes++;
                     await Task.Delay(TimeSpan.FromMinutes(5), token);
                     return new HostStatusResponse { DocumentFileName = RequestedFilePath };
@@ -452,6 +456,7 @@ public sealed class NavisworksAttachResolutionTests
         // read when the verdict is recorded, which is why this takes a clock and not a
         // timestamp.
         var blocks = Host("blocks", RequestedFilePath);
+        var stranger = Host("stranger", "D:\\nh-l3-b\\6501.5.nwd");
         var ledger = new NavisworksLaunchService.HandoffProofLedger(
             retryRefusalsAfter: TimeSpan.FromSeconds(2));
         var clock = Now;
@@ -460,11 +465,14 @@ public sealed class NavisworksAttachResolutionTests
         for (var poll = 0; poll < 2; poll++)
         {
             Assert.Null(await NavisworksLaunchService.ResolveProvenHandoffAsync(
-                new[] { blocks },
+                new[] { blocks, stranger },
                 RequestedFilePath,
                 ledger,
-                async (_, token) =>
+                async (candidate, token) =>
                 {
+                    if (candidate.InstanceId != "blocks")
+                        return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
+
                     probes++;
                     // The probe burns more than the retry interval before failing, which is
                     // the situation a fixed clock cannot reproduce.
@@ -478,6 +486,75 @@ public sealed class NavisworksAttachResolutionTests
         }
 
         Assert.Equal(1, probes);
+    }
+
+    [Fact]
+    public async Task TheOnlyCandidateIsNeverThrottled()
+    {
+        // The throttle exists so the candidates *behind* one get a turn. With a single
+        // candidate there is nobody behind it, and sitting out the retry interval can cost
+        // the tail of a short wait: a six-second wait whose only candidate spends five
+        // seconds not answering would skip its last second, even if that instance started
+        // answering the moment the first probe gave up.
+        var onlyCandidate = Host("only", RequestedFilePath);
+        var ledger = new NavisworksLaunchService.HandoffProofLedger(
+            retryRefusalsAfter: TimeSpan.FromSeconds(2));
+        var probes = 0;
+
+        for (var poll = 0; poll < 3; poll++)
+        {
+            await NavisworksLaunchService.ResolveProvenHandoffAsync(
+                new[] { onlyCandidate },
+                RequestedFilePath,
+                ledger,
+                async (_, token) =>
+                {
+                    probes++;
+                    await Task.Delay(TimeSpan.FromMinutes(5), token);
+                    return new HostStatusResponse { DocumentFileName = RequestedFilePath };
+                },
+                () => Now,
+                CancellationToken.None,
+                perProbeTimeout: TimeSpan.FromMilliseconds(40));
+        }
+
+        Assert.Equal(3, probes);
+    }
+
+    [Fact]
+    public async Task TheProbeFloorNeverStarvesTheLastCandidates()
+    {
+        // The floor keeps a share from being too short for a healthy host to answer. It must
+        // not become the reason a candidate goes unexamined: with a one-second wait and five
+        // candidates the fair share is 200 ms, and raising each to a 250 ms floor lets four
+        // unresponsive candidates eat the whole deadline while a ready fifth is never asked.
+        // That fifth one is the older instance the file was actually handed to, since newly
+        // appeared strangers are asked first.
+        var blocked = Enumerable.Range(1, 4)
+            .Select(index => Host("blocked-" + index, "D:\\other\\model.nwd"))
+            .ToList();
+        var holdsTheFile = Host("holds-the-file", RequestedFilePath);
+        var candidates = blocked.Append(holdsTheFile).ToArray();
+        var wait = TimeSpan.FromMilliseconds(1000);
+        using var waitDeadline = new CancellationTokenSource(wait);
+
+        var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
+            candidates,
+            RequestedFilePath,
+            new NavisworksLaunchService.HandoffProofLedger(),
+            async (candidate, token) =>
+            {
+                if (candidate.InstanceId == "holds-the-file")
+                    return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
+
+                await Task.Delay(TimeSpan.FromMinutes(5), token);
+                return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
+            },
+            () => Now,
+            waitDeadline.Token,
+            remainingWait: wait);
+
+        Assert.Same(holdsTheFile, target);
     }
 
     [Fact]

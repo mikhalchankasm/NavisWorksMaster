@@ -644,9 +644,10 @@ spent in the wrong order and never a wrong host. That is also why the window bet
 that read and the launch needs no closing, which is just as well: the launch boundary is
 only knowable once the process exists.
 
-Each candidate is probed at most once every two seconds, under its own five-second
-deadline, and a **proof is final while a refusal is not**. Both asymmetries are
-deliberate:
+Each candidate is probed at most once every two seconds, under a deadline of five
+seconds or an equal share of the time left in the wait, whichever is shorter — never
+raised above that share, since a floor that starves the last candidates defeats itself.
+A **proof is final while a refusal is not**. Both asymmetries are deliberate:
 
 - A host confirmed to hold the requested path will not stop holding it in a way this
   call should care about. A host that answers with a *different* path may be a stranger
@@ -654,9 +655,14 @@ deliberate:
   instance's document while its title stays put. Caching that refusal for the whole wait
   would turn the second case into a `host_timeout` over a document that finished loading
   a moment later.
-- A candidate that does not answer at all is recorded neither way, because an instance
-  loading a large model is busy rather than disqualified, so the next poll asks again
-  immediately.
+- A candidate that does not answer at all is treated by *why* it failed. A transient
+  error costs nothing and says nothing about the document, so nothing is recorded and the
+  next poll asks again immediately. A probe that burns its entire deadline is recorded as
+  refused, because otherwise the same blocked instance is re-probed every 250 ms and the
+  candidates behind it never get a turn — and only when there *are* candidates behind it:
+  with a single candidate the throttle buys nothing and would sit out the tail of a short
+  wait. A refusal is stamped when the probe ends rather than when it began, or a
+  five-second probe against a two-second interval would be recorded already expired.
 - The per-candidate deadline is separate from the wait's. Sharing one deadline let the
   first candidate that blocked consume the whole startup budget, so the candidates behind
   it were never asked and discovery was never polled again — and a host that did hold the
