@@ -525,17 +525,23 @@ public sealed class NavisworksAttachResolutionTests
     public async Task TheProbeFloorNeverStarvesTheLastCandidates()
     {
         // The floor keeps a share from being too short for a healthy host to answer. It must
-        // not become the reason a candidate goes unexamined: with a one-second wait and five
-        // candidates the fair share is 200 ms, and raising each to a 250 ms floor lets four
-        // unresponsive candidates eat the whole deadline while a ready fifth is never asked.
-        // That fifth one is the older instance the file was actually handed to, since newly
-        // appeared strangers are asked first.
+        // not become the reason a candidate goes unexamined: raising each deadline above its
+        // fair share lets the unresponsive candidates eat the whole wait while a ready last
+        // one is never asked. That last one is the likelier real answer in this shape, since
+        // newly appeared strangers are asked first and the older instance the file was
+        // handed to comes after them.
+        //
+        // The floor is passed in rather than taken from the default so the arithmetic is
+        // unambiguous and leaves real headroom: five candidates over a 2.5 s wait is a
+        // 500 ms share, the four blocked ones spend 2 s, and the fifth answers with half a
+        // second to spare. Under the default 250 ms floor the same shape has a 200 ms
+        // margin, which is too tight to be a reliable test on a loaded machine.
         var blocked = Enumerable.Range(1, 4)
             .Select(index => Host("blocked-" + index, "D:\\other\\model.nwd"))
             .ToList();
         var holdsTheFile = Host("holds-the-file", RequestedFilePath);
         var candidates = blocked.Append(holdsTheFile).ToArray();
-        var wait = TimeSpan.FromMilliseconds(1000);
+        var wait = TimeSpan.FromMilliseconds(2500);
         using var waitDeadline = new CancellationTokenSource(wait);
 
         var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
@@ -552,7 +558,10 @@ public sealed class NavisworksAttachResolutionTests
             },
             () => Now,
             waitDeadline.Token,
-            remainingWait: wait);
+            remainingWait: wait,
+            // Well above the fair share, so only the "the floor must fit" rule can reach
+            // the fifth candidate.
+            minimumPerProbeTimeout: TimeSpan.FromSeconds(5));
 
         Assert.Same(holdsTheFile, target);
     }

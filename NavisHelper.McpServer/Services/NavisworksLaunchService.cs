@@ -406,7 +406,8 @@ internal sealed class NavisworksLaunchService
         Func<DateTimeOffset> utcNow,
         CancellationToken cancellationToken,
         TimeSpan? remainingWait = null,
-        TimeSpan? perProbeTimeout = null)
+        TimeSpan? perProbeTimeout = null,
+        TimeSpan? minimumPerProbeTimeout = null)
     {
         if (candidates == null || candidates.Count == 0)
             return null;
@@ -421,13 +422,14 @@ internal sealed class NavisworksLaunchService
         if (remainingWait.HasValue && remainingWait.Value > TimeSpan.Zero)
         {
             var fairShare = remainingWait.Value.Ticks / Math.Max(candidates.Count, 1);
+            var floor = (minimumPerProbeTimeout ?? MinimumPerProbeTimeout).Ticks;
 
             // The floor keeps a share from being too short for a healthy host to answer,
             // but it must never be the reason a candidate goes unexamined: raising each
             // deadline above its fair share means the last candidates are cut off by the
             // outer deadline instead. Where the floor does not fit, the fair share wins.
-            var share = MinimumPerProbeTimeout.Ticks * candidates.Count <= remainingWait.Value.Ticks
-                ? Math.Max(fairShare, MinimumPerProbeTimeout.Ticks)
+            var share = floor * candidates.Count <= remainingWait.Value.Ticks
+                ? Math.Max(fairShare, floor)
                 : fairShare;
 
             if (share > 0 && share < probeTimeout.Ticks)
