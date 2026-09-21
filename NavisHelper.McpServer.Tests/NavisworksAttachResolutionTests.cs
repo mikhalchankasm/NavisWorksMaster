@@ -201,10 +201,11 @@ public sealed class NavisworksAttachResolutionTests
         // another directory, so the launch must keep waiting for its own process rather
         // than answer with this host.
         var wrongDirectory = Host("stranger", "D:\\nh-l3-b\\6501.5.nwd");
+        var alsoWrong = Host("another-stranger", "D:\\nh-l3-c\\6501.5.nwd");
         var ledger = new NavisworksLaunchService.HandoffProofLedger();
 
         var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
-            new[] { wrongDirectory },
+            new[] { wrongDirectory, alsoWrong },
             RequestedFilePath,
             ledger,
             (candidate, _) => Task.FromResult(new HostStatusResponse
@@ -215,7 +216,9 @@ public sealed class NavisworksAttachResolutionTests
             CancellationToken.None);
 
         Assert.Null(target);
-        // Recorded as refused, so the next poll within the retry interval skips it.
+        // Recorded as refused, so the next poll within the retry interval hands the turn to
+        // the other candidate. Two of them, because a sole candidate is deliberately never
+        // throttled -- there would be nobody to hand the turn to.
         Assert.False(ledger.IsProven("stranger"));
         Assert.False(ledger.ShouldProbe("stranger", Now));
     }
@@ -256,19 +259,25 @@ public sealed class NavisworksAttachResolutionTests
     [Fact]
     public async Task ARuledOutCandidateIsNotProbedAgainOnEveryPoll()
     {
+        // Two candidates, because a sole one is deliberately never throttled: the
+        // throttle exists to hand the poll on, and with nobody behind it there is
+        // nothing to hand it to. Only the stranger's probes are counted.
         var wrongDirectory = Host("stranger", "D:\\nh-l3-b\\6501.5.nwd");
+        var alsoWrong = Host("another-stranger", "D:\\nh-l3-c\\6501.5.nwd");
         var ledger = new NavisworksLaunchService.HandoffProofLedger();
         var probes = 0;
 
         for (var poll = 0; poll < 4; poll++)
         {
             Assert.Null(await NavisworksLaunchService.ResolveProvenHandoffAsync(
-                new[] { wrongDirectory },
+                new[] { wrongDirectory, alsoWrong },
                 RequestedFilePath,
                 ledger,
                 (candidate, _) =>
                 {
-                    probes++;
+                    if (candidate.InstanceId == "stranger")
+                        probes++;
+
                     return Task.FromResult(new HostStatusResponse
                     {
                         DocumentFileName = DocumentOf(candidate),
@@ -360,11 +369,14 @@ public sealed class NavisworksAttachResolutionTests
         // path and hold the requested one moments later. Caching the refusal for the whole
         // wait would turn that into a host_timeout over a document that did finish loading.
         var transitioning = Host("transitioning", "D:\\nh-l3-b\\6501.5.nwd");
+        var alsoWrong = Host("bystander", "D:\\nh-l3-c\\6501.5.nwd");
         var ledger = new NavisworksLaunchService.HandoffProofLedger(
             retryRefusalsAfter: TimeSpan.FromSeconds(2));
 
+        // Two candidates, so the refusal is throttled at all: a sole candidate is
+        // never throttled, having nobody to hand the poll to.
         var duringTransition = await NavisworksLaunchService.ResolveProvenHandoffAsync(
-            new[] { transitioning },
+            new[] { transitioning, alsoWrong },
             RequestedFilePath,
             ledger,
             (candidate, _) => Task.FromResult(new HostStatusResponse
@@ -381,7 +393,7 @@ public sealed class NavisworksAttachResolutionTests
 
         // Still inside the retry interval, so it is not asked again yet.
         Assert.Null(await NavisworksLaunchService.ResolveProvenHandoffAsync(
-            new[] { transitioning },
+            new[] { transitioning, alsoWrong },
             RequestedFilePath,
             ledger,
             (candidate, _) => Task.FromResult(new HostStatusResponse
@@ -393,7 +405,7 @@ public sealed class NavisworksAttachResolutionTests
 
         // Past it, the question is asked again and the host is found.
         var afterTransition = await NavisworksLaunchService.ResolveProvenHandoffAsync(
-            new[] { transitioning },
+            new[] { transitioning, alsoWrong },
             RequestedFilePath,
             ledger,
             (candidate, _) => Task.FromResult(new HostStatusResponse
@@ -519,6 +531,92 @@ public sealed class NavisworksAttachResolutionTests
         }
 
         Assert.Equal(3, probes);
+    }
+
+    [Fact]
+    public async Task TheOnlyCandidateIsNotThrottledForAnsweringWithItsPreviousDocument()
+    {
+        // The sole-candidate exemption has to cover an answered refusal, not only a burnt
+        // deadline. A single candidate reporting its *previous* document is exactly a
+        // hand-off in progress, so throttling it for two seconds against a one or two second
+        // wait ends in host_timeout over a file that finished loading in between.
+        var transitioning = Host("transitioning", "D:\\nh-l3-b\\6501.5.nwd");
+        var ledger = new NavisworksLaunchService.HandoffProofLedger(
+            retryRefusalsAfter: TimeSpan.FromSeconds(2));
+        var probes = 0;
+
+        Assert.Null(await NavisworksLaunchService.ResolveProvenHandoffAsync(
+            new[] { transitioning },
+            RequestedFilePath,
+            ledger,
+            (candidate, _) =>
+            {
+                probes++;
+                return Task.FromResult(new HostStatusResponse { DocumentFileName = DocumentOf(candidate) });
+            },
+            () => Now,
+            CancellationToken.None));
+
+        // The hand-off completes between polls.
+        Documents["transitioning"] = RequestedFilePath;
+
+        var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
+            new[] { transitioning },
+            RequestedFilePath,
+            ledger,
+            (candidate, _) =>
+            {
+                probes++;
+                return Task.FromResult(new HostStatusResponse { DocumentFileName = DocumentOf(candidate) });
+            },
+            // The same instant, well inside the retry interval: with nobody to hand the poll
+            // to, the interval must not apply.
+            () => Now,
+            CancellationToken.None);
+
+        Assert.Same(transitioning, target);
+        Assert.Equal(2, probes);
+    }
+
+    [Fact]
+    public async Task ThrottledCandidatesDoNotShrinkTheDeadlineOfTheOneStillBeingAsked()
+    {
+        // The share is divided among the candidates this poll will actually ask. Counting
+        // the throttled look-alikes too hands the one host that does get asked a slice of
+        // what it should have -- with enough of them, too short to answer in, so a healthy
+        // instance is recorded as refused and the launch ends in host_timeout.
+        var ledger = new NavisworksLaunchService.HandoffProofLedger(
+            retryRefusalsAfter: TimeSpan.FromSeconds(30));
+        var throttled = Enumerable.Range(1, 9)
+            .Select(index => Host("throttled-" + index, "D:\\other\\model.nwd"))
+            .ToList();
+        var holdsTheFile = Host("holds-the-file", RequestedFilePath);
+
+        // First poll: the nine answer with the wrong path and are throttled for 30 s. The
+        // tenth is not reached, because its probe budget was spent on them.
+        foreach (var candidate in throttled)
+            ledger.Record(candidate.InstanceId, proven: false, Now);
+
+        var slowButHealthy = TimeSpan.FromMilliseconds(400);
+        var wait = TimeSpan.FromMilliseconds(1000);
+        using var waitDeadline = new CancellationTokenSource(wait);
+
+        var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
+            throttled.Append(holdsTheFile).ToArray(),
+            RequestedFilePath,
+            ledger,
+            async (candidate, token) =>
+            {
+                // Divided by ten this is 100 ms and this host never answers in time;
+                // divided by the one candidate actually eligible it is the whole second.
+                await Task.Delay(slowButHealthy, token);
+                return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
+            },
+            () => Now,
+            waitDeadline.Token,
+            remainingWait: wait);
+
+        Assert.Same(holdsTheFile, target);
     }
 
     [Fact]

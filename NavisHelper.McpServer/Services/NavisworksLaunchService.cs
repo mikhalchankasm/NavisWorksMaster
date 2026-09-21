@@ -419,16 +419,24 @@ internal sealed class NavisworksLaunchService
         // five-second probe outlives the entire wait, so the first candidate that blocks
         // is still the only one ever asked and a ready host behind it is missed.
         var probeTimeout = perProbeTimeout ?? DefaultPerProbeTimeout;
-        if (remainingWait.HasValue && remainingWait.Value > TimeSpan.Zero)
+
+        // Divided among the candidates this poll will actually ask, not among all of them.
+        // A candidate already proven, or still inside its refusal interval, costs nothing
+        // this time round; counting it anyway shrinks the deadline of the one host that does
+        // get asked, and with enough throttled look-alikes a perfectly healthy instance is
+        // handed a slice too short to answer in, recorded as refused, and the launch ends in
+        // host_timeout.
+        var eligibleCandidates = CountCandidatesToProbe(candidates, ledger, utcNow());
+        if (remainingWait.HasValue && remainingWait.Value > TimeSpan.Zero && eligibleCandidates > 0)
         {
-            var fairShare = remainingWait.Value.Ticks / Math.Max(candidates.Count, 1);
+            var fairShare = remainingWait.Value.Ticks / eligibleCandidates;
             var floor = (minimumPerProbeTimeout ?? MinimumPerProbeTimeout).Ticks;
 
             // The floor keeps a share from being too short for a healthy host to answer,
             // but it must never be the reason a candidate goes unexamined: raising each
             // deadline above its fair share means the last candidates are cut off by the
             // outer deadline instead. Where the floor does not fit, the fair share wins.
-            var share = floor * candidates.Count <= remainingWait.Value.Ticks
+            var share = floor * eligibleCandidates <= remainingWait.Value.Ticks
                 ? Math.Max(fairShare, floor)
                 : fairShare;
 
@@ -493,7 +501,16 @@ internal sealed class NavisworksLaunchService
             }
 
             var proven = NavisworksAttachPolicy.DocumentPathMatches(status?.DocumentFileName, requestedFilePath);
-            ledger.Record(key, proven, utcNow());
+
+            // A proof is always worth remembering. A refusal is throttled on the same terms
+            // as a burnt deadline, and for the same reason: with a single candidate there is
+            // nobody to hand the poll to, so sitting out the interval only costs the tail of
+            // a short wait. That matters most here -- a sole candidate answering with its
+            // previous document is exactly a hand-off in progress, and the next answer may be
+            // the one the caller is waiting for.
+            if (proven || candidates.Count > 1)
+                ledger.Record(key, proven, utcNow());
+
             if (proven)
                 return candidate;
         }
@@ -586,6 +603,29 @@ internal sealed class NavisworksLaunchService
         excludedProcessId.HasValue
             ? hosts.Where(host => host.Pid != excludedProcessId.Value).ToList()
             : hosts.ToList();
+
+    private static int CountCandidatesToProbe(
+        IReadOnlyList<NavisworksHostInfo> candidates,
+        HandoffProofLedger ledger,
+        DateTimeOffset nowUtc)
+    {
+        var count = 0;
+        foreach (var candidate in candidates)
+        {
+            var key = candidate.InstanceId ?? string.Empty;
+            if (ledger.IsProven(key))
+            {
+                // Proven short-circuits the loop, so it is the only candidate that will be
+                // looked at and it needs no probe at all.
+                return 1;
+            }
+
+            if (ledger.ShouldProbe(key, nowUtc))
+                count++;
+        }
+
+        return count;
+    }
 
     /// <summary>
     /// What one launch has already asked each instance, so the startup wait does not

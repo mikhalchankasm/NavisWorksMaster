@@ -63,7 +63,11 @@ namespace NavisHelper.Agent.Services
 
             if (document.Models != null)
             {
-                foreach (ModelItem item in document.Models.RootItemDescendantsAndSelf)
+                // Per model rather than over document.Models.RootItemDescendantsAndSelf, so
+                // that a model ruled out below is never enumerated. The flat enumeration
+                // could only be filtered item by item, which is the reason this tool had no
+                // lever except raising maxScannedItems: every filter ran after the counter.
+                foreach (ModelItem item in EnumerateCandidateItems(document, request, sourceFileContains, response))
                 {
                     if (response.ScannedItemCount >= maxScannedItems || started.ElapsedMilliseconds >= MaxSpatialSearchMilliseconds)
                     {
@@ -152,11 +156,10 @@ namespace NavisHelper.Agent.Services
             // that advice narrowed the zone, hit the identical truncation, and had no
             // way to tell that the answer was still partial for the same reason.
             //
-            // sourceFileContains is not on it either. It makes each skipped item
-            // cheaper, but the cap counts scanned items and the counter increments
-            // before every filter, so it does not let a call reach further into the
-            // model. Raising maxScannedItems is the only lever that extends coverage,
-            // and the 10 second budget is the next wall behind it.
+            // sourceFileContains used to be off it too, for the same reason. It now prunes
+            // at the model root as well as filtering per item, so it is the one lever that
+            // reduces the scan rather than only extending the cap -- which is why the
+            // warning names it, and names what it does, instead of listing every input.
             if (response.TraversalTruncated)
             {
                 response.Warnings.Add(
@@ -164,8 +167,13 @@ namespace NavisHelper.Agent.Services
                     " scanned items, so this answer is partial and items outside it were never examined. " +
                     "Raise maxScannedItems (maximum " + SpatialSearchOptionsHelper.MaxMaxScannedItems.ToString(CultureInfo.InvariantCulture) +
                     "); a " + MaxSpatialSearchMilliseconds.ToString(CultureInfo.InvariantCulture) +
-                    " ms budget stops the traversal after that. Narrowing the zone does NOT help: the zone filters " +
-                    "results, not the scan, so every item is scanned either way.");
+                    " ms budget stops the traversal after that. To scan less rather than allow more, " +
+                    "set sourceFileContains: it skips whole appended models before their items are counted" +
+                    (response.PrunedModelCount > 0
+                        ? " (" + response.PrunedModelCount.ToString(CultureInfo.InvariantCulture) + " skipped on this call)"
+                        : string.Empty) +
+                    ". Narrowing the zone does NOT help inside a model: the zone is read after each item " +
+                    "is counted, so every item in a scanned model is scanned either way.");
             }
             if (response.ResultsTruncated)
                 response.Warnings.Add("Result limit reached; narrow the zone or increase maxResults up to the documented maximum.");
@@ -174,6 +182,95 @@ namespace NavisHelper.Agent.Services
                 "find_items_by_bbox mode=" + matchMode + " scanned=" + response.ScannedItemCount + " matched=" + response.MatchedItemCount + " returned=" + response.ReturnedItemCount + " traversal_truncated=" + response.TraversalTruncated + " results_truncated=" + response.ResultsTruncated + " elapsed_ms=" + started.ElapsedMilliseconds,
                 "AgentHost");
             return response;
+        }
+
+        /// <summary>
+        /// The items worth scanning, model by model, skipping whole models that cannot hold
+        /// a match. A skipped model contributes nothing to `scannedItemCount`, which is the
+        /// point: every other filter in this method runs after the counter has already
+        /// counted the item.
+        /// </summary>
+        private static IEnumerable<ModelItem> EnumerateCandidateItems(
+            Document document,
+            FindItemsByBboxRequest request,
+            string sourceFileContains,
+            FindItemsByBboxResponse response)
+        {
+            foreach (Model model in document.Models)
+            {
+                if (model == null)
+                    continue;
+
+                var rootItem = model.RootItem;
+                if (rootItem == null)
+                    continue;
+
+                if (!SpatialModelPruning.ModelFileCanSatisfyFilter(TryGetModelSourceFile(model, response), sourceFileContains))
+                {
+                    response.PrunedModelCount++;
+                    continue;
+                }
+
+                // Read once: the reader walks the model and can warn, so asking twice would
+                // pay for it twice and could report the same failure twice.
+                var modelBox = TryGetModelBox(model, response);
+                if (!SpatialModelPruning.ModelExtentsCanHoldAMatch(
+                        ToSpatialPoint(modelBox, takeMin: true),
+                        ToSpatialPoint(modelBox, takeMin: false),
+                        request.Min,
+                        request.Max))
+                {
+                    response.PrunedModelCount++;
+                    continue;
+                }
+
+                foreach (ModelItem item in rootItem.DescendantsAndSelf)
+                    yield return item;
+            }
+        }
+
+        // Both readers fail open. A model whose extents or file cannot be read is scanned,
+        // because "we could not tell" must not be recorded as "nothing here" -- the whole
+        // value of a prune is that it is provably empty, and an unreadable model is not.
+        private static BoundingBox3D TryGetModelBox(Model model, FindItemsByBboxResponse response)
+        {
+            try
+            {
+                return model.RootItem == null ? null : model.RootItem.BoundingBox();
+            }
+            catch (Exception ex)
+            {
+                if (response.Warnings.Count < 10)
+                    response.Warnings.Add("Could not read a model's extents, so it was scanned rather than skipped: " + ex.Message);
+                return null;
+            }
+        }
+
+        private static string TryGetModelSourceFile(Model model, FindItemsByBboxResponse response)
+        {
+            try
+            {
+                return model.SourceFileName;
+            }
+            catch (Exception ex)
+            {
+                // Said out loud, not swallowed. The contract promises that a model whose file
+                // name cannot be read is scanned rather than skipped *and* that the caller is
+                // told, because the alternative is a silently slower call with no explanation
+                // for why a source-file filter pruned nothing.
+                if (response.Warnings.Count < 10)
+                    response.Warnings.Add("Could not read a model's source file, so it was scanned rather than skipped: " + ex.Message);
+                return null;
+            }
+        }
+
+        private static SpatialPoint ToSpatialPoint(BoundingBox3D box, bool takeMin)
+        {
+            if (box == null)
+                return null;
+
+            var point = takeMin ? box.Min : box.Max;
+            return new SpatialPoint { X = point.X, Y = point.Y, Z = point.Z };
         }
 
         private static bool MatchesSpatialBox(BoundingBox3D item, SpatialPoint min, SpatialPoint max, string matchMode)

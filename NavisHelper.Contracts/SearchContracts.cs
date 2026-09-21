@@ -190,6 +190,15 @@ namespace NavisHelper.Agent.Contracts
         public int ScannedItemCount { get; set; }
         public int MatchedItemCount { get; set; }
         public int ReturnedItemCount { get; set; }
+
+        /// <summary>
+        /// Appended models skipped whole, before any of their items was enumerated, because
+        /// their own extents or source file ruled out every match. These items are absent
+        /// from <see cref="ScannedItemCount"/> by design -- that is what the prune buys --
+        /// so the two numbers together say how much of the model the call actually walked.
+        /// </summary>
+        public int PrunedModelCount { get; set; }
+
         public bool TraversalTruncated { get; set; }
         public bool ResultsTruncated { get; set; }
         public string MatchHandle { get; set; }
