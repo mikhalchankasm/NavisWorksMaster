@@ -609,20 +609,14 @@ caller to close an instance that does not exist.
 A separate warning fires when the discovered host runs in a different process than
 the one that was started — `processId 42284` with `host.pid 57488` was observed. That
 can be legitimate: `Roamer.exe` hands the file to an instance that is already running,
-no new host registers, and `SelectHost`'s last resort returns the pre-existing host.
-The fallback is kept, because it is the only thing that finds the host in that case,
-but the mismatch is stated instead of left to be noticed.
+no new host registers, and the proven candidate is that pre-existing host. The mismatch
+is stated instead of left to be noticed, because every later tool addresses the host.
 
-**A host that was already running only satisfies a launch if it *acquired* the
-requested document title after that launch.** One that already carried the title
-before it is not eligible. Discovery compares titles — file names — so a same-named
-model in another directory is indistinguishable, and returning it makes the response
-name a host that never opened the requested file. Measured live on 2026-09-21 with
-`D:\nh-l3-a\6501.5.nwd`, `D:\nh-l3-b\6501.5.nwd` and `D:\nh-l3-c\6501.5.nwd`:
-a request for the C path returned `outcome: host_ready` in **140 ms** naming the host
-that held B, while the process it had just started was still loading C and registered
-its own host seconds later. Waiting for the launched pid is both correct and, here,
-the only way to get the host the caller asked about.
+Measured live on 2026-09-21 with `D:\nh-l3-a\6501.5.nwd`, `D:\nh-l3-b\6501.5.nwd` and
+`D:\nh-l3-c\6501.5.nwd`: a request for the C path returned `outcome: host_ready` in
+**140 ms** naming the host that held B, while the process it had just started was still
+loading C and registered its own host seconds later. That is the defect the rule below
+exists for — a document title is a file name, and three models can share one.
 
 **Only one thing is answered without a round trip: a host registered under the pid this
 launch started.** That is an identity rather than a name. Everything else — a host that

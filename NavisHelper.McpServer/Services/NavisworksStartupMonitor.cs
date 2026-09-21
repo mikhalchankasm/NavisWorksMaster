@@ -22,7 +22,7 @@ internal sealed class NavisworksStartupMonitor
 
     public async Task<NavisworksStartupMonitorResult> WaitForHostAsync(
         INavisworksProcess process,
-        Func<int?, CancellationToken, Task<NavisworksHostInfo>> findHost,
+        Func<int?, TimeSpan, CancellationToken, Task<NavisworksHostInfo>> findHost,
         TimeSpan timeout,
         CancellationToken cancellationToken)
     {
@@ -112,7 +112,7 @@ internal sealed class NavisworksStartupMonitor
     // An expired budget is not the caller giving up. It yields null -- no host this poll
     // -- and the loop condition ends the wait; only the caller's own token propagates.
     private static async Task<NavisworksHostInfo> FindHostWithinRemainingAsync(
-        Func<int?, CancellationToken, Task<NavisworksHostInfo>> findHost,
+        Func<int?, TimeSpan, CancellationToken, Task<NavisworksHostInfo>> findHost,
         int? excludedProcessId,
         Stopwatch stopwatch,
         TimeSpan timeout,
@@ -126,7 +126,7 @@ internal sealed class NavisworksStartupMonitor
         budget.CancelAfter(remaining);
         try
         {
-            return await findHost(excludedProcessId, budget.Token).ConfigureAwait(false);
+            return await findHost(excludedProcessId, remaining, budget.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

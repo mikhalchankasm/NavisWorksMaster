@@ -16,7 +16,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _) => Task.FromResult<NavisworksHostInfo>(null),
+            (_, _, _) => Task.FromResult<NavisworksHostInfo>(null),
             TimeSpan.FromSeconds(5),
             CancellationToken.None);
 
@@ -48,7 +48,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _) => Task.FromResult<NavisworksHostInfo>(null),
+            (_, _, _) => Task.FromResult<NavisworksHostInfo>(null),
             TimeSpan.FromSeconds(5),
             CancellationToken.None);
 
@@ -65,7 +65,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _) => Task.FromResult<NavisworksHostInfo>(null),
+            (_, _, _) => Task.FromResult<NavisworksHostInfo>(null),
             TimeSpan.FromMilliseconds(30),
             CancellationToken.None);
 
@@ -85,7 +85,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _) => Task.FromResult(++probes >= 2 ? expectedHost : null),
+            (_, _, _) => Task.FromResult(++probes >= 2 ? expectedHost : null),
             TimeSpan.FromSeconds(1),
             CancellationToken.None);
 
@@ -106,7 +106,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _) => Task.FromResult(new NavisworksHostInfo { InstanceId = "stale-record" }),
+            (_, _, _) => Task.FromResult(new NavisworksHostInfo { InstanceId = "stale-record" }),
             TimeSpan.FromSeconds(1),
             CancellationToken.None);
 
@@ -124,7 +124,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _) => Task.FromResult(handedOffHost),
+            (_, _, _) => Task.FromResult(handedOffHost),
             TimeSpan.FromSeconds(1),
             CancellationToken.None);
 
@@ -145,7 +145,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (excludedProcessId, _) =>
+            (excludedProcessId, _, _) =>
             {
                 excludedProcessIds.Add(excludedProcessId);
                 return Task.FromResult(++probes >= 3 ? handedOffHost : null);
@@ -170,7 +170,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _) => { probes++; return Task.FromResult<NavisworksHostInfo>(null); },
+            (_, _, _) => { probes++; return Task.FromResult<NavisworksHostInfo>(null); },
             TimeSpan.FromMilliseconds(35),
             CancellationToken.None);
 
@@ -190,7 +190,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _) => Task.FromResult(staleHost),
+            (_, _, _) => Task.FromResult(staleHost),
             TimeSpan.FromMilliseconds(25),
             CancellationToken.None);
 
@@ -210,7 +210,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _) => { probes++; return Task.FromResult<NavisworksHostInfo>(null); },
+            (_, _, _) => { probes++; return Task.FromResult<NavisworksHostInfo>(null); },
             TimeSpan.FromSeconds(1),
             CancellationToken.None);
 
@@ -228,7 +228,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _) => Task.FromResult<NavisworksHostInfo>(null),
+            (_, _, _) => Task.FromResult<NavisworksHostInfo>(null),
             TimeSpan.FromSeconds(1),
             CancellationToken.None);
 
@@ -246,7 +246,7 @@ public sealed class NavisworksStartupMonitorTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => monitor.WaitForHostAsync(
             process,
-            (_, _) => Task.FromResult<NavisworksHostInfo>(null),
+            (_, _, _) => Task.FromResult<NavisworksHostInfo>(null),
             TimeSpan.FromSeconds(5),
             cancellation.Token));
     }
@@ -492,7 +492,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var result = await monitor.WaitForHostAsync(
             process,
-            async (_, token) =>
+            async (_, _, token) =>
             {
                 await Task.Delay(TimeSpan.FromMinutes(5), token);
                 return new NavisworksHostInfo { InstanceId = "never-answers" };
@@ -519,7 +519,7 @@ public sealed class NavisworksStartupMonitorTests
 
         var timedOut = await monitor.WaitForHostAsync(
             process,
-            async (_, token) =>
+            async (_, _, token) =>
             {
                 await Task.Delay(TimeSpan.FromMinutes(5), token);
                 return new NavisworksHostInfo { InstanceId = "never-answers" };
@@ -531,7 +531,7 @@ public sealed class NavisworksStartupMonitorTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => monitor.WaitForHostAsync(
             process,
-            async (_, token) =>
+            async (_, _, token) =>
             {
                 cts.Cancel();
                 await Task.Delay(TimeSpan.FromMinutes(5), token);

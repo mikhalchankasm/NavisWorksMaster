@@ -313,6 +313,46 @@ public sealed class NavisworksAttachResolutionTests
     }
 
     [Fact]
+    public async Task AShortWaitIsSharedBetweenCandidatesRatherThanSpentOnTheFirst()
+    {
+        // The per-candidate cap alone was not enough. With a five-second cap and a wait
+        // shorter than that -- `waitTimeoutSeconds: 3`, say -- the first candidate that
+        // blocks outlives the entire wait, so the candidate behind it is never asked and a
+        // host already holding the requested file yields `host_timeout`. The deadline has
+        // to be a share of what is left, not a constant.
+        var blocks = Host("blocks", RequestedFilePath);
+        var holdsTheFile = Host("holds-the-file", RequestedFilePath);
+        var probed = new List<string>();
+        var wait = TimeSpan.FromMilliseconds(600);
+
+        // The wait's own deadline, which is what the startup monitor supplies. Without it
+        // an over-long per-probe timeout only makes this slower; with it, the blocked
+        // candidate takes the whole wait and the second is never reached.
+        using var waitDeadline = new CancellationTokenSource(wait);
+
+        var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
+            new[] { blocks, holdsTheFile },
+            RequestedFilePath,
+            new NavisworksLaunchService.HandoffProofLedger(),
+            async (candidate, token) =>
+            {
+                probed.Add(candidate.InstanceId);
+                if (candidate.InstanceId == "blocks")
+                    await Task.Delay(TimeSpan.FromMinutes(5), token);
+
+                return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
+            },
+            Now,
+            waitDeadline.Token,
+            // Far below the five-second default, so only a shared budget reaches the
+            // second candidate before the deadline above fires.
+            remainingWait: wait);
+
+        Assert.Same(holdsTheFile, target);
+        Assert.Equal(new[] { "blocks", "holds-the-file" }, probed);
+    }
+
+    [Fact]
     public async Task ARefusalExpiresSoAHostStillBeingHandedTheFileIsNotWrittenOff()
     {
         // Why a refusal is not final. Roamer changes an existing instance's document while

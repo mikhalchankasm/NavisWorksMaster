@@ -157,13 +157,14 @@ internal sealed class NavisworksLaunchService
             var ledger = new HandoffProofLedger();
             startupResult = await _startupMonitor.WaitForHostAsync(
                 process,
-                (excludedProcessId, token) => FindHostAsync(
+                (excludedProcessId, remaining, token) => FindHostAsync(
                     version,
                     effectiveFilePath,
                     response.ProcessId,
                     hostsAtLaunch,
                     excludedProcessId,
                     ledger,
+                    remaining,
                     token),
                 TimeSpan.FromSeconds(ClampWaitTimeoutSeconds(waitTimeoutSeconds)),
                 cancellationToken).ConfigureAwait(false);
@@ -302,6 +303,10 @@ internal sealed class NavisworksLaunchService
     // rather than every remaining one.
     private static readonly TimeSpan DefaultPerProbeTimeout = TimeSpan.FromSeconds(5);
 
+    // A floor, so dividing a very short wait among several candidates still leaves each
+    // one long enough to answer instead of timing every probe out on arrival.
+    private static readonly TimeSpan MinimumPerProbeTimeout = TimeSpan.FromMilliseconds(250);
+
     internal static void ApplyStartupResult(
         StartNavisworksResponse response,
         NavisworksStartupMonitorResult startupResult,
@@ -353,6 +358,7 @@ internal sealed class NavisworksLaunchService
         IReadOnlyList<NavisworksHostInfo> hostsAtLaunch,
         int? excludedProcessId,
         HandoffProofLedger ledger,
+        TimeSpan remainingWait,
         CancellationToken cancellationToken)
     {
         var expectedTitle = string.IsNullOrWhiteSpace(filePath) ? string.Empty : Path.GetFileName(filePath);
@@ -373,7 +379,8 @@ internal sealed class NavisworksLaunchService
                 token,
                 new HostTargetOptions { InstanceId = target.InstanceId }),
             DateTimeOffset.UtcNow,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            remainingWait).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -398,13 +405,27 @@ internal sealed class NavisworksLaunchService
         Func<NavisworksHostInfo, CancellationToken, Task<HostStatusResponse>> probeHostStatusAsync,
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken,
+        TimeSpan? remainingWait = null,
         TimeSpan? perProbeTimeout = null)
     {
         if (candidates == null || candidates.Count == 0)
             return null;
 
         ledger ??= new HandoffProofLedger();
+
+        // Each candidate gets an equal share of whatever is left of the wait, capped at
+        // the default. The cap on its own is not enough: with a short waitTimeoutSeconds a
+        // five-second probe outlives the entire wait, so the first candidate that blocks
+        // is still the only one ever asked and a ready host behind it is missed.
         var probeTimeout = perProbeTimeout ?? DefaultPerProbeTimeout;
+        if (remainingWait.HasValue && remainingWait.Value > TimeSpan.Zero)
+        {
+            var share = TimeSpan.FromTicks(Math.Max(
+                remainingWait.Value.Ticks / Math.Max(candidates.Count, 1),
+                MinimumPerProbeTimeout.Ticks));
+            if (share < probeTimeout)
+                probeTimeout = share;
+        }
 
         foreach (var candidate in candidates)
         {
