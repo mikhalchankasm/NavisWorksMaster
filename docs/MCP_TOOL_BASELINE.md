@@ -14,7 +14,7 @@ had precise numbers for four tools and none for the rest.
 | plugin | host-reported `pluginAssemblyLength` 1586688, `pluginAssemblyLastWriteUtc` 2026-09-20T09:09:49Z, sha256 `af60b1b9…` |
 | server | built from `main` at the same commit |
 | scope of this row | the read-only pass only — the two clash windows ran a **different** plugin (`20bb4356…`) and a separately launched server, and the `rootName` message was checked later still on the branch build (`pluginAssemblyLength` 1588736). Latency is comparable only within one window, so each section states its own build instead of inheriting this one. |
-| tools covered | **92 of 104** advertised tools carry a measured number, counted against `tools/list` and against this document's own tables rather than by hand — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, and `start_navisworks` / `close_navisworks` / `delete_scenario` stated in prose. The remaining **12** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
+| tools covered | **92 of 104** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across four windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, and `start_navisworks` / `close_navisworks` / `delete_scenario` stated in prose. Those parts sum to more than 92 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **12** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
 
 Every number is `navishelper_timing.elapsed_ms`, which is the **MCP server's** measure
 of the whole call, not the Navisworks host's internal time. `McpToolTimingFilter` starts
@@ -439,8 +439,23 @@ Twelve tools, and the reason for each, so the gap is a decision rather than an o
 | `dump_subtree_names` | the synchronous variant. Its asynchronous trio was measured instead, which is the form the contract recommends for a subtree this size. |
 | `open_latest_navisworks_file` | a lifecycle tool measured only indirectly, through the launch figure. |
 
-The first seven of those are one short window away. `save_document*` and the two import
-tools are not, and saying which is which matters more than the count.
+**4** of those are not reachable in a window at all, and saying which is which matters
+more than the count:
+
+- **out of reach** — `save_document` and `save_document_as`, because every window
+  depends on the document not being saved; `clash_batchtest_import` and
+  `saved_viewpoints_import`, because each needs a Navisworks-authored XML that no tool
+  in the product writes.
+- **one short window away** — the remaining **8**: `create_selection_set`,
+  `create_viewpoint`, `create_search_set`, `model_color_scheme`,
+  `selection_color_by_property`, `selection_export_properties`, `dump_subtree_names`
+  and `open_latest_navisworks_file`. Two of them need a stated restore
+  (`model_color_scheme` and `selection_color_by_property` write display overrides
+  across the model), which is why they were not folded into a window measuring
+  something else.
+
+Listed by name rather than by position in the table above, because a count of rows is
+wrong as soon as a row moves.
 
 ## Re-running it comparably
 

@@ -273,7 +273,7 @@ public sealed class NavisworksStartupMonitorTests
             new[] { staleLauncherHost, handedOffHost },
             expectedTitle: "model.nwd",
             processId: 100,
-            beforePids: new HashSet<int>(),
+            hostsBefore: Array.Empty<NavisworksHostInfo>(),
             excludedProcessId: 100);
 
         Assert.Same(handedOffHost, selected);
@@ -299,10 +299,175 @@ public sealed class NavisworksStartupMonitorTests
             new[] { otherHost, launcherHost },
             expectedTitle: "model.nwd",
             processId: 100,
-            beforePids: new HashSet<int>(),
+            hostsBefore: Array.Empty<NavisworksHostInfo>(),
             excludedProcessId: null);
 
         Assert.Same(launcherHost, selected);
+    }
+
+    [Fact]
+    public void SelectHost_PreExistingSameNamedHostIsNotReportedForALaunchThatIsStillStarting()
+    {
+        // Measured on the live rig: two instances held same-named models from different
+        // directories, a request for a third such path launched its own process, and
+        // start_navisworks returned in 140 ms naming the instance that held D:\nh-l3-b,
+        // because discovery compares document *titles* -- file names -- and the launched
+        // pid had not registered yet. It registered seconds later holding the requested
+        // file. Reporting the stranger makes every later tool address the wrong model.
+        var strangerHoldingASameNamedFile = new NavisworksHostInfo
+        {
+            InstanceId = "stranger",
+            Pid = 28760,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = DateTime.UtcNow.AddMinutes(-5),
+        };
+
+        var selected = NavisworksLaunchService.SelectHost(
+            new[] { strangerHoldingASameNamedFile },
+            expectedTitle: "6501.5.nwd",
+            processId: 72976,
+            hostsBefore: new[] { strangerHoldingASameNamedFile },
+            excludedProcessId: null);
+
+        // Null keeps the poll running until the launched pid registers, which is the
+        // host the caller asked about.
+        Assert.Null(selected);
+    }
+
+    [Fact]
+    public void SelectHost_PreExistingHostThatPickedUpTheRequestedFileIsStillReported()
+    {
+        // The case the last resort exists for, and the reason it is narrowed rather than
+        // removed: Roamer can hand the file to an instance that is already running, which
+        // registers no new host, so without this a launch would time out on a document
+        // that is open on screen. The hand-off is visible as a title this host did not
+        // carry before the launch.
+        var beforeLaunch = new NavisworksHostInfo
+        {
+            InstanceId = "existing",
+            Pid = 28760,
+            DocumentTitle = "something-else.nwd",
+            StartedAtUtc = DateTime.UtcNow.AddMinutes(-5),
+        };
+        var afterHandoff = new NavisworksHostInfo
+        {
+            InstanceId = "existing",
+            Pid = 28760,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = beforeLaunch.StartedAtUtc,
+        };
+
+        var selected = NavisworksLaunchService.SelectHost(
+            new[] { afterHandoff },
+            expectedTitle: "6501.5.nwd",
+            processId: 72976,
+            hostsBefore: new[] { beforeLaunch },
+            excludedProcessId: null);
+
+        Assert.Same(afterHandoff, selected);
+    }
+
+    [Fact]
+    public void SelectHost_APreExistingStrangerDoesNotOutrankTheHandoffThatProvesItself()
+    {
+        // Both are pre-existing hosts reporting the requested title, and the stranger is
+        // the newer of the two, so ordering alone would hand back the wrong one. Only the
+        // host that acquired the title is eligible at all.
+        var strangerBefore = new NavisworksHostInfo
+        {
+            InstanceId = "stranger",
+            Pid = 28760,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = DateTime.UtcNow.AddMinutes(-1),
+        };
+        var handoffBefore = new NavisworksHostInfo
+        {
+            InstanceId = "handoff",
+            Pid = 70360,
+            DocumentTitle = "something-else.nwd",
+            StartedAtUtc = DateTime.UtcNow.AddMinutes(-9),
+        };
+        var handoffAfter = new NavisworksHostInfo
+        {
+            InstanceId = "handoff",
+            Pid = 70360,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = handoffBefore.StartedAtUtc,
+        };
+
+        var selected = NavisworksLaunchService.SelectHost(
+            new[] { strangerBefore, handoffAfter },
+            expectedTitle: "6501.5.nwd",
+            processId: 72976,
+            hostsBefore: new[] { strangerBefore, handoffBefore },
+            excludedProcessId: null);
+
+        Assert.Same(handoffAfter, selected);
+    }
+
+    [Fact]
+    public void SelectHost_APidReusedByANewHostIsNotMistakenForThePreLaunchRecord()
+    {
+        // The pre-launch snapshot is matched by instance id, because a pid freed by a
+        // closed instance can be handed to the next process. Matching on the pid alone
+        // would read this host's title from a record that belongs to a different host and
+        // rule out a genuine new host.
+        var closedHostThatOwnedThePid = new NavisworksHostInfo
+        {
+            InstanceId = "closed",
+            Pid = 28760,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = DateTime.UtcNow.AddMinutes(-9),
+        };
+        var newHostReusingThePid = new NavisworksHostInfo
+        {
+            InstanceId = "fresh",
+            Pid = 28760,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = DateTime.UtcNow,
+        };
+
+        var selected = NavisworksLaunchService.SelectHost(
+            new[] { newHostReusingThePid },
+            expectedTitle: "6501.5.nwd",
+            processId: 72976,
+            hostsBefore: new[] { closedHostThatOwnedThePid },
+            excludedProcessId: null);
+
+        Assert.Same(newHostReusingThePid, selected);
+    }
+
+    [Fact]
+    public void SelectHost_WithoutInstanceIdsAPidReuseIsResolvedTowardsTheSaferAnswer()
+    {
+        // Falling back to pids cannot tell a pid-reusing host from its predecessor, so
+        // this genuine new host is ruled out and the launch ends in host_timeout. That
+        // direction is deliberate: ruling one out costs a truthful timeout, while
+        // failing to would let the launch claim a host it never opened. A host with no
+        // instance id could not be addressed by the tools that follow in any case.
+        var closedHostThatOwnedThePid = new NavisworksHostInfo
+        {
+            InstanceId = string.Empty,
+            Pid = 28760,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = DateTime.UtcNow.AddMinutes(-9),
+        };
+        var newHostReusingThePid = new NavisworksHostInfo
+        {
+            InstanceId = string.Empty,
+            Pid = 28760,
+            DocumentTitle = "6501.5.nwd",
+            StartedAtUtc = DateTime.UtcNow,
+        };
+
+        var selected = NavisworksLaunchService.SelectHost(
+            new[] { newHostReusingThePid },
+            expectedTitle: "6501.5.nwd",
+            processId: 72976,
+            hostsBefore: new[] { closedHostThatOwnedThePid },
+            excludedProcessId: null);
+
+        Assert.Null(selected);
     }
 
     [Fact]

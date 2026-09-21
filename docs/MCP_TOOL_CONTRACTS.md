@@ -607,12 +607,55 @@ running, in which case the launch adds no host, and a prediction would have told
 caller to close an instance that does not exist.
 
 A separate warning fires when the discovered host runs in a different process than
-the one that was started. `SelectHost`'s last resort matches on document title
-without excluding hosts that were already running, so a launch can report a
-pre-existing host beside the pid it just created — `processId 42284` with
-`host.pid 57488` was observed. The fallback is kept, because it is the only thing
-that finds the host when Navisworks serves the file from another process, but the
-mismatch is now stated instead of left to be noticed.
+the one that was started — `processId 42284` with `host.pid 57488` was observed. That
+can be legitimate: `Roamer.exe` hands the file to an instance that is already running,
+no new host registers, and `SelectHost`'s last resort returns the pre-existing host.
+The fallback is kept, because it is the only thing that finds the host in that case,
+but the mismatch is stated instead of left to be noticed.
+
+**A host that was already running only satisfies a launch if it *acquired* the
+requested document title after that launch.** One that already carried the title
+before it is not eligible. Discovery compares titles — file names — so a same-named
+model in another directory is indistinguishable, and returning it makes the response
+name a host that never opened the requested file. Measured live on 2026-09-21 with
+`D:\nh-l3-a\6501.5.nwd`, `D:\nh-l3-b\6501.5.nwd` and `D:\nh-l3-c\6501.5.nwd`:
+a request for the C path returned `outcome: host_ready` in **140 ms** naming the host
+that held B, while the process it had just started was still loading C and registered
+its own host seconds later. Waiting for the launched pid is both correct and, here,
+the only way to get the host the caller asked about.
+
+The pre-launch snapshot is matched to current hosts by `instanceId`, not pid, because
+a pid freed by a closed instance can be reused by the next process — matched by pid,
+a genuinely new host would be read against a record belonging to a different one. When
+a record carries no `instanceId` the comparison falls back to the pid and can rule out
+such a new host; that direction is deliberate, because ruling one out ends in a
+truthful `host_timeout` while failing to would let the launch claim a host it never
+opened, and a host with no `instanceId` cannot be addressed by the tools that follow.
+
+"Since that launch" is measured from a discovery list read **immediately before the
+process is started**, not from the one used to pick attach candidates. Those candidate
+probes can run for up to the 60-second probe budget, and a baseline taken before them
+would read every document a person opened by hand in that minute as this launch's
+hand-off — the same wrong host, arriving through the baseline instead of through the
+title. The window between that second read and the launch itself cannot be closed from
+inside the call, because the launch boundary is only knowable once the process exists.
+
+**An acquired title is evidence, not proof.** A host that was already running and
+opens some *other* same-named model while this launch is still loading becomes
+eligible under this rule and would be returned. The residual gap is far narrower than
+the one it replaces — it needs a second instance to open a same-named file from a
+different directory inside the startup window — but it is the same shape, and it is
+not closed. Closing it means proving the full path, which discovery does not carry:
+a `host_status` round trip per poll against an instance somebody may be working in.
+
+The cost of this rule, so the next person does not rediscover it as a regression: a
+host that *already* held the requested file and did not answer its pre-launch
+`host_status` probe is no longer picked up by the fallback either, so such a launch
+ends in `host_timeout` where it previously reported that host. Closing that gap needs
+a full-path proof inside the wait loop, which means a `host_status` round trip per poll
+against an instance the user may be working in; a truthful `host_timeout` was preferred
+to a host claim the response cannot support. `list_navisworks_hosts` shows the instance
+either way.
 
 With the default `waitForHost=true`, the server monitors both host discovery and
 the child process. A nonzero or unavailable early process exit returns
