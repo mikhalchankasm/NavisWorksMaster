@@ -571,6 +571,14 @@ report success without opening the requested file, and the next write tool would
 a different model. That one extra round trip is the difference between 42 ms and 123 ms
 and it is worth paying.
 
+**Every** name-matching host of the requested version is a candidate, not only the most
+recently started one; newest first is the order they are checked in, and the first whose
+path is confirmed is attached to. With `D:\A\model.nwd` open in an older host and
+`D:\B\model.nwd` in a newer one, checking only the newest fails its path proof and
+starts a third process while the requested file is already open. Each further candidate
+costs another `host_status` round trip of the same order as the first, against the
+roughly 15 500 ms of the launch it avoids.
+
 This exists because the alternative was a broken session. Observed live on
 2026-09-20: `start_navisworks` produced a ready 2027 host, `open_latest_navisworks_file`
 produced a **second** process, and every following tool call failed with
