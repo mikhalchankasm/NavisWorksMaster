@@ -41,6 +41,12 @@ jobs:
       - name: Check truncation flags are documented
         run: python scripts/check_truncation_flags_documented.py
 
+      - name: Check the latency baseline's coverage arithmetic
+        run: python scripts/check_baseline_coverage.py
+
+      - name: Self-test the baseline coverage guard
+        run: python scripts/check_baseline_coverage.py --selftest
+
       - name: Build contracts
         run: dotnet build NavisHelper.Contracts/NavisHelper.Contracts.csproj -c Release
 
