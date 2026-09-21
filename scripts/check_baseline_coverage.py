@@ -42,6 +42,22 @@ REACHABLE_COUNT_RE = re.compile(r"the remaining \*\*(\d+)\*\*")
 OUT_OF_REACH_COUNT_RE = re.compile(r"\*\*(\d+)\*\* of those are not reachable")
 BACKTICKED = re.compile(r"`([a-z0-9_]+)`")
 
+# A cell holding a timing rather than prose: a number, or a pair like `0 / 12`. Emphasis
+# is stripped first, because the slow tools are called out in bold (`**2 953 / 5 761**`),
+# and the digit groups use a non-breaking space. This is what separates a measurement row
+# from any other table that happens to name a tool.
+TIMING_CELL = re.compile(r"^\s*\d[\d\s/,.—-]*$")
+
+
+def is_timing_cell(cell: str) -> bool:
+    return TIMING_CELL.match(cell.replace("*", "")) is not None
+
+# Measured, but stated in a sentence rather than tabulated -- they are lifecycle tools
+# whose timing only makes sense with the surrounding story. Listed explicitly so the
+# "every tool appears in a table row" rule can stay strict about everything else; a tool
+# added here is a decision, not an oversight.
+MEASURED_IN_PROSE = frozenset({"start_navisworks", "close_navisworks"})
+
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
@@ -89,7 +105,11 @@ def bullet_block(section: str, label: str) -> str:
     return "\n".join(lines)
 
 
-def check(text: str, advertised: set[str]) -> list[str]:
+def check(
+    text: str,
+    advertised: set[str],
+    measured_in_prose: frozenset[str] = MEASURED_IN_PROSE,
+) -> list[str]:
     problems: list[str] = []
 
     coverage = COVERAGE_RE.search(text)
@@ -106,6 +126,53 @@ def check(text: str, advertised: set[str]) -> list[str]:
 
     section = gap_section(text)
     listed = gap_table_tools(section)
+
+    # A matching total is not enough. Swap a measured tool for one nobody measured and the
+    # count is unchanged, the gap table still lists the same twelve, and every check above
+    # passes while the new tool has no number anywhere.
+    #
+    # So each advertised tool must appear in a *table row* -- measured in one of the
+    # measurement tables, or listed in the gap table. A mention in prose does not count:
+    # deleting a measurement row while leaving the name in a sentence is exactly the drift
+    # this is meant to catch. MEASURED_IN_PROSE is the explicit exception, named here
+    # rather than waved through by a loose rule.
+    in_rows = set()
+    for line in text.splitlines():
+        if not line.startswith("|"):
+            continue
+        # The coverage row is a table row too, and it names tools while summarising, so it
+        # cannot be allowed to vouch for them.
+        if "advertised tools carry a measured number" in line:
+            continue
+        # And a row only counts if it carries a timing. Being mentioned in some unrelated
+        # table is not a measurement, so a tool named only there would otherwise sail
+        # through with the headline bumped by one.
+        if not any(is_timing_cell(cell) for cell in line.split("|")):
+            continue
+        # Any cell, not just the first: the read-only pass tabulates a group in cell one
+        # and the tool in cell two (`| query | `find_items` scoped, first | ...`).
+        in_rows.update(BACKTICKED.findall(line))
+
+    unaccounted = sorted(advertised - in_rows - set(listed) - measured_in_prose)
+    if unaccounted:
+        problems.append(
+            f"these advertised tools appear in no table row, so they are neither measured "
+            f"nor listed as a gap: {unaccounted}"
+        )
+
+    prose_but_tabulated = sorted(measured_in_prose & in_rows)
+    if prose_but_tabulated:
+        problems.append(
+            f"these are listed as measured in prose but now appear in a table row; drop "
+            f"them from MEASURED_IN_PROSE so the exception stays honest: {prose_but_tabulated}"
+        )
+
+    stale_exceptions = sorted(measured_in_prose - advertised)
+    if stale_exceptions:
+        problems.append(
+            f"MEASURED_IN_PROSE names tools that no longer exist in source: {stale_exceptions}"
+        )
+
     duplicates = sorted({name for name in listed if listed.count(name) > 1})
     if duplicates:
         problems.append(f"the gap table names these tools more than once: {duplicates}")
@@ -185,6 +252,13 @@ FIXTURE_GOOD = """# Baseline
 
 | tools covered | **2 of 4** advertised tools carry a measured number. The remaining **2** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
 
+## The read-only pass
+
+| tool | first | warm |
+| --- | --- | --- |
+| `gamma` | 11 | 4 |
+| `delta` | 12 | 5 |
+
 ## What still has no number
 
 | tool | why |
@@ -204,6 +278,7 @@ FIXTURE_GOOD = """# Baseline
 
 def selftest() -> int:
     advertised = {"alpha", "beta", "gamma", "delta"}
+    prose_exception: frozenset[str] = frozenset()
     cases: list[tuple[str, str, str]] = []
 
     cases.append(("a document that agrees with itself", FIXTURE_GOOD, ""))
@@ -247,10 +322,41 @@ def selftest() -> int:
                              "**4** of those are not reachable"),
         "says 4 tools are out of reach, but the bullet names 1",
     ))
+    cases.append((
+        "a tool replaced another one, so the total still matches but nobody wrote it down",
+        # `delta` stops being mentioned at all. Every count still agrees -- which is the
+        # point: a matching total hides a tool that fell out of the document.
+        FIXTURE_GOOD.replace("| `delta` | 12 | 5 |\n", ""),
+        "appear in no table row",
+    ))
+
+    cases.append((
+        "a tool named only in a table that carries no timing is not accounted for",
+        # The row exists, so the looser "appears in some table" rule passed it. It has no
+        # number in it, so it is not a measurement.
+        FIXTURE_GOOD.replace(
+            "| `delta` | 12 | 5 |",
+            "| `delta` | covered by the same scenario as gamma | see above |"),
+        "appear in no table row",
+    ))
+
+    # The exception list itself, in both directions. Cases whose name mentions the
+    # exception run with `delta` named as measured-in-prose.
+    cases.append((
+        "a tool measured in prose is accounted for by naming it as an exception",
+        FIXTURE_GOOD.replace("| `delta` | 12 | 5 |\n", ""),
+        "",
+    ))
+    cases.append((
+        "an exception that is now tabulated has to be dropped from the list",
+        FIXTURE_GOOD,
+        "so the exception stays honest",
+    ))
 
     failures = 0
     for name, fixture, expected in cases:
-        problems = check(fixture, advertised)
+        exception = frozenset({"delta"}) if "exception" in name else prose_exception
+        problems = check(fixture, advertised, measured_in_prose=exception)
         joined = " | ".join(problems)
         if expected == "":
             ok = not problems

@@ -49,7 +49,7 @@ namespace NavisHelper.Agent.Contracts
         /// whatever is running", which is a different tool.
         ///
         /// A host only appears in the discovery list once it has registered, which is
-        /// the same record <c>FindHost</c> treats as readiness, so a listed host of the
+        /// the same record <c>FindHostAsync</c> treats as readiness, so a listed host of the
         /// right version is a ready host. A running-but-not-yet-registered instance is
         /// invisible here and therefore still launches.
         /// </summary>

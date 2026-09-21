@@ -133,15 +133,14 @@ internal sealed class NavisworksLaunchService
         var startInfoBuild = _startInfoFactory.Create(roamerPath, effectiveFilePath);
 
         // Snapshot discovery again, as close to the launch as this method can get. The
-        // list taken at the top is as much as a probe budget old -- 60 seconds -- and
-        // SelectHost's last resort asks whether a host acquired the requested title
-        // *since this launch*. Measured from the older list, a document somebody opened
-        // by hand while the probes ran reads as this launch's hand-off, and the call
-        // reports a host it never opened: the same false attach this guard exists to
-        // prevent, just arriving through the baseline instead of through the title.
+        // list taken at the top of the method is as much as a probe budget old -- 60
+        // seconds -- and this one decides which candidates are asked first.
         //
-        // The remaining window -- this call, then Start -- cannot be closed from here,
-        // because the launch boundary is only knowable once the process exists.
+        // Only the order. Every candidate is confirmed by path before it is accepted, so
+        // a stale snapshot, or a pid reused between the two reads, costs a round trip
+        // spent in the wrong order and never a wrong host. That is also why the window
+        // between this call and Start does not need closing -- which is just as well,
+        // since the launch boundary is only knowable once the process exists.
         var hostsAtLaunch = _hostBridgeClient.ListNavisworksHosts().Hosts;
 
         var startupStopwatch = Stopwatch.StartNew();
@@ -153,14 +152,20 @@ internal sealed class NavisworksLaunchService
         NavisworksStartupMonitorResult startupResult;
         if (waitForHost)
         {
+            // Shared across every poll of this wait, so a candidate is not re-probed on
+            // each one.
+            var ledger = new HandoffProofLedger();
             startupResult = await _startupMonitor.WaitForHostAsync(
                 process,
-                excludedProcessId => FindHost(
+                (excludedProcessId, remaining, token) => FindHostAsync(
                     version,
                     effectiveFilePath,
                     response.ProcessId,
                     hostsAtLaunch,
-                    excludedProcessId),
+                    excludedProcessId,
+                    ledger,
+                    remaining,
+                    token),
                 TimeSpan.FromSeconds(ClampWaitTimeoutSeconds(waitTimeoutSeconds)),
                 cancellationToken).ConfigureAwait(false);
         }
@@ -293,6 +298,15 @@ internal sealed class NavisworksLaunchService
     /// have, so more candidates never cost more wall clock than one candidate did.
     private static readonly TimeSpan DefaultAttachProbeBudget = TimeSpan.FromSeconds(60);
 
+    // One candidate, not the whole wait. Long enough for a busy instance to answer a
+    // status call, short enough that an instance which never answers costs one poll
+    // rather than every remaining one.
+    private static readonly TimeSpan DefaultPerProbeTimeout = TimeSpan.FromSeconds(5);
+
+    // A floor, so dividing a very short wait among several candidates still leaves each
+    // one long enough to answer instead of timing every probe out on arrival.
+    private static readonly TimeSpan MinimumPerProbeTimeout = TimeSpan.FromMilliseconds(250);
+
     internal static void ApplyStartupResult(
         StartNavisworksResponse response,
         NavisworksStartupMonitorResult startupResult,
@@ -337,118 +351,290 @@ internal sealed class NavisworksLaunchService
         response.Message = "Navisworks process was created; MCP host readiness was not requested.";
     }
 
-    private NavisworksHostInfo FindHost(
+    private async Task<NavisworksHostInfo> FindHostAsync(
         string navisworksVersion,
         string filePath,
         int? processId,
-        IReadOnlyList<NavisworksHostInfo> hostsBefore,
-        int? excludedProcessId)
+        IReadOnlyList<NavisworksHostInfo> hostsAtLaunch,
+        int? excludedProcessId,
+        HandoffProofLedger ledger,
+        TimeSpan remainingWait,
+        CancellationToken cancellationToken)
     {
         var expectedTitle = string.IsNullOrWhiteSpace(filePath) ? string.Empty : Path.GetFileName(filePath);
         var hosts = _hostBridgeClient.ListNavisworksHosts().Hosts
             .Where(host => string.Equals(host.NavisworksVersion, navisworksVersion, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        return SelectHost(hosts, expectedTitle, processId, hostsBefore, excludedProcessId);
+        var host = SelectHost(hosts, expectedTitle, processId, excludedProcessId);
+        if (host != null)
+            return host;
+
+        return await ResolveProvenHandoffAsync(
+            SelectProvableCandidates(hosts, expectedTitle, hostsAtLaunch, excludedProcessId),
+            filePath,
+            ledger,
+            (target, token) => _hostBridgeClient.HostStatusAsync(
+                new HostStatusRequest(),
+                token,
+                new HostTargetOptions { InstanceId = target.InstanceId }),
+            () => DateTimeOffset.UtcNow,
+            cancellationToken,
+            remainingWait).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// The host that answers this launch, or null to keep polling.
+    /// The hand-off candidate proven to hold the requested file, or null to keep polling.
     ///
-    /// <paramref name="hostsBefore"/> is the discovery list as it stood before the
-    /// launch, and it is needed whole rather than as a set of pids: the last resort
-    /// below turns on what a pre-existing host's document title *was*, not merely on
-    /// whether that host existed.
+    /// A hand-off registers no new host, so the only reading left once both tiers of
+    /// <see cref="SelectHost"/> come up empty is that an instance already running now
+    /// holds the file. That is a claim about a path; discovery carries only a name, so it
+    /// is confirmed the way the attach path confirms it -- <c>host_status</c> on that
+    /// instance, comparing the full <c>documentFileName</c>. Without this a launch reports
+    /// a host it never opened whenever a same-named model is opened elsewhere during
+    /// startup.
     ///
-    /// It must be read at the launch boundary, not earlier. The caller takes one
-    /// discovery list to pick attach candidates and a second one immediately before
-    /// starting the process; this parameter wants the second. A list taken before the
-    /// candidate probes is up to a minute old, and every document opened by hand in
-    /// that minute would read here as this launch's hand-off.
+    /// <paramref name="ledger"/> keeps the cost bounded. The wait polls every 250 ms for
+    /// up to five minutes, and probing every candidate on every poll would put hundreds of
+    /// round trips into an instance somebody may be working in.
+    /// </summary>
+    internal static async Task<NavisworksHostInfo> ResolveProvenHandoffAsync(
+        IReadOnlyList<NavisworksHostInfo> candidates,
+        string requestedFilePath,
+        HandoffProofLedger ledger,
+        Func<NavisworksHostInfo, CancellationToken, Task<HostStatusResponse>> probeHostStatusAsync,
+        Func<DateTimeOffset> utcNow,
+        CancellationToken cancellationToken,
+        TimeSpan? remainingWait = null,
+        TimeSpan? perProbeTimeout = null,
+        TimeSpan? minimumPerProbeTimeout = null)
+    {
+        if (candidates == null || candidates.Count == 0)
+            return null;
+
+        ledger ??= new HandoffProofLedger();
+
+        // Each candidate gets an equal share of whatever is left of the wait, capped at
+        // the default. The cap on its own is not enough: with a short waitTimeoutSeconds a
+        // five-second probe outlives the entire wait, so the first candidate that blocks
+        // is still the only one ever asked and a ready host behind it is missed.
+        var probeTimeout = perProbeTimeout ?? DefaultPerProbeTimeout;
+        if (remainingWait.HasValue && remainingWait.Value > TimeSpan.Zero)
+        {
+            var fairShare = remainingWait.Value.Ticks / Math.Max(candidates.Count, 1);
+            var floor = (minimumPerProbeTimeout ?? MinimumPerProbeTimeout).Ticks;
+
+            // The floor keeps a share from being too short for a healthy host to answer,
+            // but it must never be the reason a candidate goes unexamined: raising each
+            // deadline above its fair share means the last candidates are cut off by the
+            // outer deadline instead. Where the floor does not fit, the fair share wins.
+            var share = floor * candidates.Count <= remainingWait.Value.Ticks
+                ? Math.Max(fairShare, floor)
+                : fairShare;
+
+            if (share > 0 && share < probeTimeout.Ticks)
+                probeTimeout = TimeSpan.FromTicks(share);
+        }
+
+        foreach (var candidate in candidates)
+        {
+            var key = candidate.InstanceId ?? string.Empty;
+            if (ledger.IsProven(key))
+                return candidate;
+
+            if (!ledger.ShouldProbe(key, utcNow()))
+                continue;
+
+            HostStatusResponse status;
+            // Each candidate gets its own short deadline rather than whatever is left of
+            // the startup wait. Sharing one deadline lets the first candidate that blocks
+            // consume the entire budget, so the candidates behind it are never asked and
+            // discovery is never polled again -- and a host that does hold the requested
+            // file, sitting second in the list, loses to an instance that simply stopped
+            // answering.
+            using var probeBudget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            probeBudget.CancelAfter(probeTimeout);
+            try
+            {
+                status = await probeHostStatusAsync(candidate, probeBudget.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                // This candidate used up its whole deadline without answering, which is the
+                // expensive kind of failure. Recording it as refused hands the next poll to
+                // the candidates behind it; leaving it unrecorded meant re-probing the same
+                // blocked instance every 250 ms, so a host further down the list was never
+                // reached at all. The refusal still expires, so an instance that was merely
+                // busy gets asked again.
+                //
+                // Recorded at the clock *now*, which is why this takes a clock rather than a
+                // timestamp: a probe that burns five seconds against a two-second retry
+                // interval would otherwise be stamped already-expired and re-probed on the
+                // very next poll, which is the behaviour this exists to stop.
+                //
+                // Only when there is somebody else to hand the poll to. The throttle exists
+                // so the candidates behind this one get a turn; with a single candidate it
+                // buys nothing and can cost the tail of a short wait -- a six-second wait
+                // whose only candidate spends five seconds not answering would sit out its
+                // last second, even if that instance started answering immediately after.
+                if (candidates.Count > 1)
+                    ledger.Record(key, proven: false, utcNow());
+                continue;
+            }
+            catch (Exception)
+            {
+                // Some other transient failure, which costs nothing and says nothing about
+                // the document. Not recorded, so the next poll asks again immediately.
+                continue;
+            }
+
+            var proven = NavisworksAttachPolicy.DocumentPathMatches(status?.DocumentFileName, requestedFilePath);
+            ledger.Record(key, proven, utcNow());
+            if (proven)
+                return candidate;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The host this launch produced, identified without a round trip, or null.
+    ///
+    /// One case only: a host registered under the pid this launch started. That is an
+    /// identity, not a name, which is what makes it safe to answer with directly.
+    ///
+    /// An earlier version had a second tier here -- any host that registered after the
+    /// launch and whose document *title* matched. That is a name, and it could be
+    /// somebody else's: another instance opening `B\model.nwd` after the snapshot would
+    /// win a request for `C\model.nwd` before the launched pid registered. Every other
+    /// reading now goes through <see cref="SelectProvableCandidates"/> and is confirmed
+    /// by path.
     /// </summary>
     internal static NavisworksHostInfo SelectHost(
         IReadOnlyList<NavisworksHostInfo> hosts,
         string expectedTitle,
         int? processId,
+        int? excludedProcessId)
+    {
+        if (!processId.HasValue)
+            return null;
+
+        hosts ??= Array.Empty<NavisworksHostInfo>();
+        var byPid = Selectable(hosts, excludedProcessId)
+            .FirstOrDefault(host => host.Pid == processId.Value);
+
+        return byPid != null && HostDocumentMatches(byPid, expectedTitle) ? byPid : null;
+    }
+
+    /// <summary>
+    /// Every host that might be serving this request, in the order worth asking, for a
+    /// caller that will prove each one's full path before accepting it.
+    ///
+    /// Two readings are covered, and neither can be told from the other by name. A host
+    /// that registered after the launch may be the process Roamer started under a pid
+    /// this call never saw. A host that was already running may have been handed the
+    /// file, because Roamer can give it to an existing instance rather than open it
+    /// itself, in which case no new host appears at all -- without which a launch would
+    /// time out on a document open on screen.
+    ///
+    /// These are candidates, never an answer. Discovery reports a document title -- a
+    /// file name -- so a same-named model in another directory is indistinguishable here.
+    /// Measured live, a request for D:\nh-l3-c\6501.5.nwd returned in 140 ms naming the
+    /// host that held D:\nh-l3-b\6501.5.nwd while the process it had started was still
+    /// loading C. The caller confirms the full path with <c>host_status</c>, exactly as
+    /// the attach path does before a launch.
+    ///
+    /// Nothing here narrows by name beyond the title. An earlier version offered only
+    /// hosts that *acquired* the expected title since the launch, to spend fewer round
+    /// trips, and that threw away the case this path exists for: when Roamer hands
+    /// `D:\C\model.nwd` to an instance already showing `D:\B\model.nwd` the title never
+    /// changes, so the one host that really took the file looked ineligible.
+    ///
+    /// <paramref name="hostsBefore"/> only orders the result. Hosts that appeared since
+    /// it was taken are asked first, because they are the likelier answer and each probe
+    /// costs a round trip. Being wrong about that -- a reused pid, a stale snapshot --
+    /// changes who is asked first and nothing else, which is why a pid comparison is
+    /// enough here where identity would not be.
+    /// </summary>
+    internal static IReadOnlyList<NavisworksHostInfo> SelectProvableCandidates(
+        IReadOnlyList<NavisworksHostInfo> hosts,
+        string expectedTitle,
         IReadOnlyList<NavisworksHostInfo> hostsBefore,
         int? excludedProcessId)
     {
+        if (string.IsNullOrWhiteSpace(expectedTitle))
+            return Array.Empty<NavisworksHostInfo>();
+
         hosts ??= Array.Empty<NavisworksHostInfo>();
-        hostsBefore ??= Array.Empty<NavisworksHostInfo>();
-        var candidates = excludedProcessId.HasValue
+        var beforePids = new HashSet<int>((hostsBefore ?? Array.Empty<NavisworksHostInfo>())
+            .Select(host => host.Pid));
+
+        return Selectable(hosts, excludedProcessId)
+            .Where(host => HostDocumentMatches(host, expectedTitle))
+            .OrderBy(host => beforePids.Contains(host.Pid) ? 1 : 0)
+            .ThenByDescending(host => host.StartedAtUtc)
+            .ToList();
+    }
+
+    private static List<NavisworksHostInfo> Selectable(
+        IReadOnlyList<NavisworksHostInfo> hosts,
+        int? excludedProcessId) =>
+        excludedProcessId.HasValue
             ? hosts.Where(host => host.Pid != excludedProcessId.Value).ToList()
             : hosts.ToList();
 
-        if (processId.HasValue)
+    /// <summary>
+    /// What one launch has already asked each instance, so the startup wait does not
+    /// re-ask on every poll.
+    ///
+    /// A proof is final: a host confirmed to hold the requested path is not going to stop
+    /// holding it in a way this launch should care about. A refusal is not, and that
+    /// asymmetry is the point. Two documents can share a file name, so an instance that
+    /// answers with a different path may be a stranger -- or may be part-way through being
+    /// handed the requested one, because Roamer changes a host's document while that host
+    /// keeps the same title. Caching a refusal for the whole wait would turn the second
+    /// case into a `host_timeout` over a document that finished loading a moment later.
+    /// Refusals therefore expire, and the instance is asked again.
+    /// </summary>
+    internal sealed class HandoffProofLedger
+    {
+        private static readonly TimeSpan DefaultRetryRefusalsAfter = TimeSpan.FromSeconds(2);
+
+        private readonly TimeSpan _retryRefusalsAfter;
+        private readonly Dictionary<string, DateTimeOffset> _refusedAtUtc =
+            new Dictionary<string, DateTimeOffset>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _proven = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        internal HandoffProofLedger(TimeSpan? retryRefusalsAfter = null)
         {
-            var byPid = candidates.FirstOrDefault(host => host.Pid == processId.Value);
-            if (byPid != null && HostDocumentMatches(byPid, expectedTitle))
-                return byPid;
+            // Two seconds against a 250 ms poll: a refused instance is asked roughly once
+            // per eight polls instead of every one, which is the difference between a
+            // couple of round trips during a normal startup and several hundred.
+            _retryRefusalsAfter = retryRefusalsAfter ?? DefaultRetryRefusalsAfter;
         }
 
-        var beforePids = new HashSet<int>(hostsBefore.Select(host => host.Pid));
-        var newHost = candidates
-            .Where(host => !beforePids.Contains(host.Pid))
-            .Where(host => HostDocumentMatches(host, expectedTitle))
-            .OrderByDescending(host => host.StartedAtUtc)
-            .FirstOrDefault();
-        if (newHost != null)
-            return newHost;
+        internal bool IsProven(string instanceId) => _proven.Contains(instanceId ?? string.Empty);
 
-        if (string.IsNullOrWhiteSpace(expectedTitle))
-            return null;
+        internal bool ShouldProbe(string instanceId, DateTimeOffset nowUtc) =>
+            !_refusedAtUtc.TryGetValue(instanceId ?? string.Empty, out var refusedAt) ||
+            nowUtc - refusedAt >= _retryRefusalsAfter;
 
-        // Last resort: a host that was already running before the launch. Roamer can
-        // hand the file to an existing instance rather than open it itself, and then no
-        // new host ever appears -- without this the wait times out on a file that is
-        // open on screen.
-        //
-        // Only a host that *acquired* the expected title since the launch qualifies. One
-        // that already carried it cannot be what this launch produced: discovery reports
-        // a document title, which is a file name, so a same-named model in another
-        // directory is indistinguishable here. Measured live, a request for
-        // D:\nh-l3-c\6501.5.nwd returned in 140 ms naming the host that held
-        // D:\nh-l3-b\6501.5.nwd, while the process it had just started was still loading
-        // C and registered its own host seconds later. Skipping that host lets the poll
-        // run on until the launched pid registers, which is the answer asked for.
-        //
-        // An acquired title is evidence, not proof: a pre-existing host that opens some
-        // *other* same-named model while this launch is still loading becomes eligible
-        // here and would be returned. Proving it needs the full path, which discovery
-        // does not carry -- a host_status round trip per poll against an instance
-        // somebody may be working in. The narrower rule is what is affordable here;
-        // docs/MCP_TOOL_CONTRACTS.md records the remaining gap and its price.
-        return candidates
-            .Where(host => HostDocumentMatches(host, expectedTitle))
-            .Where(host => !HeldExpectedTitleBeforeLaunch(hostsBefore, host, expectedTitle))
-            .OrderByDescending(host => host.StartedAtUtc)
-            .FirstOrDefault();
-    }
+        internal void Record(string instanceId, bool proven, DateTimeOffset nowUtc)
+        {
+            var key = instanceId ?? string.Empty;
+            if (proven)
+            {
+                _proven.Add(key);
+                _refusedAtUtc.Remove(key);
+                return;
+            }
 
-    private static bool HeldExpectedTitleBeforeLaunch(
-        IReadOnlyList<NavisworksHostInfo> hostsBefore,
-        NavisworksHostInfo host,
-        string expectedTitle)
-    {
-        var before = hostsBefore.FirstOrDefault(candidate => IsSameHostRecord(candidate, host));
-        return before != null && HostDocumentMatches(before, expectedTitle);
-    }
-
-    // Instance ids are preferred over pids because a pid can be reused by a later
-    // process, which would make a brand-new host look like one of the hosts observed
-    // before the launch. Pids are the fallback for a record that carries no instance id.
-    //
-    // That fallback can misread a pid-reusing host as its predecessor and rule out a
-    // genuine new host, and it is kept because that is the safe direction: ruling one
-    // out ends in a truthful host_timeout, while failing to would let a launch claim a
-    // host it never opened. A host with no instance id could not be addressed by the
-    // tools that follow anyway -- they target hosts by instance id.
-    private static bool IsSameHostRecord(NavisworksHostInfo left, NavisworksHostInfo right)
-    {
-        if (!string.IsNullOrWhiteSpace(left.InstanceId) && !string.IsNullOrWhiteSpace(right.InstanceId))
-            return string.Equals(left.InstanceId, right.InstanceId, StringComparison.OrdinalIgnoreCase);
-
-        return left.Pid == right.Pid;
+            _refusedAtUtc[key] = nowUtc;
+        }
     }
 
     private static int ClampWaitTimeoutSeconds(int timeoutSeconds) => Math.Clamp(timeoutSeconds, 1, 300);
