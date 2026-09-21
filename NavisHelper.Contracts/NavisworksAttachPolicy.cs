@@ -172,6 +172,26 @@ namespace NavisHelper.Agent.Contracts
                                string.Equals(host.NavisworksVersion, navisworksVersion, StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary>
+        /// Why a launch happened with candidates still unexamined.
+        ///
+        /// The probes share one deadline, so a run of unresponsive hosts cannot make
+        /// start_navisworks slower than it was when only one host was ever probed. The
+        /// cost is that a later candidate may have held the file; saying which ones went
+        /// unexamined is what lets the caller retry with an explicit instanceId instead
+        /// of wondering why a second Navisworks appeared.
+        /// </summary>
+        public static string BuildAttachProbeBudgetMessage(int probed, int total)
+        {
+            var remaining = total - probed;
+            return "Checked " + probed.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                   " of " + total.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                   " running hosts with a matching document name before the shared probe budget ran out, so " +
+                   remaining.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                   " were not examined and a new process was started. If one of them holds the file, close " +
+                   "the new instance and pass its instanceId from list_navisworks_hosts instead.";
+        }
+
         public const string AttachedToExistingHostMessage =
             "Navisworks was already running with this document open, so no process was started and the running host is "
             + "reported instead. Pass instanceId from this response, or from list_navisworks_hosts, to target it.";

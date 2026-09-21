@@ -204,22 +204,48 @@ internal sealed class NavisworksLaunchService
     /// caller launch, and the response says why: a wrong attach is worse than a
     /// redundant process, because the next write tool would act on the wrong model.
     /// </summary>
+    /// <remarks>
+    /// The probes share one deadline. Each <c>host_status</c> call otherwise carries the
+    /// transport's own 60-second timeout, so three unresponsive candidates would hold
+    /// start_navisworks for three minutes where one candidate held it for one -- and a
+    /// client written against the old envelope would give up before the candidate that
+    /// would have matched was ever reached. Trying more hosts must not cost more time
+    /// than trying one did.
+    ///
+    /// When the budget runs out the caller launches, which is the same safe outcome as
+    /// no candidate proving its path. Note that budget expiry is *not* caller
+    /// cancellation: the linked token trips, <c>cancellationToken</c> does not, so the
+    /// rethrow below does not fire and the loop ends by the check at the top instead.
+    /// </remarks>
     internal static async Task<NavisworksHostInfo> ResolveProvenAttachTargetAsync(
         IReadOnlyList<NavisworksHostInfo> candidates,
         string requestedFilePath,
         StartNavisworksResponse response,
         Func<NavisworksHostInfo, CancellationToken, Task<HostStatusResponse>> probeHostStatusAsync,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan? probeBudget = null)
     {
         if (candidates == null || candidates.Count == 0)
             return null;
 
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        budget.CancelAfter(probeBudget ?? DefaultAttachProbeBudget);
+
+        var probedCount = 0;
         foreach (var candidate in candidates)
         {
+            if (budget.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                response.Warnings.Add(NavisworksAttachPolicy.BuildAttachProbeBudgetMessage(
+                    probedCount, candidates.Count));
+                return null;
+            }
+
+            probedCount++;
             HostStatusResponse status = null;
             try
             {
-                status = await probeHostStatusAsync(candidate, cancellationToken).ConfigureAwait(false);
+                status = await probeHostStatusAsync(candidate, budget.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -250,6 +276,10 @@ internal sealed class NavisworksLaunchService
             NavisworksAttachPolicy.BuildCandidateDocumentNotProvenMessage(candidates.Count));
         return null;
     }
+
+    /// The whole attach resolution gets the budget one host_status call used to
+    /// have, so more candidates never cost more wall clock than one candidate did.
+    private static readonly TimeSpan DefaultAttachProbeBudget = TimeSpan.FromSeconds(60);
 
     internal static void ApplyStartupResult(
         StartNavisworksResponse response,
