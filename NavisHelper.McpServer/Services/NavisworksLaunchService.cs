@@ -58,7 +58,6 @@ internal sealed class NavisworksLaunchService
             throw new InvalidOperationException("Navisworks launch is available only on Windows.");
 
         var hostsBefore = _hostBridgeClient.ListNavisworksHosts().Hosts;
-        var beforePids = new HashSet<int>(hostsBefore.Select(host => host.Pid));
 
         var effectiveFilePath = (filePath ?? string.Empty).Trim();
         NavisworksRecentFileInfo recentFile = null;
@@ -147,7 +146,7 @@ internal sealed class NavisworksLaunchService
                     version,
                     effectiveFilePath,
                     response.ProcessId,
-                    beforePids,
+                    hostsBefore,
                     excludedProcessId),
                 TimeSpan.FromSeconds(ClampWaitTimeoutSeconds(waitTimeoutSeconds)),
                 cancellationToken).ConfigureAwait(false);
@@ -170,11 +169,11 @@ internal sealed class NavisworksLaunchService
         if (!string.IsNullOrEmpty(additionalHostWarning))
             response.Warnings.Add(additionalHostWarning);
 
-        // SelectHost's last resort matches on document title without excluding hosts
-        // that were already running, so a launch can report a pre-existing host beside
-        // the pid it just created. That fallback stays -- it is the only thing that
-        // finds the host when Navisworks serves the file from another process -- but
-        // the caller is told when it fired rather than left to notice the mismatch.
+        // A launch can still legitimately report a host other than the pid it created:
+        // Roamer hands the file to an existing instance, that instance picks up the
+        // requested document, and SelectHost's last resort returns it. The caller is
+        // told when the reported host is not the process that was started rather than
+        // left to notice the mismatch, because every later tool addresses the host.
         var mismatchWarning = NavisworksAttachPolicy.BuildHostProcessMismatchWarning(
             response.ProcessId,
             response.Host == null ? (int?)null : response.Host.Pid);
@@ -329,7 +328,7 @@ internal sealed class NavisworksLaunchService
         string navisworksVersion,
         string filePath,
         int? processId,
-        HashSet<int> beforePids,
+        IReadOnlyList<NavisworksHostInfo> hostsBefore,
         int? excludedProcessId)
     {
         var expectedTitle = string.IsNullOrWhiteSpace(filePath) ? string.Empty : Path.GetFileName(filePath);
@@ -337,18 +336,26 @@ internal sealed class NavisworksLaunchService
             .Where(host => string.Equals(host.NavisworksVersion, navisworksVersion, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        return SelectHost(hosts, expectedTitle, processId, beforePids, excludedProcessId);
+        return SelectHost(hosts, expectedTitle, processId, hostsBefore, excludedProcessId);
     }
 
+    /// <summary>
+    /// The host that answers this launch, or null to keep polling.
+    ///
+    /// <paramref name="hostsBefore"/> is the discovery list as it stood before the
+    /// launch, and it is needed whole rather than as a set of pids: the last resort
+    /// below turns on what a pre-existing host's document title *was*, not merely on
+    /// whether that host existed.
+    /// </summary>
     internal static NavisworksHostInfo SelectHost(
         IReadOnlyList<NavisworksHostInfo> hosts,
         string expectedTitle,
         int? processId,
-        HashSet<int> beforePids,
+        IReadOnlyList<NavisworksHostInfo> hostsBefore,
         int? excludedProcessId)
     {
         hosts ??= Array.Empty<NavisworksHostInfo>();
-        beforePids ??= new HashSet<int>();
+        hostsBefore ??= Array.Empty<NavisworksHostInfo>();
         var candidates = excludedProcessId.HasValue
             ? hosts.Where(host => host.Pid != excludedProcessId.Value).ToList()
             : hosts.ToList();
@@ -360,6 +367,7 @@ internal sealed class NavisworksLaunchService
                 return byPid;
         }
 
+        var beforePids = new HashSet<int>(hostsBefore.Select(host => host.Pid));
         var newHost = candidates
             .Where(host => !beforePids.Contains(host.Pid))
             .Where(host => HostDocumentMatches(host, expectedTitle))
@@ -371,10 +379,44 @@ internal sealed class NavisworksLaunchService
         if (string.IsNullOrWhiteSpace(expectedTitle))
             return null;
 
+        // Last resort: a host that was already running before the launch. Roamer can
+        // hand the file to an existing instance rather than open it itself, and then no
+        // new host ever appears -- without this the wait times out on a file that is
+        // open on screen.
+        //
+        // Only a host that *acquired* the expected title since the launch qualifies. One
+        // that already carried it cannot be what this launch produced: discovery reports
+        // a document title, which is a file name, so a same-named model in another
+        // directory is indistinguishable here. Measured live, a request for
+        // D:\nh-l3-c\6501.5.nwd returned in 140 ms naming the host that held
+        // D:\nh-l3-b\6501.5.nwd, while the process it had just started was still loading
+        // C and registered its own host seconds later. Skipping that host lets the poll
+        // run on until the launched pid registers, which is the answer asked for.
         return candidates
             .Where(host => HostDocumentMatches(host, expectedTitle))
+            .Where(host => !HeldExpectedTitleBeforeLaunch(hostsBefore, host, expectedTitle))
             .OrderByDescending(host => host.StartedAtUtc)
             .FirstOrDefault();
+    }
+
+    private static bool HeldExpectedTitleBeforeLaunch(
+        IReadOnlyList<NavisworksHostInfo> hostsBefore,
+        NavisworksHostInfo host,
+        string expectedTitle)
+    {
+        var before = hostsBefore.FirstOrDefault(candidate => IsSameHostRecord(candidate, host));
+        return before != null && HostDocumentMatches(before, expectedTitle);
+    }
+
+    // Instance ids are preferred over pids because a pid can be reused by a later
+    // process, which would make a brand-new host look like one of the hosts observed
+    // before the launch. Pids are the fallback for a record that carries no instance id.
+    private static bool IsSameHostRecord(NavisworksHostInfo left, NavisworksHostInfo right)
+    {
+        if (!string.IsNullOrWhiteSpace(left.InstanceId) && !string.IsNullOrWhiteSpace(right.InstanceId))
+            return string.Equals(left.InstanceId, right.InstanceId, StringComparison.OrdinalIgnoreCase);
+
+        return left.Pid == right.Pid;
     }
 
     private static int ClampWaitTimeoutSeconds(int timeoutSeconds) => Math.Clamp(timeoutSeconds, 1, 300);
