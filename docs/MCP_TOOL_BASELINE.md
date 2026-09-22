@@ -464,7 +464,13 @@ the envelope.
 **`model_color_scheme` is the third slow tool.** Analyze reads up to
 `maxPropertiesPerItem` properties per eligible item and 3 s is the honest cost of that on
 5376 items; the dry-run is cheaper because it classifies rather than surveys. Nothing here
-is pathological, but it is the only tool in this window above a second.
+is pathological, and among the tools that act on an already-open document it is the only
+one in this window above a second.
+
+`open_latest_navisworks_file` is higher still at 18 526 ms, and is not a counter-example to
+that: it starts a Navisworks process and loads a 39 MB federated model, so it belongs with
+`start_navisworks` rather than with the tools above. Read it as the cost of a window, not
+of a call — which is the same reason the attach path exists and is worth its round trip.
 
 ### `selection_color_by_property` scales with `itemLimit`, not with the selection
 
