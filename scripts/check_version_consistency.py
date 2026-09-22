@@ -69,7 +69,8 @@ DECLARATIONS: dict[str, list[str]] = {
 HISTORICAL = {
     "docs/MCP_TOOL_BASELINE.md": "records the plugin a measurement window actually ran",
     "docs/MCP_CLIENT_GUIDE.md": "records the surface a figure was measured on",
-    "README.md": "verification snapshot of a past release, dated in place",
+    "README.md": "verification snapshot: it names the version it measured, dated in place, "
+                 "rather than tracking whatever the current one is",
     "README.ru.md": "same snapshot, Russian",
     "NavisHelper.McpServer.Tests/McpHealthVersionCompatibilityTests.cs":
         "version strings are fixtures for the comparison logic, not the product version",

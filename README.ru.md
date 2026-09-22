@@ -123,16 +123,19 @@ MCP-клиент запускает `NavisHelper.McpServer.exe` по stdio. Се
 
 ## Снимок проверки
 
-Проверка этого изменения на основе commit `main` `b54f8e3` выполнена **2026-08-09**:
+Проверка выпуска `2.10.0.0` на основе commit `main` `0d98cc8` выполнена **2026-09-22**:
 
-- source inventory guard: passed; **207** tracked C# files, **205** реальных compile entries и **2** явных исключения;
-- MCP catalog guard: passed и покрывает все **100** зарегистрированных tools;
-- host router guard: passed; **83** command names и **76** typed routes;
-- automated MCP-server tests: baseline `main` после исправления newline-sensitive source-structure regression — **1 305 passed, 0 failed, 1 305 total**; в этом изменении после добавления трёх installer-semantics regressions — **1 308 passed, 0 failed, 1 308 total**;
-- release build matrix: `Release2024`, `Release2025`, `Release2026` и `Release2027` для x64 прошли; все 12 обязательных bundle assemblies имеют version `2.9.0.0`;
-- distribution validation, ZIP fresh/reinstall/legacy-upgrade smoke, Inno Setup compilation и изолированный installer bundle-upgrade smoke: прошли;
-- публичный installer `v2.9.0.0`: SHA-256 скачанного файла совпал с опубликованными checksum-файлами и GitHub asset digest; установка с выключенной настройкой MCP сохранила SHA пяти проверенных клиентских конфигов, а проверенные установленные NavisHelper bundle/MCP assemblies имели version `2.9.0.0`;
-- live smoke публичной установки в Navisworks Manage 2027: пользователь подтвердил ribbon и панель NavisHelper; прошли проверка контекста активной модели и типовые операции с subtree, отчётом свойств, сводкой distinct values, preview цветов и временными CSV/XLSX exports; присутствовали все 100 MCP tools и обязательный subset; в тестовой модели не было clash tests в проверяемом scope.
+- source inventory guard: passed; **215** tracked C# files, **213** реальных compile entries и **2** явных исключения;
+- MCP catalog guard: passed и покрывает все **104** зарегистрированных tools;
+- host router guard: passed; **87** command names и **80** typed routes;
+- guard'ы локализации панели, задокументированности флагов усечения, поверхности инструкций агента, арифметики покрытия базовой линии и согласованности версии продукта: все прошли;
+- automated MCP-server tests: **1 776 passed, 0 failed, 1 776 total**;
+- release build matrix: `Release2024`, `Release2025`, `Release2026` и `Release2027` для x64 прошли; все 12 обязательных bundle assemblies имеют version `2.10.0.0`;
+- distribution validation и ZIP fresh/reinstall/legacy-`v2.6.3.0`-upgrade smoke: прошли. Клиентские MCP-конфиги не изменялись — smoke пишет только в изолированную временную установку, проверено после прогона;
+- базовая линия задержек: **99 из 104** инструментов несут измеренное число по четырём живым окнам, остальные 5 названы с причиной;
+- живой стенд, Navisworks Manage 2027: присоединение к готовому хосту с запрошенным файлом — **66 мс** против примерно 15 500 мс на запуск; отсечение моделей в `find_items_by_bbox` сравнено со сборкой без отсечения по девяти запросам на документе, обход которого завершается — счётчики совпадений одинаковы, отсечение ничего не теряет.
+
+Не проверено и не заявляется: компиляция Inno Setup не выполнялась, потому что Inno Setup не установлен на машине выпуска. Runtime smoke относится только к Navisworks Manage 2027; 2024–2026 проверены сборкой. Публичного installer-ассета на момент проверок не существовало, поэтому скачивание и сверка SHA-256 не выполнялись. Полный список — в [docs/releases/v2.10.0.0.md](docs/releases/v2.10.0.0.md).
 
 Эта runtime-проверка относится только к Navisworks Manage 2027. Targets 2024–2026 здесь проверены сборкой, но не runtime-smoke. Release assets этим изменением не заменялись.
 

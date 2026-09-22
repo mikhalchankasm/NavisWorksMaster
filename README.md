@@ -123,16 +123,19 @@ Primary comparison sources: the [Aitology architecture, prerequisites, and tool 
 
 ## Verification snapshot
 
-Measured on **2026-08-09** against this change, based on `main` commit `b54f8e3`:
+Measured on **2026-09-22** for the `2.10.0.0` release, based on `main` commit `0d98cc8`:
 
-- source inventory guard: passed; **207** tracked C# files, **205** real compile entries, and **2** explicit non-compile exceptions;
-- MCP catalog guard: passed and covers all **100** registered tools;
-- host router guard: passed; **83** command names and **76** typed routes;
-- automated MCP-server test run: the `main` baseline is **1,305 passed, 0 failed, 1,305 total** after the newline-sensitive source-structure fix; this change is **1,308 passed, 0 failed, 1,308 total** after adding three installer-semantics regressions;
-- release build matrix: `Release2024`, `Release2025`, `Release2026`, and `Release2027` passed for x64; all 12 required bundle assemblies report version `2.9.0.0`;
-- distribution validation, ZIP fresh/reinstall/legacy-upgrade smoke, Inno Setup compilation, and isolated installer bundle-upgrade smoke: passed;
-- public `v2.9.0.0` installer download: SHA-256 matched both published checksum files and the GitHub asset digest; installation with MCP configuration unchecked preserved five sampled client config hashes, and the inspected installed NavisHelper bundle/MCP assemblies were version `2.9.0.0`;
-- public-install live smoke in Navisworks Manage 2027: the user confirmed the NavisHelper ribbon and panel; active-model context and representative subtree, property-report, distinct-value, color-preview, and temporary CSV/XLSX export operations passed; all 100 MCP tools and the required subset were present; the test model contained no clash tests in scope.
+- source inventory guard: passed; **215** tracked C# files, **213** real compile entries, and **2** explicit non-compile exceptions;
+- MCP catalog guard: passed and covers all **104** registered tools;
+- host router guard: passed; **87** command names and **80** typed routes;
+- panel localization, truncation-flag documentation, agent-instruction surface, baseline-coverage arithmetic and product-version consistency guards: all passed;
+- automated MCP-server test run: **1,776 passed, 0 failed, 1,776 total**;
+- release build matrix: `Release2024`, `Release2025`, `Release2026`, and `Release2027` passed for x64; all 12 required bundle assemblies report version `2.10.0.0`;
+- distribution validation and ZIP fresh/reinstall/legacy-`v2.6.3.0`-upgrade smoke: passed. Client MCP configs were not modified — the smoke writes only into an isolated temporary install, checked afterwards;
+- latency baseline: **99 of 104** tools carry a measured number across four live windows, the remaining 5 named with a reason each;
+- live rig, Navisworks Manage 2027: attaching to a ready host holding the requested file measured **66 ms** against roughly 15 500 ms for a launch; and the `find_items_by_bbox` model prune was compared against a build with pruning removed over nine queries on a document whose walk completes — identical match counts, so pruning loses nothing.
+
+Not verified, and not claimed: Inno Setup compilation did not run, because Inno Setup is not installed on the release machine. Runtime smoke covers Navisworks Manage 2027 only; 2024–2026 are build-validated here. No public installer asset existed at the time of these checks, so no download or SHA-256 comparison was made. See [docs/releases/v2.10.0.0.md](docs/releases/v2.10.0.0.md) for the full list.
 
 That runtime evidence covers Navisworks Manage 2027 only. The 2024–2026 targets are build-validated here, not runtime-smoked. No release asset was replaced by this change.
 
