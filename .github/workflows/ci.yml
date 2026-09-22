@@ -41,6 +41,12 @@ jobs:
       - name: Check truncation flags are documented
         run: python scripts/check_truncation_flags_documented.py
 
+      - name: Check the product version is declared consistently
+        run: python scripts/check_version_consistency.py
+
+      - name: Self-test the version consistency guard
+        run: python scripts/check_version_consistency.py --selftest
+
       - name: Check the latency baseline's coverage arithmetic
         run: python scripts/check_baseline_coverage.py
 

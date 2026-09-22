@@ -56,7 +56,7 @@ For local MCP server verification after a build, use `tools\install_local_mcp_se
 The first user-facing installer target is Inno Setup:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1 -AppVersion 2.9.0.0
+powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1 -AppVersion 2.10.0.0
 ```
 
 This script:
