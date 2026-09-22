@@ -135,7 +135,7 @@ Measured on **2026-09-22** for the `2.10.0.0` release, based on `main` commit `0
 - latency baseline: **99 of 104** tools carry a measured number across four live windows, the remaining 5 named with a reason each;
 - live rig, Navisworks Manage 2027: attaching to a ready host holding the requested file measured **66 ms** against roughly 15 500 ms for a launch; and the `find_items_by_bbox` model prune was compared against a build with pruning removed over nine queries on a document whose walk completes — identical match counts, so pruning loses nothing.
 
-Not verified, and not claimed: Inno Setup compilation did not run, because Inno Setup is not installed on the release machine. Runtime smoke covers Navisworks Manage 2027 only; 2024–2026 are build-validated here. No public installer asset existed at the time of these checks, so no download or SHA-256 comparison was made. See [docs/releases/v2.10.0.0.md](docs/releases/v2.10.0.0.md) for the full list.
+Not verified, and not claimed: runtime smoke covers Navisworks Manage 2027 only; 2024–2026 are build-validated here. No public installer asset existed at the time of these checks, so no download or SHA-256 comparison was made. See [docs/releases/v2.10.0.0.md](docs/releases/v2.10.0.0.md) for the full list.
 
 That runtime evidence covers Navisworks Manage 2027 only. The 2024–2026 targets are build-validated here, not runtime-smoked. No release asset was replaced by this change.
 
