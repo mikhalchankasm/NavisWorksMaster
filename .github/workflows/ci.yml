@@ -47,6 +47,12 @@ jobs:
       - name: Self-test the version consistency guard
         run: python scripts/check_version_consistency.py --selftest
 
+      - name: Check the list of files over 80 KB in AGENTS.md
+        run: python scripts/check_source_sizes.py
+
+      - name: Self-test the source-size guard
+        run: python scripts/check_source_sizes.py --selftest
+
       - name: Check the latency baseline's coverage arithmetic
         run: python scripts/check_baseline_coverage.py
 
