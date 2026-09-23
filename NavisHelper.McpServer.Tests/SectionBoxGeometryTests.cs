@@ -330,6 +330,20 @@ public sealed class SectionBoxGeometryTests
     }
 
     [Fact]
+    public void TraversalAccounting_RecordsPrunedRootWithoutCountingBranches()
+    {
+        var accounting = new BoxIsolationTraversalAccounting(2);
+
+        accounting.RecordPrunedSubtreeRoot(true);
+        Assert.Equal(1, accounting.PrunedSubtreeRootCount);
+        Assert.Equal(0, accounting.PrunedDirectChildBranchCount);
+
+        accounting.RecordPrunedSubtreeRoot(false);
+        Assert.Equal(1, accounting.PrunedSubtreeRootCount);
+        Assert.Equal(0, accounting.PrunedDirectChildBranchCount);
+    }
+
+    [Fact]
     public void Planner_PrunedOutsideParentHidesOnlyParentAndIsIdempotent()
     {
         var box = AxisAlignedBox(0, 0, 0, 1, 1, 1);

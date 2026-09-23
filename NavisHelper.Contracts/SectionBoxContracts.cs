@@ -38,6 +38,7 @@ namespace NavisHelper.Agent.Contracts
         public int? MaxScannedItems { get; set; }
         public int? MaxDurationSeconds { get; set; }
         public int? PreviewLimit { get; set; }
+        public bool? CountPrunedBranches { get; set; }
     }
 
     public sealed class IsolateByBoxResponse
@@ -59,7 +60,7 @@ namespace NavisHelper.Agent.Contracts
         public int StructuralContainerItemCount { get; set; }
         public int EmptyItemCount { get; set; }
         public int PrunedSubtreeRootCount { get; set; }
-        public int PrunedDirectChildBranchCount { get; set; }
+        public int? PrunedDirectChildBranchCount { get; set; }
         public int WouldKeepVisibleItemCount { get; set; }
         public int WouldHideItemCount { get; set; }
         public int PreviouslyHiddenItemCount { get; set; }
@@ -195,6 +196,12 @@ namespace NavisHelper.Agent.Contracts
                 return;
             PrunedSubtreeRootCount++;
             PrunedDirectChildBranchCount = checked(PrunedDirectChildBranchCount + directChildCount);
+        }
+
+        public void RecordPrunedSubtreeRoot(bool hasChildren)
+        {
+            if (hasChildren)
+                PrunedSubtreeRootCount++;
         }
     }
 
