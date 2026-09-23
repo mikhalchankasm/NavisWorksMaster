@@ -738,14 +738,37 @@ An idle pause helps only in part. The fifth call of the second arm took 4.3 s. A
 short gap the sixth took 2.5 s, after a further 90 s idle the seventh took 2.6 s, and the
 eighth, straight after it, took 4.1 s.
 
-**A plausible mechanism, not yet tested.** In the Navisworks 2027 API, `ModelItem` and
-`BoundingBox3D` derive from `NativeHandle`, which implements `IDisposable` and declares a
-finalizer; this was read from the assembly by reflection. A walk of this model creates tens
-of thousands of each and disposes none, so every call hands the finalizer tens of thousands
-of native handles. That fits all three observations: back-to-back calls get slower, idle
-time recovers part of it, and managed memory barely grows. The test is a build that
-disposes the boxes it does not keep, measured against this one, call by call, in fresh
-processes.
+**A plausible mechanism, tested and refuted for the boxes.** In the Navisworks 2027 API
+`ModelItem` and `BoundingBox3D` derive from `NativeHandle`, which implements `IDisposable`
+and declares a finalizer; this was read from the assembly by reflection. A walk creates
+tens of thousands of each and disposed none, so finalizer pressure fitted all three
+observations. It was tested the same evening with a build that disposes every
+`BoundingBox3D` it reads (`893d5ab9…`), against `main` at `5204c10` (`1eee7eda…`). The two
+builds were interleaved over two rounds, each arm in a fresh process, with five identical
+whole-model calls in a row:
+
+| `maxResults` | round | build | ms, calls 1 to 5 |
+| --- | --- | --- | --- |
+| 1 | 1 | base | 2448, 1277, 2459, 2756, 2968 |
+| 1 | 1 | disposes boxes | 2496, 1252, 2481, 2756, 3225 |
+| 1 | 2 | base | 2520, 1250, 2521, 2741, 2938 |
+| 1 | 2 | disposes boxes | 2474, 1277, 2425, 2720, 3028 |
+| 10000 | 1 | base | 3144, 3970, 6613, 6644, 8579 |
+| 10000 | 1 | disposes boxes | 8590, 10038, 10023, 10032, 10029 |
+| 10000 | 2 | base | 8584, 2960, 7200, 10022, 10021 |
+| 10000 | 2 | disposes boxes | 3134, 3921, 6645, 6819, 8448 |
+
+With one result kept, the curves of the two builds match within about 0.3 s in both rounds.
+Disposing the boxes does not change the slowdown, so they are not its cause, and that
+change was not merged. With 10 000 kept, base and head swap places between rounds, so the
+build has no visible effect there either. Even a first call in a fresh process ranged from
+3.1 to 8.6 s, which is noise on this machine on top of the cost of building a large
+response.
+
+Still untested: the `ModelItem` wrappers themselves, which the walk also creates and never
+disposes. Disposing those is not safe without knowing whether Navisworks hands the same
+wrapper to other holders, and it needs in-process evidence first: GC collection counts, or
+per-thread CPU, across a run of calls.
 
 ## What still has no number
 
