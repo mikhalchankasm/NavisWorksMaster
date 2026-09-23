@@ -211,13 +211,17 @@ namespace NavisHelper.Agent.Services
                     var itemChildren = item.Children;
                     if (itemChildren != null)
                     {
+                        // Every child read builds a wrapper, and on 6501.5.nwd (59 253 items,
+                        // builds interleaved in fresh processes) that dominates the call:
+                        // reading children twice cost 4.4-4.5 s, once 2.5 s, and asking a
+                        // pruned node only whether it has children 2.1 s.
                         if (boundsReadable && !intersects && !countPrunedBranches)
                         {
                             hasChildren = itemChildren.Cast<ModelItem>().Any();
                         }
                         else
                         {
-                            // Materialize once for descent or the requested direct branch count.
+                            // Once, for descent or for the requested direct branch count.
                             childItems = itemChildren.Cast<ModelItem>().ToList();
                             hasChildren = childItems.Count > 0;
                         }
