@@ -941,26 +941,6 @@ overrides written by **`selection_color_by_property` are not covered by it**. Me
 `model_color_scheme operation=reset apply=true` answered `reset: false`,
 `hadActiveScheme: false`, and those 44 stayed coloured.
 
-`selection_color_by_property` therefore has **no undo through the MCP surface**, although
-its own description calls the overrides permanent. The only way back is to close the
-document without saving — `close_navisworks` with `mode=discard` — which is what the
-measurement window used as its stated restore. Anyone applying it to a document they intend
-to keep should know that before the call, not after.
-
-Two more things about that tool, recorded here because **it has no section of its own in
-this document** — itself a gap, since it writes permanent overrides:
-
-- **`itemLimit` defaults to 100, and it is a sample rather than the selection.** Measured
-  against the same 5376-item selection: 151 ms and 44 groups at the default, 648 ms and 654
-  groups at `itemLimit=5000`. The response says so in `itemsTruncated: true`, but a caller
-  reading `selectedItemCount: 5376` beside `coloredItemCount: 44` without raising the limit
-  is reading a partial answer that looks complete.
-- **A category or property filter matching nothing returns quickly and honestly.**
-  `categoryFilters: ["Item"]` on this model answered `matchedItemCount: 0` with
-  `status: "ok"` in 455 ms, because its RVM branch keeps properties under Cyrillic category
-  names and an `AVEVA` category. That is the correct answer and a useless timing; check
-  `matchedItemCount` before believing a number.
-
 **`clearSelectionAfterApply` defaults to `true`**, so a successful `apply` leaves the
 selection empty. That is deliberate — Navisworks selection highlighting would otherwise mask
 the colours it just wrote — but it means **any selection-scoped tool called next operates on
@@ -1020,6 +1000,101 @@ Example plan:
 ```
 
 Review `ruleResults`, `matchedItemCount`, `unclassifiedItemCount`, and `itemsTruncated` before repeating the same request with `apply=true`.
+
+## `selection_color_by_property`
+
+Colors the **current selection** by property value. Each scanned item is grouped by its
+first matching property value, and each group gets a fixed color from a 24-entry palette
+assigned in case-insensitive value order, then a color hashed from the value itself
+(`NavisHelper/Agent/Services/DocumentCommandService.Color.cs:14-40`, `:99-115`, `:223-243`).
+It does not accept explicit colors. For exact color mappings, source-file/name fragments, a
+one-color selection, and runtime reset, use `model_color_scheme` instead — that is this
+tool's own MCP description (`NavisHelper.McpServer/Tools/NavisworksSelectionReportTools.cs:97`).
+
+Inputs:
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `apply` | bool | `false` | Dry-run unless `true`; `true` writes permanent color (and optional transparency) overrides. |
+| `itemLimit` | int | `100` | Maximum selected items to inspect; same clamp range as the selection report tools (maximum 10000). |
+| `groupLimit` | int | `1000` | Maximum unique property-value groups allowed/returned; clamped to 1–50000. `apply=true` fails when distinct groups exceed it. |
+| `transparency` | float | none | Optional permanent transparency override, clamped to 0.0–1.0; omit to keep transparency unchanged. |
+| `includeEmptyValues` | bool | `false` | Count empty property values as their own group instead of skipping them. |
+| `categoryFilters` | string[] | `[]` | Category display/internal name filters; contains-match, case-insensitive. At least one of `categoryFilters` or `propertyFilters` is required. |
+| `propertyFilters` | string[] | `[]` | Property display/internal name filters; contains-match, case-insensitive. |
+| `instanceId` | string | `""` | Optional explicit Navisworks host instance_id from list_navisworks_hosts. |
+| `navisworksVersion` | string | `""` | Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running. |
+
+Outputs (`NavisHelper.Contracts/SelectionReportContracts.cs:113-140`):
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `applied` | bool | Mirrors `apply`; `false` means dry-run. |
+| `selectedItemCount` | int | Items in the current selection. |
+| `scannedItemCount` | int | Items actually inspected: the selection capped by `itemLimit`. |
+| `matchedItemCount` | int | Scanned items whose first matching category/property produced a value. |
+| `coloredItemCount` | int | Items recolored; `0` unless `apply=true`. |
+| `distinctValueCount` | int | Distinct matched values across the scanned items. |
+| `returnedGroupCount` | int | Groups returned in `groups`, capped by `groupLimit`. |
+| `itemsTruncated` | bool | The selection exceeded `itemLimit`: counts and colors cover a sample, not the selection. |
+| `groupsTruncated` | bool | Distinct groups exceeded `groupLimit`; with `apply=true` the call fails instead of truncating. |
+| `message` | string | Dry-run reminder or applied confirmation. |
+| `groups` | array | One row per returned group. |
+
+Each `groups` row carries `value`, `count`, `colorHex`, `r`, `g`, `b`, `category`,
+`property`, `sampleItemPath`, `sampleItemName`. `colorHex` is `#RRGGBB` built from
+`r`/`g`/`b`; `category` and `property` are the display names of the first match that
+created the group; the sample fields point at one item of that group.
+
+Refusals:
+
+- Called with neither `categoryFilters` nor `propertyFilters`: fails with
+  `command_failed: At least one category or property filter is required.` followed by a newline
+  and `Parameter name: request` — that full text is what the client receives, because the throw
+  is `ArgumentException(message, nameof(request))` (`DocumentCommandService.Color.cs:55`); the
+  plugin targets .NET Framework 4.8.1 in every configuration (`NavisHelper/NavisHelper.csproj:11`),
+  where `ArgumentException.Message` is the sentence, a newline, then the parameter-name suffix,
+  and the transport forwards `ex.Message` unchanged. Callers should rely on the `command_failed`
+  code and the message's first line, not on the full text. The `command_failed` code is read from
+  the agent host's fallback handler for non-`AgentCommandException` failures
+  (`NavisHelper/Agent/Host/AgentHostService.Transport.cs:196-200`) and is not verified
+  against a running host.
+- `apply=true` with distinct groups over `groupLimit`: fails with
+  `command_failed: Distinct group count exceeds group_limit. Increase group_limit to apply
+  all groups.` (`DocumentCommandService.Color.cs:104-105`); same code mapping, likewise
+  not verified at runtime.
+- No active document: `no_active_document` — the command is registered with a document
+  requirement (`NavisHelper/Agent/Host/AgentHostService.CommandRouter.cs:97-101`) enforced
+  by `EnsureDocument` (`NavisHelper/Agent/Host/AgentHostService.Dispatch.cs:410-414`).
+- An empty selection is not a refusal: counts return as zero with the normal `message`
+  (`DocumentCommandService.Color.cs:58-68`, `:146`); there is no `no_selection` guard on
+  this path.
+
+**No undo of its own — by design.** The overrides are permanent, and `model_color_scheme`
+`reset` does not cover them: reset restores only what `model_color_scheme` itself applied,
+so after this tool's `apply=true` there is nothing for it to undo (the measurement showing
+that is in the `model_color_scheme` section above). This tool therefore has **no undo
+through the MCP surface**. The only way back after `apply=true` is to close the document without saving —
+`close_navisworks` with `mode=discard` — which is what the measurement window used as its
+stated restore. Anyone applying it to a document they intend to keep should know that
+before the call, not after.
+
+Measured behaviours:
+
+- **`itemLimit` defaults to 100, and it is a sample rather than the selection.** Measured
+  against the same 5376-item selection: 151 ms and 44 groups at the default, 648 ms and 654
+  groups at `itemLimit=5000`. The response says so in `itemsTruncated: true`, but a caller
+  reading `selectedItemCount: 5376` beside `coloredItemCount: 44` without raising the limit
+  is reading a partial answer that looks complete.
+- **A category or property filter matching nothing returns quickly and honestly.**
+  `categoryFilters: ["Item"]` on this model answered `matchedItemCount: 0` with
+  `status: "ok"` in 455 ms, because its RVM branch keeps properties under Cyrillic category
+  names and an `AVEVA` category. That is the correct answer and a useless timing; check
+  `matchedItemCount` before believing a number.
+
+This tool reads the selection at call time; `model_color_scheme` clears that selection by
+default after its own `apply=true` — see that section before timing or chaining
+selection-scoped calls after one.
 
 ## Clash workflow mutations
 
