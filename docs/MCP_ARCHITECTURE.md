@@ -79,13 +79,12 @@ Commands are MCP-accessible when they are exposed through:
 - `HostCommandNames`
 - `AgentHostService.HandleRequest`
 - `HostBridgeClient`
-- one of the thematic MCP tool containers registered in `Program.cs`:
-  `NavisworksTools`, `NavisworksStartupTools`, `NavisworksSelectionReportTools`,
-  `NavisworksClashTools`, or `NavisworksScenarioTools`
+- one of the thematic MCP tool containers registered in `Program.cs`; the
+  `.WithTools<T>()` chain in `NavisHelper.McpServer/Program.cs` is the list
 
 The tool containers share `NavisworksToolContext` and `NavisworksToolBase`. Keep a
-new tool in the container that owns its feature family; do not grow a new partial
-of the general container.
+new tool in the container that owns its feature family; a new feature family gets
+its own container. There is no general container any more.
 
 Commands that only exist in `NavisHelperPanel` remain UI-only.
 

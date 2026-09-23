@@ -39,7 +39,7 @@ flowchart LR
 - MCP-сервер на .NET 9 общается с host через named pipe, discovery-файлы и общий wire-контракт;
 - тесты находятся на стороне чистых Contracts/MCP-компонентов и не требуют Navisworks SDK;
 - `NavisHelper.Dev` имеет отдельную рефлексивную runtime-связь с плагином;
-- MCP-инструменты зарегистрированы цепочкой `.WithTools<T>()` и разделены на пять тематических типов: general, startup, selection/report, Clash и scenarios. Общие зависимости передаются через `NavisworksToolContext`, а общий минимальный helper находится в `NavisworksToolBase`; публичные имена инструментов не изменились.
+- MCP-инструменты зарегистрированы цепочкой `.WithTools<T>()`; полный список тематических контейнеров задаётся самой этой цепочкой в `NavisHelper.McpServer/Program.cs`. Общие зависимости передаются через `NavisworksToolContext`, а общий минимальный helper находится в `NavisworksToolBase`; публичные имена инструментов не изменились.
 
 Главная проблема находится внутри правильных проектных границ: несколько крупных классов объединяют transport, orchestration, UI, Navisworks state и файловый I/O.
 

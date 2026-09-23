@@ -17,6 +17,6 @@ public sealed class McpHealthVersionCompatibilityTests
         string pluginVersion,
         bool expected)
     {
-        Assert.Equal(expected, NavisworksTools.AreCompatibleVersionStrings(serverVersion, pluginVersion));
+        Assert.Equal(expected, NavisworksHostTools.AreCompatibleVersionStrings(serverVersion, pluginVersion));
     }
 }
