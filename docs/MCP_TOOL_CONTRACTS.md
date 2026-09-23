@@ -589,9 +589,11 @@ The history is process-local and bounded; it is reset when Navisworks exits. A t
 `managedHeapMb` (double, `GC.GetTotalMemory(false)` in MB -- the host never forces a collection to fill it),
 `privateMemoryMb` (double, `Process.PrivateMemorySize64` in MB), `processCpuMs` (long, `Process.TotalProcessorTime`
 in ms), and `handleCount` (int, `Process.HandleCount`). They are cumulative counters meant to be compared
-between calls, not read on their own: sample before and after a workload and compare. Monotonic gen2
-collections or a heap and handle count that only grows across identical calls is the signature of the
-"Throughput falls call after call" degradation recorded in `docs/MCP_TOOL_BASELINE.md`.
+between calls, not read on their own: sample before and after a workload and compare. The
+collection counts only ever grow; what matters is how much each call adds. They exist to find
+out whether the "Throughput falls call after call" slowdown recorded in
+`docs/MCP_TOOL_BASELINE.md` tracks GC, heap or handle growth. Which one, if any, is not yet
+known.
 
 ## Startup And Timing Tools
 
