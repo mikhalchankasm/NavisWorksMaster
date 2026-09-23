@@ -26,6 +26,7 @@ namespace NavisHelper.Agent.Host
 {
     internal sealed partial class AgentHostService : IDisposable
     {
+        private readonly HeavyWorkCollector _heavyWorkCollector = new HeavyWorkCollector();
 
         private void StartListener()
         {
@@ -149,9 +150,9 @@ namespace NavisHelper.Agent.Host
                     return;
                 }
 
-                requestGateLease = new RequestGateLease(_requestGate);
+                requestGateLease = new RequestGateLease(_requestGate, _heavyWorkCollector.ScheduleIfDue);
 
-                WaitForHeavyWorkCollection(requestId, command);
+                _heavyWorkCollector.WaitForInFlight(requestId, command);
                 HandleRequest(server, requestObject, requestId, requestGateLease);
             }
             catch (AgentCommandException ex)
@@ -203,14 +204,7 @@ namespace NavisHelper.Agent.Host
             finally
             {
                 if (requestGateLease != null)
-                {
-                    // Schedule before releasing the gate: the next gated request must find
-                    // the collection's task already published, or it would start its walk
-                    // alongside the collection. The collection itself runs on a pool thread,
-                    // so the gate is not held while it runs.
-                    ScheduleHeavyWorkCollection();
                     requestGateLease.Dispose();
-                }
             }
         }
 

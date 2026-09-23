@@ -22,24 +22,24 @@ namespace NavisHelper.Agent.Host
     /// rejects rather than queues. The next gated request waits for that collection
     /// before it starts, since a collection that overlaps a walk slows both.
     /// </summary>
-    internal sealed partial class AgentHostService
+    internal sealed class HeavyWorkCollector
     {
-        private readonly HeavyWorkCollectionPolicy _heavyWorkCollectionPolicy =
+        private readonly HeavyWorkCollectionPolicy _policy =
             new HeavyWorkCollectionPolicy(GC.CollectionCount(0));
-        private int _heavyWorkCollectionInFlight;
-        private Task _heavyWorkCollectionTask;
+        private int _inFlight;
+        private Task _task;
 
-        private void ScheduleHeavyWorkCollection()
+        public void ScheduleIfDue()
         {
             var gen0Now = GC.CollectionCount(0);
-            if (!_heavyWorkCollectionPolicy.ShouldCollect(gen0Now))
+            if (!_policy.ShouldCollect(gen0Now))
                 return;
 
-            if (Interlocked.CompareExchange(ref _heavyWorkCollectionInFlight, 1, 0) != 0)
+            if (Interlocked.CompareExchange(ref _inFlight, 1, 0) != 0)
                 return;
 
-            var gen0CollectionsSinceLast = _heavyWorkCollectionPolicy.CollectionsSinceLast(gen0Now);
-            _heavyWorkCollectionTask = Task.Run(() =>
+            var gen0CollectionsSinceLast = _policy.CollectionsSinceLast(gen0Now);
+            _task = Task.Run(() =>
             {
                 var stopwatch = Stopwatch.StartNew();
                 try
@@ -48,7 +48,7 @@ namespace NavisHelper.Agent.Host
                     GC.WaitForPendingFinalizers();
                     GC.Collect();
 
-                    _heavyWorkCollectionPolicy.RecordCollection(GC.CollectionCount(0));
+                    _policy.RecordCollection(GC.CollectionCount(0));
                     Logger.Info(
                         "heavy_work_collection gen0_collections_since_last=" + gen0CollectionsSinceLast +
                         " elapsed_ms=" + stopwatch.ElapsedMilliseconds,
@@ -56,14 +56,14 @@ namespace NavisHelper.Agent.Host
                 }
                 finally
                 {
-                    Interlocked.Exchange(ref _heavyWorkCollectionInFlight, 0);
+                    Interlocked.Exchange(ref _inFlight, 0);
                 }
             });
         }
 
-        private void WaitForHeavyWorkCollection(string requestId, string command)
+        public void WaitForInFlight(string requestId, string command)
         {
-            var collectionTask = _heavyWorkCollectionTask;
+            var collectionTask = _task;
             if (collectionTask == null || collectionTask.IsCompleted)
                 return;
 

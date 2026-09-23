@@ -30,12 +30,14 @@ namespace NavisHelper.Agent.Host
         private sealed class RequestGateLease : IDisposable
         {
             private readonly SemaphoreSlim _requestGate;
+            private readonly Action _beforeRelease;
             private int _releaseDeferred;
             private int _released;
 
-            public RequestGateLease(SemaphoreSlim requestGate)
+            public RequestGateLease(SemaphoreSlim requestGate, Action beforeRelease = null)
             {
                 _requestGate = requestGate ?? throw new ArgumentNullException(nameof(requestGate));
+                _beforeRelease = beforeRelease;
             }
 
             public void DeferRelease(Task completionTask, int releaseAfterMs, string requestId, string command, Func<bool> isAbandoned = null, Action recordAbandonedFailure = null)
@@ -134,7 +136,19 @@ namespace NavisHelper.Agent.Host
                 if (Interlocked.Exchange(ref _released, 1) != 0)
                     return;
 
-                _requestGate.Release();
+                try
+                {
+                    if (_beforeRelease != null)
+                        _beforeRelease();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error("Request gate before-release callback failed: " + ex, "AgentHost");
+                }
+                finally
+                {
+                    _requestGate.Release();
+                }
             }
         }
 
