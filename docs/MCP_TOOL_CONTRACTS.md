@@ -1049,9 +1049,14 @@ created the group; the sample fields point at one item of that group.
 Refusals:
 
 - Called with neither `categoryFilters` nor `propertyFilters`: fails with
-  `command_failed: At least one category or property filter is required.` The check is
-  `DocumentCommandService.Color.cs:54-55`; the `command_failed` code is read from the
-  agent host's fallback handler for non-`AgentCommandException` failures
+  `command_failed: At least one category or property filter is required.` followed by a newline
+  and `Parameter name: request` — that full text is what the client receives, because the throw
+  is `ArgumentException(message, nameof(request))` (`DocumentCommandService.Color.cs:55`); the
+  plugin targets .NET Framework 4.8.1 in every configuration (`NavisHelper/NavisHelper.csproj:11`),
+  where `ArgumentException.Message` is the sentence, a newline, then the parameter-name suffix,
+  and the transport forwards `ex.Message` unchanged. Callers should rely on the `command_failed`
+  code and the message's first line, not on the full text. The `command_failed` code is read from
+  the agent host's fallback handler for non-`AgentCommandException` failures
   (`NavisHelper/Agent/Host/AgentHostService.Transport.cs:196-200`) and is not verified
   against a running host.
 - `apply=true` with distinct groups over `groupLimit`: fails with
