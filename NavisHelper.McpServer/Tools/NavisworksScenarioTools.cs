@@ -14,6 +14,7 @@ internal sealed class NavisworksScenarioTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns supported scenario schema versions, complete tool allowlist, contract versions, reviewed writes, safe output projections, parameter/$stepResult syntax, foreach rules, pair-name grammar, and a complete valid example. Read-only.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public ScenarioCapabilitiesResponse ScenarioCapabilities()
     {
         return _scenarioLibraryService.GetCapabilities();
@@ -21,6 +22,7 @@ internal sealed class NavisworksScenarioTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists user-approved NavisHelper scenarios from the current Windows profile. Returns metadata and bounded context-match suggestions only; it never executes scenario steps.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public ScenarioListResponse ListScenarios(
         [Description("Optional case-insensitive substring in scenario name or description.")] string query = "",
         [Description("Optional current Navisworks version hint: 2024, 2025, 2026, or 2027.")] string navisworksVersion = "",
@@ -33,6 +35,7 @@ internal sealed class NavisworksScenarioTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Reads one saved NavisHelper scenario by scenario_id. This is read-only and does not resolve parameters or execute any step.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public ScenarioGetResponse GetScenario(
         [Description("Stable scenario_id returned by list_scenarios or save_scenario.")] string scenarioId)
     {
@@ -41,6 +44,7 @@ internal sealed class NavisworksScenarioTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Validates and saves a user-approved NavisHelper schema v1/v2 scenario under %APPDATA%\\NavisHelper\\Scenarios. Defaults to preview. Use {\"$parameter\":\"name\"}; schema v2 also supports allowlisted {\"$stepResult\":\"step.output\"}, bounded foreach, typed parameters, and per-tool reviewedWrites. stepId must match ^[A-Za-z][A-Za-z0-9_]{0,63}$. Call scenario_capabilities for the full grammar and example. Never store apply/confirm flags, handles, instance/document IDs, credentials, or raw transcripts.")]
+    [ToolCapabilities(ToolEffects.Files | ToolEffects.LocalState, RequiresHost = false, RequiresDocument = false)]
     public ScenarioMutationResponse SaveScenario(
         [Description("Scenario schema version 1 or 2 draft. Store-owned scenarioId/createdUtc/updatedUtc are omitted.")] ScenarioDraft scenario,
         [Description("Existing scenario_id for update; omit to create a new scenario.")] string scenarioId = "",
@@ -60,6 +64,7 @@ internal sealed class NavisworksScenarioTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Deletes exactly one saved NavisHelper scenario. Defaults to preview and uses SHA-256 optimistic concurrency. It never recursively deletes the scenario directory.")]
+    [ToolCapabilities(ToolEffects.Files | ToolEffects.LocalState, RequiresHost = false, RequiresDocument = false)]
     public ScenarioMutationResponse DeleteScenario(
         [Description("Stable scenario_id to delete.")] string scenarioId,
         [Description("Current SHA-256 returned by get_scenario/list_scenarios.")] string expectedSha256 = "",
@@ -71,6 +76,7 @@ internal sealed class NavisworksScenarioTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Resolves a saved scenario into ordered existing MCP tool calls without executing them. For template mode, show the plan and obtain normal apply confirmation. For exactReplay, a direct user replay request is current authorization: follow agent_instruction, run each preview, enforce the saved safety envelope, then apply without follow-up questions; stop on the first mismatch.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public ScenarioResolveResponse ResolveScenario(
         [Description("Stable scenario_id to resolve.")] string scenarioId,
         [Description("Template parameter values keyed by declared parameter name. Must be empty for exactReplay.")] Dictionary<string, JsonElement> parameterValues = null,

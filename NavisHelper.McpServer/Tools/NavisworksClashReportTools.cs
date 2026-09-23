@@ -13,6 +13,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Generates a NavisHelper Clash Report workflow from existing Clash Detective results. Defaults to dry-run; pass apply=true to create section-box viewpoints, screenshots when available, and HTML/JSON artifacts.")]
+    [ToolCapabilities(ToolEffects.View | ToolEffects.Document | ToolEffects.Files | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashGenerateReportResponse> ClashGenerateReport(
         [Description("False previews counts and output paths, true creates viewpoints/screenshots/report artifacts. Default is false/dry-run.")] bool apply = false,
         [Description("Optional test name. Empty means all tests. Exact match is preferred; otherwise contains-match is used.")] string testName = "",
@@ -93,6 +94,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates Saved Viewpoints from existing Clash Detective results only. Defaults to dry-run; pass apply=true to save viewpoints. This does not run tests, generate reports, write files, or capture screenshots.")]
+    [ToolCapabilities(ToolEffects.View | ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashSaveViewpointsResponse> ClashSaveViewpoints(
         [Description("False previews matched clash results and planned viewpoint names, true creates Saved Viewpoints. Default is false/dry-run.")] bool apply = false,
         [Description("Optional test name. Empty means all tests. Exact match is preferred; otherwise contains-match is used.")] string testName = "",
@@ -145,6 +147,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns status for the active or last clash_generate_report operation. This can be called while a large report is running.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = false)]
     public Task<ClashReportStatusResponse> ClashReportStatus(
         [Description("Optional operation id. Empty means active clash report, or the last report if none is active.")] string operationId = "",
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
@@ -159,6 +162,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Requests cooperative cancellation of the active clash_generate_report operation. The current screenshot/viewpoint step may finish, then the report writes partial artifacts and stops before the next clash.")]
+    [ToolCapabilities(ToolEffects.LocalState, RequiresHost = true, RequiresDocument = false)]
     public Task<ClashReportStatusResponse> CancelClashReport(
         [Description("Optional operation id. Empty means the active clash report.")] string operationId = "",
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",

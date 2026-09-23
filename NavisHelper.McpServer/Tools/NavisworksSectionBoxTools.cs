@@ -14,6 +14,7 @@ internal sealed class NavisworksSectionBoxTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Reads the enabled Section/Clip Box from the active Navisworks view without changing clipping, viewpoint, selection, or visibility. Returns canonical typed document-global geometry for independent replay. Workflow: capture once, pass the returned box literally to isolate_by_box for preview/apply, and omit this capture step when saving exact replay.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<GetCurrentSectionBoxResponse> GetCurrentSectionBox(
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
@@ -27,6 +28,7 @@ internal sealed class NavisworksSectionBoxTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Isolates model items whose world bounding boxes intersect an explicit oriented box. Readable outside parent boxes prune their whole subtrees because Navisworks parent bounds include children. Non-geometry containers and empty leaves without valid bounds are preserved safely; genuine geometry classification errors reject apply. It does not read or change the current Section Box and does not depend on selection or match handles. Defaults to dry-run; apply is rejected if bounded traversal or visibility planning times out or is truncated. For exact replay, store the captured box, maxScannedItems, and maxDurationSeconds as literal arguments, remove get_current_section_box, and never substitute $stepResult or runtime handles.")]
+    [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<IsolateByBoxResponse> IsolateByBox(
         [Description("Required canonical box returned by get_current_section_box: formatVersion 1, document_global coordinates, document units, absolute center, positive halfExtents, and three right-handed orthonormal world axes. Exact-replay scenarios must store this object literally.")] SectionBoxGeometry box,
         [Description("False previews the visibility plan; true applies it only after a complete traversal with zero genuine geometry classification errors. Non-geometry containers and empty leaves without valid bounds remain visible without counting as errors. Default is false/dry-run.")] bool apply = false,

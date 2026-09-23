@@ -14,6 +14,7 @@ internal sealed class NavisworksMarkupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Builds configurable saved-viewpoint steps for every non-empty Search Set or Selection Set below a required folder prefix. Each overview, markup, or sectionBox step has its own label, clustering strategy, and optional persistent markup including arrow callouts. Defaults to dry-run.")]
+    [ToolCapabilities(ToolEffects.View | ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectionSetsBuildViewpointsResponse> SelectionSetsBuildViewpoints(
         [Description("Required Selection Sets folder prefix to process recursively. There is no domain-specific default.")] string folderPrefix,
         [Description("One or more configurable steps. step is overview, markup, or sectionBox; label is substituted into {step}. Each step supports whenItemCountMin/whenItemCountMax and clusterBy=none|distance|count|grid; clusterCount requests an exact count.")] List<SelectionSetViewpointStep> steps,
@@ -40,6 +41,7 @@ internal sealed class NavisworksMarkupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Deprecated compatibility alias for selection_sets_build_viewpoints. Preserves the legacy MTR defaults and fixed markup/sectionBox pair. New callers should use the neutral tool.")]
+    [ToolCapabilities(ToolEffects.View | ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<BuildMtrViewpointsResponse> BuildMtrViewpoints(
         [Description("Selection Sets folder prefix to process recursively. Default is MTR.")] string folderPrefix = "MTR",
         [Description("Create top-view markup points named '<set name> — план'. Default is true.")] bool createPlan = true,
@@ -102,6 +104,7 @@ internal sealed class NavisworksMarkupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates one or more saved viewpoints with persistent rectangle, target, arrow, or hatch redline marks around hybrid groups in the current selection. Large items receive individual marks; nearby small items are merged. autoTopView=true creates a top view; false preserves the current orthographic or perspective camera and its section box. Defaults to rectangle and dry-run.")]
+    [ToolCapabilities(ToolEffects.View | ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<MarkupSelectionResponse> MarkupSelection(
         [Description("Saved viewpoint name. Slashes are replaced with spaces so the name is safe inside a folder path.")] string name,
         [Description("Optional folder path under Saved Viewpoints, for example MTR/240103-ТХ. Missing folders are created only when apply=true.")] string folderPath = "",
@@ -176,6 +179,7 @@ internal sealed class NavisworksMarkupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Plans or shows runtime-only overlay markers for hybrid groups in the current selection. The markers stay attached while the camera moves but are never stored in saved viewpoints or .nwd/.nwf files. Use markup_selection for persistent deliverables.")]
+    [ToolCapabilities(ToolEffects.View | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<LiveMarkersResponse> LiveMarkers(
         [Description("Overlay shape: rectangle, target, or arrow. Default is target.")] string style = "target",
         [Description("True shows or updates markers; false hides them when apply=true. Default is true.")] bool visible = true,
@@ -200,6 +204,7 @@ internal sealed class NavisworksMarkupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates one or more saved viewpoints with an enabled Navisworks section box around the current selection plus context. Optional persistent markup and line-based arrow callouts are calculated after the final ISO camera and clipping box. It never hides or isolates model items. Defaults to dry-run.")]
+    [ToolCapabilities(ToolEffects.View | ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<SectionBoxViewpointResponse> SectionBoxViewpoint(
         [Description("Saved viewpoint base name. Slashes are replaced with spaces. When clustering creates multiple viewpoints, (1), (2), and so on are appended.")] string name,
         [Description("Optional folder path under Saved Viewpoints, for example MTR/240103-ТХ. Missing folders are created only when apply=true.")] string folderPath = "",

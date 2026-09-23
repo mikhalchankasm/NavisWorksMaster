@@ -13,6 +13,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates real Clash Detective result groups from existing clash results by formula. The groups array is paged and reports plannedGroupCount, returnedGroupCount, groupsTruncated, and nextGroupOffset. Defaults to dry-run.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashGroupResultsResponse> ClashGroupResults(
         [Description("False previews planned ClashResultGroup folders, true creates/updates real groups in Clash Detective. Default is false/dry-run.")] bool apply = false,
         [Description("Required test name. Exact match is preferred; otherwise contains-match is used.")] string testName = "",
@@ -73,6 +74,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates or rebuilds one real ClashResultGroup from explicit result handles. All handles are validated before mutation. Dry-run by default.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashGroupCustomResponse> ClashGroupCustom(
         [Description("Required test handle from clash_list_tests.")] string testHandle,
         [Description("Required result handles from clash_list_results.")] List<string> resultHandles,
@@ -95,6 +97,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Ungroups explicit ClashResultGroup handles or groups matching a name prefix within one test. Dry-run by default.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashUngroupResponse> ClashUngroup(
         [Description("Required test handle from clash_list_tests.")] string testHandle,
         [Description("Optional explicit group handles returned by clash_list_results/grouping tools.")] List<string> groupHandles = null,
@@ -115,6 +118,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Sets status on explicit results, all results in groups, or whole tests. Group/test scopes cascade to individual results. Dry-run by default.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashSetStatusResponse> ClashSetStatus(
         [Description("Required scope: results, group, or test.")] string scope,
         [Description("Target status: New, Active, Reviewed, Approved, or Resolved.")] string status,
@@ -147,6 +151,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Clusters clash points and writes real ClashResultGroup folders per test. Supports spatial, hybrid, and object_pair modes. Dry-run by default.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashGroupByProximityResponse> ClashGroupByProximity(
         [Description("Optional single test name.")] string testName = "",
         [Description("Optional test names.")] List<string> testNames = null,
@@ -191,6 +196,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists, adds, or removes document-persistent clash ignore rules. Added rules approve matching results with a reason comment and are re-applied after test runs. Dry-run for add/remove by default.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashIgnoreRulesResponse> ClashIgnoreRules(
         [Description("Action: list, add, or remove.")] string action,
         [Description("Rule for action=add; remove may also use ruleName.")] ClashIgnoreRule rule = null,
@@ -211,6 +217,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Exports clash points to CSV or XLSX with global/local coordinates, level assignment, grid cells, and XLSX summary sheets. Dry-run by default.")]
+    [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashExportPointsResponse> ClashExportPoints(
         [Description("Output .csv or .xlsx path.")] string outputPath,
         [Description("Optional test names.")] List<string> testNames = null,
@@ -241,6 +248,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Renumbers Clash Detective groups and/or individual clash results inside selected tests. Defaults to dry-run and top-level scope, so existing groups and ungrouped results are numbered as the user sees them in the standard form. Pass apply=true and confirmRename=true only after reviewing the plan.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashRenumberResultsResponse> ClashRenumberResults(
         [Description("False previews renames, true renames Clash Detective groups/results. Default is false/dry-run.")] bool apply = false,
         [Description("Required test name unless testNames/testHandles are provided. Exact match is preferred; otherwise contains-match is used.")] string testName = "",

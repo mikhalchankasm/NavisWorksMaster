@@ -11,6 +11,122 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 
 `mcp_diagnostics` and `mcp_health_check` expose `protocolVersion`, `mcpServerVersion`, and host `pluginVersion`. `protocolVersion` is the additive MCP-server to in-process-host wire contract version. Host status/health/discovery surfaces expose `hostLogFilePath` when the host plugin can compute the NavisHelper log path. If `mcpServerVersion` and `pluginVersion` differ, reinstall/update the NavisHelper bundle and MCP server from the same distribution package before running write tools.
 
+## Tool capabilities
+
+<!-- BEGIN GENERATED TOOL CAPABILITIES -->
+Effects: `None` reads only; `View` changes transient view state; `Document` changes savable document content;
+`Files` writes files; `Host` starts, opens in, or closes Navisworks; `LocalState` changes server-side state.
+Host and document indicate required runtime context. Dry-run means a `bool apply = false` parameter is available.
+
+| Tool | Effects | Host | Document | Dry-run |
+| --- | --- | --- | --- | --- |
+| `activate_saved_viewpoint` | View | Yes | Yes | Yes |
+| `active_model_context` | None | Yes | Yes | No |
+| `build_mtr_viewpoints` | View, Document | Yes | Yes | Yes |
+| `cancel_clash_report` | LocalState | Yes | No | No |
+| `cancel_clash_run` | LocalState | Yes | No | No |
+| `cancel_subtree_names_dump` | Files, LocalState | Yes | No | No |
+| `capture_current_view` | Files | Yes | Yes | Yes |
+| `clash_batchtest_import` | Document | Yes | Yes | Yes |
+| `clash_bbox_pair_plan` | Files | Yes | Yes | Yes |
+| `clash_create_matrix_from_selection` | Document | Yes | Yes | Yes |
+| `clash_export_points` | Files | Yes | Yes | Yes |
+| `clash_generate_report` | View, Document, Files, LocalState | Yes | Yes | Yes |
+| `clash_group_by_proximity` | Document | Yes | Yes | Yes |
+| `clash_group_custom` | Document | Yes | Yes | Yes |
+| `clash_group_results` | Document | Yes | Yes | Yes |
+| `clash_ignore_rules` | Document | Yes | Yes | Yes |
+| `clash_isolate_result` | View, Files, LocalState | Yes | Yes | Yes |
+| `clash_list_clusters` | None | Yes | Yes | No |
+| `clash_list_results` | None | Yes | Yes | No |
+| `clash_list_tests` | None | Yes | Yes | No |
+| `clash_manage_tests` | Document | Yes | Yes | Yes |
+| `clash_pair_tests_create` | Document | Yes | Yes | Yes |
+| `clash_renumber_results` | Document | Yes | Yes | Yes |
+| `clash_report_status` | None | Yes | No | No |
+| `clash_reset_isolation` | View, LocalState | Yes | Yes | Yes |
+| `clash_root_matrix` | None | Yes | Yes | No |
+| `clash_run_batch` | Document, LocalState | Yes | Yes | Yes |
+| `clash_run_resume` | Document, LocalState | Yes | No | No |
+| `clash_run_status` | None | Yes | No | No |
+| `clash_save_viewpoints` | View, Document | Yes | Yes | Yes |
+| `clash_set_status` | Document | Yes | Yes | Yes |
+| `clash_tests_export` | Files | Yes | Yes | Yes |
+| `clash_tests_from_sets` | Document, LocalState | Yes | Yes | Yes |
+| `clash_ungroup` | Document | Yes | Yes | Yes |
+| `close_navisworks` | Document, Files, Host | Yes | No | Yes |
+| `create_search_set` | Document | Yes | Yes | Yes |
+| `create_selection_set` | Document | Yes | Yes | Yes |
+| `create_viewpoint` | Document | Yes | Yes | Yes |
+| `current_viewpoint_info` | None | Yes | Yes | No |
+| `delete_scenario` | Files, LocalState | No | No | Yes |
+| `dump_subtree_names` | Files | Yes | Yes | No |
+| `dump_subtree_names_status` | Files, LocalState | Yes | Yes | No |
+| `find_items` | None | Yes | Yes | No |
+| `find_items_by_bbox` | None | Yes | Yes | No |
+| `find_root_items_by_name` | None | Yes | Yes | No |
+| `fit_all` | View | Yes | Yes | No |
+| `focus_on_selection` | View | Yes | Yes | No |
+| `get_current_section_box` | None | Yes | Yes | No |
+| `get_scenario` | None | No | No | No |
+| `hide_selected` | View | Yes | Yes | Yes |
+| `hide_unselected` | View | Yes | Yes | Yes |
+| `host_status` | None | Yes | No | No |
+| `isolate_by_box` | View | Yes | Yes | Yes |
+| `isolate_selected` | View | Yes | Yes | Yes |
+| `item_properties_by_handle` | None | Yes | Yes | No |
+| `last_operation_status` | None | Yes | No | No |
+| `list_item_children` | None | Yes | Yes | No |
+| `list_navisworks_hosts` | None | No | No | No |
+| `list_recent_navisworks_files` | None | No | No | No |
+| `list_root_items` | None | Yes | Yes | No |
+| `list_saved_viewpoints` | None | Yes | Yes | No |
+| `list_scenarios` | None | No | No | No |
+| `list_selection_sets` | None | Yes | Yes | No |
+| `live_markers` | View, LocalState | Yes | Yes | Yes |
+| `markup_selection` | View, Document | Yes | Yes | Yes |
+| `mcp_diagnostics` | None | No | No | No |
+| `mcp_error_contract` | None | No | No | No |
+| `mcp_health_check` | None | Yes | No | No |
+| `mcp_recent_calls` | None | No | No | No |
+| `mcp_task_timer_finish` | LocalState | No | No | No |
+| `mcp_task_timer_start` | LocalState | No | No | No |
+| `model_color_scheme` | Document, LocalState | Yes | Yes | Yes |
+| `open_latest_navisworks_file` | Host | No | No | No |
+| `resolve_scenario` | None | No | No | No |
+| `reveal_selected` | View | Yes | Yes | Yes |
+| `save_document` | Document, Files | Yes | Yes | No |
+| `save_document_as` | Document, Files | Yes | Yes | No |
+| `save_scenario` | Files, LocalState | No | No | Yes |
+| `saved_viewpoints_export` | Files | Yes | Yes | No |
+| `saved_viewpoints_import` | Document | Yes | Yes | Yes |
+| `saved_viewpoints_manage` | Document | Yes | Yes | Yes |
+| `saved_viewpoints_reorder` | Document | Yes | Yes | Yes |
+| `scenario_capabilities` | None | No | No | No |
+| `section_box_viewpoint` | View, Document | Yes | Yes | Yes |
+| `select_by_search` | View | Yes | Yes | No |
+| `select_items` | View | Yes | Yes | No |
+| `select_selection_set` | View | Yes | Yes | Yes |
+| `selected_items_ancestry` | None | Yes | Yes | No |
+| `selected_items_preview` | None | Yes | Yes | No |
+| `selected_items_tree` | None | Yes | Yes | No |
+| `selection_color_by_property` | Document | Yes | Yes | Yes |
+| `selection_copy_names` | None | Yes | Yes | No |
+| `selection_distinct_property_values` | None | Yes | Yes | No |
+| `selection_export_properties` | Files | Yes | Yes | Yes |
+| `selection_property_report` | None | Yes | Yes | No |
+| `selection_sets_build_viewpoints` | View, Document | Yes | Yes | Yes |
+| `selection_sets_manage` | Document | Yes | Yes | Yes |
+| `selection_sets_reorder` | Document | Yes | Yes | Yes |
+| `selection_status` | None | Yes | Yes | No |
+| `show_all` | View | Yes | Yes | Yes |
+| `start_navisworks` | Host | No | No | No |
+| `start_subtree_names_dump` | Files, LocalState | Yes | Yes | No |
+| `unhide_selected` | View | Yes | Yes | Yes |
+| `zoom_to_selection` | View | Yes | Yes | No |
+
+<!-- END GENERATED TOOL CAPABILITIES -->
+
 ## Common Rules
 
 - `apply=false` means dry-run/preview for write-capable tools.

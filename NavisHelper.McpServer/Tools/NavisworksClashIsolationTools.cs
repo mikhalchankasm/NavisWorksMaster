@@ -13,6 +13,7 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Previews and optionally isolates one existing Clash Detective result by resultHandle. Can highlight A/B, clip around the clash point or item bounds, hide everything except the pair, choose a preset or custom camera, and optionally capture a screenshot. Defaults to dry-run.")]
+    [ToolCapabilities(ToolEffects.View | ToolEffects.Files | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashIsolateResultResponse> ClashIsolateResult(
         [Description("Required resultHandle from clash_list_results, for example clash-result:1:1.")] string resultHandle,
         [Description("Section-box mode: point creates a cube around the clash point; items uses the combined A/B bounds plus padding. Default is point.")] string boxMode = "point",
@@ -69,6 +70,7 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Restores the viewpoint, section box, appearance overrides, and temporary visibility changed by clash_isolate_result in the active document. Defaults to dry-run.")]
+    [ToolCapabilities(ToolEffects.View | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashResetIsolationResponse> ClashResetIsolation(
         [Description("False reports whether an MCP isolation can be reset; true restores it. Default is false.")] bool apply = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
@@ -83,6 +85,7 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Captures the current Navisworks view exactly as displayed. Use after clash_isolate_result or after manually choosing any camera angle. Defaults to dry-run.")]
+    [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<CaptureCurrentViewResponse> CaptureCurrentView(
         [Description("Required absolute output path ending in .png, .jpg, .jpeg, or .bmp.")] string outputPath,
         [Description("Screenshot profile: compact, fullhd, large, or source. Default is compact.")] string screenshotProfile = "compact",

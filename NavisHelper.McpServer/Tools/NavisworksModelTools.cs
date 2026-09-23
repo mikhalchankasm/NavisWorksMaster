@@ -14,6 +14,7 @@ internal sealed class NavisworksModelTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Finds Navisworks items by property conditions. Supports whole-model or subtree/current-selection scope, shallowest-match pruning, count-only estimates, and a clarification preflight. Old calls remain whole_model + matchDepth=all. Use preflight=true before ambiguous natural-language searches; for repeated inherited names prefer a narrow scope plus matchDepth=first.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<FindItemsResponse> FindItems(
         [Description("Simple scalar query to search for. Prefer this for one lookup. With default settings this mirrors Item/Name/Contains in Navisworks Find Items.")] string query = "",
         [Description("Alias for query, matching the condition terminology used by Navisworks. Pass query or value, not both.")] string value = "",
@@ -72,6 +73,7 @@ internal sealed class NavisworksModelTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Finds leaf model items whose axis-aligned bounding boxes intersect a global document-coordinate zone. Coordinates use the active Navisworks document units; this v1 tool does not transform local/grid coordinates. Read-only: it returns a match handle for select_items or visibility tools and never changes the selection.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<FindItemsByBboxResponse> FindItemsByBbox(
         [Description("Minimum global document coordinate of the zone (x, y, z). Required.")] SpatialPoint min,
         [Description("Maximum global document coordinate of the zone (x, y, z). Required.")] SpatialPoint max,
@@ -102,6 +104,7 @@ internal sealed class NavisworksModelTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Fast path for finding top-level/root Navisworks model items by displayed root name or Source File filename. Use this instead of find_items for long lists of appended .rvm/.dwg model file names. It returns the same match handles as find_items, so select_items, isolate_selected, and zoom_to_selection can be used afterward.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<FindItemsResponse> FindRootItemsByName(
         [Description("Root item or source file names to find. Large lists are allowed; this tool is optimized for top-level .rvm/.dwg model names.")] List<string> names,
         [Description("Name comparison: equals, contains, or wildcard. Use equals for exact filenames.")] string comparison = FindItemsComparisons.Equal,
@@ -120,6 +123,7 @@ internal sealed class NavisworksModelTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists top-level/root Navisworks model items and appended model file names visible near the root of the selection tree. Use this before searching when you need the available .rvm/.dwg names.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ListRootItemsResponse> ListRootItems(
         [Description("Maximum number of root items to return. Default is 1000.")] int limit = 1000,
         [Description("Include alternate aliases used by find_root_items_by_name.")] bool includeAliases = false,
@@ -136,6 +140,7 @@ internal sealed class NavisworksModelTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists the immediate children of one Navisworks model item by parentMatchHandle, fast exact parentPath, parentName, or sourceFile. Use this for direct subitems of a level/group such as '/100000-XXX1-YY-01'. It does not full-scan the model tree; for deep unknown nodes first call find_items and pass parentMatchHandle.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ListItemChildrenResponse> ListItemChildren(
         [Description("Opaque match handle from find_items/find_root_items_by_name/list_item_children resolving to exactly one parent item. Fastest and safest for deep nodes.")] string parentMatchHandle = "",
         [Description("Fast exact model item path. Slash-only one-segment paths like '/100000-XXX1-YY-01' check only model roots and direct root children; multi-segment paths are traversed segment by segment without full-scan. Requires comparison=equals.")] string parentPath = "",
@@ -162,6 +167,7 @@ internal sealed class NavisworksModelTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns a bounded read-only property preview for items referenced by match handles from find_items or find_root_items_by_name. Use categoryFilters to narrow large property sets. Defaults return up to 5 items per handle and 50 properties per item.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ItemPropertiesByHandleResponse> ItemPropertiesByHandle(
         [Description("Opaque match handles returned by find_items or find_root_items_by_name.")] List<string> matchHandles,
         [Description("Maximum items to inspect per handle. Default is 5, maximum is 20.")] int itemLimit = 5,

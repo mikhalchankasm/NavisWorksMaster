@@ -13,6 +13,7 @@ internal sealed class NavisworksModelColorSchemeTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Analyzes model naming/property patterns or applies an explicit ordered color-classification scheme. Rules use first-match-wins priority. Mutations require apply=true; reset restores only overrides captured by the active runtime scheme.")]
+    [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ModelColorSchemeResponse> ModelColorScheme(
         [Description("Operation: analyze, apply, or reset. analyze is read-only. operation=apply with apply=false returns a dry-run plan. Default is analyze.")] string operation = "analyze",
         [Description("Item scope: model (all loaded models) or selection (selected items and descendants). Default is model.")] string scope = "model",
