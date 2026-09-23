@@ -582,6 +582,17 @@ Status polls -- `last_operation_status`, `clash_report_status`, `clash_run_statu
 
 The history is process-local and bounded; it is reset when Navisworks exits. A timeout entry can initially show `failed/request_timeout` and later be overwritten to `completed` if the UI callback finishes after the client timed out; a completed timeout record is not overwritten back to failed.
 
+### `host_status` process diagnostics
+
+`host_status` also reports seven additive process diagnostics next to `workingSetMb`:
+`gcGen0Collections`, `gcGen1Collections`, `gcGen2Collections` (int, per-generation `GC.CollectionCount(n)`),
+`managedHeapMb` (double, `GC.GetTotalMemory(false)` in MB -- the host never forces a collection to fill it),
+`privateMemoryMb` (double, `Process.PrivateMemorySize64` in MB), `processCpuMs` (long, `Process.TotalProcessorTime`
+in ms), and `handleCount` (int, `Process.HandleCount`). They are cumulative counters meant to be compared
+between calls, not read on their own: sample before and after a workload and compare. Monotonic gen2
+collections or a heap and handle count that only grows across identical calls is the signature of the
+"Throughput falls call after call" degradation recorded in `docs/MCP_TOOL_BASELINE.md`.
+
 ## Startup And Timing Tools
 
 ### `list_recent_navisworks_files`

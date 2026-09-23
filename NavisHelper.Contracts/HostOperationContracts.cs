@@ -19,6 +19,13 @@ namespace NavisHelper.Agent.Contracts
         public int ModelCount { get; set; }
         public int RootItemCount { get; set; }
         public double WorkingSetMb { get; set; }
+        public int GcGen0Collections { get; set; }
+        public int GcGen1Collections { get; set; }
+        public int GcGen2Collections { get; set; }
+        public double ManagedHeapMb { get; set; }
+        public double PrivateMemoryMb { get; set; }
+        public long ProcessCpuMs { get; set; }
+        public int HandleCount { get; set; }
         public string PluginVersion { get; set; }
         public string PluginAssemblyPath { get; set; }
         public DateTime? PluginAssemblyLastWriteUtc { get; set; }
