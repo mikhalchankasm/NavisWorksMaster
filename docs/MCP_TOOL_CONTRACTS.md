@@ -1069,8 +1069,7 @@ Refusals:
 `reset` does not cover them: reset restores only what `model_color_scheme` itself applied,
 so after this tool's `apply=true` there is nothing for it to undo (the measurement showing
 that is in the `model_color_scheme` section above). This tool therefore has **no undo
-through the MCP surface**, although its own description calls the overrides permanent. The
-only way back after `apply=true` is to close the document without saving —
+through the MCP surface**. The only way back after `apply=true` is to close the document without saving —
 `close_navisworks` with `mode=discard` — which is what the measurement window used as its
 stated restore. Anyone applying it to a document they intend to keep should know that
 before the call, not after.
