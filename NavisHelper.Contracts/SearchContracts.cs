@@ -200,13 +200,15 @@ namespace NavisHelper.Agent.Contracts
         public int PrunedModelCount { get; set; }
 
         /// <summary>
-        /// Items whose own bounding box missed the zone, so the walk skipped their
-        /// children whole. Like <see cref="PrunedModelCount"/>, the skipped descendants
-        /// are absent from <see cref="ScannedItemCount"/> by design -- that is what the
-        /// prune buys. The pruned item itself was counted, because its box had to be
-        /// read to rule the subtree out.
+        /// Items whose own bounding box missed the zone -- leaves included, since a
+        /// leaf outside the zone has no subtree to skip and still counts here. None
+        /// of their descendants were walked and, like <see cref="PrunedModelCount"/>'s
+        /// skipped models, those descendants are absent from
+        /// <see cref="ScannedItemCount"/> by design -- that is what the prune buys.
+        /// The outside item itself was counted, because its box had to be read to
+        /// rule the branch out. Same meaning as isolate_by_box's outsideItemCount.
         /// </summary>
-        public int PrunedSubtreeCount { get; set; }
+        public int OutsideItemCount { get; set; }
 
         public bool TraversalTruncated { get; set; }
         public bool ResultsTruncated { get; set; }

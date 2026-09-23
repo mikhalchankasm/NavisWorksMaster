@@ -664,14 +664,14 @@ not found". Their runtime smoke needs another machine.
   1 593 856 bytes.
 
 Each build was measured through an MCP server built from its own worktree, so the plugin
-and the server in front of it came from one commit, and the new `prunedSubtreeCount`
+and the server in front of it came from one commit, and the new `outsideItemCount`
 reached the client. The installed bundle was snapshotted first, and restored afterwards
 byte for byte (46 files).
 
 Every query used `maxScannedItems=500000`. A cell is "truncated" when every run hit the
 10-second budget:
 
-| query | base matched / scanned | head matched / scanned | subtrees pruned | base ms | head ms |
+| query | base matched / scanned | head matched / scanned | outside items, not descended | base ms | head ms |
 | --- | --- | --- | --- | --- | --- |
 | `6513.nwd`, whole model, leaves | 26762 / 41016 | 26762 / 41016 | 0 | 3323, 4340 | 3213, 4022 |
 | `6513.nwd`, whole model, containers | 41016 / 41016 | 41016 / 41016 | 0 | 7715, 9598 | 7879, 10001 |
@@ -688,8 +688,10 @@ Every query used `maxScannedItems=500000`. A cell is "truncated" when every run 
 | NWF, raised zone, containers | truncated | **376** / 49144 | 48768 | 10016, 10014 | 2507, 2385 |
 
 **Where both builds completed, every match count is equal**, ten queries of ten. The head
-never found a different answer. It found the same answer after walking less, or a complete
-answer where the base had run out of budget.
+never found a different answer. It found the same answer after walking less — the
+outside-items column counts items whose box missed the zone, leaves included, and none
+of their descendants were walked — or a complete answer where the base had run out of
+budget.
 
 For the three zones the base could not finish, `isolate_by_box` on the same boxes gave
 2 273 and 376 intersecting items, equal to the head. That oracle starts from the same model

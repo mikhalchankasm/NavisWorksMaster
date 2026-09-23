@@ -124,7 +124,7 @@ namespace NavisHelper.Agent.Services
                                 request.Min,
                                 request.Max))
                         {
-                            response.PrunedSubtreeCount++;
+                            response.OutsideItemCount++;
                             skipThisSubtree = true;
                             continue;
                         }
@@ -206,9 +206,9 @@ namespace NavisHelper.Agent.Services
                     "Raise maxScannedItems (maximum " + SpatialSearchOptionsHelper.MaxMaxScannedItems.ToString(CultureInfo.InvariantCulture) +
                     "); a " + MaxSpatialSearchMilliseconds.ToString(CultureInfo.InvariantCulture) +
                     " ms budget stops the traversal after that. To scan less rather than allow more, narrow the zone" +
-                    (response.PrunedSubtreeCount > 0
-                        ? " (" + response.PrunedSubtreeCount.ToString(CultureInfo.InvariantCulture) + " subtrees skipped on this call)"
-                        : ": a subtree whose box misses it is skipped whole") +
+                    (response.OutsideItemCount > 0
+                        ? " (" + response.OutsideItemCount.ToString(CultureInfo.InvariantCulture) + " items outside the zone were not descended into on this call)"
+                        : ": items whose boxes miss it are not descended into") +
                     ", or set sourceFileContains: it skips whole appended models before their items are counted" +
                     (response.PrunedModelCount > 0
                         ? " (" + response.PrunedModelCount.ToString(CultureInfo.InvariantCulture) + " models skipped on this call)"
