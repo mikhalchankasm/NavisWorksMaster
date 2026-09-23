@@ -776,7 +776,7 @@ fresh process on `6513.nwd`, with the build that added them (`0bc0152c…`). Eve
 scanned 41 016 items and matched 26 762. "During" is the difference between the reads on
 either side of a call:
 
-| call | ms | collections during, gen 0 / 1 / 2 | managed heap after, MB | process CPU during, ms |
+| call | ms | collections during: all / reaching gen 1 / reaching gen 2 | managed heap after, MB | process CPU during, ms |
 | --- | --- | --- | --- | --- |
 | 1 | 1004 | 6 / 2 / 0 | 80.7 | 1125 |
 | 2 | 1664 | 6 / 3 / 0 | 83.1 | 1766 |
@@ -787,10 +787,12 @@ either side of a call:
 | 7 | 3960 | 6 / 3 / 0 | 68.0 | 4000 |
 | 8 | 5346 | 6 / 3 / 0 | 70.3 | 5390 |
 
-- The collector runs as often in a 5-second call as in a 1-second one, so the number of
+- The collector runs as often in a 5-second call as in a 1-second one: six collections a
+  call, seven in call 5. The counters overlap, because a collection of generation 1 or 2
+  also collects generation 0, so `gcGen0Collections` alone counts them all. The number of
   collections does not grow with the slowdown. The counters give no durations. For the
-  collections to carry the growth, each of call 8's nine would have to take about half a
-  second longer than in call 1, on a managed heap under 90 MB.
+  collections to carry the growth, each of call 8's six would have to take about 0.7 s
+  longer than in call 1, on a managed heap under 90 MB.
 - Process CPU is 1.01 to 1.12 times the elapsed time on every call. The process computes
   for the whole call rather than waiting. The figure is summed across threads, so it does
   not say which one.
@@ -801,11 +803,42 @@ either side of a call:
   call after it was the only one in the run that got faster (2.3 s after 3.8 s). Then the
   growth resumed.
 
-That last point is one coincidence in one run, not a finding. It suggests the next test: a
-throwaway build that forces a full collection, and waits for pending finalizers, before
-each call, interleaved against `main` like the box test. If its curve stays flat, what grows
-is tied to managed objects that only a full collection releases. That would make the
-`ModelItem` wrappers worth the risk of disposing.
+**A full collection before each call removes the slowdown.** The last point above was one
+coincidence, so it was tested directly. The test build (`exp/forced-gc-in-host-status`,
+never merged) makes `host_status` run a full collection, wait up to 5 s for pending
+finalizers on a worker thread, and collect again. It was interleaved against this build
+over two rounds, each arm in a fresh process, eight identical whole-model leaf calls with
+`maxResults=1`. `host_status` ran before every call, then an idle pad kept every gap at 3 s
+in both arms:
+
+| round | build | ms, calls 1 to 8 |
+| --- | --- | --- |
+| 1 | base | 1074, 1617, 2634, 3124, 4437, 2361, 4023, 5526 |
+| 1 | full collection before each call | 1054, 1185, 1217, 1321, 1212, 1168, 1190, 1263 |
+| 2 | full collection before each call | 966, 1214, 1206, 1201, 1266, 1217, 1179, 1173 |
+| 2 | base | 1046, 1612, 2518, 3120, 4260, 2398, 3987, 5574 |
+
+Every call scanned 41 016 items and matched 26 762. Both plugin builds are 1 594 368 bytes,
+so the length the host reports does not tell them apart; `gcGen2Collections` does, rising by
+two per call in the test build and not at all in the base between its natural full
+collections. After each process's first call, `host_status` took 0.10–0.16 s in the test
+build against 0.03 s in the base, which bounds what the forced collection costs.
+
+- With the full collection, the eighth call costs what the first does, in both rounds. The
+  managed heap before each call stays at 46.5–49.1 MB. Without it, the heap grows from 71 to
+  94 MB until the runtime runs its own full collection.
+- The slowdown is therefore tied to objects that a full collection with finalization
+  releases. The test did both at once and does not separate them. The base's natural full
+  collection, around call 5, which does not wait for finalizers, gave only partial relief:
+  2.4 s on call 6, against 1.2 s with the forced one.
+- It does not name the objects. The prime suspects are the `ModelItem` wrappers the walk
+  creates and never disposes: about 41 000 per call, each a `NativeHandle` with a finalizer.
+  The bounding boxes are ruled out by the test above.
+
+Two fixes follow, each to be measured the same way against this base. Disposing the
+wrappers the walk owns is precise, but first needs proof that Navisworks does not hand the
+same wrapper to other holders. A full collection after a large walk, off the call's own
+path, is blunt, and costs about 0.1 s of host time each time.
 
 ## What still has no number
 
