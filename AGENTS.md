@@ -156,5 +156,6 @@ exactly one document; if you find the same fact in two, delete one and link it.
 
 ## 6. Roles
 
-The owner assigns the lead and accepts the result. External agents are read-only.
+The owner assigns the lead and accepts the result. External agents are read-only
+unless the owner names them executors, each on its own task branch.
 A same-account review of one's own work is a report, not an approval.
