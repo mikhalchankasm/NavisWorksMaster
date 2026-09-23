@@ -97,6 +97,7 @@ internal sealed partial class HostBridgeClient
                 Error(ErrorCodes.RequestTimeout, "The host did not complete the request within the timeout or the search guarded itself before timeout.", "Split large requests into smaller batches and retry remaining work.", true),
                 Error(ErrorCodes.TransportConnectFailed, "The MCP server could not connect to the host named pipe.", "Call list_navisworks_hosts; if the process is gone, start Navisworks again.", true),
                 Error(ErrorCodes.CommandFailed, "Navisworks rejected or failed the requested operation.", "Inspect the error message and current model/view state before retrying.", false),
+                Error(ErrorCodes.ReadOnlyMode, "The MCP server was started read-only and the requested tool has effects.", "Restart the server without read-only mode only when writes are intended.", false),
                 Error("scenario_invalid", "A saved or proposed scenario failed strict schema, privacy, path, allowlist, or safety validation.", "Review the scenario validation errors and correct the draft or hand-edited file; invalid files are never rewritten automatically.", false),
                 Error("scenario_not_found", "The requested scenario_id does not exist in the current user's scenario library.", "Call list_scenarios and use the returned scenario_id.", false),
                 Error("scenario_conflict", "The scenario SHA-256 changed after it was read.", "Call get_scenario, review the current content, and retry with its latest sha256.", true),

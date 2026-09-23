@@ -4,6 +4,8 @@ This guide is for MCP clients such as Claude Code. It describes the safe default
 
 For exact input/output fields of Clash Detective MCP tools, see [MCP_TOOL_CONTRACTS.md](MCP_TOOL_CONTRACTS.md).
 
+Pass `--read-only` in the client's MCP server configuration to hide and refuse tools that can change state.
+
 ## First Calls
 
 1. If the user asks to open the last Navisworks model, call `open_latest_navisworks_file`.

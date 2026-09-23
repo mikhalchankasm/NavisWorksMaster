@@ -8,9 +8,12 @@ namespace NavisHelper.McpServer.Tools;
 
 internal sealed class NavisworksHostTools : NavisworksToolBase
 {
-    public NavisworksHostTools(NavisworksToolContext context)
+    private readonly McpReadOnlyMode _readOnlyMode;
+
+    public NavisworksHostTools(NavisworksToolContext context, McpReadOnlyMode readOnlyMode)
         : base(context)
     {
+        _readOnlyMode = readOnlyMode;
     }
 
     [McpServerTool]
@@ -61,6 +64,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
         {
             McpServerVersion = HostBridgeClient.McpServerVersion,
             ProtocolVersion = ProtocolConstants.CurrentProtocolVersion,
+            ReadOnlyMode = _readOnlyMode.Enabled,
             LogFilePath = _hostBridgeClient.GetDiagnostics().LogFilePath,
         };
 
