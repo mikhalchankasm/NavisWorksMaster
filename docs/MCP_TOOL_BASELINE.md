@@ -715,9 +715,60 @@ private memory and 2 547 handles at the slow end, so this is no obvious leak.
 This is the most likely source of the bimodal timings every window has recorded,
 `isolate_by_box` in the fifth. They were drawn from long runs of calls in one process, and
 a call's number was partly its position in that run. Until this is understood, **compare
-timings only between fresh processes, first call against first call**. The next step is
-in-process: what each call leaves behind. `MatchSessionStore` keeps up to `maxResults`
-items per call, and a run of these queries stored 10 000 each time.
+timings only between fresh processes, first call against first call**.
+
+**Retained results are not the only cause.** Same day, same base build (`e323f112…`),
+`6513.nwd`, the whole-model leaf query, five calls back to back in a fresh process per
+arm. The arms differed only in how many results each call kept in `MatchSessionStore`:
+
+| arm | ms, calls 1 to 5 | every call |
+| --- | --- | --- |
+| `maxResults=10000`: up to 10 000 items kept per call | 3 397, 4 132, 7 855, 7 413, 8 310 | 41 016 scanned, 26 762 matched |
+| `maxResults=1`: one item kept per call | 1 248, 2 035, 2 622, 3 486, 4 341 | the same |
+
+Both arms slow down call after call, the second about 0.8 s per call with almost nothing
+retained. So retention is not *required* for the slowdown. Whether it adds to it is not
+settled: the arm that kept 10 000 items grew by 4.9 s from its first call to its fifth, the
+one that kept one item by 3.1 s, and one run of each cannot separate that difference from
+noise or from the larger response it also builds. The same table also carries a separate
+cost: returning 10 000 results, with their paths, source files and sort, took about 2 s
+of the first call (3.4 s against 1.2 s).
+
+An idle pause helps only in part. The fifth call of the second arm took 4.3 s. After a
+short gap the sixth took 2.5 s, after a further 90 s idle the seventh took 2.6 s, and the
+eighth, straight after it, took 4.1 s.
+
+**A plausible mechanism, tested and refuted for the boxes.** In the Navisworks 2027 API
+`ModelItem` and `BoundingBox3D` derive from `NativeHandle`, which implements `IDisposable`
+and declares a finalizer; this was read from the assembly by reflection. A walk creates
+tens of thousands of each and disposed none, so finalizer pressure fitted all three
+observations. It was tested the same evening with a build that disposes every
+`BoundingBox3D` it reads (`893d5ab9…`), against `main` at `5204c10` (`1eee7eda…`). The two
+builds were interleaved over two rounds, each arm in a fresh process, with five identical
+whole-model calls in a row:
+
+| `maxResults` | round | build | ms, calls 1 to 5 |
+| --- | --- | --- | --- |
+| 1 | 1 | base | 2448, 1277, 2459, 2756, 2968 |
+| 1 | 1 | disposes boxes | 2496, 1252, 2481, 2756, 3225 |
+| 1 | 2 | base | 2520, 1250, 2521, 2741, 2938 |
+| 1 | 2 | disposes boxes | 2474, 1277, 2425, 2720, 3028 |
+| 10000 | 1 | base | 3144, 3970, 6613, 6644, 8579 |
+| 10000 | 1 | disposes boxes | 8590, 10038, 10023, 10032, 10029 |
+| 10000 | 2 | base | 8584, 2960, 7200, 10022, 10021 |
+| 10000 | 2 | disposes boxes | 3134, 3921, 6645, 6819, 8448 |
+
+With one result kept, the curves of the two builds match within about 0.3 s in both rounds.
+Disposing the boxes does not change the slowdown, so they are not its cause, and that
+change was not merged. With 10 000 kept, base and head swap places between rounds, so the
+build has no visible effect there either. Even a first call in a fresh process ranged from
+3.1 to 8.6 s, which is noise on this machine on top of the cost of building a large
+response.
+
+Still untested: the `ModelItem` wrappers themselves, which the walk also creates and never
+disposes. Disposing those is not safe without knowing whether Navisworks hands the same
+wrapper to other holders, and it needs in-process evidence first: GC collection counts, or
+per-thread CPU, across a run of calls.
 
 ## What still has no number
 
