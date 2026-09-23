@@ -54,15 +54,22 @@ internal static class McpToolTimingFilter
     {
         result ??= new CallToolResult();
 
+        result.Content ??= new List<ContentBlock>();
+        var primaryPayload = TryParsePrimaryJsonContent(result.Content, out var primaryTextBlock);
+        var toolOk = ReadPayloadBoolean(primaryPayload, "ok");
+        var toolErrorCode = ReadPayloadString(primaryPayload, "errorCode");
+
         var completedAtUtc = DateTime.UtcNow;
         var elapsedHuman = ElapsedTimeFormatter.Format(elapsedMs);
         var isError = result.IsError == true || exception != null;
         var shouldReportToUser = elapsedMs >= ElapsedTimeFormatter.ReportThresholdMs;
-        var userMessage = BuildUserMessage(toolName, elapsedMs, isError);
+        var userMessage = BuildUserMessage(toolName, elapsedMs, isError, toolOk, toolErrorCode);
         var timing = new
         {
             tool_name = toolName,
             status = isError ? "error" : "ok",
+            tool_ok = toolOk,
+            tool_error_code = toolErrorCode,
             started_at_utc = startedAtUtc,
             completed_at_utc = completedAtUtc,
             elapsed_ms = elapsedMs,
@@ -78,8 +85,12 @@ internal static class McpToolTimingFilter
         result.Meta ??= new JsonObject();
         result.Meta["navishelper_timing"] = JsonSerializer.SerializeToNode(timing, JsonOptions);
 
-        result.Content ??= new List<ContentBlock>();
-        if (!TryInjectTimingIntoPrimaryJsonContent(result.Content, timing))
+        if (primaryPayload != null && primaryTextBlock != null)
+        {
+            primaryPayload["navishelper_timing"] = JsonSerializer.SerializeToNode(timing, JsonOptions);
+            primaryTextBlock.Text = primaryPayload.ToJsonString(JsonOptions);
+        }
+        else
         {
             result.Content.Add(new TextContentBlock
             {
@@ -90,31 +101,67 @@ internal static class McpToolTimingFilter
         return result;
     }
 
-    private static bool TryInjectTimingIntoPrimaryJsonContent(IList<ContentBlock> content, object timing)
+    private static JsonObject TryParsePrimaryJsonContent(IList<ContentBlock> content, out TextContentBlock textBlock)
     {
-        var textBlock = content.OfType<TextContentBlock>().FirstOrDefault();
-        if (textBlock == null || string.IsNullOrWhiteSpace(textBlock.Text))
-            return false;
+        textBlock = null;
+        var candidate = content.OfType<TextContentBlock>().FirstOrDefault();
+        if (candidate == null || string.IsNullOrWhiteSpace(candidate.Text))
+            return null;
 
         try
         {
-            var node = JsonNode.Parse(textBlock.Text);
-            if (node is not JsonObject obj)
-                return false;
+            if (JsonNode.Parse(candidate.Text) is not JsonObject obj)
+                return null;
 
-            obj["navishelper_timing"] = JsonSerializer.SerializeToNode(timing, JsonOptions);
-            textBlock.Text = obj.ToJsonString(JsonOptions);
-            return true;
+            textBlock = candidate;
+            return obj;
         }
         catch (JsonException)
         {
-            return false;
+            return null;
         }
     }
 
-    private static string BuildUserMessage(string toolName, long elapsedMs, bool isError)
+    private static bool? ReadPayloadBoolean(JsonObject payload, string propertyName)
     {
-        var action = isError ? "failed" : "completed";
+        if (payload == null
+            || !payload.TryGetPropertyValue(propertyName, out var node)
+            || node is not JsonValue value
+            || !value.TryGetValue<bool>(out var boolean))
+        {
+            return null;
+        }
+
+        return boolean;
+    }
+
+    private static string ReadPayloadString(JsonObject payload, string propertyName)
+    {
+        if (payload == null
+            || !payload.TryGetPropertyValue(propertyName, out var node)
+            || node is not JsonValue value
+            || !value.TryGetValue<string>(out var text))
+        {
+            return null;
+        }
+
+        return text;
+    }
+
+    private static string BuildUserMessage(string toolName, long elapsedMs, bool isError, bool? toolOk, string toolErrorCode)
+    {
+        string action;
+        if (isError)
+            action = "failed";
+        // Refusal wording needs an error code. A bare ok=false is a verdict, not a refusal:
+        // mcp_health_check answers ok=false with verdict=degraded as a successful diagnosis.
+        else if (toolOk == false && !string.IsNullOrWhiteSpace(toolErrorCode))
+            action = "was refused with error code " + toolErrorCode;
+        else if (toolOk == false)
+            action = "completed with ok: false";
+        else
+            action = "completed";
+
         if (string.IsNullOrWhiteSpace(toolName))
             return "MCP command " + action + ". " + ElapsedTimeFormatter.BuildUserMessage(elapsedMs);
 
