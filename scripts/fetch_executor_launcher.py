@@ -12,6 +12,12 @@ never the working tree, and never a fetch. A missing pin is an error, not a
 reason to go to the network. The default destination `artifacts/executor-launcher`
 is git-ignored, so a fetched launcher is never committed by accident.
 
+A destination that already exists is refetched only when it holds exactly the
+five pinned files plus `__pycache__` directories left by an earlier run. Any
+other file there would run alongside the launcher without being covered by the
+verified hashes, so it is a refusal: the script names the extra files, writes
+nothing, and deletes nothing.
+
 Usage:
     python scripts/fetch_executor_launcher.py [--avox <path>] [--dest <path>]
 """
@@ -69,6 +75,23 @@ def read_pinned(avox: Path, relative: str) -> bytes:
     return shown.stdout
 
 
+def unpinned_destination_files(dest: Path) -> list[str]:
+    """Files under `dest` that are neither pinned paths nor inside a `__pycache__`."""
+    if not dest.is_dir():
+        return []
+    extras: list[str] = []
+    for path in dest.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(dest)
+        if relative.as_posix() in PINNED_FILES:
+            continue
+        if "__pycache__" in relative.parts:
+            continue
+        extras.append(relative.as_posix())
+    return extras
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -111,6 +134,15 @@ def main(argv: list[str]) -> int:
         return 1
 
     dest = repo_root() / DEFAULT_DEST_RELATIVE if args.dest is None else Path(args.dest)
+    extras = unpinned_destination_files(dest)
+    if extras:
+        print(f"{dest} already holds files the pinned launcher does not define:", file=sys.stderr)
+        for extra in sorted(extras):
+            print(f"  - {extra}", file=sys.stderr)
+        print("nothing was written and nothing was deleted; remove those files", file=sys.stderr)
+        print("(or point --dest at a fresh directory) and rerun.", file=sys.stderr)
+        return 1
+
     for relative, data in fetched.items():
         target = dest / relative
         target.parent.mkdir(parents=True, exist_ok=True)

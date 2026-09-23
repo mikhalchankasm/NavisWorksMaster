@@ -24,7 +24,10 @@ the Avox working tree and never fetches. If the pin is missing from the clone,
 the script exits non-zero, writes nothing, and tells you to run
 `git -C <avox> fetch origin`. The default destination
 `artifacts/executor-launcher` is under the git-ignored `artifacts/` directory,
-so a fetched launcher is never committed by accident.
+so a fetched launcher is never committed by accident. A destination that already
+holds any file other than the five pinned ones (and `__pycache__` left by an
+earlier run) is refused: the script names the extra files, writes nothing, and
+deletes nothing.
 
 The launcher finds its config at `config/external-executors.json` relative to
 its own `scripts/` folder, and runs as a module from the fetched root — hence
