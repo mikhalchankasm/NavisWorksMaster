@@ -717,7 +717,7 @@ This is the most likely source of the bimodal timings every window has recorded,
 a call's number was partly its position in that run. Until this is understood, **compare
 timings only between fresh processes, first call against first call**.
 
-**Retained results are not the cause.** Same day, same base build (`e323f112…`),
+**Retained results are not the only cause.** Same day, same base build (`e323f112…`),
 `6513.nwd`, the whole-model leaf query, five calls back to back in a fresh process per
 arm. The arms differed only in how many results each call kept in `MatchSessionStore`:
 
@@ -727,7 +727,10 @@ arm. The arms differed only in how many results each call kept in `MatchSessionS
 | `maxResults=1`: one item kept per call | 1 248, 2 035, 2 622, 3 486, 4 341 | the same |
 
 Both arms slow down call after call, the second about 0.8 s per call with almost nothing
-retained. So the store is not what accumulates. The same table also carries a separate
+retained. So retention is not *required* for the slowdown. Whether it adds to it is not
+settled: the arm that kept 10 000 items grew by 4.9 s from its first call to its fifth, the
+one that kept one item by 3.1 s, and one run of each cannot separate that difference from
+noise or from the larger response it also builds. The same table also carries a separate
 cost: returning 10 000 results, with their paths, source files and sort, took about 2 s
 of the first call (3.4 s against 1.2 s).
 
