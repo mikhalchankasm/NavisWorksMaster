@@ -151,6 +151,7 @@ namespace NavisHelper.Agent.Host
 
                 requestGateLease = new RequestGateLease(_requestGate);
 
+                WaitForHeavyWorkCollection(requestId, command);
                 HandleRequest(server, requestObject, requestId, requestGateLease);
             }
             catch (AgentCommandException ex)

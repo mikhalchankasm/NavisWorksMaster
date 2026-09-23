@@ -12,6 +12,7 @@ namespace NavisHelper.Agent.Host
         private readonly HeavyWorkCollectionPolicy _heavyWorkCollectionPolicy =
             new HeavyWorkCollectionPolicy(GC.CollectionCount(0));
         private int _heavyWorkCollectionInFlight;
+        private Task _heavyWorkCollectionTask;
 
         private void ScheduleHeavyWorkCollection()
         {
@@ -23,7 +24,7 @@ namespace NavisHelper.Agent.Host
                 return;
 
             var gen0CollectionsSinceLast = _heavyWorkCollectionPolicy.CollectionsSinceLast(gen0Now);
-            Task.Run(() =>
+            _heavyWorkCollectionTask = Task.Run(() =>
             {
                 var stopwatch = Stopwatch.StartNew();
                 try
@@ -43,6 +44,22 @@ namespace NavisHelper.Agent.Host
                     Interlocked.Exchange(ref _heavyWorkCollectionInFlight, 0);
                 }
             });
+        }
+
+        private void WaitForHeavyWorkCollection(string requestId, string command)
+        {
+            var collectionTask = _heavyWorkCollectionTask;
+            if (collectionTask == null || collectionTask.IsCompleted)
+                return;
+
+            var stopwatch = Stopwatch.StartNew();
+            var completed = collectionTask.Wait(10000);
+            Logger.Info(
+                "request_id=" + (requestId ?? "<null>") +
+                " command=" + (command ?? "<null>") +
+                " heavy_work_collection_wait waited_ms=" + stopwatch.ElapsedMilliseconds +
+                " cap_hit=" + (completed ? "false" : "true"),
+                "AgentHost");
         }
     }
 }
