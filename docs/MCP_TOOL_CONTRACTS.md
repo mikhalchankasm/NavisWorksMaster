@@ -37,8 +37,10 @@ example — a client that read only the envelope recorded it as a successful 0 m
 The envelope now carries the tool's verdict itself, so the payload no longer has to be
 re-parsed to see it: `tool_ok` mirrors the payload's top-level boolean `ok`, and
 `tool_error_code` mirrors its string `errorCode`; both are `null` when the payload has no
-such field. When `tool_ok` is false, `user_message` says the command was refused and names
-the code, instead of "completed". `status` keeps its meaning: it is still only the
+such field. When `tool_ok` is false and the payload carries an `errorCode`, `user_message`
+says the command was refused and names the code, instead of "completed". A bare `ok: false`
+without one, such as `mcp_health_check`'s `degraded` verdict, is a diagnosis rather than a
+refusal and reads "completed with ok: false". `status` keeps its meaning: it is still only the
 transport's "the call arrived and came back", not "the thing you asked for happened".
 
 ### An `_export` / `_import` pair is not necessarily a round trip

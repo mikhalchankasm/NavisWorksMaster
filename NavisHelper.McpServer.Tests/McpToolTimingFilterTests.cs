@@ -132,8 +132,31 @@ public sealed class McpToolTimingFilterTests
         Assert.False(timing.GetProperty("tool_ok").GetBoolean());
         Assert.Equal(JsonValueKind.Null, timing.GetProperty("tool_error_code").ValueKind);
         var userMessage = timing.GetProperty("user_message").GetString();
-        Assert.Contains("refused", userMessage);
+        Assert.Contains("ok: false", userMessage);
+        Assert.DoesNotContain("refused", userMessage);
         Assert.DoesNotContain("42", userMessage);
+    }
+
+    [Fact]
+    public async Task BareOkFalseWithoutErrorCode_IsNotCalledARefusal()
+    {
+        // mcp_health_check answers ok=false with verdict=degraded when a check fails or the
+        // server and plugin versions differ. That is a diagnostic verdict, not a refusal.
+        var result = await InvokeAsync(new CallToolResult
+        {
+            Content = new List<ContentBlock>
+            {
+                new TextContentBlock { Text = """{"ok":false,"verdict":"degraded","checks":[]}""" },
+            },
+        });
+
+        var timing = MetaTiming(result);
+        Assert.Equal("ok", timing.GetProperty("status").GetString());
+        Assert.False(timing.GetProperty("tool_ok").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, timing.GetProperty("tool_error_code").ValueKind);
+        var userMessage = timing.GetProperty("user_message").GetString();
+        Assert.DoesNotContain("refused", userMessage);
+        Assert.Contains("ok: false", userMessage);
     }
 
     [Fact]

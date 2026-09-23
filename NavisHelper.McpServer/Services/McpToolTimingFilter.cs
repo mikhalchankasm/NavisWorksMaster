@@ -153,8 +153,12 @@ internal static class McpToolTimingFilter
         string action;
         if (isError)
             action = "failed";
+        // Refusal wording needs an error code. A bare ok=false is a verdict, not a refusal:
+        // mcp_health_check answers ok=false with verdict=degraded as a successful diagnosis.
+        else if (toolOk == false && !string.IsNullOrWhiteSpace(toolErrorCode))
+            action = "was refused with error code " + toolErrorCode;
         else if (toolOk == false)
-            action = string.IsNullOrWhiteSpace(toolErrorCode) ? "was refused" : "was refused with error code " + toolErrorCode;
+            action = "completed with ok: false";
         else
             action = "completed";
 
