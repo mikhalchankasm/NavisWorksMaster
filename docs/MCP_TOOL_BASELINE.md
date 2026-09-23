@@ -869,6 +869,14 @@ Every call scanned 41 016 items and matched 26 762. The builds are told apart by
   70 ms, and the calls it overlapped took 1.7 s and 3.2 s instead of 1.15 s. The
   collection and a walk slow each other down.
 
+After review, the collector moved into its own type and now schedules from the request
+gate's actual release, which a timed-out UI callback defers. That build (`a594a95`,
+`pluginAssemblyLength` 1 595 904) was measured again the same way. It stayed flat at
+1.30–1.44 s in both rounds, while the base went from 1.00 to 4.07 s and from 2.28 to 6.57 s.
+Everything ran about 0.2 s slower that hour, the base's first calls and the collections
+themselves included (131–239 ms). The collections do not depend on this change, so the
+shift is attributed to the machine, but it was not separated.
+
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
 
