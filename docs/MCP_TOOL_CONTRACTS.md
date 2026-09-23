@@ -129,7 +129,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 
 ## Read-only mode
 
-Start the MCP server with `--read-only`, or set `NAVISHELPER_MCP_READ_ONLY=1` (also accepts `true`, case-insensitive). Only tools with `ToolCapabilities` effects `None` appear in `tools/list`. Calls to other tools, including remembered names and dry-runs, are refused before reaching a host with `read_only_mode`. Check `mcp_health_check.readOnlyMode` to see whether the mode is on.
+Start the MCP server with `--read-only`, or set `NAVISHELPER_MCP_READ_ONLY=1` (also accepts `true`, case-insensitive). Only tools with `ToolCapabilities` effects `None` appear in `tools/list`. Calls to other tools, including remembered names and dry-runs, are refused before reaching a host with `read_only_mode`. Check `mcp_health_check.readOnlyMode` to see whether the mode is on. The mode is strict: tools that only change view state (selection, camera, visibility) carry the `View` effect and are hidden too, so a read-only session can query and report but not select or navigate.
 
 ## Common Rules
 
