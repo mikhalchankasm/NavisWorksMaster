@@ -199,6 +199,15 @@ namespace NavisHelper.Agent.Contracts
         /// </summary>
         public int PrunedModelCount { get; set; }
 
+        /// <summary>
+        /// Items whose own bounding box missed the zone, so the walk skipped their
+        /// children whole. Like <see cref="PrunedModelCount"/>, the skipped descendants
+        /// are absent from <see cref="ScannedItemCount"/> by design -- that is what the
+        /// prune buys. The pruned item itself was counted, because its box had to be
+        /// read to rule the subtree out.
+        /// </summary>
+        public int PrunedSubtreeCount { get; set; }
+
         public bool TraversalTruncated { get; set; }
         public bool ResultsTruncated { get; set; }
         public string MatchHandle { get; set; }

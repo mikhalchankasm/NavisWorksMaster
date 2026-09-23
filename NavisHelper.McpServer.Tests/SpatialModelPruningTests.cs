@@ -6,13 +6,14 @@ namespace NavisHelper.McpServer.Tests;
 /// <summary>
 /// `find_items_by_bbox` had one lever on a large federated model: raise `maxScannedItems`
 /// to its 500 000 ceiling and hope to finish inside the host's ten second budget. Narrowing
-/// the zone does not help, because the zone is read after an item has been scanned, and
-/// neither does `sourceFileContains`, because the counter increments before every filter.
+/// the zone did not help, because the zone was read after an item had been scanned, and
+/// neither did `sourceFileContains`, because the counter increments before every filter.
 ///
-/// Pruning a whole model is the missing lever, and the only one that can reduce
-/// `scannedItemCount` at all. These pin when it is allowed to fire -- the plugin side,
-/// which needs a live document, is verified on the rig by comparing `matchedItemCount`
-/// against a run with pruning disabled.
+/// Pruning a whole model was the first lever that could reduce `scannedItemCount` at all;
+/// skipping a subtree whose own box misses the zone, decided by this same test, is the
+/// second. These pin when the prune is allowed to fire -- the plugin side, which needs a
+/// live document, is verified on the rig by comparing `matchedItemCount` against a run
+/// with pruning disabled.
 /// </summary>
 public sealed class SpatialModelPruningTests
 {

@@ -77,7 +77,7 @@ a new truncation flag appears on a contract without being documented.
 | `propertiesTruncated` | `item_properties_by_handle`, `selection_property_report`, `selection_export_properties`, `model_color_scheme` item facts | fewer properties per item than the item has |
 | `valuesTruncated` | `selection_distinct_property_values` | fewer distinct values than exist, so the set is not the full domain |
 | `depthTruncated` | `selected_items_tree` | the tree was cut at `maxDepth`; deeper nodes exist and are absent |
-| `traversalTruncated` | `find_items_by_bbox`, `isolate_by_box`, clash matrix traversal | the walk stopped at a scan or time limit, so items were never examined. See *find_items_by_bbox* for why narrowing the zone does not help |
+| `traversalTruncated` | `find_items_by_bbox`, `isolate_by_box`, clash matrix traversal | the walk stopped at a scan or time limit, so items were never examined. See *find_items_by_bbox* for what narrowing the zone now skips |
 | `responseTruncated` | `last_operation_status` | the command completed but its response had to be reduced to fit the named-pipe frame |
 | `groupsTruncated`, `pairsTruncated`, `candidatePairsTruncated`, `plannedTestsTruncated`, `analysisTruncated`, `classificationTruncated`, `rootItemsTruncated` | clash planning, grouping and root listings | fewer groups, pairs, planned tests or roots than the operation found |
 
@@ -463,6 +463,7 @@ Outputs:
 | `scannedItemCount`, `matchedItemCount`, `returnedItemCount` | int | Scan count, unique matches observed, and bounded returned matches. |
 | `traversalTruncated`, `resultsTruncated` | bool | Safety/runtime or result-limit truncation indicators. Do not treat a truncated result as exhaustive. |
 | `prunedModelCount` | int | Appended models skipped whole, before any of their items was enumerated. See *Pruning whole models* below. |
+| `prunedSubtreeCount` | int | Items whose own bounding box missed the zone, so their children were skipped whole without being enumerated. Their descendants never reach `scannedItemCount`; the pruned item itself does. See *Pruning whole models* below. |
 | `matchHandle` | string | Present when at least one match is returned; pass to `select_items`, visibility tools, or `create_selection_set`. |
 | `preview[]` | array | Bounded `displayName`, `path`, `sourceFile`, `min`, and `max` data. |
 | `warnings[]` | string[] | Non-fatal unreadable-bbox or truncation warnings. |
@@ -473,7 +474,8 @@ Outputs:
 every filter in the walk runs after the counter has already counted the item. That is why
 `traversalTruncated` used to leave a caller with one move — raise the cap toward its
 500 000 ceiling and hope to land inside the host's ten-second budget — and why the
-truncation warning says in so many words that **narrowing the zone does not help**.
+truncation warning used to say in so many words that **narrowing the zone does not
+help**.
 
 An appended model is now skipped **whole**, before any of its items is enumerated, when it
 cannot hold a match at all:
@@ -493,11 +495,16 @@ should. If a model's extents miss the zone then no descendant box can overlap it
 box's centre can fall in it (`center`, since a centre lies within its own box). Non-overlap
 rules out all three.
 
-**What this does not change.** Narrowing the zone still does not reduce the scan *within* a
-model — the per-item zone test is still read after the counter. Pruning only removes models
-that are entirely elsewhere, so it pays on a federated model whose parts occupy different
-volumes and pays nothing when every part spans the site. A `sourceFileContains` filter is
-the lever that always prunes.
+**What this does and does not change.** The per-item zone test is still read after the
+counter, so no *counted* item got cheaper. The walk does now stop at an item whose own
+box misses the zone: Autodesk defines an item's bounding box as enclosing its children,
+so that subtree is provably empty in every match mode — the same argument as for a
+model, read on the item's box — and `prunedSubtreeCount` reports how many such subtrees
+were skipped, their descendants never reaching `scannedItemCount`. Narrowing the zone
+therefore reduces the scan within a model as well as between models, with two honest
+limits: a zone that spans every subtree prunes nothing and still pays one box read per
+container (`includeContainers=false` no longer skips that read), and a
+`sourceFileContains` filter remains the lever that prunes whatever the geometry.
 
 **Fail open, deliberately.** A model whose extents or file name cannot be read is scanned,
 not skipped, and a warning says so. A prune is only worth having because it is provably

@@ -3,20 +3,31 @@ using System;
 namespace NavisHelper.Agent.Contracts
 {
     /// <summary>
-    /// Whether a whole appended model can be skipped before any of its items is scanned.
+    /// Whether a whole appended model -- or any subtree, by the same test -- can be
+    /// skipped before the items inside it are scanned.
     ///
     /// `find_items_by_bbox` had exactly one lever for a large federated model: raise
     /// `maxScannedItems` to its 500 000 ceiling and hope to finish inside the host's ten
-    /// second budget. Narrowing the zone does not help, because the zone is read after an
-    /// item has been scanned and its box computed, and neither does `sourceFileContains`,
-    /// because the scan counter increments before every filter. A caller past the cap had
-    /// nothing left to try.
+    /// second budget. Narrowing the zone did not help, because the zone was read after
+    /// an item had been scanned and its box computed, and neither did
+    /// `sourceFileContains`, because the scan counter increments before every filter. A
+    /// caller past the cap had nothing left to try.
     ///
-    /// Pruning at the model root is the missing lever. A model ruled out here costs nothing
-    /// at all -- its items are never enumerated, so they never reach the counter.
+    /// Pruning supplied the other levers. `sourceFileContains` rules out whole models
+    /// by their file name, and since the per-model walk became a subtree walk
+    /// (`SpatialSubtreeWalk`), the zone rules out any item whose own box misses it:
+    /// Autodesk defines `ModelItem.BoundingBox()` as the box of the item *and its
+    /// children*, so the argument below, read on an item's box instead of a model's,
+    /// rules out that item's whole subtree in every match mode. Narrowing the zone now
+    /// reduces the scan, not only the match count.
     ///
-    /// This lives in the contracts assembly, away from the Navisworks API, so the decision
-    /// can be tested without a live document. The plugin supplies each model's own extents.
+    /// A model ruled out here costs nothing at all -- its items are never enumerated,
+    /// so they never reach the counter. A subtree ruled out the same way still pays for
+    /// its own item to be scanned and its box read; everything under it pays nothing.
+    ///
+    /// This lives in the contracts assembly, away from the Navisworks API, so the
+    /// decision can be tested without a live document. The plugin supplies each model's
+    /// own extents, and every scanned item's own box.
     /// </summary>
     public static class SpatialModelPruning
     {
@@ -39,6 +50,13 @@ namespace NavisHelper.Agent.Contracts
         /// is verified on the rig by running the same query with pruning disabled and
         /// comparing `matchedItemCount` -- a wrong assumption can only lose matches, never
         /// invent them, so the comparison is the test.
+        ///
+        /// The same test prunes subtrees, not only models: the plugin reads each scanned
+        /// item's own box -- which Autodesk defines as enclosing its children, the
+        /// enclosure assumption above made local -- and the walk skips that item's
+        /// children when this returns false. `SpatialSubtreeWalk` owns the skipping
+        /// mechanics; this method only answers the question, for any box that encloses
+        /// its descendants.
         ///
         /// Unknown extents are never pruned. A model whose box could not be read is scanned,
         /// because "we could not tell" must not read as "nothing here".
