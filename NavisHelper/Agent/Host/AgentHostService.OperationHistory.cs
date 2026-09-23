@@ -136,6 +136,9 @@ namespace NavisHelper.Agent.Host
                 if (Interlocked.Exchange(ref _released, 1) != 0)
                     return;
 
+                // Runs here, not in the caller's finally, so that a deferred release (a UI
+                // callback that outlived its timeout) schedules it only once the work is done,
+                // and so the next request finds it published before the gate opens.
                 try
                 {
                     if (_beforeRelease != null)
