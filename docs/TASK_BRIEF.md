@@ -43,3 +43,7 @@ not a task-specific check.
 
 A brief with an empty `Boundaries` section is not ready. "Out of scope" is what
 stops the second attempt from growing into a rewrite.
+
+Briefs handed to an external executor are written the same way; the mechanics
+of fetching and running the Avox launcher are in
+[EXTERNAL_EXECUTORS.md](EXTERNAL_EXECUTORS.md).
