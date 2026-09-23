@@ -29,6 +29,16 @@ public sealed class SectionBoxArchitectureTests
     }
 
     [Fact]
+    public void IsolateByBox_ExposesOptionalPrunedBranchCountDisabledByDefault()
+    {
+        var replay = typeof(NavisworksSectionBoxTools).GetMethod(nameof(NavisworksSectionBoxTools.IsolateByBox));
+        var parameter = Assert.Single(replay!.GetParameters(), candidate => candidate.Name == "countPrunedBranches");
+
+        Assert.Equal(typeof(bool), parameter.ParameterType);
+        Assert.Equal(false, parameter.DefaultValue);
+    }
+
+    [Fact]
     public void HostRouter_RegistersBothCommands_AndProgramRegistersSeparateToolContainer()
     {
         var root = FindRepositoryRoot();

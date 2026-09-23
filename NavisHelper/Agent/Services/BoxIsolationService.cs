@@ -40,12 +40,13 @@ namespace NavisHelper.Agent.Services
             var maxScannedItems = ValidateMaxScannedItems(request.MaxScannedItems);
             var maxDurationSeconds = ValidateMaxDurationSeconds(request.MaxDurationSeconds);
             var previewLimit = Clamp(request.PreviewLimit, DefaultPreviewLimit, MaximumPreviewLimit);
+            var countPrunedBranches = request.CountPrunedBranches == true;
             var selectionSnapshot = applyRequested ? SnapshotSelection(document) : null;
             var durationStopwatch = Stopwatch.StartNew();
             var durationGuard = new SectionBoxIsolationDurationGuard(
                 maxDurationSeconds,
                 new StopwatchIsolationClock(durationStopwatch));
-            var traversal = Traverse(document, request.Box, maxScannedItems, durationGuard);
+            var traversal = Traverse(document, request.Box, maxScannedItems, durationGuard, countPrunedBranches);
             BoxIsolationPlanningResult planning;
             try
             {
@@ -74,6 +75,7 @@ namespace NavisHelper.Agent.Services
                 traversal,
                 planning.Plan,
                 previewLimit,
+                countPrunedBranches,
                 partial,
                 timedOut,
                 maxDurationSeconds,
@@ -146,7 +148,8 @@ namespace NavisHelper.Agent.Services
             Document document,
             SectionBoxGeometry box,
             int maxScannedItems,
-            SectionBoxIsolationDurationGuard durationGuard)
+            SectionBoxIsolationDurationGuard durationGuard,
+            bool countPrunedBranches)
         {
             var result = new TraversalResult(maxScannedItems);
             var intersectionTester = new SectionBoxGeometryRules.SectionBoxIntersectionTester(box);
@@ -201,16 +204,28 @@ namespace NavisHelper.Agent.Services
                 }
 
                 var childItems = new List<ModelItem>();
+                var hasChildren = false;
                 var hierarchyStatusKnown = false;
                 try
                 {
-                    // Count() enumerated this collection, then the push loop enumerated it again,
-                    // building a wrapper per child each time. On 6501.5.nwd (59 253 items), two
-                    // builds interleaved in fresh processes: 4.4-4.5 s per call with two passes,
-                    // 2.5 s with one, identical counts.
                     var itemChildren = item.Children;
                     if (itemChildren != null)
-                        childItems = itemChildren.Cast<ModelItem>().ToList();
+                    {
+                        // Every child read builds a wrapper, and on 6501.5.nwd (59 253 items,
+                        // builds interleaved in fresh processes) that dominates the call:
+                        // reading children twice cost 4.4-4.5 s, once 2.5 s, and asking a
+                        // pruned node only whether it has children 2.1 s.
+                        if (boundsReadable && !intersects && !countPrunedBranches)
+                        {
+                            hasChildren = itemChildren.Cast<ModelItem>().Any();
+                        }
+                        else
+                        {
+                            // Once, for descent or for the requested direct branch count.
+                            childItems = itemChildren.Cast<ModelItem>().ToList();
+                            hasChildren = childItems.Count > 0;
+                        }
+                    }
                     hierarchyStatusKnown = true;
                 }
                 catch (Exception ex)
@@ -236,7 +251,7 @@ namespace NavisHelper.Agent.Services
                     intersects,
                     geometryStatusKnown,
                     hasGeometry,
-                    childItems.Count > 0);
+                    hasChildren);
                 if (!hierarchyStatusKnown && disposition != BoxIsolationNodeDisposition.OutsideSubtree)
                     disposition = BoxIsolationNodeDisposition.Unclassified;
                 var unclassified = BoxIsolationTraversalPolicy.IsRealClassificationError(disposition);
@@ -282,11 +297,14 @@ namespace NavisHelper.Agent.Services
 
                 // Autodesk's API contract defines ModelItem.BoundingBox() as the box of the
                 // item and its children. A readable outside box therefore excludes the whole
-                // subtree. We intentionally count only the skipped direct child branches;
-                // enumerating every pruned descendant would defeat the bounded traversal.
-                if (!BoxIsolationTraversalPolicy.ShouldDescend(disposition, childItems.Count > 0))
+                // subtree. Counting skipped direct child branches is optional; enumerating
+                // every pruned descendant would defeat the bounded traversal.
+                if (!BoxIsolationTraversalPolicy.ShouldDescend(disposition, hasChildren))
                 {
-                    result.Accounting.RecordPrunedSubtree(childItems.Count);
+                    if (countPrunedBranches)
+                        result.Accounting.RecordPrunedSubtree(childItems.Count);
+                    else
+                        result.Accounting.RecordPrunedSubtreeRoot(hasChildren);
                 }
                 else
                 {
@@ -306,6 +324,7 @@ namespace NavisHelper.Agent.Services
             TraversalResult traversal,
             BoxIsolationPlan plan,
             int previewLimit,
+            bool countPrunedBranches,
             bool partial,
             bool timedOut,
             int maxDurationSeconds,
@@ -352,7 +371,9 @@ namespace NavisHelper.Agent.Services
                 StructuralContainerItemCount = traversal.StructuralContainerItemCount,
                 EmptyItemCount = traversal.EmptyItemCount,
                 PrunedSubtreeRootCount = traversal.Accounting.PrunedSubtreeRootCount,
-                PrunedDirectChildBranchCount = traversal.Accounting.PrunedDirectChildBranchCount,
+                PrunedDirectChildBranchCount = countPrunedBranches
+                    ? (int?)traversal.Accounting.PrunedDirectChildBranchCount
+                    : null,
                 WouldKeepVisibleItemCount = plan.KeepVisibleIndices.Count,
                 WouldHideItemCount = plan.HideIndices.Count,
                 PreviouslyHiddenItemCount = plan.PreviouslyHiddenItemCount,

@@ -927,6 +927,25 @@ interleaved over two rounds, `host_status` between calls):
   5.2 s. There each call also paid for the previous call's garbage, which the other mode
   had made, so the difference was understated. Compare modes in separate processes.
 
+**A pruned node's children are now counted only on request.** `prunedDirectChildBranchCount`
+cost a full child enumeration per pruned subtree, 19 942 children under 2 590 roots here,
+and nothing else needs it. The owner chose to fill it only when `countPrunedBranches=true`.
+Measured the same way against `main` (`4a8d0b1`, which already reads children once):
+
+| round | build | ms, calls 1 to 6 |
+| --- | --- | --- |
+| 1 | `main` (`4a8d0b1`) | 2501, 2478, 2476, 2519, 2463, 2442 |
+| 1 | count on request, default off | 2178, 2072, 2069, 2064, 2081, 2080 |
+| 2 | count on request, default off | 2168, 2140, 2074, 2162, 2058, 2088 |
+| 2 | `main` (`4a8d0b1`) | 2483, 2485, 2491, 2474, 2508, 2533 |
+
+- Both DLLs are 1 595 904 bytes, so the rows are identified by `pluginAssemblyLastWriteUtc`:
+  23:00:26Z for `main`, 23:08:13Z for the change.
+- Every call returned 59 253 scanned, 30 332 intersecting, 2 590 pruned roots, complete.
+- One extra call per head arm with `countPrunedBranches=true` returned 19 942 branches,
+  as `main` does, in 2.57 s.
+- Taken together with the previous change, the same call went from 4.4 s to 2.1 s.
+
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
 
