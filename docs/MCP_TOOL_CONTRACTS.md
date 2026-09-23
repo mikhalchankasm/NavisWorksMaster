@@ -533,8 +533,11 @@ and found nothing: no item on this model lies beyond its model's extents. The fi
 covered by the last row for the same reason.
 
 What the comparison does **not** cover, stated so nobody reads more into it: one document,
-and one with `modelCount: 1`, so partial pruning across several appended files is still
-unverified — that needs an NWF with several. And the assumption is checked, not proven; a
+and one with `modelCount: 1`. Partial pruning across several appended files was compared on
+a 438-model NWF with `isolate_by_box`: equal counts, see *The fifth window* in
+`docs/MCP_TOOL_BASELINE.md`. That confirms the multi-model decisions, not the extents
+assumption, because both walks start from the same model roots. And the assumption is
+checked, not proven; a
 model whose items escape its extents would break it, and the same comparison is how such a
 model would show up.
 

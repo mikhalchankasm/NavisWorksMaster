@@ -14,7 +14,7 @@ had precise numbers for four tools and none for the rest.
 | plugin | host-reported `pluginAssemblyLength` 1586688, `pluginAssemblyLastWriteUtc` 2026-09-20T09:09:49Z, sha256 `af60b1b9…` |
 | server | built from `main` at the same commit |
 | scope of this row | the read-only pass only — the two clash windows ran a **different** plugin (`20bb4356…`) and a separately launched server, and the `rootName` message was checked later still on the branch build (`pluginAssemblyLength` 1588736). Latency is comparable only within one window, so each section states its own build instead of inheriting this one. |
-| tools covered | **99 of 104** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across five windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, 15 cases covering 7 tools in a fourth, and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 92 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **5** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
+| tools covered | **100 of 104** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across six windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, 15 cases covering 7 tools in a fourth, the synchronous `dump_subtree_names` in a fifth, and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 100 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **4** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
 
 Every number is `navishelper_timing.elapsed_ms`, which is the **MCP server's** measure
 of the whole call, not the Navisworks host's internal time. `McpToolTimingFilter` starts
@@ -540,25 +540,137 @@ placed immediately outside the extents the prune itself reported, each of which 
 41 016 items and found nothing. The full table is in
 `docs/MCP_TOOL_CONTRACTS.md` under *find_items_by_bbox*.
 
+## The fifth window: a federated model
+
+Measured in an agreed L3 window on **2026-09-23**. The plugin the hosts reported was
+`pluginVersion` 2.10.0.0, `pluginAssemblyLength` **1593344**, written
+`2026-09-22T09:29:04Z` for 2027 and `09:29:01Z` for 2026. The installed bundle had drifted
+by rebuild noise only (`NavisHelper.dll` matched), so it was backed up, reinstalled from
+`main` at `af403f9`, and `check_installed_bundle_drift.py` passed for all four year folders
+before the first call.
+
+**The MCP server was not current, and the drift check could not see it.** `mcp_diagnostics`
+reported `mcpServerVersion` **2.9.0.0**, and `mcp_health_check` answered
+`verdict: "degraded"` with "MCP server version (2.9.0.0) differs from NavisHelper plugin
+version (2.10.0.0)". The server runs from its own install under
+`%LOCALAPPDATA%\NavisHelper\McpServer`, which `install_local_bundle.ps1` does not touch and
+`check_installed_bundle_drift.py` does not read. So every number below measures the 2.10
+plugin, and anything the MCP server adds was 2.9's. That is why `prunedModelCount`, added
+to the response in 2.10, is absent below, while the plugin's own warning still printed the
+count. The product's own handshake caught the mismatch. The pre-window guard did not.
+
+The model was `D:\Yandex.Disk\Model_PORT\Порт_Бухта-Север.nwf`: **438** appended RVM
+models and 872 root items, 5 GB working set. Nothing was changed in either document, and
+both closes reported `documentWasModified: false`.
+
+### `dump_subtree_names`: the synchronous success path
+
+The fourth window could only measure the refusal, because every root of `6501.5.nwd` is
+over the 5000-item limit. This federation has small roots:
+
+| tool | root | items | ms | outcome |
+| --- | --- | --- | --- | --- |
+| `dump_subtree_names` | `/240000-ЛТ3` | 2 465 | **1 052** | CSV, 595 206 bytes |
+| `dump_subtree_names` | `/240000-ОС2` | 45 | 209 | CSV, 7 828 bytes |
+| `dump_subtree_names` | `240000-СЭО-01.rvm` | 1 | 210 | CSV, 119 bytes |
+| `dump_subtree_names` | `/240000-ГТМ1` | over 5000 | 1 079 | refused, *Synchronous dump limit exceeded* |
+| `dump_subtree_names` | `/240000-НВК1` | over 5000 | 819 | refused, same |
+
+Every file was read back afterwards. Its data rows equal the reported `itemCount` (2 465,
+45, 1), and its size on disk equals `fileSizeBytes`. A root named twice (`240000-ГТМ1.rvm`
+matches both the file node and `/240000-ГТМ1`) is refused with both matches listed, which
+is the right answer.
+
+### `find_items_by_bbox`: partial pruning across several models
+
+The fourth window could show pruning fire only all-or-nothing, on one model. Here, with 438
+models, a zone at the west end of the site (x −2700…−2600, y −530…−430, z 0…60) pruned
+most of them and scanned the rest, and the walk **completed**. `isolate_by_box` on the same
+box, for comparison:
+
+| tool | scanned | intersecting | ms |
+| --- | --- | --- | --- |
+| `find_items_by_bbox`, `includeContainers=true` | 152 200 | **45 760** | 8 643 |
+| `isolate_by_box`, `apply=false`, same box | 56 563 | **45 760** | 7 039 |
+
+**The counts are equal.** Here is what that shows, and what it does not.
+
+`isolate_by_box` reaches its answer by a different walk: hierarchical, pruning subtrees by
+parent bounds, classifying with a separating-axis test. The equality therefore shows that
+the multi-model part of the prune agrees with a walk that never skips a model as a whole.
+That part is the model-by-model decision, and the scan of every model the prune keeps.
+
+What it does **not** re-test is the assumption both walks share. Both start from the same
+model roots and trust each root's `BoundingBox()` to enclose every descendant. If a root's
+box excluded an intersecting descendant, both would miss it and still agree. That
+assumption was tested once, on `6513.nwd`, against a build with pruning removed (see the
+fourth window). Testing it on this federation needs the same kind of build.
+
+The same table carries the clearest speed opportunity in this document.
+`find_items_by_bbox` scanned **2.7×** more items than `isolate_by_box` for the same answer,
+because inside a model that is not pruned it still reads every item. Its own warning says
+so: "narrowing the zone does NOT help inside a model". Zones in the middle of this site
+stopped at the 10-second budget: 337 290 and 428 668 items scanned, 20 and 45 models
+pruned. Parent-bounds pruning of the kind `isolate_by_box` already does would let them
+finish. The equality above is part of an acceptance for that change, and a build with
+pruning removed is the other part.
+
+### `isolate_by_box`: identical work, 8 to 25 seconds
+
+`6501.5.nwd`, one unchanged box (centre 3134, 1760.5, 118; half-extents 20, 20, 10),
+`apply=false`, ten calls. Every call returned identical counts: 59 253 scanned, 30 332
+intersecting, 2 590 pruned subtree roots.
+
+| samples | ms |
+| --- | --- |
+| while two executors were building and testing on the same machine | 10 934, 10 426, 18 577, 18 176 |
+| after both had finished | 25 228, 24 401, 12 851, 12 934, 8 098, 9 113 |
+
+What these samples support, and what they do not:
+
+- **The quiet group was not faster in this sample.** That does not show executor
+  contention played no part. The two conditions were not interleaved, and a spread this wide
+  can hide a contention penalty. Settling it needs interleaved samples, or load telemetry
+  recorded alongside.
+- **For the last three calls, the Navisworks process's CPU time grew by about as much as the
+  wall time**: 12.98, 8.16 and 9.11 s against 12 934, 8 098 and 9 113 ms. That is
+  consistent with the host computing rather than blocking. But process CPU time sums every
+  thread, so it does not prove the UI thread never waited: a GC thread could burn CPU while
+  it did. And three calls between 8 and 13 s say nothing about the 18–25 s ones.
+- The machine: AMD Ryzen 9 5900HX, which is not a hybrid part. It was on mains power, with
+  21.8 GB of 60 GB RAM free and commit at 65.8 of 70.8 GB.
+
+The next step is instrumentation rather than another sample: per-phase timings and GC
+collection counts in the response, or per-thread CPU time.
+
+### Runtime smoke on other versions
+
+| version | start | health checks | `find_items` countOnly | `find_items_by_bbox` |
+| --- | --- | --- | --- | --- |
+| 2026 | 18 137 | 3 of 3 ok | 352 | 1 439 |
+| 2027 | 33 603 | 2 of 2 ok | — | used throughout this window |
+
+Both answered `verdict: "degraded"` only because of the MCP server version above. **2024
+and 2025 are not installed on this machine.** Their folders under `Program Files` hold 8
+files and no `Roamer.exe`, and `start_navisworks` refused with "Navisworks Manage 2025 was
+not found". Their runtime smoke needs another machine.
+
 ## What still has no number
 
-Five tools, and the reason for each, so the gap is a decision rather than an oversight:
+Four tools, and the reason for each, so the gap is a decision rather than an oversight:
 
 | tool | why |
 | --- | --- |
 | `save_document`, `save_document_as` | never run on purpose. Every window depends on the document not being saved. |
 | `clash_batchtest_import` | needs a Navisworks-authored `nw-exchange-12.0` XML; no tool in the product writes one. |
 | `saved_viewpoints_import` | needs Navisworks-authored Saved Viewpoints XML, for the same reason. Its refusal path was measured; the import path was not. |
-| `dump_subtree_names` | the synchronous variant. Its refusal was measured in the fourth window — 504–600 ms — but every root of this model exceeds the 5000-item synchronous limit, so the success path needs a *smaller model*, not another window. Its asynchronous trio is measured and is the form the contract recommends for a subtree this size. |
 
-**5** of those are not reachable in a window at all, and saying which is which matters
+**4** of those are not reachable in a window at all, and saying which is which matters
 more than the count:
 
 - **out of reach** — `save_document` and `save_document_as`, because every window depends on
   the document not being saved; `clash_batchtest_import` and `saved_viewpoints_import`,
-  because each needs a Navisworks-authored XML that no tool in the product writes; and
-  `dump_subtree_names`, because the synchronous variant refuses on every root of this model
-  and measuring it needs a model with a root under 5000 items.
+  because each needs a Navisworks-authored XML that no tool in the product writes.
 - **one short window away** — the remaining **0**: none. The eight that were one window away
   were measured on 2026-09-22; see [The fourth window](#the-fourth-window-the-eight-that-were-one-window-away).
 
