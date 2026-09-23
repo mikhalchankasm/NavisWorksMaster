@@ -643,6 +643,13 @@ What these samples support, and what they do not:
 The next step is instrumentation rather than another sample: per-phase timings and GC
 collection counts in the response, or per-thread CPU time.
 
+**Largely explained on 2026-09-24 by the call-after-call slowdown.** Measured with two
+builds interleaved, the same box went from 3.9 s to 15 s by the fifth call in one process
+before the fix, and stayed at 3.8–4.6 s with it. See
+[The fix: collect after heavy work](#the-fix-collect-after-heavy-work). That run neither
+recreated the executor load above nor reached 18–25 s, so contention is not ruled out for
+those samples, and the caveat above still holds for comparisons under load.
+
 ### Runtime smoke on other versions
 
 | version | start | health checks | `find_items` countOnly | `find_items_by_bbox` |
@@ -876,6 +883,27 @@ gate's actual release, which a timed-out UI callback defers. That build (`a594a9
 Everything ran about 0.2 s slower that hour, the base's first calls and the collections
 themselves included (131–239 ms). The collections do not depend on this change, so the
 shift is attributed to the machine, but it was not separated.
+
+**`isolate_by_box` on the federated model, the same way.** `6501.5.nwd`, the fifth
+window's box (centre 3134, 1760.5, 118; half-extents 20, 20, 10, `meters`), `apply=false`.
+Six calls back to back per arm, fresh process per arm, two rounds interleaved. Base
+`942f3d8` against `main` with the fix, told apart by `pluginAssemblyLength`
+(1 594 368 against 1 595 904). Every call returned 59 253 scanned, 30 332 intersecting,
+2 590 pruned and was complete. Rows are in run order:
+
+| round | build | ms, calls 1 to 6 |
+| --- | --- | --- |
+| 1 | base | 3868, 5606, 9851, 11840, 15023, 7991 |
+| 1 | collect after heavy work | 3789, 4363, 4358, 4420, 4394, 4458 |
+| 2 | collect after heavy work | 3848, 4458, 4558, 4514, 4525, 4516 |
+| 2 | base | 3864, 5606, 9919, 12107, 14203, 7937 |
+
+The base's two rounds agree to within 0.9 s call for call. The fifth window's "8 to 25
+seconds for identical work" is consistent with the same slowdown, because those samples
+came from long runs of calls in one process. It is not fully accounted for: this run peaked
+at 15 s and did not recreate that window's executor load. With the fix, the fifth call costs 4.4–4.5 s instead of
+14–15 s. From the second call on, the managed heap before each call stays at 47–49 MB, against
+71 to 124 MB in the base.
 
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
