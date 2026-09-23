@@ -643,10 +643,12 @@ What these samples support, and what they do not:
 The next step is instrumentation rather than another sample: per-phase timings and GC
 collection counts in the response, or per-thread CPU time.
 
-**Resolved on 2026-09-24: this was the call-after-call slowdown.** The same box, measured
-with two builds interleaved, went from 3.9 s to 15 s by the fifth call in one process
+**Largely explained on 2026-09-24 by the call-after-call slowdown.** Measured with two
+builds interleaved, the same box went from 3.9 s to 15 s by the fifth call in one process
 before the fix, and stayed at 3.8–4.6 s with it. See
-[The fix: collect after heavy work](#the-fix-collect-after-heavy-work).
+[The fix: collect after heavy work](#the-fix-collect-after-heavy-work). That run neither
+recreated the executor load above nor reached 18–25 s, so contention is not ruled out for
+those samples, and the caveat above still holds for comparisons under load.
 
 ### Runtime smoke on other versions
 
@@ -896,9 +898,10 @@ Six calls back to back per arm, fresh process per arm, two rounds interleaved. B
 | 2 | collect after heavy work | 3848, 4458, 4558, 4514, 4525, 4516 |
 | 2 | base | 3864, 5606, 9919, 12107, 14203, 7937 |
 
-The base's two rounds agree to within 0.9 s call for call, which makes the fifth window's
-"8 to 25 seconds for identical work" the same slowdown: each of those calls was simply
-further into a long-running process. With the fix, the fifth call costs 4.4–4.5 s instead of
+The base's two rounds agree to within 0.9 s call for call. The fifth window's "8 to 25
+seconds for identical work" is consistent with the same slowdown, because those samples
+came from long runs of calls in one process. It is not fully accounted for: this run peaked
+at 15 s and did not recreate that window's executor load. With the fix, the fifth call costs 4.4–4.5 s instead of
 14–15 s. From the second call on, the managed heap before each call stays at 47–49 MB, against
 71 to 124 MB in the base.
 
