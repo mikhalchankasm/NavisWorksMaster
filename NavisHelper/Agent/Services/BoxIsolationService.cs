@@ -204,8 +204,10 @@ namespace NavisHelper.Agent.Services
                 var hierarchyStatusKnown = false;
                 try
                 {
-                    // Count() enumerates this collection, then the push loop enumerates it again.
-                    // On 6501.5.nwd (59,253 items), one pass took 5.12-5.23 s vs. 5.68-5.82 s.
+                    // Count() enumerated this collection, then the push loop enumerated it again,
+                    // building a wrapper per child each time. On 6501.5.nwd (59 253 items), two
+                    // builds interleaved in fresh processes: 4.4-4.5 s per call with two passes,
+                    // 2.5 s with one, identical counts.
                     var itemChildren = item.Children;
                     if (itemChildren != null)
                         childItems = itemChildren.Cast<ModelItem>().ToList();
