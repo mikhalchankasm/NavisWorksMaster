@@ -1159,24 +1159,24 @@ internal sealed class ScenarioLibraryService
     {
         var descriptors = new Dictionary<string, ToolDescriptor>(StringComparer.Ordinal)
         {
-            ["mcp_health_check"] = CreateToolDescriptor(nameof(NavisworksTools.McpHealthCheck), 1, false, false, Array.Empty<string>()),
-            ["active_model_context"] = CreateToolDescriptor(nameof(NavisworksTools.ActiveModelContext), 1, false, false, Array.Empty<string>()),
-            ["list_root_items"] = CreateToolDescriptor(nameof(NavisworksTools.ListRootItems), 1, false, false, Array.Empty<string>()),
-            ["find_root_items_by_name"] = CreateToolDescriptor(nameof(NavisworksTools.FindRootItemsByName), 1, false, false, Array.Empty<string>()),
-            ["find_items"] = CreateToolDescriptor(nameof(NavisworksTools.FindItems), 2, false, false, Array.Empty<string>()),
-            ["find_items_by_bbox"] = CreateToolDescriptor(nameof(NavisworksTools.FindItemsByBbox), 1, false, false, Array.Empty<string>()),
-            ["selection_status"] = CreateToolDescriptor(nameof(NavisworksTools.SelectionStatus), 1, false, false, Array.Empty<string>()),
-            ["selected_items_preview"] = CreateToolDescriptor(nameof(NavisworksTools.SelectedItemsPreview), 1, false, false, Array.Empty<string>()),
-            ["item_properties_by_handle"] = CreateToolDescriptor(nameof(NavisworksTools.ItemPropertiesByHandle), 1, false, false, Array.Empty<string>()),
-            ["current_viewpoint_info"] = CreateToolDescriptor(nameof(NavisworksTools.CurrentViewpointInfo), 1, false, false, Array.Empty<string>()),
-            ["list_selection_sets"] = CreateToolDescriptor(nameof(NavisworksTools.ListSelectionSets), 1, false, false, Array.Empty<string>()),
+            ["mcp_health_check"] = CreateToolDescriptor(typeof(NavisworksHostTools), nameof(NavisworksHostTools.McpHealthCheck), 1, false, false, Array.Empty<string>()),
+            ["active_model_context"] = CreateToolDescriptor(typeof(NavisworksHostTools), nameof(NavisworksHostTools.ActiveModelContext), 1, false, false, Array.Empty<string>()),
+            ["list_root_items"] = CreateToolDescriptor(typeof(NavisworksModelTools), nameof(NavisworksModelTools.ListRootItems), 1, false, false, Array.Empty<string>()),
+            ["find_root_items_by_name"] = CreateToolDescriptor(typeof(NavisworksModelTools), nameof(NavisworksModelTools.FindRootItemsByName), 1, false, false, Array.Empty<string>()),
+            ["find_items"] = CreateToolDescriptor(typeof(NavisworksModelTools), nameof(NavisworksModelTools.FindItems), 2, false, false, Array.Empty<string>()),
+            ["find_items_by_bbox"] = CreateToolDescriptor(typeof(NavisworksModelTools), nameof(NavisworksModelTools.FindItemsByBbox), 1, false, false, Array.Empty<string>()),
+            ["selection_status"] = CreateToolDescriptor(typeof(NavisworksSelectionTools), nameof(NavisworksSelectionTools.SelectionStatus), 1, false, false, Array.Empty<string>()),
+            ["selected_items_preview"] = CreateToolDescriptor(typeof(NavisworksSelectionTools), nameof(NavisworksSelectionTools.SelectedItemsPreview), 1, false, false, Array.Empty<string>()),
+            ["item_properties_by_handle"] = CreateToolDescriptor(typeof(NavisworksModelTools), nameof(NavisworksModelTools.ItemPropertiesByHandle), 1, false, false, Array.Empty<string>()),
+            ["current_viewpoint_info"] = CreateToolDescriptor(typeof(NavisworksViewpointTools), nameof(NavisworksViewpointTools.CurrentViewpointInfo), 1, false, false, Array.Empty<string>()),
+            ["list_selection_sets"] = CreateToolDescriptor(typeof(NavisworksSelectionSetTools), nameof(NavisworksSelectionSetTools.ListSelectionSets), 1, false, false, Array.Empty<string>()),
             ["selection_property_report"] = CreateToolDescriptor(typeof(NavisworksSelectionReportTools), nameof(NavisworksSelectionReportTools.SelectionPropertyReport), 1, false, false, Array.Empty<string>()),
             ["selection_distinct_property_values"] = CreateToolDescriptor(typeof(NavisworksSelectionReportTools), nameof(NavisworksSelectionReportTools.SelectionDistinctPropertyValues), 1, false, false, Array.Empty<string>()),
             ["model_color_scheme"] = CreateToolDescriptor(typeof(NavisworksModelColorSchemeTools), nameof(NavisworksModelColorSchemeTools.ModelColorScheme), 1, true, false, Array.Empty<string>()),
-            ["select_selection_set"] = CreateToolDescriptor(nameof(NavisworksTools.SelectSelectionSet), 1, false, false, new[] { "pathOrName" }),
-            ["isolate_selected"] = CreateToolDescriptor(nameof(NavisworksTools.IsolateSelected), 1, true, false, Array.Empty<string>()),
+            ["select_selection_set"] = CreateToolDescriptor(typeof(NavisworksSelectionSetTools), nameof(NavisworksSelectionSetTools.SelectSelectionSet), 1, false, false, new[] { "pathOrName" }),
+            ["isolate_selected"] = CreateToolDescriptor(typeof(NavisworksVisibilityTools), nameof(NavisworksVisibilityTools.IsolateSelected), 1, true, false, Array.Empty<string>()),
             ["isolate_by_box"] = CreateToolDescriptor(typeof(NavisworksSectionBoxTools), nameof(NavisworksSectionBoxTools.IsolateByBox), 1, true, false, new[] { "box", "maxScannedItems", "maxDurationSeconds" }),
-            ["zoom_to_selection"] = CreateToolDescriptor(nameof(NavisworksTools.ZoomToSelection), 1, false, false, Array.Empty<string>()),
+            ["zoom_to_selection"] = CreateToolDescriptor(typeof(NavisworksViewNavigationTools), nameof(NavisworksViewNavigationTools.ZoomToSelection), 1, false, false, Array.Empty<string>()),
             ["clash_list_tests"] = CreateToolDescriptor(typeof(NavisworksClashTools), nameof(NavisworksClashTools.ClashListTests), 1, false, false, Array.Empty<string>()),
             ["clash_list_results"] = CreateToolDescriptor(typeof(NavisworksClashTools), nameof(NavisworksClashTools.ClashListResults), 1, false, false, Array.Empty<string>()),
             ["clash_list_clusters"] = CreateToolDescriptor(typeof(NavisworksClashTools), nameof(NavisworksClashTools.ClashListClusters), 1, false, false, Array.Empty<string>()),
@@ -1204,7 +1204,8 @@ internal sealed class ScenarioLibraryService
                 writesFiles: true,
                 requiredArguments: new[] { "outputPath" }),
             ["selection_sets_build_viewpoints"] = CreateToolDescriptor(
-                nameof(NavisworksTools.SelectionSetsBuildViewpoints),
+                typeof(NavisworksMarkupTools),
+                nameof(NavisworksMarkupTools.SelectionSetsBuildViewpoints),
                 contractVersion: 1,
                 mutatesModel: true,
                 writesFiles: false,
@@ -1378,22 +1379,6 @@ internal sealed class ScenarioLibraryService
             },
         };
         return response;
-    }
-
-    private static ToolDescriptor CreateToolDescriptor(
-        string methodName,
-        int contractVersion,
-        bool mutatesModel,
-        bool writesFiles,
-        IEnumerable<string> requiredArguments)
-    {
-        return CreateToolDescriptor(
-            typeof(NavisworksTools),
-            methodName,
-            contractVersion,
-            mutatesModel,
-            writesFiles,
-            requiredArguments);
     }
 
     private static ToolDescriptor CreateToolDescriptor(
