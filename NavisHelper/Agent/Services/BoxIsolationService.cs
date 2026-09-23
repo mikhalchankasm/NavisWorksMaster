@@ -200,13 +200,17 @@ namespace NavisHelper.Agent.Services
                     maximum = new BoxVector3();
                 }
 
-                ModelItemEnumerableCollection children = null;
-                var childCount = 0;
+                var childItems = new List<ModelItem>();
                 var hierarchyStatusKnown = false;
                 try
                 {
-                    children = item.Children;
-                    childCount = children == null ? 0 : children.Count();
+                    // Count() enumerated this collection, then the push loop enumerated it again,
+                    // building a wrapper per child each time. On 6501.5.nwd (59 253 items), two
+                    // builds interleaved in fresh processes: 4.4-4.5 s per call with two passes,
+                    // 2.5 s with one, identical counts.
+                    var itemChildren = item.Children;
+                    if (itemChildren != null)
+                        childItems = itemChildren.Cast<ModelItem>().ToList();
                     hierarchyStatusKnown = true;
                 }
                 catch (Exception ex)
@@ -232,7 +236,7 @@ namespace NavisHelper.Agent.Services
                     intersects,
                     geometryStatusKnown,
                     hasGeometry,
-                    childCount > 0);
+                    childItems.Count > 0);
                 if (!hierarchyStatusKnown && disposition != BoxIsolationNodeDisposition.OutsideSubtree)
                     disposition = BoxIsolationNodeDisposition.Unclassified;
                 var unclassified = BoxIsolationTraversalPolicy.IsRealClassificationError(disposition);
@@ -280,13 +284,13 @@ namespace NavisHelper.Agent.Services
                 // item and its children. A readable outside box therefore excludes the whole
                 // subtree. We intentionally count only the skipped direct child branches;
                 // enumerating every pruned descendant would defeat the bounded traversal.
-                if (!BoxIsolationTraversalPolicy.ShouldDescend(disposition, childCount > 0))
+                if (!BoxIsolationTraversalPolicy.ShouldDescend(disposition, childItems.Count > 0))
                 {
-                    result.Accounting.RecordPrunedSubtree(childCount);
+                    result.Accounting.RecordPrunedSubtree(childItems.Count);
                 }
-                else if (children != null)
+                else
                 {
-                    foreach (ModelItem child in children)
+                    foreach (var child in childItems)
                         stack.Push(new PendingItem(child, candidateIndex));
                 }
 

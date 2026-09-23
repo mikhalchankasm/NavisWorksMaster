@@ -905,6 +905,28 @@ at 15 s and did not recreate that window's executor load. With the fix, the fift
 14–15 s. From the second call on, the managed heap before each call stays at 47–49 MB, against
 71 to 124 MB in the base.
 
+**`isolate_by_box` then read each item's children twice.** `children.Count()` enumerated
+the collection, building a wrapper per child, and the push loop enumerated it again.
+Enumerating once into a list, measured like the rows above (same model and box, two builds
+interleaved over two rounds, `host_status` between calls):
+
+| round | build | ms, calls 1 to 6 |
+| --- | --- | --- |
+| 1 | `main` (`7e9b3ef`) | 3888, 4408, 4474, 4422, 4499, 4425 |
+| 1 | children read once | 2495, 2486, 2479, 2546, 2481, 2500 |
+| 2 | children read once | 2576, 2500, 2498, 2502, 2528, 2497 |
+| 2 | `main` (`7e9b3ef`) | 3878, 4389, 4495, 4442, 4522, 4467 |
+
+- Every call returned the same counts: 59 253 scanned, 30 332 intersecting, 2 590 pruned,
+  and complete.
+- Both plugin DLLs are 1 595 904 bytes, so the rows are identified by
+  `pluginAssemblyLastWriteUtc` (22:41:02Z for `main`, 22:41:24Z for the change).
+- `host_status` after each call cost the same in both builds (97–137 ms). The saving is not
+  moved into the collection that follows a call.
+- A probe that alternated the two modes inside one process had shown only 5.7 against
+  5.2 s. There each call also paid for the previous call's garbage, which the other mode
+  had made, so the difference was understated. Compare modes in separate processes.
+
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
 
