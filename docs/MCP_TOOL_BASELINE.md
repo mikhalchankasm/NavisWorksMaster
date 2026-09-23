@@ -540,7 +540,7 @@ placed immediately outside the extents the prune itself reported, each of which 
 41 016 items and found nothing. The full table is in
 `docs/MCP_TOOL_CONTRACTS.md` under *find_items_by_bbox*.
 
-## The fifth window: a federated model, and what the variance is not
+## The fifth window: a federated model
 
 Measured in an agreed L3 window on **2026-09-23**. The plugin the hosts reported was
 `pluginVersion` 2.10.0.0, `pluginAssemblyLength` **1593344**, written
@@ -581,32 +581,41 @@ Every file was read back afterwards. Its data rows equal the reported `itemCount
 matches both the file node and `/240000-ГТМ1`) is refused with both matches listed, which
 is the right answer.
 
-### `find_items_by_bbox`: partial pruning across several models, against an independent oracle
+### `find_items_by_bbox`: partial pruning across several models
 
 The fourth window could show pruning fire only all-or-nothing, on one model. Here, with 438
 models, a zone at the west end of the site (x −2700…−2600, y −530…−430, z 0…60) pruned
-most of them and scanned the rest, and the walk **completed**. `isolate_by_box` classifies
-the same box by a different implementation: hierarchical, pruning subtrees by parent
-bounds, with a separating-axis test. An item that intersects the zone has every ancestor
-intersecting it too, so that walk cannot lose one:
+most of them and scanned the rest, and the walk **completed**. `isolate_by_box` on the same
+box, for comparison:
 
 | tool | scanned | intersecting | ms |
 | --- | --- | --- | --- |
 | `find_items_by_bbox`, `includeContainers=true` | 152 200 | **45 760** | 8 643 |
 | `isolate_by_box`, `apply=false`, same box | 56 563 | **45 760** | 7 039 |
 
-**Equal.** Partial pruning across appended models loses no match on this federation. That
-closes the gap the fourth window named.
+**The counts are equal.** Here is what that shows, and what it does not.
+
+`isolate_by_box` reaches its answer by a different walk: hierarchical, pruning subtrees by
+parent bounds, classifying with a separating-axis test. The equality therefore shows that
+the multi-model part of the prune agrees with a walk that never skips a model as a whole.
+That part is the model-by-model decision, and the scan of every model the prune keeps.
+
+What it does **not** re-test is the assumption both walks share. Both start from the same
+model roots and trust each root's `BoundingBox()` to enclose every descendant. If a root's
+box excluded an intersecting descendant, both would miss it and still agree. That
+assumption was tested once, on `6513.nwd`, against a build with pruning removed (see the
+fourth window). Testing it on this federation needs the same kind of build.
 
 The same table carries the clearest speed opportunity in this document.
 `find_items_by_bbox` scanned **2.7×** more items than `isolate_by_box` for the same answer,
 because inside a model that is not pruned it still reads every item. Its own warning says
-so: "narrowing the zone does NOT help inside a model". Zones in the middle of this site cut
-off at the 10-second budget: 337 290 and 428 668 items scanned, 20 and 45 models pruned.
-Parent-bounds pruning of the kind `isolate_by_box` already does would let them finish, and
-this equality is a ready-made acceptance for that change.
+so: "narrowing the zone does NOT help inside a model". Zones in the middle of this site
+stopped at the 10-second budget: 337 290 and 428 668 items scanned, 20 and 45 models
+pruned. Parent-bounds pruning of the kind `isolate_by_box` already does would let them
+finish. The equality above is part of an acceptance for that change, and a build with
+pruning removed is the other part.
 
-### `isolate_by_box`: the variance is CPU work, not waiting
+### `isolate_by_box`: identical work, 8 to 25 seconds
 
 `6501.5.nwd`, one unchanged box (centre 3134, 1760.5, 118; half-extents 20, 20, 10),
 `apply=false`, ten calls. Every call returned identical counts: 59 253 scanned, 30 332
@@ -617,17 +626,22 @@ intersecting, 2 590 pruned subtree roots.
 | while two executors were building and testing on the same machine | 10 934, 10 426, 18 577, 18 176 |
 | after both had finished | 25 228, 24 401, 12 851, 12 934, 8 098, 9 113 |
 
-The quiet samples were **not** faster, so contention from the executors did not cause the
-variance. For the last three calls the Navisworks process's CPU time was read before and
-after each one. It grew by 12.98, 8.16 and 9.11 s against wall times of 12 934, 8 098 and
-9 113 ms. The UI thread computed the whole time and never waited. The machine is an AMD
-Ryzen 9 5900HX, not a hybrid part, so this is not a thread landing on an efficiency core.
-It was on mains power, and 21.8 GB of 60 GB RAM was free, with commit at 65.8 of 70.8 GB.
+What these samples support, and what they do not:
 
-So the same work costs 8 to 25 CPU-seconds. What remains is clock frequency (a laptop part
-on the balanced power plan) or garbage collection inside the host, and they cannot be told
-apart from outside the process. The next step is instrumentation rather than another
-sample: phase timings and GC collection counts in the response.
+- **The quiet group was not faster in this sample.** That does not show executor
+  contention played no part. The two conditions were not interleaved, and a spread this wide
+  can hide a contention penalty. Settling it needs interleaved samples, or load telemetry
+  recorded alongside.
+- **For the last three calls, the Navisworks process's CPU time grew by about as much as the
+  wall time**: 12.98, 8.16 and 9.11 s against 12 934, 8 098 and 9 113 ms. That is
+  consistent with the host computing rather than blocking. But process CPU time sums every
+  thread, so it does not prove the UI thread never waited: a GC thread could burn CPU while
+  it did. And three calls between 8 and 13 s say nothing about the 18–25 s ones.
+- The machine: AMD Ryzen 9 5900HX, which is not a hybrid part. It was on mains power, with
+  21.8 GB of 60 GB RAM free and commit at 65.8 of 70.8 GB.
+
+The next step is instrumentation rather than another sample: per-phase timings and GC
+collection counts in the response, or per-thread CPU time.
 
 ### Runtime smoke on other versions
 
