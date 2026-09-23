@@ -767,8 +767,45 @@ response.
 
 Still untested: the `ModelItem` wrappers themselves, which the walk also creates and never
 disposes. Disposing those is not safe without knowing whether Navisworks hands the same
-wrapper to other holders, and it needs in-process evidence first: GC collection counts, or
-per-thread CPU, across a run of calls.
+wrapper to other holders, and it needs in-process evidence first.
+
+**What the host's own counters show.** `host_status` reports the process's GC collections
+per generation, managed heap, private memory, CPU time and handle count. They were read
+before and after each of eight identical whole-model leaf calls, `maxResults=1`, in one
+fresh process on `6513.nwd`, with the build that added them (`0bc0152c…`). Every call
+scanned 41 016 items and matched 26 762. "During" is the difference between the reads on
+either side of a call:
+
+| call | ms | collections during, gen 0 / 1 / 2 | managed heap after, MB | process CPU during, ms |
+| --- | --- | --- | --- | --- |
+| 1 | 1004 | 6 / 2 / 0 | 80.7 | 1125 |
+| 2 | 1664 | 6 / 3 / 0 | 83.1 | 1766 |
+| 3 | 2372 | 6 / 3 / 0 | 85.4 | 2562 |
+| 4 | 3044 | 6 / 3 / 0 | 87.8 | 3109 |
+| 5 | 3833 | 7 / 4 / 1 | 62.4 | 3922 |
+| 6 | 2325 | 6 / 3 / 0 | 65.8 | 2344 |
+| 7 | 3960 | 6 / 3 / 0 | 68.0 | 4000 |
+| 8 | 5346 | 6 / 3 / 0 | 70.3 | 5390 |
+
+- The collector runs as often in a 5-second call as in a 1-second one, so the number of
+  collections does not grow with the slowdown. The counters give no durations. For the
+  collections to carry the growth, each of call 8's nine would have to take about half a
+  second longer than in call 1, on a managed heap under 90 MB.
+- Process CPU is 1.01 to 1.12 times the elapsed time on every call. The process computes
+  for the whole call rather than waiting. The figure is summed across threads, so it does
+  not say which one.
+- Private memory stays at 748–754 MB from the second call on, and handles at 2 563–2 573.
+  Nothing accumulates at a scale these counters would show.
+- The managed heap keeps about 1.8 MB from each call until a full collection, some 45 bytes
+  for each item scanned. The one full collection, during call 5, released 26 MB, and the
+  call after it was the only one in the run that got faster (2.3 s after 3.8 s). Then the
+  growth resumed.
+
+That last point is one coincidence in one run, not a finding. It suggests the next test: a
+throwaway build that forces a full collection, and waits for pending finalizers, before
+each call, interleaved against `main` like the box test. If its curve stays flat, what grows
+is tied to managed objects that only a full collection releases. That would make the
+`ModelItem` wrappers worth the risk of disposing.
 
 ## What still has no number
 
