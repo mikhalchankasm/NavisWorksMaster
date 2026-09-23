@@ -166,6 +166,7 @@ namespace NavisHelper.Agent.Contracts
     public sealed class McpHealthCheckResponse
     {
         public bool Ok { get; set; }
+        public bool ReadOnlyMode { get; set; }
         public string Verdict { get; set; }
         public string ProtocolVersion { get; set; }
         public string InstanceId { get; set; }
