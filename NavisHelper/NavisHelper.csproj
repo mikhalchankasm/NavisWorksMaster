@@ -528,6 +528,7 @@
     <Compile Include="Agent\Host\AgentHostService.cs" />
     <Compile Include="Agent\Host\AgentHostService.Lifecycle.cs" />
     <Compile Include="Agent\Host\AgentHostService.Transport.cs" />
+    <Compile Include="Agent\Host\AgentHostService.HeavyWorkCollection.cs" />
     <Compile Include="Agent\Host\AgentHostService.Dispatch.cs" />
     <Compile Include="Agent\Host\AgentHostService.Document.cs" />
     <Compile Include="Agent\Host\AgentHostService.Discovery.cs" />

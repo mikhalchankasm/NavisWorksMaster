@@ -202,7 +202,10 @@ namespace NavisHelper.Agent.Host
             finally
             {
                 if (requestGateLease != null)
+                {
                     requestGateLease.Dispose();
+                    ScheduleHeavyWorkCollection();
+                }
             }
         }
 
