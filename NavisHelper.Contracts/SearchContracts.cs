@@ -199,6 +199,17 @@ namespace NavisHelper.Agent.Contracts
         /// </summary>
         public int PrunedModelCount { get; set; }
 
+        /// <summary>
+        /// Items whose own bounding box missed the zone -- leaves included, since a
+        /// leaf outside the zone has no subtree to skip and still counts here. None
+        /// of their descendants were walked and, like <see cref="PrunedModelCount"/>'s
+        /// skipped models, those descendants are absent from
+        /// <see cref="ScannedItemCount"/> by design -- that is what the prune buys.
+        /// The outside item itself was counted, because its box had to be read to
+        /// rule the branch out. Same meaning as isolate_by_box's outsideItemCount.
+        /// </summary>
+        public int OutsideItemCount { get; set; }
+
         public bool TraversalTruncated { get; set; }
         public bool ResultsTruncated { get; set; }
         public string MatchHandle { get; set; }

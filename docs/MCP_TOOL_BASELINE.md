@@ -655,6 +655,70 @@ and 2025 are not installed on this machine.** Their folders under `Program Files
 files and no `Roamer.exe`, and `start_navisworks` refused with "Navisworks Manage 2025 was
 not found". Their runtime smoke needs another machine.
 
+## The sixth window: subtree pruning in `find_items_by_bbox`, two builds
+
+2026-09-23, Navisworks Manage 2027. Two builds of the same branch, installed in turn:
+
+- **base**: `main` at `b2bcaa4`, `NavisHelper.dll` sha256 `e323f112…`, 1 593 344 bytes;
+- **head**: `1fe74af`, which skips any subtree whose own box misses the zone, `05920a6d…`,
+  1 593 856 bytes.
+
+Each build was measured through an MCP server built from its own worktree, so the plugin
+and the server in front of it came from one commit, and the new `outsideItemCount`
+reached the client. The installed bundle was snapshotted first, and restored afterwards
+byte for byte (46 files).
+
+Every query used `maxScannedItems=500000`. A cell is "truncated" when every run hit the
+10-second budget:
+
+| query | base matched / scanned | head matched / scanned | outside items, not descended | base ms | head ms |
+| --- | --- | --- | --- | --- | --- |
+| `6513.nwd`, whole model, leaves | 26762 / 41016 | 26762 / 41016 | 0 | 3323, 4340 | 3213, 4022 |
+| `6513.nwd`, whole model, containers | 41016 / 41016 | 41016 / 41016 | 0 | 7715, 9598 | 7879, 10001 |
+| `6513.nwd`, south-west quadrant | 110 / 41016 | 110 / **394** | 147 | 8293, 1564 | **394, 394** |
+| `6513.nwd`, north-east quadrant | 26652 / 41016 | 26652 / 41016 | 110 | 3614 | 3108, 4198, 7805 |
+| `6513.nwd`, 100 m column | 0 / 41016 | 0 / **394** | 257 | 7273, 2406 | **251, 234** |
+| `6513.nwd`, 10 m cube | 0 / 41016 | 0 / **394** | 257 | 1247, 1764 | **230, 233** |
+| `6513.nwd`, 5 m floor slab | 110 / 41016 | 110 / **394** | 147 | 797, 737 | **28, 30** |
+| `6513.nwd`, outside the extents | 0 / 0 | 0 / 0 | 0 | 13, 15 | 14, 13 |
+| NWF, west zone, containers | 45760 / 152200 | 45760 / **56137** | 10377 | 9347, 9279 | 6654 |
+| NWF, west zone, leaves | 39062 / 152200 | 39062 / **56137** | 10377 | 9927 | 6417, 9044 |
+| NWF, middle zone, containers | truncated | **2273** / 55381 | 53108 | 10013, 9273 | 7743, 2164 |
+| NWF, middle zone, leaves | truncated | **1610** / 55381 | 53108 | 9478, 9898 | 2564, 2483 |
+| NWF, raised zone, containers | truncated | **376** / 49144 | 48768 | 10016, 10014 | 2507, 2385 |
+
+**Where both builds completed, every match count is equal**, ten queries of ten. The head
+never found a different answer. It found the same answer after walking less — the
+outside-items column counts items whose box missed the zone, leaves included, and none
+of their descendants were walked — or a complete answer where the base had run out of
+budget.
+
+For the three zones the base could not finish, `isolate_by_box` on the same boxes gave
+2 273 and 376 intersecting items, equal to the head. That oracle starts from the same model
+roots, so it shares the assumption that an item's box encloses its children, as the fifth
+window records. The two-build equality above is the part that does not share it: the base
+walks every item of every kept model and checks no parent box at all.
+
+**The trade-off.** The head reads every container's box, which the base skipped when
+`includeContainers=false`. On a zone that prunes nothing, the whole-model rows, the time
+is within the run-to-run spread in both directions (3.2–4.0 s against 3.3–4.3 s). The
+cost is real in principle and not visible at this resolution.
+
+### Throughput falls call after call inside one Navisworks process
+
+Consecutive identical calls in one process got slower, with nothing else changing. On the
+head, `6513.nwd`, the whole-model leaf query scanned 40 452, 23 598, 10 665 and then 9 566
+items inside its 10-second budget, four calls in a row. After a restart, the same process
+state gave the north-east quadrant in 3 108, 4 198 and 7 805 ms. The process held 0.8 GB
+private memory and 2 547 handles at the slow end, so this is no obvious leak.
+
+This is the most likely source of the bimodal timings every window has recorded,
+`isolate_by_box` in the fifth. They were drawn from long runs of calls in one process, and
+a call's number was partly its position in that run. Until this is understood, **compare
+timings only between fresh processes, first call against first call**. The next step is
+in-process: what each call leaves behind. `MatchSessionStore` keeps up to `maxResults`
+items per call, and a run of these queries stored 10 000 each time.
+
 ## What still has no number
 
 Four tools, and the reason for each, so the gap is a decision rather than an oversight:

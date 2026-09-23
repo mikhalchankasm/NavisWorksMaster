@@ -67,78 +67,117 @@ namespace NavisHelper.Agent.Services
                 // that a model ruled out below is never enumerated. The flat enumeration
                 // could only be filtered item by item, which is the reason this tool had no
                 // lever except raising maxScannedItems: every filter ran after the counter.
-                foreach (ModelItem item in EnumerateCandidateItems(document, request, sourceFileContains, response))
+                foreach (ModelItem modelRoot in EnumerateCandidateModels(document, request, sourceFileContains, response))
                 {
-                    if (response.ScannedItemCount >= maxScannedItems || started.ElapsedMilliseconds >= MaxSpatialSearchMilliseconds)
+                    // The walk is per subtree now, not per item. `isolate_by_box` always
+                    // skipped an item whose box missed the zone, and Autodesk defines
+                    // BoundingBox() as the box of the item *and its children*, so such a
+                    // subtree is provably empty in every match mode. The walker asks, after
+                    // this loop body has run for an item, whether to skip that item's
+                    // children -- so a plain `continue` below means "keep descending", and
+                    // only the prune sets the flag.
+                    var skipThisSubtree = false;
+                    foreach (ModelItem item in SpatialSubtreeWalk.Walk(modelRoot, ChildItems, node => skipThisSubtree))
                     {
-                        response.TraversalTruncated = true;
-                        break;
-                    }
+                        skipThisSubtree = false;
 
-                    if (item == null)
-                        continue;
+                        if (response.ScannedItemCount >= maxScannedItems || started.ElapsedMilliseconds >= MaxSpatialSearchMilliseconds)
+                        {
+                            response.TraversalTruncated = true;
+                            break;
+                        }
 
-                    response.ScannedItemCount++;
-                    if (!includeHidden && item.IsHidden)
-                        continue;
-
-                    // Any(), not Count() > 0. ModelItemEnumerableCollection implements
-                    // IEnumerable<ModelItem> and nothing else -- no ICollection<T>, no
-                    // Count property, checked against the 2027 assembly -- so LINQ's
-                    // Count() enumerates every child, allocating a wrapper each, to
-                    // answer whether there is at least one. Any() stops at the first.
-                    if (!includeContainers && item.Children != null && item.Children.Any())
-                        continue;
-
-                    // Deferred. TryGetSourceFile walks every property category on the
-                    // item and, failing that, every ancestor doing the same -- the most
-                    // expensive thing available per item. It used to run for every
-                    // scanned item, including the ones about to fail the box test, and
-                    // including when no source-file filter was asked for at all. It is
-                    // now read only when it is the filter, or when the item is going
-                    // into the result and the record needs it.
-                    string sourceFile = null;
-                    if (!string.IsNullOrEmpty(sourceFileContains))
-                    {
-                        sourceFile = TryGetSourceFile(item) ?? string.Empty;
-                        if (sourceFile.IndexOf(sourceFileContains, StringComparison.OrdinalIgnoreCase) < 0)
+                        if (item == null)
                             continue;
+
+                        response.ScannedItemCount++;
+                        if (!includeHidden && item.IsHidden)
+                            continue;
+
+                        // The box is read before the container check, and for containers
+                        // too, because it is now the prune test: a parent box that misses
+                        // the zone rules out every descendant, so the walk need not
+                        // enumerate them. The cost of reading container boxes that used
+                        // to be skipped is the price of the prune, and it is measured on
+                        // the rig -- a zone that spans the site prunes nothing and pays
+                        // it everywhere.
+                        BoundingBox3D box;
+                        try
+                        {
+                            box = item.BoundingBox();
+                        }
+                        catch (Exception ex)
+                        {
+                            if (response.Warnings.Count < 10)
+                                response.Warnings.Add("Skipped item with unreadable bounding box: " + ex.Message);
+                            continue;
+                        }
+
+                        // The same mode-independent test that rules out whole models,
+                        // read on the item's own box: it encloses the item's children,
+                        // so non-overlap rules out every mode for the whole subtree. An
+                        // unreadable (null) box fails open here -- the item does not
+                        // match below, but its children are still walked.
+                        if (!SpatialModelPruning.ModelExtentsCanHoldAMatch(
+                                ToSpatialPoint(box, takeMin: true),
+                                ToSpatialPoint(box, takeMin: false),
+                                request.Min,
+                                request.Max))
+                        {
+                            response.OutsideItemCount++;
+                            skipThisSubtree = true;
+                            continue;
+                        }
+
+                        // Any(), not Count() > 0. ModelItemEnumerableCollection implements
+                        // IEnumerable<ModelItem> and nothing else -- no ICollection<T>, no
+                        // Count property, checked against the 2027 assembly -- so LINQ's
+                        // Count() enumerates every child, allocating a wrapper each, to
+                        // answer whether there is at least one. Any() stops at the first.
+                        if (!includeContainers && item.Children != null && item.Children.Any())
+                            continue;
+
+                        // Deferred. TryGetSourceFile walks every property category on the
+                        // item and, failing that, every ancestor doing the same -- the most
+                        // expensive thing available per item. It used to run for every
+                        // scanned item, including the ones about to fail the box test, and
+                        // including when no source-file filter was asked for at all. It is
+                        // now read only when it is the filter, or when the item is going
+                        // into the result and the record needs it.
+                        string sourceFile = null;
+                        if (!string.IsNullOrEmpty(sourceFileContains))
+                        {
+                            sourceFile = TryGetSourceFile(item) ?? string.Empty;
+                            if (sourceFile.IndexOf(sourceFileContains, StringComparison.OrdinalIgnoreCase) < 0)
+                                continue;
+                        }
+
+                        if (box == null || !MatchesSpatialBox(box, request.Min, request.Max, matchMode))
+                            continue;
+
+                        if (!seenItems.Add(item))
+                            continue;
+
+                        response.MatchedItemCount++;
+                        if (matches.Count >= maxResults)
+                        {
+                            response.ResultsTruncated = true;
+                            continue;
+                        }
+
+                        // The path is still what the result is presented and sorted by;
+                        // it is simply no longer what identity is decided by, and it is
+                        // now built only for the items that are actually returned. The
+                        // source file is read here for the same reason, unless the filter
+                        // already needed it above.
+                        if (sourceFile == null)
+                            sourceFile = TryGetSourceFile(item) ?? string.Empty;
+
+                        matches.Add(new SpatialMatch(item, BuildItemPath(item), sourceFile, box));
                     }
 
-                    BoundingBox3D box;
-                    try
-                    {
-                        box = item.BoundingBox();
-                    }
-                    catch (Exception ex)
-                    {
-                        if (response.Warnings.Count < 10)
-                            response.Warnings.Add("Skipped item with unreadable bounding box: " + ex.Message);
-                        continue;
-                    }
-
-                    if (box == null || !MatchesSpatialBox(box, request.Min, request.Max, matchMode))
-                        continue;
-
-                    if (!seenItems.Add(item))
-                        continue;
-
-                    response.MatchedItemCount++;
-                    if (matches.Count >= maxResults)
-                    {
-                        response.ResultsTruncated = true;
-                        continue;
-                    }
-
-                    // The path is still what the result is presented and sorted by;
-                    // it is simply no longer what identity is decided by, and it is
-                    // now built only for the items that are actually returned. The
-                    // source file is read here for the same reason, unless the filter
-                    // already needed it above.
-                    if (sourceFile == null)
-                        sourceFile = TryGetSourceFile(item) ?? string.Empty;
-
-                    matches.Add(new SpatialMatch(item, BuildItemPath(item), sourceFile, box));
+                    if (response.TraversalTruncated)
+                        break;
                 }
             }
 
@@ -150,16 +189,15 @@ namespace NavisHelper.Agent.Services
                 response.Preview = matches.Take(previewLimit).Select(BuildSpatialPreviewItem).ToList();
             }
 
-            // "Narrow the zone" is not on this list, and used to be. The zone is read
-            // only by MatchesSpatialBox, after an item has been scanned and its box
-            // computed, so it cannot reduce scannedItemCount: a caller that followed
-            // that advice narrowed the zone, hit the identical truncation, and had no
-            // way to tell that the answer was still partial for the same reason.
+            // "Narrow the zone" is a lever again, and that is new. It still cannot make
+            // any single item cheaper -- the zone is read after the item is counted --
+            // but the walk now stops at an item whose own box misses the zone, so a
+            // tighter zone reaches fewer items at all.
             //
-            // sourceFileContains used to be off it too, for the same reason. It now prunes
-            // at the model root as well as filtering per item, so it is the one lever that
-            // reduces the scan rather than only extending the cap -- which is why the
-            // warning names it, and names what it does, instead of listing every input.
+            // sourceFileContains prunes whatever the geometry: a zone that spans the
+            // site prunes nothing inside a model and pays one extra box read per
+            // container, while the file filter rules out whole appended models
+            // unconditionally.
             if (response.TraversalTruncated)
             {
                 response.Warnings.Add(
@@ -167,13 +205,15 @@ namespace NavisHelper.Agent.Services
                     " scanned items, so this answer is partial and items outside it were never examined. " +
                     "Raise maxScannedItems (maximum " + SpatialSearchOptionsHelper.MaxMaxScannedItems.ToString(CultureInfo.InvariantCulture) +
                     "); a " + MaxSpatialSearchMilliseconds.ToString(CultureInfo.InvariantCulture) +
-                    " ms budget stops the traversal after that. To scan less rather than allow more, " +
-                    "set sourceFileContains: it skips whole appended models before their items are counted" +
+                    " ms budget stops the traversal after that. To scan less rather than allow more, narrow the zone" +
+                    (response.OutsideItemCount > 0
+                        ? " (" + response.OutsideItemCount.ToString(CultureInfo.InvariantCulture) + " items outside the zone were not descended into on this call)"
+                        : ": items whose boxes miss it are not descended into") +
+                    ", or set sourceFileContains: it skips whole appended models before their items are counted" +
                     (response.PrunedModelCount > 0
-                        ? " (" + response.PrunedModelCount.ToString(CultureInfo.InvariantCulture) + " skipped on this call)"
+                        ? " (" + response.PrunedModelCount.ToString(CultureInfo.InvariantCulture) + " models skipped on this call)"
                         : string.Empty) +
-                    ". Narrowing the zone does NOT help inside a model: the zone is read after each item " +
-                    "is counted, so every item in a scanned model is scanned either way.");
+                    ".");
             }
             if (response.ResultsTruncated)
                 response.Warnings.Add("Result limit reached; narrow the zone or increase maxResults up to the documented maximum.");
@@ -185,12 +225,13 @@ namespace NavisHelper.Agent.Services
         }
 
         /// <summary>
-        /// The items worth scanning, model by model, skipping whole models that cannot hold
-        /// a match. A skipped model contributes nothing to `scannedItemCount`, which is the
-        /// point: every other filter in this method runs after the counter has already
-        /// counted the item.
+        /// The root item of each model worth scanning, model by model, skipping whole
+        /// models that cannot hold a match. A skipped model contributes nothing to
+        /// `scannedItemCount`, which is the point: every other filter in this method
+        /// runs after the counter has already counted the item. The subtree walk over
+        /// each root is the caller's -- it owns the per-item prune decision.
         /// </summary>
-        private static IEnumerable<ModelItem> EnumerateCandidateItems(
+        private static IEnumerable<ModelItem> EnumerateCandidateModels(
             Document document,
             FindItemsByBboxRequest request,
             string sourceFileContains,
@@ -224,9 +265,16 @@ namespace NavisHelper.Agent.Services
                     continue;
                 }
 
-                foreach (ModelItem item in rootItem.DescendantsAndSelf)
-                    yield return item;
+                yield return rootItem;
             }
+        }
+
+        // The walker's children delegate. A null Children collection reads as "no
+        // children": the walker drops it without enumerating, the same way it never
+        // asks for the children of a skipped item.
+        private static IEnumerable<ModelItem> ChildItems(ModelItem item)
+        {
+            return item.Children;
         }
 
         // Both readers fail open. A model whose extents or file cannot be read is scanned,
