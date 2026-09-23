@@ -5,7 +5,7 @@ NavisHelper checkout: how to fetch the launcher, how to run it, and what its
 record tells you. Who may be an executor and in what role is
 [AGENTS.md section 6](../AGENTS.md#6-roles); it is not restated here.
 
-The launcher belongs to Avox (`https://github.com/mikhalchukasm/Avox.git`), a
+The launcher belongs to Avox (`https://github.com/mikhalchankasm/Avox.git`), a
 separate repository NavisHelper does not vendor. NavisHelper pins one Avox
 commit and fetches five files from it; the pin and the five SHA-256 hashes live
 in `scripts/fetch_executor_launcher.py`.
@@ -29,12 +29,19 @@ so a fetched launcher is never committed by accident.
 The launcher finds its config at `config/external-executors.json` relative to
 its own `scripts/` folder, and runs as a module from the fetched root — hence
 the `cd` and `python -m`.
+Because the command runs from the launcher folder, give `--worktree`, `--brief`
+and `--record` as absolute paths.
 
 ## The executor's worktree
 
 The launcher runs the executor in a linked worktree on its own task branch,
 never on `main`. This is the same one-task-one-branch-one-PR discipline
-AGENTS.md applies to every agent; the launcher mechanicalizes it.
+AGENTS.md applies to every agent; the launcher mechanicalizes it. Create the
+worktree from the current `main`, outside the main checkout:
+
+```console
+git worktree add -b <provider>/<task> <path> origin/main
+```
 
 ## The brief
 

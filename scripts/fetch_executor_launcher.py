@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fetch the external-executor launcher from an Avox clone at one pinned commit.
 
-NavisHelper does not vendor Avox (https://github.com/mikhalchukasm/Avox.git).
+NavisHelper does not vendor Avox (https://github.com/mikhalchankasm/Avox.git).
 An executor run must be reproducible, so this script copies five files from one
 pinned Avox commit and refuses to write anything unless every file's SHA-256
 matches the table below. Bump the pin by changing the commit and the five
