@@ -715,9 +715,34 @@ private memory and 2 547 handles at the slow end, so this is no obvious leak.
 This is the most likely source of the bimodal timings every window has recorded,
 `isolate_by_box` in the fifth. They were drawn from long runs of calls in one process, and
 a call's number was partly its position in that run. Until this is understood, **compare
-timings only between fresh processes, first call against first call**. The next step is
-in-process: what each call leaves behind. `MatchSessionStore` keeps up to `maxResults`
-items per call, and a run of these queries stored 10 000 each time.
+timings only between fresh processes, first call against first call**.
+
+**Retained results are not the cause.** Same day, same base build (`e323f112…`),
+`6513.nwd`, the whole-model leaf query, five calls back to back in a fresh process per
+arm. The arms differed only in how many results each call kept in `MatchSessionStore`:
+
+| arm | ms, calls 1 to 5 | every call |
+| --- | --- | --- |
+| `maxResults=10000`: up to 10 000 items kept per call | 3 397, 4 132, 7 855, 7 413, 8 310 | 41 016 scanned, 26 762 matched |
+| `maxResults=1`: one item kept per call | 1 248, 2 035, 2 622, 3 486, 4 341 | the same |
+
+Both arms slow down call after call, the second about 0.8 s per call with almost nothing
+retained. So the store is not what accumulates. The same table also carries a separate
+cost: returning 10 000 results, with their paths, source files and sort, took about 2 s
+of the first call (3.4 s against 1.2 s).
+
+An idle pause helps only in part. The fifth call of the second arm took 4.3 s. After a
+short gap the sixth took 2.5 s, after a further 90 s idle the seventh took 2.6 s, and the
+eighth, straight after it, took 4.1 s.
+
+**A plausible mechanism, not yet tested.** In the Navisworks 2027 API, `ModelItem` and
+`BoundingBox3D` derive from `NativeHandle`, which implements `IDisposable` and declares a
+finalizer; this was read from the assembly by reflection. A walk of this model creates tens
+of thousands of each and disposes none, so every call hands the finalizer tens of thousands
+of native handles. That fits all three observations: back-to-back calls get slower, idle
+time recovers part of it, and managed memory barely grows. The test is a build that
+disposes the boxes it does not keep, measured against this one, call by call, in fresh
+processes.
 
 ## What still has no number
 
