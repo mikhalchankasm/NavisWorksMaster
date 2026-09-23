@@ -7,6 +7,21 @@ using NavisHelper.Core;
 
 namespace NavisHelper.Agent.Host
 {
+    /// <summary>
+    /// Every `ModelItem`, `ModelItemCollection` and `BoundingBox3D` the API hands out is a
+    /// `NativeHandle` holding a native weak reference that only `Dispose` or its finalizer
+    /// releases (read from `Autodesk.Navisworks.Api.dll` by reflection), and a walk
+    /// disposes none of them. Until a full collection runs their finalizers, each later
+    /// walk gets slower: identical whole-model `find_items_by_bbox`
+    /// calls on `6513.nwd` grew from 1.0 to 5.5 s in one process, and a full collection
+    /// before each call kept them flat. See "Throughput falls call after call" in
+    /// `docs/MCP_TOOL_BASELINE.md`.
+    ///
+    /// After heavy work, as judged by <see cref="HeavyWorkCollectionPolicy"/>, the host
+    /// collects on a pool thread instead of under the request gate, because the gate
+    /// rejects rather than queues. The next gated request waits for that collection
+    /// before it starts, since a collection that overlaps a walk slows both.
+    /// </summary>
     internal sealed partial class AgentHostService
     {
         private readonly HeavyWorkCollectionPolicy _heavyWorkCollectionPolicy =

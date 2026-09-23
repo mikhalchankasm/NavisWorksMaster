@@ -204,8 +204,12 @@ namespace NavisHelper.Agent.Host
             {
                 if (requestGateLease != null)
                 {
-                    requestGateLease.Dispose();
+                    // Schedule before releasing the gate: the next gated request must find
+                    // the collection's task already published, or it would start its walk
+                    // alongside the collection. The collection itself runs on a pool thread,
+                    // so the gate is not held while it runs.
                     ScheduleHeavyWorkCollection();
+                    requestGateLease.Dispose();
                 }
             }
         }
