@@ -10,6 +10,7 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates one Clash Detective test per Selection Set/Search Set or model-root pair. Set sides use native live Navisworks SelectionSource bindings, so dynamic Search Sets are re-evaluated. Dry-run by default. Inline references accept document-local itemId, exact full path, unique name, rootName, or sourceFile. planPath also accepts navishelper.clash-test-transfer v1; there itemId is diagnostic-only and exact full set path is the portable identity.")]
+    [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashTestsFromSetsResponse> ClashTestsFromSets(
         [Description("False previews names, resolved set paths, current member counts, conflicts, and warnings. True creates/replaces tests.")] bool apply = false,
         [Description("Inline pairs. Each a/b reference accepts Selection Set itemId/path/name or a direct model rootName/sourceFile; optional pair name overrides the template. Use either pairs or planPath.")] List<ClashSetPair> pairs = null,
@@ -50,6 +51,7 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Starts an asynchronous Clash Detective run and returns immediately with operationId. Runs one Navisworks test per UI callback, pauses after batchSize, and keeps clash_run_status/cancel_clash_run available even while a test is calculating. Dry-run by default.")]
+    [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashRunBatchResponse> ClashRunBatch(
         [Description("False previews the resolved run scope; true starts it.")] bool apply = false,
         [Description("Exact test names.")] List<string> testNames = null,
@@ -72,6 +74,7 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Continues a paused asynchronous clash run for the next batch.")]
+    [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = false)]
     public Task<ClashRunBatchResponse> ClashRunResume(
         [Description("Operation id returned by clash_run_batch or clash_tests_from_sets runAfterCreate.")] string operationId,
         [Description("Optional replacement batch size. Zero keeps the current value.")] int batchSize = 0,
@@ -87,6 +90,7 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns progress and per-test outcomes for an asynchronous clash run. Read-only and bypasses host_busy.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = false)]
     public Task<ClashRunBatchResponse> ClashRunStatus(
         [Description("Operation id returned by clash_run_batch or clash_tests_from_sets.")] string operationId,
         [Description("Maximum long-poll duration in seconds, 0-300. Default 0 returns immediately.")] int waitSeconds = 0,
@@ -101,6 +105,7 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Requests cooperative cancellation of an asynchronous clash run. It bypasses host_busy. A currently executing native Navisworks test finishes first; no later test is started.")]
+    [ToolCapabilities(ToolEffects.LocalState, RequiresHost = true, RequiresDocument = false)]
     public Task<ClashRunBatchResponse> CancelClashRun(
         [Description("Operation id returned by clash_run_batch or clash_tests_from_sets.")] string operationId,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",

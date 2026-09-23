@@ -13,6 +13,7 @@ internal sealed class NavisworksSelectionReportTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns a structured property report for the current Navisworks selection. Read-only replacement for UI/Excel property quick reports.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectionPropertyReportResponse> SelectionPropertyReport(
         [Description("Maximum selected items to inspect. Default is 100, maximum is 10000.")] int itemLimit = 100,
         [Description("Maximum properties per selected item. Default is 1000, maximum is 20000.")] int propertyLimitPerItem = 1000,
@@ -39,6 +40,7 @@ internal sealed class NavisworksSelectionReportTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Exports the current Navisworks selection property report to an explicit CSV or XLSX file path. Defaults to dry-run; pass apply=true to write.")]
+    [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectionExportPropertiesResponse> SelectionExportProperties(
         [Description("Absolute or relative output CSV path. Required.")] string outputPath,
         [Description("Export format: csv or xlsx. Default is csv.")] string format = "csv",
@@ -73,6 +75,7 @@ internal sealed class NavisworksSelectionReportTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns distinct property values in the current Navisworks selection with counts. Read-only helper for reporting and future color_by_property workflows.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectionDistinctPropertyValuesResponse> SelectionDistinctPropertyValues(
         [Description("Maximum selected items to inspect. Default is 100, maximum is 10000.")] int itemLimit = 100,
         [Description("Maximum distinct values to return. Default is 1000, maximum is 50000.")] int valueLimit = 1000,
@@ -95,6 +98,7 @@ internal sealed class NavisworksSelectionReportTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Auto-colors the current selection with a deterministic palette derived from property values. It does not accept explicit colors. For exact color mappings, source-file/name fragments, a one-color selection, and runtime reset, use model_color_scheme instead. Defaults to dry-run; pass apply=true to write permanent color overrides.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectionColorByPropertyResponse> SelectionColorByProperty(
         [Description("False previews groups/colors, true applies permanent color overrides. Default is false/dry-run.")] bool apply = false,
         [Description("Maximum selected items to inspect. Default is 100, maximum is 10000.")] int itemLimit = 100,

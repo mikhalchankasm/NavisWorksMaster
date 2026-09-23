@@ -14,6 +14,7 @@ internal sealed class NavisworksViewpointTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns read-only information about the current Navisworks viewpoint, including position, rotation, and common viewpoint properties when available.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<CurrentViewpointInfoResponse> CurrentViewpointInfo(
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
@@ -24,6 +25,7 @@ internal sealed class NavisworksViewpointTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists saved viewpoints and folders in the active Navisworks document without changing the current view. Returns name, path, type, depth, and child count.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ListSavedViewpointsResponse> ListSavedViewpoints(
         [Description("Maximum saved viewpoint/folder records to return. Default is 200, maximum is 1000.")] int limit = 200,
         [Description("Include duplicate-safe itemId values for later saved_viewpoints_manage/reorder calls. Default is true.")] bool includeItemIds = true,
@@ -40,6 +42,7 @@ internal sealed class NavisworksViewpointTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Exports the full Saved Viewpoints tree to CSV, JSON, or Markdown on the Navisworks host machine. Use before bulk rename/reorder work so duplicate names can be reviewed with current-tree itemId, path, parentPath, and index.")]
+    [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<SavedViewpointsExportResponse> SavedViewpointsExport(
         [Description("Output file path on the Navisworks host machine. Extensions .csv, .json, and .md are understood when format is empty.")] string outputPath,
         [Description("Export format: csv, json, or md. Default is inferred from outputPath extension, otherwise csv.")] string format = "csv",
@@ -60,6 +63,7 @@ internal sealed class NavisworksViewpointTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Imports standard Navisworks Saved Viewpoints XML by parsing view/viewfolder nodes and creating folders/viewpoints in the active document. Defaults to dry-run. Supports camera/folder import and simple rlellipse/rlline redlines; unsupported XML details such as other redline types, clip planes, hide/material overrides are reported as warnings.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<SavedViewpointsImportResponse> SavedViewpointsImport(
         [Description("Path to a Navisworks Saved Viewpoints XML file exported from the Saved Viewpoints palette.")] string inputPath,
         [Description("Target folder path under Saved Viewpoints. Missing folders are created only when apply=true. Empty means root.")] string targetFolderPath = "",
@@ -82,6 +86,7 @@ internal sealed class NavisworksViewpointTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates/deletes/renames/moves Saved Viewpoints folders or viewpoints. delete_many removes up to 5000 explicitly listed viewpoints in one atomic plan. Defaults to dry-run; pass apply=true only after reviewing list_saved_viewpoints/export output. Supports duplicate names via current-tree itemId or occurrence.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<SavedViewpointsManageResponse> SavedViewpointsManage(
         [Description("Operation: create_folder, delete_folder, delete, delete_many, rename, or move. delete targets one viewpoint; delete_many uses items.")] string operation,
         [Description("Saved viewpoint/folder path or unique name. For create_folder this can be the full new folder path when name is empty.")] string pathOrName = "",
@@ -114,6 +119,7 @@ internal sealed class NavisworksViewpointTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Naturally sorts Saved Viewpoints folders/viewpoints so names containing numbers sort numerically (1, 2, 11). Defaults to dry-run. Can sort one folder or the full tree recursively.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<SavedViewpointsReorderResponse> SavedViewpointsReorder(
         [Description("Folder path to sort. Empty means the Saved Viewpoints root. Use itemId for duplicate folder names.")] string folderPath = "",
         [Description("Current-tree folder itemId from list_saved_viewpoints or saved_viewpoints_export. Overrides folderPath when provided; refresh it after any tree change.")] string itemId = "",
@@ -136,6 +142,7 @@ internal sealed class NavisworksViewpointTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Activates an existing saved viewpoint by exact path or unique name from list_saved_viewpoints. Defaults to dry-run and returns the resolved path without changing the view unless apply=true.")]
+    [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<ActivateSavedViewpointResponse> ActivateSavedViewpoint(
         [Description("Exact saved viewpoint path returned by list_saved_viewpoints, or a unique saved viewpoint name. Paths use '/' between folders.")] string pathOrName,
         [Description("False previews the viewpoint activation, true applies it to the current Navisworks view. Default is false/dry-run.")] bool apply = false,
@@ -152,6 +159,7 @@ internal sealed class NavisworksViewpointTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Saves the current Navisworks view as a saved viewpoint, optionally inside a folder path.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<CreateViewpointResponse> CreateViewpoint(
         [Description("Saved viewpoint name.")] string name,
         [Description("Optional folder path under Saved Viewpoints, for example Clash/Zone A. Missing folders are created when apply=true.")] string folderPath = "",

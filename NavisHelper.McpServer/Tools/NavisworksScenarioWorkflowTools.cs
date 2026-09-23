@@ -13,6 +13,7 @@ internal sealed class NavisworksScenarioWorkflowTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Selects model items by Navisworks property conditions in the whole model, among one parent's direct children, or among all descendants. The search and selection happen in one call, so no runtime match handle is persisted. This changes only the current selection, not the model.")]
+    [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectBySearchResponse> SelectBySearch(
         [Description("Navisworks property conditions. Conditions are combined with AND unless logical_operator is supplied on later conditions.")] List<FindItemsCondition> conditions,
         [Description("Search scope: whole_model, direct_children_of, or descendants_of.")] string scope = SelectBySearchScopes.WholeModel,

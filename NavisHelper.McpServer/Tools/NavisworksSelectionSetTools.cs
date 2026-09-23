@@ -14,6 +14,7 @@ internal sealed class NavisworksSelectionSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists selection/search sets and folders in the active Navisworks document without changing selection. Supports offset paging and path/name filtering. Returns duplicate-safe itemId, path, parentPath, type, index, explicit/static count, and dynamic-search flags.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ListSelectionSetsResponse> ListSelectionSets(
         [Description("Maximum selection set/folder records to return. Default is 200, maximum is 1000.")] int limit = 200,
         [Description("Zero-based item offset for paging through large Selection Sets trees. Default is 0.")] int offset = 0,
@@ -36,6 +37,7 @@ internal sealed class NavisworksSelectionSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Selects an existing Navisworks Selection Set/Search Set by itemId, exact path, or unique name from list_selection_sets. Folder dry-runs return metadata without expanding child sets by default; folder apply requires allowFolderExpansion=true because large folders can be slow.")]
+    [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectSelectionSetResponse> SelectSelectionSet(
         [Description("Exact selection set/folder path returned by list_selection_sets, or a unique selection set/folder name. Paths use '/' between folders. Optional when itemId is provided.")] string pathOrName = "",
         [Description("Current-tree itemId from list_selection_sets. Prefer this when names/paths are duplicated or contain mojibake.")] string itemId = "",
@@ -58,6 +60,7 @@ internal sealed class NavisworksSelectionSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates a dynamic Navisworks Search Set and optionally saves it inside a Selection Sets folder. Defaults to dry-run. Conditions use the same schema as find_items; persistable operators are equals, contains, wildcard, and defined. Each condition supports logicalOperator=and|or, negate, ignoreCase (default true), ignoreDiacritics, and ignoreCharWidth. Navisworks has no parentheses and AND binds more strongly than OR; express (A OR B) AND D as (A AND D) OR (B AND D) by repeating D in each branch.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<CreateSearchSetResponse> CreateSearchSet(
         [Description("Search set name.")] string name,
         [Description("Search conditions to persist. logicalOperator connects this condition to the previous one: and (default) or or. negate, ignoreCase=true, ignoreDiacritics, and ignoreCharWidth map to native Navisworks condition flags.")] List<FindItemsCondition> conditions,
@@ -84,6 +87,7 @@ internal sealed class NavisworksSelectionSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates/deletes/renames/moves Selection Sets folders and static/dynamic selection/search sets. Defaults to dry-run; pass apply=true only after reviewing list_selection_sets output. Supports duplicate names via current-tree itemId or occurrence.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectionSetsManageResponse> SelectionSetsManage(
         [Description("Operation: create_folder, delete_folder, delete_set, delete, rename, or move. delete_set works for both static Selection Sets and dynamic Search Sets.")] string operation,
         [Description("Selection set/folder path or unique name. For create_folder this can be the full new folder path when name is empty.")] string pathOrName = "",
@@ -114,6 +118,7 @@ internal sealed class NavisworksSelectionSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Naturally sorts Selection Sets folders and sets so names containing numbers sort numerically (1, 2, 11). Defaults to dry-run. Can sort one folder or the full tree recursively.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectionSetsReorderResponse> SelectionSetsReorder(
         [Description("Folder path to sort. Empty means the Selection Sets root. Use itemId for duplicate folder names.")] string folderPath = "",
         [Description("Current-tree folder itemId from list_selection_sets. Overrides folderPath when provided; refresh it after any tree change.")] string itemId = "",
@@ -136,6 +141,7 @@ internal sealed class NavisworksSelectionSetTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates a static Navisworks Selection Set from the current selection or from find_items/find_root_items_by_name match handles, optionally inside a Selection Sets folder. This stores concrete model items, not a dynamic search rule. Defaults to dry-run.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<CreateSelectionSetResponse> CreateSelectionSet(
         [Description("Selection set name.")] string name,
         [Description("Optional opaque match handles returned by find_items/find_root_items_by_name/list_item_children. When provided, the static Selection Set is built from these matched items instead of the current selection.")] List<string> matchHandles = null,

@@ -10,6 +10,7 @@ internal sealed class NavisworksClashRootMatrixTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Builds a paged {(rootA, rootB): clashCount} coordination matrix from existing Clash Detective results. Root identity comes directly from each ModelItem.Model, so it does not depend on tree depth or parsing .rvm names from owner paths.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashRootMatrixResponse> ClashRootMatrix(
         [Description("Optional exact test name.")] string testName = "",
         [Description("Optional exact test names.")] List<string> testNames = null,

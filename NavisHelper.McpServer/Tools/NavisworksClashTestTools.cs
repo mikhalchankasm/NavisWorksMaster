@@ -13,6 +13,7 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Runs, deletes, renames, reorders, sorts, or edits selected Clash Detective tests by name, handle, prefix, or first-N scope. Defaults to dry-run; pass apply=true for run/reset/compact/rename/delete/move/sort/set_settings. operation=run only executes tests; it does not save the model, create reports, screenshots, or viewpoints. Use clash_list_tests first to get testHandles.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashManageTestsResponse> ClashManageTests(
         [Description("Required operation: run, reset, compact, rename, rename_batch, delete, move, sort, or set_settings. There is no default because an omitted or misspelled operation must never run tests.")] string operation,
         [Description("False previews matched tests and operation, true applies the operation. Default is false/dry-run.")] bool apply = false,
@@ -58,6 +59,7 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
     }
     [McpServerTool]
     [Description("Plans candidate Clash Detective group pairs by intersecting bounding boxes from top-level roots or the current arbitrary selection. Does not mutate the document. Dry-run never writes outputPath and returns outputWritten=false plus requested/matched/unmatched rootNames. apply=true requires an absolute outputPath and returns only after verified atomic write. Never creates or runs tests.")]
+    [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashBboxPairPlanResponse> ClashBboxPairPlan(
         [Description("False previews only and never writes a file. True requires outputPath and writes/verifies the full artifact. Default false.")] bool apply = false,
         [Description("Root mode. Currently top_level_files uses each model root and its direct children, matching list_root_items.")] string rootMode = "top_level_files",
@@ -100,6 +102,7 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates root/BBox-oriented Clash Detective tests from bbox candidate pairs. Each side resolves by exact full path, then unique exact root display name, then unique exact source-file identity; ambiguity is never resolved by choosing the first match. Use clash_tests_from_sets or clash_batchtest_import for Selection Set/Search Set sides. Dry-run by default and never runs tests.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashPairTestsCreateResponse> ClashPairTestsCreate(
         [Description("False previews test creation, true creates Clash Detective tests. Default is false/dry-run.")] bool apply = false,
         [Description("Candidate pairs returned by clash_bbox_pair_plan. Usually pass planOutputPath instead for large plans.")] List<ClashBboxCandidatePair> pairs = null,
@@ -130,6 +133,7 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Creates Clash Detective matrix tests from the current Navisworks selection or explicit matrix items: every item against every other item (i<j), with no self-clash. Defaults to dry-run and no generated name prefix unless useGeneratedPrefix=true.")]
+    [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashCreateMatrixFromSelectionResponse> ClashCreateMatrixFromSelection(
         [Description("False previews matrix test creation, true creates Clash Detective tests. Default is false/dry-run.")] bool apply = false,
         [Description("Test name prefix. Empty string means no prefix unless useGeneratedPrefix=true. The yyyyMMdd_HHmmss token is replaced by the current timestamp.")] string namePrefix = "",

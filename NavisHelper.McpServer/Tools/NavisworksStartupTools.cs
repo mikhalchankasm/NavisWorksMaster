@@ -13,6 +13,7 @@ internal sealed class NavisworksStartupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists recent Navisworks Manage model files from the current Windows user's HKCU Recent File List registry entries. Use this before opening the last/previous Navisworks file. Does not require Navisworks to be running.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public NavisworksRecentFilesResponse ListRecentNavisworksFiles(
         [Description("Optional Navisworks version: 2024, 2025, 2026, or 2027. Empty means all supported versions sorted by LastOpened.")] string navisworksVersion = "",
         [Description("Maximum files to return. Default is 10, maximum is 100.")] int limit = 10,
@@ -23,6 +24,7 @@ internal sealed class NavisworksStartupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Starts Navisworks Manage. Pass filePath to open a specific .nwd/.nwf/.nwc, or set openLatestRecentFile=true to open the latest existing file from Navisworks Recent File List. When waiting, distinguishes host_ready, process_exited, and host_timeout; returns instanceId only when the MCP host is ready.")]
+    [ToolCapabilities(ToolEffects.Host, RequiresHost = false, RequiresDocument = false)]
     public Task<StartNavisworksResponse> StartNavisworks(
         [Description("Optional Navisworks version: 2024, 2025, 2026, or 2027. Empty means latest installed version, or the recent file's version when openLatestRecentFile=true.")] string navisworksVersion = "",
         [Description("Optional explicit .nwd/.nwf/.nwc file path to open. Leave empty when using openLatestRecentFile=true.")] string filePath = "",
@@ -42,6 +44,7 @@ internal sealed class NavisworksStartupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Convenience tool for the user request: 'start Navisworks and open the last file'. It opens the latest existing file from Navisworks Recent File List and waits for the NavisHelper MCP host by default, reporting an early process exit without waiting for the full timeout.")]
+    [ToolCapabilities(ToolEffects.Host, RequiresHost = false, RequiresDocument = false)]
     public Task<StartNavisworksResponse> OpenLatestNavisworksFile(
         [Description("Optional Navisworks version: 2024, 2025, 2026, or 2027. Empty means all supported versions and opens the globally latest recent file.")] string navisworksVersion = "",
         [Description("Wait until the NavisHelper in-process MCP host is discoverable after launch. Default is true.")] bool waitForHost = true,
@@ -59,6 +62,7 @@ internal sealed class NavisworksStartupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Previews or closes one targeted Navisworks Manage instance. Modes: prompt requests normal exit and may show the native save dialog; save saves first and exits only after a verified save; discard permanently drops unsaved changes before exit. Defaults to preview and requires apply=true plus confirmClose=true. Target by instanceId, or by navisworksVersion only when exactly one matching host is running.")]
+    [ToolCapabilities(ToolEffects.Document | ToolEffects.Files | ToolEffects.Host, RequiresHost = true, RequiresDocument = false)]
     public Task<CloseNavisworksResponse> CloseNavisworks(
         [Description("Close mode: prompt (native Navisworks behavior), save, or discard. Default is prompt.")] string mode = NavisworksCloseModes.Prompt,
         [Description("Optional absolute .nwd/.nwf path for mode=save. Leave empty to save to the current document path.")] string savePath = "",
@@ -84,6 +88,7 @@ internal sealed class NavisworksStartupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Starts an optional cross-tool MCP task timer for a larger user-visible workflow that spans multiple tool calls. Call this at the beginning of a user task only when an explicit end-to-end task timer is useful, then call mcp_task_timer_finish before the final answer. Individual MCP tool calls also return automatic navishelper_timing in their primary JSON result.")]
+    [ToolCapabilities(ToolEffects.LocalState, RequiresHost = false, RequiresDocument = false)]
     public McpTaskTimerStartResponse McpTaskTimerStart(
         [Description("Optional short task name, for example 'clash report' or 'open latest Navisworks file'.")] string taskName = "")
     {
@@ -92,6 +97,7 @@ internal sealed class NavisworksStartupTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Finishes a cross-tool MCP task timer and returns elapsedMs, elapsedHuman, shouldReportToUser, and userMessage. If shouldReportToUser=true, include userMessage in the final answer to the user.")]
+    [ToolCapabilities(ToolEffects.LocalState, RequiresHost = false, RequiresDocument = false)]
     public McpTaskTimerFinishResponse McpTaskTimerFinish(
         [Description("Timer id returned by mcp_task_timer_start.")] string timerId,
         [Description("Optional task name override for the final timer result.")] string taskName = "")

@@ -15,6 +15,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists running Navisworks MCP host instances. Use instance_id from this tool when multiple Navisworks windows are open, or navisworks_version when exactly one host of that version is running.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public ListNavisworksHostsResponse ListNavisworksHosts()
     {
         return _hostBridgeClient.ListNavisworksHosts();
@@ -22,6 +23,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns MCP diagnostics: JSONL log file path, discovery instances directory, and currently running Navisworks host records.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public McpDiagnosticsResponse McpDiagnostics()
     {
         return _hostBridgeClient.GetDiagnostics();
@@ -29,6 +31,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns the last MCP JSONL call log lines. Use after failures or long runs to confirm which tools were invoked, their target Navisworks instance, elapsed time, status, and error code.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public McpRecentCallsResponse McpRecentCalls(
         [Description("Number of recent JSONL log lines to return. Default is 50, maximum is 200.")] int lineCount = 50)
     {
@@ -37,6 +40,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns the NavisHelper MCP error contract: stable error codes, meanings, retryability, and recommended client actions.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public McpErrorContractResponse McpErrorContract()
     {
         return HostBridgeClient.GetErrorContract();
@@ -44,6 +48,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Runs a read-only MCP/Navisworks health check and returns a verdict instead of throwing on partial failures. Use after long runs, timeouts, or suspected host hangs.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public async Task<McpHealthCheckResponse> McpHealthCheck(
         [Description("Maximum root model items to touch during the context check. Default is 10.")] int rootItemLimit = 10,
         [Description("Also include the current viewpoint check. Default is true.")] bool includeViewpointCheck = true,
@@ -144,6 +149,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns a compact read-only context package for the active Navisworks model: host status, root model filenames, saved viewpoint/selection set counts, and recommended MCP workflow. Call this before searching a large model or when the user gives .rvm/.dwg names.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public async Task<ActiveModelContextResponse> ActiveModelContext(
         [Description("Maximum root model items to include. Default is 100; use 1000 when you need the full root filename list.")] int rootItemLimit = 100,
         [Description("Include alternate root item aliases used by find_root_items_by_name.")] bool includeRootAliases = false,
@@ -205,6 +211,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns current Navisworks MCP host status: active document, process id, memory use, model count, and indexed root item count.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = false)]
     public Task<HostStatusResponse> HostStatus(
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
@@ -215,6 +222,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Returns host-side status for a recent request_id, or for the most recent host operation when no request_id is given. Use after request_timeout, transport disconnect, or oversized-response suspicion to determine whether the Navisworks-side command eventually completed, failed, or is still running.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = false)]
     public Task<LastOperationStatusResponse> LastOperationStatus(
         [Description("Optional request_id from mcp_recent_calls or the MCP server error log. Leave empty to ask about the most recent host operation, which is what a caller has after a timeout dropped the reply before it carried a request_id. Check the returned command matches the call you lost.")] string requestId = "",
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",

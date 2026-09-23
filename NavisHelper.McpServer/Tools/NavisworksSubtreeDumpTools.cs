@@ -14,6 +14,7 @@ internal sealed class NavisworksSubtreeDumpTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Synchronously streams item names from one small root .rvm/.dwg subtree to a CSV or JSONL file. Hard-limited to avoid long Navisworks UI hangs; for large roots use start_subtree_names_dump plus dump_subtree_names_status.")]
+    [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<DumpSubtreeNamesResponse> DumpSubtreeNames(
         [Description("Displayed root item name or root source filename, for example example-model.rvm. Exact match only.")] string rootName,
         [Description("Output CSV/JSONL file path on this machine.")] string outputPath,
@@ -42,6 +43,7 @@ internal sealed class NavisworksSubtreeDumpTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Starts a chunked CSV/JSONL dump job for all item names under one root .rvm/.dwg subtree. This returns quickly with jobId and instanceId and writes to outputPath.partial while running. Poll/cancel using the same instanceId. On success it atomically replaces outputPath; on failed/cancelled it removes the partial file.")]
+    [ToolCapabilities(ToolEffects.Files | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<DumpSubtreeNamesJobStatusResponse> StartSubtreeNamesDump(
         [Description("Displayed root item name or root source filename, for example example-model.rvm. Exact match only.")] string rootName,
         [Description("Final output CSV/JSONL file path on this machine. The running job writes to this path plus .partial first.")] string outputPath,
@@ -70,6 +72,7 @@ internal sealed class NavisworksSubtreeDumpTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Advances and returns status for a subtree name dump job. Poll this until state is done/failed/cancelled using the same instanceId returned by start_subtree_names_dump. Each poll processes a bounded chunk on the Navisworks UI thread; keep maxElapsedMs near the 500 ms default when a user is actively working.")]
+    [ToolCapabilities(ToolEffects.Files | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<DumpSubtreeNamesJobStatusResponse> DumpSubtreeNamesStatus(
         [Description("Job id returned by start_subtree_names_dump.")] string jobId,
         [Description("Maximum items to process in this poll. Default 1000, maximum 10000.")] int maxItemsPerPoll = 1000,
@@ -88,6 +91,7 @@ internal sealed class NavisworksSubtreeDumpTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Cancels a running subtree name dump job on the same instanceId returned by start_subtree_names_dump, closes its writer, clears queued ModelItem references, and removes its .partial file.")]
+    [ToolCapabilities(ToolEffects.Files | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = false)]
     public Task<DumpSubtreeNamesJobStatusResponse> CancelSubtreeNamesDump(
         [Description("Job id returned by start_subtree_names_dump.")] string jobId,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",

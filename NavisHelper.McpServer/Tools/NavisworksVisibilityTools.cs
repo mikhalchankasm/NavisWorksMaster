@@ -14,6 +14,7 @@ internal sealed class NavisworksVisibilityTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Hides every item except the current Navisworks selection. Dry-run returns affected root/source-file scope summaries before applying.")]
+    [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<HideUnselectedResponse> HideUnselected(
         [Description("False previews the action, true applies it. Default is false/dry-run.")] bool apply = false,
         [Description("Maximum affected item preview rows to return. Default is 10, maximum is 50.")] int previewLimit = 10,
@@ -30,6 +31,7 @@ internal sealed class NavisworksVisibilityTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Hides the current Navisworks selection. Dry-run returns affected root/source-file scope summaries before applying.")]
+    [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<HideSelectedResponse> HideSelected(
         [Description("False previews the action, true applies it. Default is false/dry-run.")] bool apply = false,
         [Description("Maximum affected item preview rows to return. Default is 10, maximum is 50.")] int previewLimit = 10,
@@ -46,6 +48,7 @@ internal sealed class NavisworksVisibilityTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Shows the current Navisworks selection if it is hidden. Dry-run returns affected root/source-file scope summaries before applying.")]
+    [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<UnhideSelectedResponse> UnhideSelected(
         [Description("False previews the action, true applies it. Default is false/dry-run.")] bool apply = false,
         [Description("Maximum affected item preview rows to return. Default is 10, maximum is 50.")] int previewLimit = 10,
@@ -62,6 +65,7 @@ internal sealed class NavisworksVisibilityTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Makes the current Navisworks selection actually visible by unhiding selected items and any hidden ancestors needed for visibility. Dry-run returns affected root/source-file scope summaries before applying.")]
+    [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<RevealSelectedResponse> RevealSelected(
         [Description("False previews the action, true applies it. Default is false/dry-run.")] bool apply = false,
         [Description("Maximum affected item preview rows to return. Default is 10, maximum is 50.")] int previewLimit = 10,
@@ -78,6 +82,7 @@ internal sealed class NavisworksVisibilityTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Shows all hidden items and then hides everything except the current Navisworks selection. Dry-run returns root/source-file scope summaries for the re-hide portion; review previouslyHiddenItemCount separately before applying.")]
+    [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<IsolateSelectedResponse> IsolateSelected(
         [Description("False previews the action, true applies it. Default is false/dry-run.")] bool apply = false,
         [Description("Maximum affected item preview rows to return. Default is 10, maximum is 50.")] int previewLimit = 10,
@@ -94,6 +99,7 @@ internal sealed class NavisworksVisibilityTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Shows all currently hidden Navisworks items. Dry-run returns affected root/source-file scope summaries before applying.")]
+    [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<ShowAllResponse> ShowAll(
         [Description("False previews the action, true applies it. Default is false/dry-run.")] bool apply = false,
         [Description("Maximum affected item preview rows to return. Default is 10, maximum is 50.")] int previewLimit = 10,

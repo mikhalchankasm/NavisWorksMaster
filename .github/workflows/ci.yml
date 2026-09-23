@@ -29,6 +29,9 @@ jobs:
       - name: Check MCP command catalog
         run: python scripts/check_mcp_command_catalog.py
 
+      - name: Check MCP tool capabilities
+        run: python scripts/check_mcp_tool_capabilities.py --check
+
       - name: Check typed host command router
         run: python scripts/check_host_command_router.py
 

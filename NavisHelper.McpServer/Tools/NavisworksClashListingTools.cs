@@ -13,6 +13,7 @@ internal sealed class NavisworksClashListingTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists Clash Detective tests in the active Navisworks document and returns per-test clash counts. Read-only.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashListTestsResponse> ClashListTests(
         [Description("Maximum number of tests to return. Default is 200, maximum is 10000.")] int limit = 200,
         [Description("Zero-based offset into the filtered test list. Default is 0.")] int offset = 0,
@@ -35,6 +36,7 @@ internal sealed class NavisworksClashListingTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Lists Clash Detective results from all tests or a named test. Read-only. Use after clash_list_tests to inspect statuses, assignees, and clashing item names.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashListResultsResponse> ClashListResults(
         [Description("Optional test name. Empty means all tests. Exact match is preferred; otherwise contains-match is used.")] string testName = "",
         [Description("Maximum number of result rows to return. Default is 500, maximum is 50000.")] int limit = 500,
@@ -63,6 +65,7 @@ internal sealed class NavisworksClashListingTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Groups existing Clash Detective results into read-only clusters. Default groupMode=hybrid first groups by associated object pair, then splits by clash-point proximity; this does not require reliable discipline/architecture classification. Use to collapse many raw clashes into practical problem zones such as pump building vs pump pipelines. Does not mutate the document.")]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashListClustersResponse> ClashListClusters(
         [Description("Optional test name. Empty means all tests. Exact match is preferred; otherwise contains-match is used.")] string testName = "",
         [Description("Optional list of test names. Empty with testName empty means all tests.")] List<string> testNames = null,
