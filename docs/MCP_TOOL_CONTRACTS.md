@@ -19,7 +19,7 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 - Host discovery/status surfaces may include `protocolVersion`; absence means an older host record or plugin build.
 - Use `hostLogFilePath` from `host_status`, `mcp_health_check`, or `list_navisworks_hosts` for the in-process NavisHelper plugin log; use `logFilePath` from `mcp_diagnostics` / `mcp_recent_calls` for the external MCP server JSONL log.
 - Host and MCP logs rotate at 5 MB with three suffix backups (`.1`, `.2`, `.3`). `mcp_recent_calls` reads across the current MCP JSONL log and its rotated backups.
-- Every MCP tool call appends automatic `navishelper_timing` metadata to the tool result. The same timing is also appended as a text content block so agents can see it without reading logs. Fields: `toolName`, `status`, `startedAtUtc`, `completedAtUtc`, `elapsedMs`, `elapsedHuman`, `shouldReportToUser`, `userMessage`.
+- Every MCP tool call appends automatic `navishelper_timing` metadata to the tool result. The same timing is also appended as a text content block so agents can see it without reading logs. Fields: `toolName`, `status`, `toolOk`, `toolErrorCode`, `startedAtUtc`, `completedAtUtc`, `elapsedMs`, `elapsedHuman`, `shouldReportToUser`, `userMessage`.
 - `testHandle` values such as `clash-test:1` are traversal handles for the current document/session. Refresh them with `clash_list_tests` after deleting, moving, or sorting tests.
 - `resultHandle` values such as `clash-result:1` are traversal handles for clash results in the current document/session.
 - Empty `testName` plus empty `testNames` usually means all tests for read-only/report/viewpoint tools.
@@ -34,8 +34,12 @@ does not: it answers with `status: "ok"` while the payload carries `ok: false`, 
 false` and an `errorCode`. `delete_scenario` without `expectedSha256` is the measured
 example — a client that read only the envelope recorded it as a successful 0 ms call.
 
-So: read `ok` and `errorCode` from the payload whenever a tool has them, and treat
-`status` as "the call arrived and came back", not "the thing you asked for happened".
+The envelope now carries the tool's verdict itself, so the payload no longer has to be
+re-parsed to see it: `tool_ok` mirrors the payload's top-level boolean `ok`, and
+`tool_error_code` mirrors its string `errorCode`; both are `null` when the payload has no
+such field. When `tool_ok` is false, `userMessage` says the command was refused and names
+the code, instead of "completed". `status` keeps its meaning: it is still only the
+transport's "the call arrived and came back", not "the thing you asked for happened".
 
 ### An `_export` / `_import` pair is not necessarily a round trip
 
