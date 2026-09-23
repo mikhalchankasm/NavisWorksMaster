@@ -87,7 +87,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `markup_selection` | View, Document | Yes | Yes | Yes |
 | `mcp_diagnostics` | None | No | No | No |
 | `mcp_error_contract` | None | No | No | No |
-| `mcp_health_check` | None | Yes | No | No |
+| `mcp_health_check` | None | No | No | No |
 | `mcp_recent_calls` | None | No | No | No |
 | `mcp_task_timer_finish` | LocalState | No | No | No |
 | `mcp_task_timer_start` | LocalState | No | No | No |

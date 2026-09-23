@@ -48,7 +48,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
     [McpServerTool]
     [Description("Runs a read-only MCP/Navisworks health check and returns a verdict instead of throwing on partial failures. Use after long runs, timeouts, or suspected host hangs.")]
-    [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = false)]
+    [ToolCapabilities(ToolEffects.None, RequiresHost = false, RequiresDocument = false)]
     public async Task<McpHealthCheckResponse> McpHealthCheck(
         [Description("Maximum root model items to touch during the context check. Default is 10.")] int rootItemLimit = 10,
         [Description("Also include the current viewpoint check. Default is true.")] bool includeViewpointCheck = true,
