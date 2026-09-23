@@ -41,6 +41,18 @@ answer and the remedy are the same either way -- reinstall.
 Not wired into CI. A GitHub runner has no installed bundle, so there this would either
 always skip or always fail, and a check that cannot fail is not a check.
 
+The MCP server is installed separately under `%LOCALAPPDATA%\\NavisHelper`, so this guard
+also inventories every `McpServer` and `McpServer-<version>` install there. Each installed
+`NavisHelper.McpServer.dll` is compared by hash with the checkout's
+`NavisHelper.McpServer/bin/Release/net9.0` build. Versions remain useful inventory, but
+are not evidence of equality: code can change while `AppVersion` does not. If the
+checkout server is not built, no server can be verified and the run refuses to approve
+the install just as it does when no plugin version was built.
+
+The inventory cannot say which server is running: the executable a client runs is
+selected in the client's config, not by what is on disk. Only `mcp_health_check` reports
+the running server's version.
+
 It is also the one `scripts/check_*.py` that is not a function of the repository. The
 others answer "is the code consistent with itself" and hold on any machine; this one
 answers "is this machine's install current", and a build alone makes it fail -- correctly,
@@ -62,17 +74,24 @@ Exit codes: 0 only when at least one version was verified end to end and nothing
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from xml.etree import ElementTree
 
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO_BUNDLE = ROOT / "NavisHelper.bundle"
+SERVER_ROOT = (Path(os.environ["LOCALAPPDATA"]) / "NavisHelper"
+               if os.environ.get("LOCALAPPDATA") else Path())
 VERSIONS = ("2024", "2025", "2026", "2027")
 PLUGIN_DLL = "NavisHelper.dll"
 REINSTALL = "powershell -ExecutionPolicy Bypass -File tools\\install_local_bundle.ps1"
+INSTALL_SERVER = "powershell -ExecutionPolicy Bypass -File tools\\install_local_mcp_server.ps1"
+BUILD_SERVER = "dotnet build NavisHelper.McpServer/NavisHelper.McpServer.csproj -c Release"
+SERVER_DLL = "NavisHelper.McpServer.dll"
 
 
 def default_bundle_root() -> Path:
@@ -95,6 +114,107 @@ def describe(path: Path) -> str:
     stat = path.stat()
     written = datetime.fromtimestamp(stat.st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     return "%s  %8d  %s" % (sha(path)[:12], stat.st_size, written)
+
+
+def expected_server_version() -> str | None:
+    """Read the server version shared by the checkout's bundle manifest."""
+    try:
+        return ElementTree.parse(REPO_BUNDLE / "PackageContents.xml").getroot().attrib["AppVersion"]
+    except (KeyError, OSError, ElementTree.ParseError):
+        return None
+
+
+def installed_server_versions(folder: Path) -> list[str]:
+    """Return package versions recorded in one server's .deps.json."""
+    deps = folder / "NavisHelper.McpServer.deps.json"
+    try:
+        with deps.open("r", encoding="utf-8") as handle:
+            targets = json.load(handle)["targets"]
+    except (KeyError, OSError, TypeError, UnicodeError, json.JSONDecodeError):
+        return []
+
+    prefix = "NavisHelper.McpServer/"
+    versions: set[str] = set()
+    if isinstance(targets, dict):
+        dictionaries = [targets]
+        dictionaries.extend(value for value in targets.values() if isinstance(value, dict))
+        for entries in dictionaries:
+            for key in entries:
+                if isinstance(key, str) and key.startswith(prefix):
+                    versions.add(key[len(prefix):])
+    return sorted(versions)
+
+
+def check_server_installs() -> bool:
+    """Inventory local MCP servers and verify at least one by DLL hash."""
+    expected = expected_server_version()
+    checkout_dll = (ROOT / "NavisHelper.McpServer" / "bin" / "Release" / "net9.0"
+                    / SERVER_DLL)
+    folders: list[Path] = []
+    if SERVER_ROOT and str(SERVER_ROOT) != "." and SERVER_ROOT.is_dir():
+        folders = sorted(
+            (path for path in SERVER_ROOT.iterdir()
+             if path.is_dir() and (path.name == "McpServer" or path.name.startswith("McpServer-"))),
+            key=lambda path: path.name.lower())
+
+    installs = [(folder, installed_server_versions(folder)) for folder in folders]
+    if installs:
+        print("installed MCP servers:")
+        for folder, versions in installs:
+            shown = ", ".join(versions) if versions else "version unreadable"
+            print(f"  {folder.name}: {shown}")
+    else:
+        print(f"installed MCP servers: none under {SERVER_ROOT}")
+
+    if not expected:
+        print("note: checkout MCP server version is unreadable from PackageContents.xml;")
+        print("      installed versions are inventory only; hash verification continues.")
+
+    if not checkout_dll.is_file():
+        print()
+        print("MCP SERVER NOTHING VERIFIED, which is not the same as no drift.")
+        print(f"Checkout server DLL is absent: {checkout_dll}")
+        print("Build the server, install it, point the MCP client at that install, and")
+        print("restart the client:")
+        print(f"  {BUILD_SERVER}")
+        print(f"  {INSTALL_SERVER}")
+        return True
+
+    checkout_hash = sha(checkout_dll)
+    matching = []
+    stale = []
+    for folder, versions in installs:
+        installed_dll = folder / SERVER_DLL
+        if installed_dll.is_file() and sha(installed_dll) == checkout_hash:
+            matching.append((folder, versions))
+        else:
+            stale.append((folder, versions, installed_dll.is_file()))
+
+    if not matching:
+        print()
+        print("MCP SERVER DRIFT: no installed server matches the checkout build by SHA-256.")
+        for folder, versions, has_dll in stale:
+            shown = ", ".join(versions) if versions else "version unreadable"
+            if expected and expected in versions:
+                detail = "version matches, code differs" if has_dll else "version matches, DLL missing"
+            else:
+                detail = "code differs" if has_dll else "DLL missing"
+            print(f"  {folder.name}: {shown} ({detail})")
+        print(f"  {INSTALL_SERVER}")
+        print("  Then point the MCP client at that install and restart the client.")
+        return True
+
+    if stale:
+        descriptions = []
+        for folder, versions, has_dll in stale:
+            shown = ", ".join(versions) if versions else "version unreadable"
+            detail = "code differs" if has_dll else "DLL missing"
+            descriptions.append(f"{folder.name} ({shown}; {detail})")
+        print("note: stale MCP server installs beside the hash-matched install: "
+              f"{', '.join(descriptions)}")
+    names = ", ".join(folder.name for folder, _ in matching)
+    print(f"MCP server verified by SHA-256: {names}.")
+    return False
 
 
 def build_dir_for(version: str) -> Path | None:
@@ -213,16 +333,17 @@ def main(argv: list[str]) -> int:
     if not bundle_root or str(bundle_root) == ".":
         print("APPDATA is not set, so the per-user bundle root cannot be located.")
         print("Pass the bundle root as an argument on a machine where it is installed.")
-        return 0
+        return 1 if check_server_installs() else 0
 
     print(f"checkout bundle : {REPO_BUNDLE}")
     print(f"installed bundle: {bundle_root}")
+    server_drift = check_server_installs()
 
     if not bundle_root.is_dir():
         print()
         print("No bundle is installed there, which is not drift -- it is nothing to compare.")
         print(f"Install one before a live window: {REINSTALL}")
-        return 0
+        return 1 if server_drift else 0
 
     report = Report()
     # The manifest at the bundle root, outside Contents/: it selects each Navisworks
@@ -291,7 +412,7 @@ def main(argv: list[str]) -> int:
     print(f"No drift. Verified end to end: {', '.join(report.verified)}.")
     print("For each, the built plugin matches the checkout's bundle and the installed copy,")
     print("and every other file in those folders matches the install.")
-    return 0
+    return 1 if server_drift else 0
 
 
 
@@ -310,7 +431,7 @@ def selftest() -> int:
     import io as _io
     import tempfile
 
-    global ROOT, REPO_BUNDLE
+    global ROOT, REPO_BUNDLE, SERVER_ROOT
     failures = 0
 
     def build_tree(root: Path, *, plugin_in_build=b"BUILT", plugin_in_bundle=b"BUILT",
@@ -335,9 +456,9 @@ def selftest() -> int:
             (installed / "Contents" / "2027" / "ru" / "NavisHelper.resources.dll").write_bytes(satellite)
         return bundle, installed
 
-    def run(root: Path, bundle: Path, installed: Path):
-        global ROOT, REPO_BUNDLE
-        ROOT, REPO_BUNDLE = root, bundle
+    def run(root: Path, bundle: Path, installed: Path, server_root: Path | None = None):
+        global ROOT, REPO_BUNDLE, SERVER_ROOT
+        ROOT, REPO_BUNDLE, SERVER_ROOT = root, bundle, server_root or root / "servers"
         captured = _io.StringIO()
         stdout, sys.stdout = sys.stdout, captured
         try:
@@ -345,6 +466,22 @@ def selftest() -> int:
         finally:
             sys.stdout = stdout
         return code, captured.getvalue()
+
+    def write_server_build(root: Path, contents: bytes = b"SERVER") -> None:
+        server_build = root / "NavisHelper.McpServer" / "bin" / "Release" / "net9.0"
+        server_build.mkdir(parents=True, exist_ok=True)
+        (server_build / SERVER_DLL).write_bytes(contents)
+
+    def write_server_install(server_root: Path, folder_name: str, version: str,
+                             contents: bytes | None = b"SERVER") -> None:
+        folder = server_root / folder_name
+        folder.mkdir(parents=True, exist_ok=True)
+        deps = {"targets": {".NETCoreApp,Version=v9.0": {
+            "NavisHelper.McpServer/" + version: {}}}}
+        (folder / "NavisHelper.McpServer.deps.json").write_text(
+            json.dumps(deps), encoding="utf-8")
+        if contents is not None:
+            (folder / SERVER_DLL).write_bytes(contents)
 
     cases = (
         ("build differs from the checkout bundle",
@@ -360,13 +497,16 @@ def selftest() -> int:
         ("the install lacks a file the bundle carries",
          dict(install_satellite=False), 1, "not installed", None),
     )
-    real_root, real_bundle = ROOT, REPO_BUNDLE
+    real_root, real_bundle, real_server_root = ROOT, REPO_BUNDLE, SERVER_ROOT
     try:
         for label, kwargs, expected_code, expected, absent in cases:
             with tempfile.TemporaryDirectory(prefix="drift-selftest-") as tmp:
                 root = Path(tmp)
                 bundle, installed = build_tree(root, **kwargs)
-                code, output = run(root, bundle, installed)
+                server_root = root / "servers"
+                write_server_build(root)
+                write_server_install(server_root, "McpServer", "2.10.0.0")
+                code, output = run(root, bundle, installed, server_root)
                 for ok, detail in (
                     (code == expected_code, "exit %d, expected %d" % (code, expected_code)),
                     (expected in output, "output lacks %r" % expected),
@@ -380,7 +520,57 @@ def selftest() -> int:
                 else:
                     print("  PASS  %s" % label)
     finally:
-        ROOT, REPO_BUNDLE = real_root, real_bundle
+        ROOT, REPO_BUNDLE, SERVER_ROOT = real_root, real_bundle, real_server_root
+
+    server_cases = (
+        ("checkout server not built", None,
+         (("McpServer", "2.10.0.0", b"SERVER"),), 1,
+         ("MCP SERVER NOTHING VERIFIED", BUILD_SERVER, INSTALL_SERVER), None),
+        ("MCP server same version with different bytes", b"CHECKOUT",
+         (("McpServer", "2.10.0.0", b"INSTALLED"),), 1,
+         ("McpServer: 2.10.0.0", "version matches, code differs", INSTALL_SERVER,
+          "point the MCP client at that install and restart the client"), None),
+        ("MCP server hash match", b"SAME",
+         (("McpServer", "2.9.0.0", b"SAME"),), 0,
+         ("McpServer: 2.9.0.0", "MCP server verified by SHA-256: McpServer."),
+         "MCP SERVER DRIFT"),
+        ("MCP server hash match with a stale install", b"SAME",
+         (("McpServer-2.10.0.0", "2.10.0.0", b"SAME"),
+          ("McpServer", "2.9.0.0", b"STALE")), 0,
+         ("stale MCP server installs beside the hash-matched install: "
+          "McpServer (2.9.0.0; code differs)",), "MCP SERVER DRIFT"),
+    )
+    try:
+        for label, checkout_bytes, installs, expected_code, expected_parts, absent in server_cases:
+            with tempfile.TemporaryDirectory(prefix="drift-server-selftest-") as tmp:
+                root = Path(tmp)
+                bundle, installed = build_tree(root)
+                (bundle / "PackageContents.xml").write_text(
+                    '<ApplicationPackage AppVersion="2.10.0.0"/>', encoding="utf-8")
+                (installed / "PackageContents.xml").write_text(
+                    '<ApplicationPackage AppVersion="2.10.0.0"/>', encoding="utf-8")
+                server_root = root / "servers"
+                server_root.mkdir()
+                if checkout_bytes is not None:
+                    write_server_build(root, checkout_bytes)
+                for folder_name, version, contents in installs:
+                    write_server_install(server_root, folder_name, version, contents)
+                code, output = run(root, bundle, installed, server_root)
+                for ok, detail in (
+                    (code == expected_code, "exit %d, expected %d" % (code, expected_code)),
+                    (all(part in output for part in expected_parts),
+                     "output lacks one of %r" % (expected_parts,)),
+                    (absent is None or absent not in output, "output contains %r" % absent),
+                ):
+                    if not ok:
+                        failures += 1
+                        print("  FAIL  %s -- %s" % (label, detail))
+                        print(output)
+                        break
+                else:
+                    print("  PASS  %s" % label)
+    finally:
+        ROOT, REPO_BUNDLE, SERVER_ROOT = real_root, real_bundle, real_server_root
 
     if failures:
         print("%d self-test assertion(s) failed" % failures)
