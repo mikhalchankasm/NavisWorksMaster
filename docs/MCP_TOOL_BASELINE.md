@@ -840,6 +840,46 @@ wrappers the walk owns is precise, but first needs proof that Navisworks does no
 same wrapper to other holders. A full collection after a large walk, off the call's own
 path, is blunt, and costs about 0.1 s of host time each time.
 
+### The fix: collect after heavy work
+
+The host now does by itself what the test build did in `host_status`
+(`HeavyWorkCollectionPolicy`; see `docs/ARCHITECTURE.md`). After a gated request, once four
+or more generation-0 collections have passed since the last forced one, it collects, drains
+finalizers and collects again on a pool thread. The next gated request waits for that
+before it starts. It was measured against `main` (`942f3d8`) like the test build, but back
+to back: `host_status` and then the call, with no idle pad. Rows are in run order:
+
+| round | build | ms, calls 1 to 8 |
+| --- | --- | --- |
+| 1 | base | 1076, 1700, 2293, 1814, 2580, 3937, 4089, 3833 |
+| 1 | collect after heavy work | 1024, 1306, 1158, 1145, 1158, 1153, 1149, 1142 |
+| 2 | collect after heavy work | 1025, 1144, 1152, 1161, 1153, 1154, 1281, 1144 |
+| 2 | base | 1768, 1232, 2474, 2591, 3056, 3953, 4424, 5170 |
+
+Every call scanned 41 016 items and matched 26 762. The builds are told apart by the host's
+`pluginAssemblyLength`: 1 594 368 bytes for the base, 1 595 392 for the fix.
+
+- With the fix, the eighth call costs what the first does, in both rounds. The base's last
+  call took 3.6 and 4.2 times as long as its fastest.
+- Each collection took 93–126 ms, and the first one after a file load 68–70 ms. The request
+  after a heavy one waited 51–74 ms for it; here that lands in `host_status`, which took
+  115–152 ms against 23–34 ms in the base. The 10-second cap on that wait was never hit.
+- The wait was added after a first version let the next request run alongside the
+  collection. There the first collection after a file load took 1.95 s and 5.2 s instead of
+  70 ms, and the calls it overlapped took 1.7 s and 3.2 s instead of 1.15 s. The
+  collection and a walk slow each other down.
+
+After review, the collector moved into its own type and now schedules from the request
+gate's actual release, which a timed-out UI callback defers. That build (`a594a95`,
+`pluginAssemblyLength` 1 595 904) was measured again the same way. It stayed flat at
+1.30–1.44 s in both rounds, while the base went from 1.00 to 4.07 s and from 2.28 to 6.57 s.
+Everything ran about 0.2 s slower that hour, the base's first calls and the collections
+themselves included (131–239 ms). The collections do not depend on this change, so the
+shift is attributed to the machine, but it was not separated.
+
+The timings in the earlier windows were taken before this fix, so the caveat above still
+applies to them: compare first calls in fresh processes.
+
 ## What still has no number
 
 Four tools, and the reason for each, so the gap is a decision rather than an oversight:

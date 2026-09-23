@@ -26,6 +26,7 @@ namespace NavisHelper.Agent.Host
 {
     internal sealed partial class AgentHostService : IDisposable
     {
+        private readonly HeavyWorkCollector _heavyWorkCollector = new HeavyWorkCollector();
 
         private void StartListener()
         {
@@ -149,8 +150,9 @@ namespace NavisHelper.Agent.Host
                     return;
                 }
 
-                requestGateLease = new RequestGateLease(_requestGate);
+                requestGateLease = new RequestGateLease(_requestGate, _heavyWorkCollector.ScheduleIfDue);
 
+                _heavyWorkCollector.WaitForInFlight(requestId, command);
                 HandleRequest(server, requestObject, requestId, requestGateLease);
             }
             catch (AgentCommandException ex)
