@@ -7,15 +7,20 @@ past the limit unnoticed, and a file that gets split stays listed forever. Over
 80 KB an agent cannot read and repair a file in one session, so the list is a
 working constraint, not prose.
 
-Size is the working-tree file's bytes with each CRLF counted as one byte --
-what git stores, so a Windows and a Linux checkout of the same commit measure
-the same. The limit is 81 920 bytes (80 KiB, what `find -size +80k` means).
+Size is the working-tree file's bytes as git stores them, so a Windows and a
+Linux checkout of the same commit measure the same. A CRLF pair counts as one
+byte only where git converts it: `git ls-files --eol` shows the text attribute
+without `-text` and the index eol as `i/lf` or `i/none`. Everywhere else the
+pair is two bytes as stored -- index eol `i/crlf`, binary `i/-text`, and any
+`attr/-text` file such as `licenses/**`. The limit is 81 920 bytes (80 KiB,
+what `find -size +80k` means).
 
 The bullet's backticked tokens name the covered files: a token ending in `/`
 names a directory whose over-limit files are covered as a class; every other
 token is a path or `*` glob relative to the repository root, matched against
 `git ls-files`. A path or glob token must match at least one tracked file, and
-every tracked file it matches must be over the limit. A missing bullet fails
+every tracked file it matches must be over the limit. A directory token must
+cover at least one tracked file over the limit. A missing bullet fails
 loudly, so the guard can never pass by reading an empty list.
 
 Run with --selftest to exercise the checker against fixtures.
@@ -37,6 +42,11 @@ LIMIT = 80 * 1024
 TOKEN_RE = re.compile(r"`([^`]+)`")
 
 GLOB_CHARS = set("*?[")
+
+EOL_LINE_RE = re.compile(
+    rb"^i/(?P<index>\S*)\s+w/(?P<worktree>\S*)\s+attr/(?P<attr>.*?)\s*\t(?P<path>.*)$",
+    re.DOTALL,
+)
 
 
 def repo_root() -> Path:
@@ -79,6 +89,23 @@ def token_matches(token: str, path: str) -> bool:
     return path == token
 
 
+def collapses_crlf(index_eol: str, attr: str) -> bool:
+    """Does a CRLF pair in this file count as one byte, the way git stores it?
+
+    `index_eol` and `attr` come from `git ls-files --eol`: the eol recorded in
+    the index (`lf`, `crlf`, `mixed`, `-text` for binary, `none` for a file
+    with no line endings) and the effective text attribute (empty when
+    unspecified, `-text` when the file is marked binary, `text=auto`, ...).
+    Git converts CRLF to LF only for files it treats as text whose stored
+    content is LF, so the pair collapses exactly there; with index eol `crlf`
+    or binary content, and on any `attr/-text` file such as `licenses/**`,
+    git keeps both bytes and so does the guard.
+    """
+    if "-text" in attr:
+        return False
+    return index_eol in ("lf", "none")
+
+
 def check(tokens: list[str], tracked: list[str], sizes: dict[str, int],
           problems: list[str]) -> list[str]:
     problems = list(problems)
@@ -92,9 +119,14 @@ def check(tokens: list[str], tracked: list[str], sizes: dict[str, int],
             )
 
     for token in tokens:
-        if token.endswith("/"):
-            continue
         matched = [path for path in tracked if token_matches(token, path)]
+        if token.endswith("/"):
+            if not any(sizes.get(path, 0) > LIMIT for path in matched):
+                problems.append(
+                    f"AGENTS.md lists `{token}`, which covers no tracked file over the "
+                    f"{LIMIT}-byte limit -- remove it from the bullet"
+                )
+            continue
         if not matched:
             problems.append(
                 f"AGENTS.md lists `{token}`, which matches no tracked file -- remove it "
@@ -110,6 +142,25 @@ def check(tokens: list[str], tracked: list[str], sizes: dict[str, int],
     return problems
 
 
+def eol_table(root: Path) -> tuple[dict[str, tuple[str, str]], list[str]]:
+    """Index eol and text attribute per tracked path, from `git ls-files --eol`."""
+    problems: list[str] = []
+    table: dict[str, tuple[str, str]] = {}
+    listed = subprocess.run(["git", "ls-files", "--eol", "-z"], cwd=root,
+                            capture_output=True)
+    if listed.returncode != 0:
+        detail = listed.stderr.decode("utf-8", errors="replace").strip()
+        problems.append(f"git ls-files --eol failed: {detail}")
+        return table, problems
+    for record in listed.stdout.split(b"\0"):
+        match = EOL_LINE_RE.match(record)
+        if match:
+            path = match.group("path").decode("utf-8", errors="replace")
+            table[path] = (match.group("index").decode("utf-8", errors="replace"),
+                           match.group("attr").decode("utf-8", errors="replace"))
+    return table, problems
+
+
 def tracked_sizes(root: Path) -> tuple[list[str], dict[str, int], list[str]]:
     """Tracked paths from `git ls-files` and their stored sizes, plus problems."""
     problems: list[str] = []
@@ -120,11 +171,19 @@ def tracked_sizes(root: Path) -> tuple[list[str], dict[str, int], list[str]]:
         return [], {}, problems
     tracked = [path.decode("utf-8", errors="replace")
                for path in listed.stdout.split(b"\0") if path]
+    eols, eol_problems = eol_table(root)
+    problems.extend(eol_problems)
     sizes: dict[str, int] = {}
     for path in tracked:
         on_disk = root / path
         if on_disk.is_file():
-            sizes[path] = len(on_disk.read_bytes().replace(b"\r\n", b"\n"))
+            data = on_disk.read_bytes()
+            # A path missing from the eol table is measured raw: overcounting
+            # fails loudly, undercounting would let a file slip under the limit.
+            index_eol, attr = eols.get(path, ("", ""))
+            if collapses_crlf(index_eol, attr):
+                data = data.replace(b"\r\n", b"\n")
+            sizes[path] = len(data)
     return tracked, sizes, problems
 
 
@@ -161,6 +220,16 @@ FIXTURES = {
         ["NavisHelper.McpServer/Services/ScenarioLibraryService.cs"],
         {"NavisHelper.McpServer/Services/ScenarioLibraryService.cs": 1024},
     ),
+    "a directory token covering nothing over the limit": (
+        ["docs/"],
+        ["docs/reference/README_FULL.md"],
+        {"docs/reference/README_FULL.md": 2048},
+    ),
+    "a directory token naming no tracked directory": (
+        ["NavisHelper/NoSuchDir/"],
+        [],
+        {},
+    ),
 }
 
 AGENTS_WITHOUT_THE_BULLET = """# Agents
@@ -178,6 +247,10 @@ def selftest() -> int:
          "NoSuchFile.cs"),
         ("a listed file back under the limit", "a listed file back under the limit",
          "remove it from the list"),
+        ("a directory token covering nothing over the limit",
+         "a directory token covering nothing over the limit", "covers no tracked file over"),
+        ("a directory token naming no tracked directory",
+         "a directory token naming no tracked directory", "NoSuchDir"),
     ]
     failures = 0
     for name, fixture, expected in cases:
@@ -189,6 +262,25 @@ def selftest() -> int:
             failures += 1
             print(f"        expected {expected!r}, got: {problems or '(none)'}")
 
+    eol_cases = [
+        # (index eol from `git ls-files --eol`, effective text attribute, collapses?)
+        ("lf", "", True),            # text file, git stores LF: one byte per pair
+        ("lf", "text=auto", True),   # declared text: still LF in the index
+        ("none", "", True),          # no line endings stored: nothing kept double
+        ("crlf", "", False),         # stored with CRLF: the pair is two bytes as stored
+        ("-text", "-text", False),   # binary content: git converts nothing
+        ("lf", "-text", False),      # `licenses/**`-style `-text`: every CRLF byte kept
+    ]
+    for index_eol, attr, expected in eol_cases:
+        got = collapses_crlf(index_eol, attr)
+        ok = got == expected
+        shown = attr if attr else "(unset)"
+        print(f"  {'ok  ' if ok else 'FAIL'}  i/{index_eol} attr/{shown}: "
+              f"CRLF counts as {'one byte' if expected else 'two bytes'}")
+        if not ok:
+            failures += 1
+            print(f"        expected {expected}, got {got}")
+
     tokens, problems = extract_tokens(AGENTS_WITHOUT_THE_BULLET)
     ok = not tokens and any("refuses to pass" in p for p in problems)
     print(f"  {'ok  ' if ok else 'FAIL'}  AGENTS.md with the bullet removed")
@@ -196,7 +288,7 @@ def selftest() -> int:
         failures += 1
         print(f"        expected a loud failure, got: {problems or '(none)'}")
 
-    total = len(cases) + 1
+    total = len(cases) + len(eol_cases) + 1
     print(f"{total - failures} of {total} self-test cases passed")
     return 1 if failures else 0
 
