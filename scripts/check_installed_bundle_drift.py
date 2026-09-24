@@ -49,9 +49,31 @@ are not evidence of equality: code can change while `AppVersion` does not. If th
 checkout server is not built, no server can be verified and the run refuses to approve
 the install just as it does when no plugin version was built.
 
-The inventory cannot say which server is running: the executable a client runs is
-selected in the client's config, not by what is on disk. Only `mcp_health_check` reports
-the running server's version.
+The inventory still cannot say which server a client runs: that is selected in the
+client's config, not by what is on disk. So the configs are read too. For each of the
+five clients `NavisHelper.McpConfigurator` writes -- Claude Desktop, Codex, Cursor,
+OpenCode and Kimi Code -- the guard names the server folder the config points at and
+whether that folder holds the checkout's build:
+
+    matches         the folder's DLL hashes to the checkout build
+    differs         it exists and hashes to something else
+    missing         the folder or its DLL is not there
+    not configured  the config file exists but names no NavisHelper server
+    no config       the client has no config file
+
+Claude Code keeps its servers in its own settings and is not checked. A client that is
+already running keeps the server process it started, so this describes the next start;
+only `mcp_health_check` reports the version answering right now.
+
+Measured on 2026-09-24: a fresh server had been installed into `McpServer-2.10.0.0` and
+every client still ran an older one -- Claude Desktop's config pointed at
+`McpServer-d28e8b7`, Codex's at `McpServer` (2.9). `McpConfigurator --detect` printed the
+*proposed* path, not the configured one, so nothing in the repository showed it.
+
+A client config also carries every other server that client uses, with their addresses
+and their secrets. These files are therefore never parsed and never echoed: the only
+thing read out of one is a path ending in `NavisHelper.McpServer.exe` or `.dll`, and the
+only thing printed is that path's folder.
 
 It is also the one `scripts/check_*.py` that is not a function of the repository. The
 others answer "is the code consistent with itself" and hold on any machine; this one
@@ -68,7 +90,8 @@ Usage:
 exist in the first place.
 
 Exit codes: 0 only when at least one version was verified end to end and nothing drifted.
-1 on drift, and equally on having verified nothing.
+1 on drift -- of the bundle, of an installed server, or of a client config -- and equally
+on having verified nothing.
 """
 
 from __future__ import annotations
@@ -76,6 +99,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -92,6 +116,28 @@ REINSTALL = "powershell -ExecutionPolicy Bypass -File tools\\install_local_bundl
 INSTALL_SERVER = "powershell -ExecutionPolicy Bypass -File tools\\install_local_mcp_server.ps1"
 BUILD_SERVER = "dotnet build NavisHelper.McpServer/NavisHelper.McpServer.csproj -c Release"
 SERVER_DLL = "NavisHelper.McpServer.dll"
+SERVER_EXE = "NavisHelper.McpServer.exe"
+CONFIGURATOR_EXE = "NavisHelper.McpConfigurator.exe"
+
+# The five clients McpConfigurator writes, with the config file each one reads. The
+# configurator's adapter list is the authority for both; Claude Code is deliberately
+# absent because its servers live in its own settings rather than in one of these files.
+CLIENT_CONFIG_LAYOUT = (
+    ("claude-desktop", "APPDATA", "Claude/claude_desktop_config.json"),
+    ("codex", "USERPROFILE", ".codex/config.toml"),
+    ("cursor", "USERPROFILE", ".cursor/mcp.json"),
+    ("opencode", "APPDATA", "OpenCode/opencode.json"),
+    ("kimi", "USERPROFILE", ".kimi-code/mcp.json"),
+)
+
+# Taken from the environment rather than resolved once, so the self-test can point the
+# whole client section at a fixture tree.
+CLIENT_ROOTS = {name: os.environ.get(name, "") for name in ("APPDATA", "USERPROFILE")}
+
+# A Windows path, as JSON and TOML both quote one, up to the server it names. Matched
+# instead of parsed: parsing would put every other server in the file -- and whatever
+# credentials sit beside it -- within reach of this report.
+SERVER_PATH_RE = re.compile(r"[A-Za-z]:[\\/][^\"'\s]*?NavisHelper\.McpServer\.(?:exe|dll)")
 
 
 def default_bundle_root() -> Path:
@@ -145,11 +191,20 @@ def installed_server_versions(folder: Path) -> list[str]:
     return sorted(versions)
 
 
-def check_server_installs() -> bool:
-    """Inventory local MCP servers and verify at least one by DLL hash."""
+def checkout_server_dll() -> Path:
+    """The server build this checkout produced; its hash is the reference for both
+    the installed servers and the server each client is configured to run."""
+    return ROOT / "NavisHelper.McpServer" / "bin" / "Release" / "net9.0" / SERVER_DLL
+
+
+def check_server_installs() -> tuple[bool, Path | None]:
+    """Inventory local MCP servers and verify at least one by DLL hash.
+
+    Returns whether the inventory drifted, and the installed folder that matches the
+    checkout build -- the one a client should be pointed at, when there is one.
+    """
     expected = expected_server_version()
-    checkout_dll = (ROOT / "NavisHelper.McpServer" / "bin" / "Release" / "net9.0"
-                    / SERVER_DLL)
+    checkout_dll = checkout_server_dll()
     folders: list[Path] = []
     if SERVER_ROOT and str(SERVER_ROOT) != "." and SERVER_ROOT.is_dir():
         folders = sorted(
@@ -178,7 +233,7 @@ def check_server_installs() -> bool:
         print("restart the client:")
         print(f"  {BUILD_SERVER}")
         print(f"  {INSTALL_SERVER}")
-        return True
+        return True, None
 
     checkout_hash = sha(checkout_dll)
     matching = []
@@ -202,7 +257,7 @@ def check_server_installs() -> bool:
             print(f"  {folder.name}: {shown} ({detail})")
         print(f"  {INSTALL_SERVER}")
         print("  Then point the MCP client at that install and restart the client.")
-        return True
+        return True, None
 
     if stale:
         descriptions = []
@@ -214,7 +269,108 @@ def check_server_installs() -> bool:
               f"{', '.join(descriptions)}")
     names = ", ".join(folder.name for folder, _ in matching)
     print(f"MCP server verified by SHA-256: {names}.")
-    return False
+    return False, matching[0][0]
+
+
+def client_config_paths() -> list[tuple[str, Path | None]]:
+    """Each client's config file, in the order the configurator lists its adapters.
+
+    `None` where the environment does not carry the root the file lives under, which is
+    a machine this guard cannot read rather than a client with no config.
+    """
+    paths = []
+    for client, root_name, relative in CLIENT_CONFIG_LAYOUT:
+        root = CLIENT_ROOTS.get(root_name, "")
+        paths.append((client, Path(root) / relative if root else None))
+    return paths
+
+
+def configured_server_folders(config: Path) -> list[Path]:
+    """The folders of the NavisHelper servers one client config names.
+
+    Matched, not parsed, and only the folder survives the call: the same file holds
+    every other server that client runs, and printing anything else from it would put
+    their addresses and secrets into a report that gets pasted into issues.
+    """
+    try:
+        text = config.read_text(encoding="utf-8", errors="replace")
+    except (OSError, UnicodeError):
+        return []
+    # Both formats quote a Windows path with doubled backslashes.
+    return list(dict.fromkeys(
+        Path(found.replace("\\\\", "\\")).parent for found in SERVER_PATH_RE.findall(text)))
+
+
+def server_verdict(folder: Path, checkout_hash: str | None) -> str:
+    """Is the server in that folder the one this checkout built?"""
+    installed_dll = folder / SERVER_DLL
+    if not installed_dll.is_file():
+        return "missing"
+    return "matches" if checkout_hash is not None and sha(installed_dll) == checkout_hash \
+        else "differs"
+
+
+def configure_command(clients: list[str], server_folder: Path | None) -> str:
+    """The configurator run that repoints those clients, naming the server to point at."""
+    root = SERVER_ROOT if str(SERVER_ROOT) != "." else Path("%LOCALAPPDATA%") / "NavisHelper"
+    command = (f'"{root / "McpConfigurator" / CONFIGURATOR_EXE}" --configure '
+               f'--clients {",".join(clients)}')
+    if server_folder is not None:
+        command += f' --mcp-server "{server_folder / SERVER_EXE}"'
+    return command
+
+
+def check_client_configs(matching_install: Path | None) -> bool:
+    """Report the server each MCP client is configured to run, and whether it is this build.
+
+    `matching_install` is the inventory's answer -- the installed folder whose DLL hashes
+    to the checkout build -- so the fix can name a server that is actually there.
+    """
+    checkout_dll = checkout_server_dll()
+    checkout_hash = sha(checkout_dll) if checkout_dll.is_file() else None
+
+    print()
+    print("MCP clients, by the server their config names:")
+    drifted: list[str] = []
+    named = 0
+    for client, config in client_config_paths():
+        if config is None:
+            print(f"  {client}: its config root is not in the environment, so it cannot")
+            print("      be located; nothing about this client is verified.")
+            continue
+        if not config.is_file():
+            print(f"  {client}: no config")
+            continue
+        folders = configured_server_folders(config)
+        if not folders:
+            print(f"  {client}: not configured")
+            continue
+        named += 1
+        for folder in folders:
+            verdict = server_verdict(folder, checkout_hash)
+            print(f"  {client}: {verdict}  {folder}")
+            if verdict in ("differs", "missing"):
+                drifted.append(client)
+    print("note: Claude Code keeps its servers in its own settings, not in a file this")
+    print("      guard reads, so it is not checked.")
+    if named and checkout_hash is None:
+        print(f"note: {checkout_dll} is absent, so no client can be 'matches' and")
+        print("      'differs' here means 'not shown to be this checkout's build'.")
+
+    if not drifted:
+        return False
+
+    print()
+    print("MCP CLIENT DRIFT: " + ", ".join(dict.fromkeys(drifted)))
+    print("would not run this checkout's server. Nothing else reports this: the build,")
+    print("the server installer and the client each succeed on their own, and a client")
+    print("that is already running keeps the server process it started.")
+    if matching_install is None:
+        print(f"  {INSTALL_SERVER}")
+        print("  No installed server matches this checkout's build, so install one first.")
+    print(f"  {configure_command(list(dict.fromkeys(drifted)), matching_install)}")
+    print("  Then restart those clients.")
+    return True
 
 
 def build_dir_for(version: str) -> Path | None:
@@ -333,17 +489,20 @@ def main(argv: list[str]) -> int:
     if not bundle_root or str(bundle_root) == ".":
         print("APPDATA is not set, so the per-user bundle root cannot be located.")
         print("Pass the bundle root as an argument on a machine where it is installed.")
-        return 1 if check_server_installs() else 0
+        server_drift, matching_install = check_server_installs()
+        client_drift = check_client_configs(matching_install)
+        return 1 if server_drift or client_drift else 0
 
     print(f"checkout bundle : {REPO_BUNDLE}")
     print(f"installed bundle: {bundle_root}")
-    server_drift = check_server_installs()
+    server_drift, matching_install = check_server_installs()
+    client_drift = check_client_configs(matching_install)
 
     if not bundle_root.is_dir():
         print()
         print("No bundle is installed there, which is not drift -- it is nothing to compare.")
         print(f"Install one before a live window: {REINSTALL}")
-        return 1 if server_drift else 0
+        return 1 if server_drift or client_drift else 0
 
     report = Report()
     # The manifest at the bundle root, outside Contents/: it selects each Navisworks
@@ -412,7 +571,7 @@ def main(argv: list[str]) -> int:
     print(f"No drift. Verified end to end: {', '.join(report.verified)}.")
     print("For each, the built plugin matches the checkout's bundle and the installed copy,")
     print("and every other file in those folders matches the install.")
-    return 1 if server_drift else 0
+    return 1 if server_drift or client_drift else 0
 
 
 
@@ -427,11 +586,17 @@ def selftest() -> int:
     So they are driven here against temp directories, by pointing this module's own path
     constants at them. Nothing real is read or written, which is why this half can run in
     CI while the machine check cannot.
+
+    The client section is in the same position: the only way to see it name a stale
+    server on a real machine is to reconfigure a real client, which this guard has no
+    business doing. So its five verdicts are driven against fixture config files under
+    redirected roots, including one that carries another server's secret beside the
+    NavisHelper path, to prove that only the folder comes back out.
     """
     import io as _io
     import tempfile
 
-    global ROOT, REPO_BUNDLE, SERVER_ROOT
+    global ROOT, REPO_BUNDLE, SERVER_ROOT, CLIENT_ROOTS
     failures = 0
 
     def build_tree(root: Path, *, plugin_in_build=b"BUILT", plugin_in_bundle=b"BUILT",
@@ -456,9 +621,22 @@ def selftest() -> int:
             (installed / "Contents" / "2027" / "ru" / "NavisHelper.resources.dll").write_bytes(satellite)
         return bundle, installed
 
-    def run(root: Path, bundle: Path, installed: Path, server_root: Path | None = None):
-        global ROOT, REPO_BUNDLE, SERVER_ROOT
+    def client_roots(root: Path) -> dict[str, str]:
+        """The two environment roots the client section reads, redirected into a fixture."""
+        return {"APPDATA": str(root / "clients" / "AppData"),
+                "USERPROFILE": str(root / "clients" / "UserProfile")}
+
+    def run(root: Path, bundle: Path, installed: Path, server_root: Path | None = None,
+            clients: dict[str, str] | None = None):
+        global ROOT, REPO_BUNDLE, SERVER_ROOT, CLIENT_ROOTS
         ROOT, REPO_BUNDLE, SERVER_ROOT = root, bundle, server_root or root / "servers"
+        CLIENT_ROOTS = client_roots(root)
+        # Written through the layout table rather than by hand, so a case cannot pass
+        # while the table points somewhere no client reads.
+        for client, text in (clients or {}).items():
+            config = dict(client_config_paths())[client]
+            config.parent.mkdir(parents=True, exist_ok=True)
+            config.write_text(text, encoding="utf-8")
         captured = _io.StringIO()
         stdout, sys.stdout = sys.stdout, captured
         try:
@@ -498,6 +676,7 @@ def selftest() -> int:
          dict(install_satellite=False), 1, "not installed", None),
     )
     real_root, real_bundle, real_server_root = ROOT, REPO_BUNDLE, SERVER_ROOT
+    real_client_roots = CLIENT_ROOTS
     try:
         for label, kwargs, expected_code, expected, absent in cases:
             with tempfile.TemporaryDirectory(prefix="drift-selftest-") as tmp:
@@ -521,6 +700,7 @@ def selftest() -> int:
                     print("  PASS  %s" % label)
     finally:
         ROOT, REPO_BUNDLE, SERVER_ROOT = real_root, real_bundle, real_server_root
+        CLIENT_ROOTS = real_client_roots
 
     server_cases = (
         ("checkout server not built", None,
@@ -571,6 +751,90 @@ def selftest() -> int:
                     print("  PASS  %s" % label)
     finally:
         ROOT, REPO_BUNDLE, SERVER_ROOT = real_root, real_bundle, real_server_root
+        CLIENT_ROOTS = real_client_roots
+
+    FIXTURE_MATCHING = "McpServer-2.10.0.0"
+    FIXTURE_STALE = "McpServer-d28e8b7"
+    FIXTURE_SECRET = "sk-selftest-0000000000"
+
+    def json_config(folder: Path, with_other_server: bool = False) -> str:
+        """A config in the JSON shape Claude Desktop, Cursor, OpenCode and Kimi keep.
+
+        `json.dumps` doubles every backslash in the path, which is how those clients
+        write one, so the fixture exercises the unescaping rather than assuming it.
+        """
+        servers = {"navishelper": {"command": str(folder / SERVER_EXE)}}
+        if with_other_server:
+            # Another tenant of the same file, carrying the kind of value that must never
+            # reach this report: a client config holds every server that client runs.
+            servers["other"] = {"command": "other-mcp.exe",
+                                "headers": {"Authorization": "Bearer " + FIXTURE_SECRET}}
+        return json.dumps({"mcpServers": servers})
+
+    def toml_config(folder: Path) -> str:
+        """The same entry as Codex keeps it: a TOML string with doubled backslashes."""
+        return '[mcp_servers.navishelper]\ncommand = "%s"\n' % str(
+            folder / SERVER_EXE).replace("\\", "\\\\")
+
+    client_cases = (
+        ("a TOML config with doubled backslashes, pointing at the matching install",
+         b"CHECKOUT", {"codex": lambda servers: toml_config(servers / FIXTURE_MATCHING)}, 0,
+         ("codex: matches", "kimi: no config"), "MCP CLIENT DRIFT"),
+        ("a client pointed at a stale install", b"CHECKOUT",
+         {"claude-desktop": lambda servers: json_config(servers / FIXTURE_STALE)}, 1,
+         ("claude-desktop: differs", "MCP CLIENT DRIFT: claude-desktop",
+          "--clients claude-desktop", '--mcp-server "{matching}"'), None),
+        ("a client pointed at a folder that holds no server", b"CHECKOUT",
+         {"cursor": lambda servers: json_config(servers / "McpServer-removed")}, 1,
+         ("cursor: missing", "MCP CLIENT DRIFT: cursor"), None),
+        ("a config that names no NavisHelper server", b"CHECKOUT",
+         {"opencode": lambda servers: json.dumps(
+             {"mcpServers": {"other": {"command": "other-mcp.exe"}}})}, 0,
+         ("opencode: not configured",), "MCP CLIENT DRIFT"),
+        ("no client config at all", b"CHECKOUT", {}, 0,
+         ("claude-desktop: no config", "codex: no config", "cursor: no config",
+          "opencode: no config", "kimi: no config", "Claude Code"), "MCP CLIENT DRIFT"),
+        ("another server's secret beside the NavisHelper path", b"CHECKOUT",
+         {"claude-desktop": lambda servers: json_config(servers / FIXTURE_MATCHING,
+                                                       with_other_server=True)}, 0,
+         ("claude-desktop: matches",), FIXTURE_SECRET),
+        ("checkout server not built, so no client can match", None,
+         {"claude-desktop": lambda servers: json_config(servers / FIXTURE_STALE)}, 1,
+         ("claude-desktop: differs", "no client can be 'matches'",
+          "MCP CLIENT DRIFT: claude-desktop", INSTALL_SERVER, "install one first"), None),
+    )
+    try:
+        for label, checkout_bytes, configs, expected_code, expected_parts, absent in client_cases:
+            with tempfile.TemporaryDirectory(prefix="drift-client-selftest-") as tmp:
+                root = Path(tmp)
+                bundle, installed = build_tree(root)
+                server_root = root / "servers"
+                server_root.mkdir()
+                if checkout_bytes is not None:
+                    write_server_build(root, checkout_bytes)
+                write_server_install(server_root, FIXTURE_MATCHING, "2.10.0.0", checkout_bytes)
+                write_server_install(server_root, FIXTURE_STALE, "2.9.0.0", b"OLDER")
+                parts = tuple(
+                    part.replace("{matching}", str(server_root / FIXTURE_MATCHING / SERVER_EXE))
+                    for part in expected_parts)
+                code, output = run(root, bundle, installed, server_root,
+                                   {client: make(server_root) for client, make in configs.items()})
+                for ok, detail in (
+                    (code == expected_code, "exit %d, expected %d" % (code, expected_code)),
+                    (all(part in output for part in parts),
+                     "output lacks one of %r" % (parts,)),
+                    (absent is None or absent not in output, "output contains %r" % absent),
+                ):
+                    if not ok:
+                        failures += 1
+                        print("  FAIL  %s -- %s" % (label, detail))
+                        print(output)
+                        break
+                else:
+                    print("  PASS  %s" % label)
+    finally:
+        ROOT, REPO_BUNDLE, SERVER_ROOT = real_root, real_bundle, real_server_root
+        CLIENT_ROOTS = real_client_roots
 
     if failures:
         print("%d self-test assertion(s) failed" % failures)
