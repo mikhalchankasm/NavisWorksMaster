@@ -129,13 +129,22 @@ Claude Code держит серверы в собственных настрой
 ### Чем чинить сервер и клиентов
 
 ```powershell
+dotnet build NavisHelper.McpServer/NavisHelper.McpServer.csproj -c Release
 powershell -ExecutionPolicy Bypass -File tools\install_local_mcp_server.ps1
 & "$env:LOCALAPPDATA\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe" --configure --clients all --mcp-server "$env:LOCALAPPDATA\NavisHelper\McpServer-<version>\NavisHelper.McpServer.exe"
 ```
 
+Сборка нужна, если сервер в чекауте не собран (`MCP SERVER NOTHING VERIFIED`): установщик берёт
+его из `NavisHelper.McpServer/bin/Release/net9.0` и без DLL сразу падает.
+
+Если переустанавливается та же версия (`version matches, code differs`), а какой-то клиент
+уже запустил сервер из этого `McpServer-<version>`, установщик откажется заменять каталог.
+Тогда сначала закройте такие клиенты, потом установка и конфигуратор, потом запуск клиентов.
+Новая версия ставится в свой каталог и работающему клиенту не мешает — ему хватит перезапуска
+после конфигуратора: запущенный клиент держит старый процесс.
+
 `<version>` — каталог, который инвентарь назвал совпавшим по хэшу; в команду его подставляет
-сам скрипт. Потом клиенты нужно перезапустить: запущенный клиент держит старый процесс.
-`--clients all` у конфигуратора включает и Claude Code, которого проверка не читает.
+сам скрипт. `--clients all` у конфигуратора включает и Claude Code, которого проверка не читает.
 
 ### Чем `--detect` не помогает
 
