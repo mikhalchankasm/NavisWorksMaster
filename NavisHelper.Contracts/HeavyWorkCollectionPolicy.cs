@@ -2,7 +2,8 @@ namespace NavisHelper.Agent.Contracts
 {
     /// <summary>
     /// Decides when the host should force a full collection after its own work, from the
-    /// generation-0 collection count alone, so the decision is testable without a GC.
+    /// generation-0 collection count and command duration, so the decision is testable
+    /// without a GC. A slow command needs at least one generation-0 collection.
     ///
     /// The count stands in for "how much was allocated": a whole-model walk of 41 000
     /// items causes about six generation-0 collections and `host_status` none. The
@@ -13,6 +14,7 @@ namespace NavisHelper.Agent.Contracts
     public sealed class HeavyWorkCollectionPolicy
     {
         public const int Threshold = 4;
+        public const int SlowCommandMilliseconds = 500;
 
         private int _lastCollectionCount;
 
@@ -24,6 +26,13 @@ namespace NavisHelper.Agent.Contracts
         public bool ShouldCollect(int gen0Now)
         {
             return CollectionsSinceLast(gen0Now) >= Threshold;
+        }
+
+        public bool ShouldCollect(int gen0Now, long commandMilliseconds)
+        {
+            var collectionsSinceLast = CollectionsSinceLast(gen0Now);
+            return collectionsSinceLast >= Threshold ||
+                (collectionsSinceLast >= 1 && commandMilliseconds >= SlowCommandMilliseconds);
         }
 
         public int CollectionsSinceLast(int gen0Now)

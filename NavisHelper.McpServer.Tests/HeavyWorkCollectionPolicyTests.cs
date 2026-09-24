@@ -22,6 +22,50 @@ public sealed class HeavyWorkCollectionPolicyTests
     }
 
     [Fact]
+    public void SlowCommandWithOneGen0CollectionCollects()
+    {
+        var policy = new HeavyWorkCollectionPolicy(0);
+
+        Assert.True(policy.ShouldCollect(1, HeavyWorkCollectionPolicy.SlowCommandMilliseconds));
+    }
+
+    [Fact]
+    public void SlowCommandWithoutGen0CollectionDoesNotCollect()
+    {
+        var policy = new HeavyWorkCollectionPolicy(0);
+
+        Assert.False(policy.ShouldCollect(0, HeavyWorkCollectionPolicy.SlowCommandMilliseconds));
+    }
+
+    [Fact]
+    public void FastCommandWithOneGen0CollectionDoesNotCollect()
+    {
+        var policy = new HeavyWorkCollectionPolicy(0);
+
+        Assert.False(policy.ShouldCollect(1, HeavyWorkCollectionPolicy.SlowCommandMilliseconds - 1));
+    }
+
+    [Fact]
+    public void FastCommandAtThresholdCollects()
+    {
+        var policy = new HeavyWorkCollectionPolicy(0);
+
+        Assert.True(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold, HeavyWorkCollectionPolicy.SlowCommandMilliseconds - 1));
+    }
+
+    [Fact]
+    public void RecordCollectionResetsBothPaths()
+    {
+        var policy = new HeavyWorkCollectionPolicy(0);
+        policy.RecordCollection(HeavyWorkCollectionPolicy.Threshold);
+
+        Assert.False(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold, HeavyWorkCollectionPolicy.SlowCommandMilliseconds));
+        Assert.False(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold + 1, HeavyWorkCollectionPolicy.SlowCommandMilliseconds - 1));
+        Assert.True(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold + 1, HeavyWorkCollectionPolicy.SlowCommandMilliseconds));
+        Assert.True(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold * 2, HeavyWorkCollectionPolicy.SlowCommandMilliseconds - 1));
+    }
+
+    [Fact]
     public void RecordCollectionResetsTheBaseline()
     {
         var policy = new HeavyWorkCollectionPolicy(0);

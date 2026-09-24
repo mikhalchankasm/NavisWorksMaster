@@ -29,10 +29,10 @@ namespace NavisHelper.Agent.Host
         private int _inFlight;
         private Task _task;
 
-        public void ScheduleIfDue()
+        public void ScheduleIfDue(long commandMilliseconds)
         {
             var gen0Now = GC.CollectionCount(0);
-            if (!_policy.ShouldCollect(gen0Now))
+            if (!_policy.ShouldCollect(gen0Now, commandMilliseconds))
                 return;
 
             if (Interlocked.CompareExchange(ref _inFlight, 1, 0) != 0)
@@ -51,6 +51,7 @@ namespace NavisHelper.Agent.Host
                     _policy.RecordCollection(GC.CollectionCount(0));
                     Logger.Info(
                         "heavy_work_collection gen0_collections_since_last=" + gen0CollectionsSinceLast +
+                        " command_ms=" + commandMilliseconds +
                         " elapsed_ms=" + stopwatch.ElapsedMilliseconds,
                         "AgentHost");
                 }
