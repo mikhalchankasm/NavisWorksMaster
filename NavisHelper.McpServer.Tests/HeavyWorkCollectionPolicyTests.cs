@@ -30,11 +30,11 @@ public sealed class HeavyWorkCollectionPolicyTests
     }
 
     [Fact]
-    public void SlowCommandWithoutGen0CollectionDoesNotCollect()
+    public void SlowCommandWithoutGen0CollectionCollects()
     {
         var policy = new HeavyWorkCollectionPolicy(0);
 
-        Assert.False(policy.ShouldCollect(0, HeavyWorkCollectionPolicy.SlowCommandMilliseconds));
+        Assert.True(policy.ShouldCollect(0, HeavyWorkCollectionPolicy.SlowCommandMilliseconds));
     }
 
     [Fact]
@@ -54,12 +54,12 @@ public sealed class HeavyWorkCollectionPolicyTests
     }
 
     [Fact]
-    public void RecordCollectionResetsBothPaths()
+    public void RecordCollectionResetsFastPathWithoutSuppressingSlowCommand()
     {
         var policy = new HeavyWorkCollectionPolicy(0);
         policy.RecordCollection(HeavyWorkCollectionPolicy.Threshold);
 
-        Assert.False(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold, HeavyWorkCollectionPolicy.SlowCommandMilliseconds));
+        Assert.True(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold, HeavyWorkCollectionPolicy.SlowCommandMilliseconds));
         Assert.False(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold + 1, HeavyWorkCollectionPolicy.SlowCommandMilliseconds - 1));
         Assert.True(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold + 1, HeavyWorkCollectionPolicy.SlowCommandMilliseconds));
         Assert.True(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold * 2, HeavyWorkCollectionPolicy.SlowCommandMilliseconds - 1));
