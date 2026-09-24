@@ -946,6 +946,28 @@ Measured the same way against `main` (`4a8d0b1`, which already reads children on
   as `main` does, in 2.57 s.
 - Taken together with the previous change, the same call went from 4.4 s to 2.1 s.
 
+**`hide_unselected` walked each selected subtree twice.** It collected the subtree into the
+keep set, then descended through it again looking for things to hide, though nothing below a
+selected item can be hidden. The hide walk now stops at selected items. Measured with the
+model root of `6513.nwd` selected (41 016 items), `apply=false`, five calls per arm, two
+builds interleaved over two rounds (`main` `3548cf0` against the change):
+
+| round | build | ms, calls 1 to 5 |
+| --- | --- | --- |
+| 1 | `main` | 3312, 4890, 5079, 3177, 6383 |
+| 1 | stop at selected items | 932, 2609, 4379, 6142, 906 |
+| 2 | stop at selected items | 966, 2612, 4354, 6369, 900 |
+| 2 | `main` | 3678, 5489, 5614, 3410, 6606 |
+
+- Every call returned the same counts: 41 016 kept, 0 hidden, 1 selected.
+- The first call in a fresh process went from 3.3-3.7 s to 0.9-1.0 s.
+- **Both builds still slow down call after call**, by about 1.7 s per call. They recover
+  only after a forced collection: on the change at call 5, and on `main`, which allocates
+  twice as much, at call 4. `HeavyWorkCollectionPolicy` counts generation-0 collections,
+  and this tool creates about 41 000 wrappers with little managed memory each, so the count
+  reaches its threshold of 4 only every three or four calls. The slowdown tracks the
+  wrappers, not the bytes. That is the next thing to fix, and it is not fixed here.
+
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
 

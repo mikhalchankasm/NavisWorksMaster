@@ -51,6 +51,7 @@ namespace NavisHelper.Agent.Services
         private static void CollectItemsToHide(
             ModelItem item,
             ISet<ModelItem> itemsToKeepVisible,
+            ISet<ModelItem> selectedItems,
             ICollection<ModelItem> itemsToHide,
             ModelItem rootItem,
             VisibilityRootSummaryAccumulator rootSummaries)
@@ -60,9 +61,13 @@ namespace NavisHelper.Agent.Services
 
             if (itemsToKeepVisible.Contains(item))
             {
+                // Every descendant of a selected item is already in the keep set.
+                if (selectedItems.Contains(item))
+                    return;
+
                 foreach (ModelItem childItem in item.Children)
                 {
-                    CollectItemsToHide(childItem, itemsToKeepVisible, itemsToHide, rootItem, rootSummaries);
+                    CollectItemsToHide(childItem, itemsToKeepVisible, selectedItems, itemsToHide, rootItem, rootSummaries);
                 }
 
                 return;
