@@ -42,6 +42,11 @@ namespace NavisHelper.Agent.Host
                 _startedAt = Stopwatch.StartNew();
             }
 
+            public void RestartTimer()
+            {
+                _startedAt.Restart();
+            }
+
             public void DeferRelease(Task completionTask, int releaseAfterMs, string requestId, string command, Func<bool> isAbandoned = null, Action recordAbandonedFailure = null)
             {
                 if (completionTask == null)
