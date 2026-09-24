@@ -134,10 +134,14 @@ CLIENT_CONFIG_LAYOUT = (
 # whole client section at a fixture tree.
 CLIENT_ROOTS = {name: os.environ.get(name, "") for name in ("APPDATA", "USERPROFILE")}
 
-# A Windows path, as JSON and TOML both quote one, up to the server it names. Matched
-# instead of parsed: parsing would put every other server in the file -- and whatever
-# credentials sit beside it -- within reach of this report.
-SERVER_PATH_RE = re.compile(r"[A-Za-z]:[\\/][^\"'\s]*?NavisHelper\.McpServer\.(?:exe|dll)")
+# A drive-letter path or a POSIX absolute path, as JSON and TOML both quote one, up to
+# the server it names. It may run through spaces -- `C:\Users\Jane Doe\...` and
+# `/tmp/srv/...` alike -- but never through a quote or a line end, so it cannot leave
+# the string that holds it and swallow a neighbouring one. Matched instead of parsed:
+# parsing would put every other server in the file -- and whatever credentials sit
+# beside it -- within reach of this report.
+SERVER_PATH_RE = re.compile(
+    r"(?:[A-Za-z]:[\\/]|/)[^\"'\r\n]*?NavisHelper\.McpServer\.(?:exe|dll)")
 
 
 def default_bundle_root() -> Path:
@@ -755,6 +759,12 @@ def selftest() -> int:
 
     FIXTURE_MATCHING = "McpServer-2.10.0.0"
     FIXTURE_STALE = "McpServer-d28e8b7"
+    # A folder name with a space, so the space-in-the-path case is exercised on Windows
+    # (drive-letter path) and POSIX (temp-path prefix) alike.
+    FIXTURE_SPACED = "McpServer-2.10.0.0 with space"
+    # A POSIX absolute path that exists on no machine, so the case asserts the verdict
+    # of a matched-but-absent folder rather than relying on what the runner has on disk.
+    POSIX_SERVER_PATH = "/nowhere-navishelper-selftest/no srv/NavisHelper.McpServer.exe"
     FIXTURE_SECRET = "sk-selftest-0000000000"
 
     def json_config(folder: Path, with_other_server: bool = False) -> str:
@@ -787,6 +797,13 @@ def selftest() -> int:
         ("a client pointed at a folder that holds no server", b"CHECKOUT",
          {"cursor": lambda servers: json_config(servers / "McpServer-removed")}, 1,
          ("cursor: missing", "MCP CLIENT DRIFT: cursor"), None),
+        ("a config whose server path runs through a space", b"CHECKOUT",
+         {"cursor": lambda servers: json_config(servers / FIXTURE_SPACED)}, 0,
+         ("cursor: matches",), None),
+        ("a config that names the server by a POSIX absolute path", b"CHECKOUT",
+         {"kimi": lambda servers: json.dumps({"mcpServers": {"navishelper": {
+             "command": POSIX_SERVER_PATH}}})}, 1,
+         ("kimi: missing", "MCP CLIENT DRIFT: kimi"), None),
         ("a config that names no NavisHelper server", b"CHECKOUT",
          {"opencode": lambda servers: json.dumps(
              {"mcpServers": {"other": {"command": "other-mcp.exe"}}})}, 0,
@@ -814,6 +831,7 @@ def selftest() -> int:
                     write_server_build(root, checkout_bytes)
                 write_server_install(server_root, FIXTURE_MATCHING, "2.10.0.0", checkout_bytes)
                 write_server_install(server_root, FIXTURE_STALE, "2.9.0.0", b"OLDER")
+                write_server_install(server_root, FIXTURE_SPACED, "2.10.0.0", checkout_bytes)
                 parts = tuple(
                     part.replace("{matching}", str(server_root / FIXTURE_MATCHING / SERVER_EXE))
                     for part in expected_parts)
