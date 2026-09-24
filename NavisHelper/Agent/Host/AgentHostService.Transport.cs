@@ -150,9 +150,11 @@ namespace NavisHelper.Agent.Host
                     return;
                 }
 
-                requestGateLease = new RequestGateLease(_requestGate, _heavyWorkCollector.ScheduleIfDue);
+                requestGateLease = new RequestGateLease(_requestGate, commandMilliseconds => _heavyWorkCollector.ScheduleIfDue(commandMilliseconds));
 
                 _heavyWorkCollector.WaitForInFlight(requestId, command);
+                // The wait for the previous collection must not count as this command's time.
+                requestGateLease.RestartTimer();
                 HandleRequest(server, requestObject, requestId, requestGateLease);
             }
             catch (AgentCommandException ex)

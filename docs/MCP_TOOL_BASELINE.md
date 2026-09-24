@@ -966,7 +966,27 @@ builds interleaved over two rounds (`main` `3548cf0` against the change):
   twice as much, at call 4. `HeavyWorkCollectionPolicy` counts generation-0 collections,
   and this tool creates about 41 000 wrappers with little managed memory each, so the count
   reaches its threshold of 4 only every three or four calls. The slowdown tracks the
-  wrappers, not the bytes. That is the next thing to fix, and it is not fixed here.
+  wrappers, not the bytes.
+
+**Fixed by also collecting after slow commands.** A rig probe showed `hide_unselected` causes
+one generation-0 collection per call at most, often none. A first attempt collected after a
+command of 500 ms or more that had caused at least one; calls then alternated 0.84 s and
+2.45 s, because every other call caused none. So the command's duration is the signal on its
+own: any command of 500 ms or more triggers the collection, and the threshold of 4 still
+covers fast, allocation-heavy work. Same setup, six calls per arm, two builds interleaved
+(`main` `9d99c58` against the change):
+
+| round | build | ms, calls 1 to 6 |
+| --- | --- | --- |
+| 1 | `main` | 874, 2490, 841, 2469, 4084, 5874 |
+| 1 | slow command triggers | 874, 848, 855, 852, 837, 842 |
+| 2 | slow command triggers | 870, 849, 845, 846, 836, 832 |
+| 2 | `main` | 887, 2462, 4116, 6007, 853, 2410 |
+
+Every call returned the same counts. The cost: the `host_status` that followed each call
+took 70-100 ms with the change against 26-39 ms without, because it waited for the
+collection. A collection that turns out unnecessary costs about 80 ms after a command that
+took at least 500 ms.
 
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
