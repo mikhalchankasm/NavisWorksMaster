@@ -130,7 +130,7 @@ Claude Code держит серверы в собственных настрой
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\install_local_mcp_server.ps1
-"%LOCALAPPDATA%\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe" --configure --clients all --mcp-server "%LOCALAPPDATA%\NavisHelper\McpServer-<version>\NavisHelper.McpServer.exe"
+& "$env:LOCALAPPDATA\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe" --configure --clients all --mcp-server "$env:LOCALAPPDATA\NavisHelper\McpServer-<version>\NavisHelper.McpServer.exe"
 ```
 
 `<version>` — каталог, который инвентарь назвал совпавшим по хэшу; в команду его подставляет
