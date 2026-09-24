@@ -52,10 +52,13 @@ namespace NavisHelper
             if (selection.Count == 0) return;
 
             var parents = new List<ModelItem>();
+            var seenParents = new HashSet<ModelItem>();
             foreach (var item in selection)
             {
-                if (item.Parent != null)
-                    parents.Add(item.Parent);
+                var parent = item.Parent;
+                // Visit each parent's children once, in first-seen selection order.
+                if (parent != null && seenParents.Add(parent))
+                    parents.Add(parent);
             }
 
             var result = new List<ModelItem>();

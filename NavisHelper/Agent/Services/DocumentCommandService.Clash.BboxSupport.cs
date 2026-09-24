@@ -350,9 +350,11 @@ namespace NavisHelper.Agent.Services
             if (item == null)
                 return result;
 
-            if (item.Children != null && item.Children.Count() > 0)
+            // Materialize once so refinement does not rebuild child wrappers for the count and loop.
+            var children = item.Children?.ToList();
+            if (children != null && children.Count > 0)
             {
-                foreach (ModelItem child in item.Children)
+                foreach (ModelItem child in children)
                     AddClashBboxRefineNode(result, child, boxCache);
             }
             else

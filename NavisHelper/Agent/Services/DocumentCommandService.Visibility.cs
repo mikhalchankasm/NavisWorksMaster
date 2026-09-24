@@ -24,8 +24,10 @@ namespace NavisHelper.Agent.Services
             var selectionSnapshot = SnapshotSelection(selectedItems);
 
             var itemsToKeepVisible = new HashSet<ModelItem>();
+            var selectedItemSet = new HashSet<ModelItem>();
             foreach (ModelItem item in selectedItems)
             {
+                selectedItemSet.Add(item);
                 CollectSubtreeItems(item, itemsToKeepVisible);
 
                 var current = item;
@@ -40,7 +42,7 @@ namespace NavisHelper.Agent.Services
             var rootSummaries = new VisibilityRootSummaryAccumulator();
             foreach (ModelItem rootItem in document.Models.CreateCollectionFromRootItems())
             {
-                CollectItemsToHide(rootItem, itemsToKeepVisible, itemsToHide, rootItem, rootSummaries);
+                CollectItemsToHide(rootItem, itemsToKeepVisible, selectedItemSet, itemsToHide, rootItem, rootSummaries);
             }
             var rootSummaryResult = rootSummaries.Build();
 
