@@ -2,18 +2,18 @@
 """Fetch the external-executor launcher from an Avox clone at one pinned commit.
 
 NavisHelper does not vendor Avox (https://github.com/mikhalchankasm/Avox.git).
-An executor run must be reproducible, so this script copies five files from one
-pinned Avox commit and refuses to write anything unless every file's SHA-256
-matches the table below. Bump the pin by changing the commit and the five
-hashes together in one reviewed PR.
+An executor run must be reproducible, so this script copies the files in the
+table below from one pinned Avox commit and refuses to write anything unless
+every file's SHA-256 matches. Bump the pin by changing the commit and every
+hash together in one reviewed PR.
 
 The Avox clone is read through `git show <pin>:<path>` only: committed bytes,
 never the working tree, and never a fetch. A missing pin is an error, not a
 reason to go to the network. The default destination `artifacts/executor-launcher`
 is git-ignored, so a fetched launcher is never committed by accident.
 
-A destination that already exists is refetched only when it holds exactly the
-five pinned files plus `__pycache__` directories left by an earlier run. Any
+A destination that already exists is refetched only when it holds nothing but
+pinned files plus `__pycache__` directories left by an earlier run. Any
 other file there would run alongside the launcher without being covered by the
 verified hashes, so it is a refusal: the script names the extra files, writes
 nothing, and deletes nothing.
@@ -32,20 +32,22 @@ import sys
 from pathlib import Path
 
 # The Avox commit this repository pins. On Avox `master`.
-AVOX_PIN = "2be9a74707aba11a16e40c6d21ad15d20fab42a1"
+AVOX_PIN = "c267be59b36bdbe7be0ac276610dab8b0db73827"
 
 # path in the Avox repository -> required SHA-256 at AVOX_PIN
 PINNED_FILES = {
     "config/external-executors.json":
         "37090e3dffb167e801593a5a17e1dbf2c5959cb5b45e5750d79a8455176decb3",
     "scripts/agent_home_isolation.py":
-        "da923cc00e1711235af9cb0bc2cc34bb69e3f5222eadef0d1ee27f3d921c02c7",
+        "68051b0bd0bb2d49e3b1b7e7bfa47cda4fc785b565c2a85b63c1643744a9514b",
+    "scripts/executor_host_guard.py":
+        "96692834616d69c1ad28886aac2e9336e07ad0107d53d71bbc7b227bb42a438b",
     "scripts/executor_primitives.py":
-        "556894c60b637dac9a7950b534a69c3ebe31a4c5a9fe8ceffaba45965e490083",
+        "82c631dc8fbe0717b5a598afd95aab7f97c24fd9717b44527a2d28a96069b4b3",
     "scripts/executor_worktree.py":
         "19cbb115d83ed9eef550e113ab8034efc0bade18b23152803352084f2b2bcaf6",
     "scripts/external_worktree_executor.py":
-        "fe78c9a2c19440bed28529ea4042c367dc2451f3a1a72a76f66034b229a9dda8",
+        "a8d1fbed96e471ea34cb642130afcf67f66b8cefe107b93a470b8ff0e444eb8d",
 }
 
 DEFAULT_DEST_RELATIVE = "artifacts/executor-launcher"
