@@ -58,7 +58,9 @@ function Copy-DirectoryFresh([string]$Source, [string]$Destination) {
     }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
-    Copy-Item -LiteralPath $Source -Destination (Split-Path -Parent $Destination) -Recurse -Force
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+    # Copy children so a renamed source still installs as NavisHelper.bundle.
+    Get-ChildItem -LiteralPath $Source -Force | Copy-Item -Destination $Destination -Recurse -Force
 }
 
 function Assert-BundleHashesMatch([string]$Source, [string]$Destination) {
