@@ -988,6 +988,33 @@ took 70-100 ms with the change against 26-39 ms without, because it waited for t
 collection. A collection that turns out unnecessary costs about 80 ms after a command that
 took at least 500 ms.
 
+**`clash_create_matrix_from_selection` climbed to the root twice for every item.** With
+`matrixNameContains`, it walks the whole model and builds each item's path and source file
+before filtering, and both climbed `Parent` to the model root, the second reading property
+categories on the way. They now come from the parent's entry in the current ancestor chain.
+Measured on `6513.nwd` (41 016 items), `apply=false`, two builds interleaved over two rounds
+in fresh processes (`main` `82e0064` against the change), three calls per case per arm:
+
+| round | build | filter matches nothing, ms | filter matches every item, ms |
+| --- | --- | --- | --- |
+| 1 | `main` | 3145, 3913, 3912 | 7640, 10335\*, 10355\* |
+| 1 | ancestor chain | 1648, 1726, 1948 | 5852, 9850, 9954 |
+| 2 | ancestor chain | 1583, 1794, 1900 | 5924, 9826, 9666 |
+| 2 | `main` | 3050, 3858, 3796 | 7766, 10356\*, 10371\* |
+
+\* stopped at the tool's 10 s traversal budget after 31 457-31 795 of the 41 016 items.
+
+- The walk alone, with a filter that matches nothing, went from 3.1-3.9 s to 1.6-1.9 s.
+  Every call in both builds returned the same answer.
+- With `"6513"`, which matches every item through its path, the first call went from 7.7 s
+  to 5.9 s with the same answer: all 41 016 matched, the first 20 returned. On `main` the
+  second and third calls ran out of the budget and returned a partial count that differed
+  on every call; the change stayed under it and returned the complete answer each time.
+- **The broad filter is still slow, and not because of the walk.** Matching every item costs
+  about 4 s more than matching none, and later calls in the same process take 9.7-10 s.
+  Every match goes into the identity dedup set, which keeps a wrapper per matched item
+  reachable for the call, the shape #21 measured. That is not fixed here.
+
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
 

@@ -97,6 +97,25 @@ namespace NavisHelper.Agent.Services
 
             if (document != null && document.Models != null)
             {
+                // The walk below is pre-order, so each item's path and source file
+                // come from its parent's entry in the current ancestor chain plus one
+                // step, instead of climbing to the model root twice per item as
+                // BuildItemPath and TryGetSourceFile each do. The chain holds only the
+                // ancestors of the item being resolved, never one wrapper per scanned
+                // item, so nothing this walk allocates stays reachable for whatever
+                // runs next.
+                var pathResolver = new AncestorPathResolver<ModelItem>(
+                    candidate => candidate.Parent,
+                    candidate => string.IsNullOrWhiteSpace(candidate.DisplayName)
+                        ? candidate.ClassDisplayName ?? string.Empty
+                        : candidate.DisplayName,
+                    candidate =>
+                    {
+                        var property = TryFindSourceFileProperty(candidate);
+                        return property == null ? null : GetPropertyDisplayValue(property) ?? string.Empty;
+                    },
+                    " / ");
+
                 foreach (ModelItem item in document.Models.RootItemDescendantsAndSelf)
                 {
                     scannedItems++;
@@ -109,9 +128,11 @@ namespace NavisHelper.Agent.Services
                     if (item == null)
                         continue;
 
-                    var path = BuildItemPath(item);
+                    string path;
+                    string sourceFile;
+                    pathResolver.Resolve(item, out path, out sourceFile);
                     var name = GetItemDisplayName(item);
-                    var sourceFile = TryGetSourceFile(item) ?? string.Empty;
+                    sourceFile = sourceFile ?? string.Empty;
                     if (!ClashBboxPlanHelper.MatchesRootFilters(name, path, sourceFile, rootNames, nameContains, excludes))
                         continue;
 
