@@ -7,7 +7,7 @@ record tells you. Who may be an executor and in what role is
 
 The launcher belongs to Avox (`https://github.com/mikhalchankasm/Avox.git`), a
 separate repository NavisHelper does not vendor. NavisHelper pins one Avox
-commit and fetches five files from it; the pin and the five SHA-256 hashes live
+commit and fetches six files from it; the pin and one SHA-256 hash per file live
 in `scripts/fetch_executor_launcher.py`.
 
 ## Fetch and run
@@ -25,7 +25,7 @@ the script exits non-zero, writes nothing, and tells you to run
 `git -C <avox> fetch origin`. The default destination
 `artifacts/executor-launcher` is under the git-ignored `artifacts/` directory,
 so a fetched launcher is never committed by accident. A destination that already
-holds any file other than the five pinned ones (and `__pycache__` left by an
+holds any file other than the pinned ones (and `__pycache__` left by an
 earlier run) is refused: the script names the extra files, writes nothing, and
 deletes nothing.
 
@@ -82,6 +82,30 @@ The launcher writes a JSON record with:
 | `durationSeconds` | wall-clock length of the run |
 | `mainCheckoutContaminated` | whether the main checkout changed during the run |
 | `stdoutTail` | the tail of the executor's stdout |
+| `host` | what changed on the machine outside the worktree (next section) |
+| `hostViolations` | present only when `host` shows a change; the run then failed |
+
+## What the run may not change on the machine
+
+Moving the provider's home moves files only. It does not move the registry,
+local accounts or the file rights a sandbox grants, and on another machine
+those three cost a Windows profile: dotnet appended hundreds of temporary
+folders to the real user `PATH`, and Codex's elevated sandbox granted its own
+accounts read access to all of `AppData`. So the pinned launcher:
+
+- writes `[windows] sandbox = "unelevated"` into Codex's isolated config,
+  because that config does not inherit the operator's and Codex's default
+  mode is not the operator's choice;
+- sets `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=0` and its three neighbours for every
+  provider, and points `TEMP`/`TMP` into the run's own home;
+- snapshots the machine before and after the run and records in `host` the
+  names of changed `HKCU\Environment` values, any new `CodexSandbox*` account,
+  changed rights on profile folders, and for Codex the sandbox log's grants
+  into the profile.
+
+Any of those, or a snapshot that could not be taken, is a `hostViolations`
+entry and exit code 6, whatever the executor produced. Do not launch another executor until you have read the
+record's `host` section and undone what it names.
 
 ## Codex's sandbox
 
@@ -97,7 +121,7 @@ which record) in the PR. An executor's claim of success is input, not evidence.
 
 ## Bumping the pin
 
-Change the pinned SHA and the five hashes together in one reviewed PR, and say
+Change the pinned SHA and every hash together in one reviewed PR, and say
 in that PR what changed upstream in Avox. A pin bumped without its hashes fails
 the fetch loudly; hashes edited to match an unpinned upstream commit are a
 review problem, which is why the two travel in one diff.
