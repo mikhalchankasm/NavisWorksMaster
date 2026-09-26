@@ -229,6 +229,17 @@ public sealed class ViewpointCameraPlanTests
     }
 
     [Fact]
+    public void Build_RejectsDirectionThatVanishesAgainstThePosition()
+    {
+        var request = ValidRequest();
+        request.Position = Point(9007199254740992, 0, 0);
+        request.Target = null;
+        request.Direction = Point(1, 0, 0);
+
+        Assert.Throws<ArgumentException>(() => ViewpointCameraPlanHelper.Build(request));
+    }
+
+    [Fact]
     public void Build_RejectsTargetWhoseDerivedDirectionOverflows()
     {
         var request = ValidRequest();

@@ -120,6 +120,11 @@ namespace NavisHelper.Agent.Contracts
             var target = hasTarget ? CopyPoint(request.Target) : Add(request.Position, request.Direction);
             if (!IsFinitePoint(target))
                 throw new ArgumentException("position plus direction must remain inside the finite numeric range.", nameof(request));
+            double effectiveDirectionLength;
+            if (!hasTarget &&
+                (!TryGetFiniteLength(Subtract(target, request.Position), out effectiveDirectionLength) ||
+                 effectiveDirectionLength <= MinimumVectorLength))
+                throw new ArgumentException("Camera target and position must differ, and direction must be non-zero.", nameof(request));
 
             var zoomBox = BuildZoomBox(request.ZoomTo, projection, target);
             var saveName = (request.SaveName ?? string.Empty).Trim();
