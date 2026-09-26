@@ -45,6 +45,7 @@ namespace NavisHelper.Agent.Contracts
         private const double MinimumVectorLength = 1e-12;
         private const double ParallelSinEpsilon = 1e-6;
         private const double CoordinateMatchEpsilon = 1e-9;
+        private const double DirectionPreservationTolerance = 1e-6;
 
         public static ViewpointCameraPlan Build(ViewpointSetCameraRequest request)
         {
@@ -104,9 +105,9 @@ namespace NavisHelper.Agent.Contracts
                 if (!TryGetFiniteLength(displacement, out effectiveDirectionLength) ||
                     effectiveDirectionLength <= MinimumVectorLength)
                     throw new ArgumentException("Camera target and position must differ, and direction must be non-zero.", nameof(request));
-                if (!AxisNearlyEqual(displacement.X, request.Direction.X) ||
-                    !AxisNearlyEqual(displacement.Y, request.Direction.Y) ||
-                    !AxisNearlyEqual(displacement.Z, request.Direction.Z))
+                double preservedOffsetLength;
+                if (!TryGetFiniteLength(Subtract(displacement, request.Direction), out preservedOffsetLength) ||
+                    preservedOffsetLength > DirectionPreservationTolerance * directionLength)
                     throw new ArgumentException("The derived target does not preserve the requested direction; position plus direction lost a material part of the direction vector.", nameof(request));
             }
 

@@ -240,6 +240,20 @@ public sealed class ViewpointCameraPlanTests
     }
 
     [Fact]
+    public void Build_AcceptsGeoreferencedDirectionWithinPreservationTolerance()
+    {
+        var request = ValidRequest();
+        request.Position = Point(500000000, 7000000000, 100000);
+        request.Target = null;
+        request.Direction = Point(1, 1, -0.5);
+
+        var plan = ViewpointCameraPlanHelper.Build(request);
+
+        AssertPoint(plan.Direction, 1, 1, -0.5);
+        Assert.Equal(1.5, plan.FocalDistance, 9);
+    }
+
+    [Fact]
     public void Build_RejectsDerivedTargetThatLosesDirectionComponent()
     {
         var request = ValidRequest();
