@@ -1139,18 +1139,6 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private static void CollectSubtreeItems(ModelItem item, ISet<ModelItem> items)
-        {
-            if (item == null)
-                return;
-
-            items.Add(item);
-            foreach (ModelItem childItem in item.Children)
-            {
-                CollectSubtreeItems(childItem, items);
-            }
-        }
-
         private static int CountHiddenItems(ModelItem item)
         {
             if (item == null)

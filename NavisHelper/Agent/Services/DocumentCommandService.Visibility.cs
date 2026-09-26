@@ -28,7 +28,6 @@ namespace NavisHelper.Agent.Services
             foreach (ModelItem item in selectedItems)
             {
                 selectedItemSet.Add(item);
-                CollectSubtreeItems(item, itemsToKeepVisible);
 
                 var current = item;
                 while (current != null)
@@ -37,6 +36,9 @@ namespace NavisHelper.Agent.Services
                     current = current.Parent;
                 }
             }
+
+            var keepVisibleItemCount = KeepVisibleCounter.Count(
+                selectedItemSet, itemsToKeepVisible, item => item.Parent, item => item.Children.Cast<ModelItem>());
 
             var itemsToHide = new List<ModelItem>();
             var rootSummaries = new VisibilityRootSummaryAccumulator();
@@ -66,7 +68,7 @@ namespace NavisHelper.Agent.Services
                 Apply = apply,
                 SelectedItemCount = selectedCount,
                 WouldHideItemCount = itemsToHide.Count,
-                WouldKeepVisibleItemCount = itemsToKeepVisible.Count,
+                WouldKeepVisibleItemCount = keepVisibleItemCount,
                 HiddenItemCount = apply ? (int?)itemsToHide.Count : null,
                 AffectedRootCount = rootSummaryResult.TotalRootCount,
                 AffectedRootSummariesTruncated = rootSummaryResult.Truncated,
