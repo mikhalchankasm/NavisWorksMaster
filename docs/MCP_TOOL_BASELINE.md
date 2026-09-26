@@ -467,6 +467,27 @@ the envelope.
 is pathological, and among the tools that act on an already-open document it is the only
 one in this window above a second.
 
+**Reading each item's properties once instead of twice bought little.** An audit found
+`BuildItemFacts` enumerating every item's own property tree twice, once for the source file
+and once for the facts. One pass now does both. Measured on 2026-09-26 on `6501.5.nwd` with
+`STORE` selected (6457 traversed, 5551 eligible), two builds interleaved over two rounds in
+fresh processes (`main` `0510480` against the change), three calls per case per arm:
+
+| round | build | `analyze`, ms | `apply`, `apply=false`, three rules, ms |
+| --- | --- | --- | --- |
+| 1 | `main` | 3581, 4109, 4233 | 2224, 2165, 2211 |
+| 1 | one pass | 3263, 3993, 3887 | 1839, 2042, 2163 |
+| 2 | one pass | 3324, 4321, 4142 | 2151, 2045, 2059 |
+| 2 | `main` | 3524, 4323, 4079 | 2074, 2258, 2348 |
+
+- Every call in both builds returned the same answer, in full verbosity.
+- The first `analyze` went from 3.5-3.6 s to 3.3 s, about 8 %; later calls are the same in
+  both builds. The dry run is 5-10 % faster. The audit estimated a third of the call.
+- So the second enumeration was not where the time goes. Both of the call's caches are
+  keyed by `ModelItem` and receive every item, although only ancestors are ever looked up
+  again, the pattern that cost 4 s in the clash-matrix walk. That is the next thing to
+  measure here.
+
 `open_latest_navisworks_file` is higher still at 18 526 ms, and is not a counter-example to
 that: it starts a Navisworks process and loads a 39 MB federated model, so it belongs with
 `start_navisworks` rather than with the tools above. Read it as the cost of a window, not
