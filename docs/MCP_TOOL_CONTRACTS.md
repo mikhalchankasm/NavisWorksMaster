@@ -124,6 +124,9 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `start_subtree_names_dump` | Files, LocalState | Yes | Yes | No |
 | `unhide_selected` | View | Yes | Yes | Yes |
 | `viewpoint_set_camera` | View, Document | Yes | Yes | Yes |
+| `world_markers_list` | None | Yes | Yes | No |
+| `world_markers_manage` | View, LocalState | Yes | Yes | Yes |
+| `world_markers_set` | View, LocalState | Yes | Yes | Yes |
 | `zoom_to_selection` | View | Yes | Yes | No |
 
 <!-- END GENERATED TOOL CAPABILITIES -->
@@ -1710,6 +1713,59 @@ list that is never null. In orthographic projection Navisworks chooses the
 camera's place on its line of sight itself, so `effectivePosition` may differ
 from the requested `position`; when it differs, a warning says so and confirms
 that the view direction, up vector, and `heightField` are as requested.
+
+## Overlay world markers
+
+`world_markers_set`, `world_markers_manage`, and `world_markers_list` drive the
+plugin-drawn overlay marker store bound to the active document. Markers are a
+view overlay, never model geometry: they are not saved with the document, are
+cleared when the document changes, are always drawn on top of the model, respect
+section clipping, and appear in `capture_current_view` output. The in-memory
+store holds at most 500 markers, never survives a restart, and is not shared
+between documents. Set and manage are dry-run by default.
+
+### `world_markers_set`
+
+| Input | Type | Default | Meaning |
+|---|---|---:|---|
+| `markers` | `WorldMarkerOverlaySpec[]` | required | Typed marker list. `name`, `x`, `y`, and `z` are required; coordinates are in document units. Optional: `style` (`target`, `cross`, `circle`, `pin`, `pole`, `box`; default `target`), `size` figure in document units, `sizePx` head in pixels (5-200, default 12), `color` `{r,g,b}`, `alpha` 0-255, `label`, `pole` `{enabled, baseZ, topZ}`, and `group`. |
+| `mode` | string | `upsert` | `upsert` replaces same-name markers and keeps the rest; `replace_all` swaps the whole store. |
+| `apply` | bool | `false` | Dry-run returns the plan; only `true` installs the new snapshot. |
+
+The response reports `apply`, `applied`, and the plan result: `accepted`,
+`capExceeded` with `refusalReason` when the 500-marker cap would be exceeded
+(the snapshot is then unchanged), `created`, `replaced`, and the resulting
+`markerCount`. Duplicate marker names after normalization reject the request.
+
+### `world_markers_manage`
+
+| Input | Type | Default | Meaning |
+|---|---|---:|---|
+| `operation` | string | required | `hide`, `show`, `delete`, or `clear`. |
+| `names` | string[] | `[]` | Marker-name selectors; a blank entry refuses the request. |
+| `ids` | string[] | `[]` | Marker ids from `world_markers_list`; a blank entry refuses the request. |
+| `group` | string | `null` | Group selector; blank refuses. With no selector at all the operation acts on every stored marker. |
+| `apply` | bool | `false` | Dry-run returns the plan; only `true` installs the new snapshot. |
+
+The response reports `apply`, `applied`, and the result: `operation`, `hidden`,
+`shown`, `deleted`, the remaining `markerCount`, and `missingNames`/`missingIds`
+for selectors that matched nothing. A request that selects nothing changes
+nothing.
+
+### `world_markers_list`
+
+Read-only, and available in read-only mode. Inputs: optional `names` filter
+(blank entries are ignored), optional `group` filter (blank means no group
+restriction), plus the common `instanceId` and `navisworksVersion`.
+
+The response lists the matching markers in snapshot order — `id`, `name`, `x`,
+`y`, `z`, `style`, `sizePx`, `worldSize`, `color`, `alpha`, `label`,
+`poleEnabled`/`poleBaseZ`/`poleTopZ`, `group`, and `visible` — plus
+`markerCount`, the store's bound document (`documentFileName`,
+`boundToActiveDocument`), and overlay diagnostics: `version`,
+`storedMarkerCount`, `visibleMarkerCount`, `overlayRenderCount`,
+`renderBoundsCount`, `lastDrawMarkerCount`, `lastDrawUtc`, `lastError`, and
+`persistent=false`.
 
 ## `get_current_section_box`
 
