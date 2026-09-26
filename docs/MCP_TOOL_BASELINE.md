@@ -68,7 +68,7 @@ and the run restores them (`show_all`, nothing selected).
 `main` `d8d8eac`, in a fresh Navisworks Manage 2027 process with
 `D:\Downloads\6501.5.nwd`. The host reported `pluginAssemblyLength` 1598464 and
 `pluginAssemblyLastWriteUtc` 2026-09-26T02:48:41.9602036Z; the run started at
-2026-09-26T03:14:03Z. The table is the first current-build arm. Each row was called
+2026-09-26T03:14:03Z. The table is the first current-build arm. The plugin under measurement is `d8d8eac`'s. The harness is `scripts/measure_read_tools.py` at `e330b20` (#87 before its review fixes, which changed only failure handling), run from that checkout. Its MCP server was built from the same tree, whose server code is `2550961`'s, and `elapsed_ms` includes that server's work. Each row was called
 twice in that process; the columns give the first call and the second (warm) call.
 
 The script resolved `$ROOT_NAME` to the first `list_root_items` item, the file node
