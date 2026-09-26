@@ -26,8 +26,8 @@ namespace NavisHelper.Agent.Contracts
     public sealed class WorldMarkerSpec
     {
         public string Name { get; set; }
-        public double X { get; set; }
-        public double Y { get; set; }
+        public double? X { get; set; }
+        public double? Y { get; set; }
         public double? Z { get; set; }
         public string Style { get; set; }
         public double? Size { get; set; }
