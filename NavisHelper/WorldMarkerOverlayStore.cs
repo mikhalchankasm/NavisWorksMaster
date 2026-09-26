@@ -92,7 +92,9 @@ namespace NavisHelper
             lock (Sync)
             {
                 var frame = _frame;
-                clear = !frame.IsEmpty && !ReferenceEquals(frame.Document, activeDocument);
+                // The whole snapshot counts, hidden markers included: a hidden marker left behind
+                // would come back at the old model's coordinates after a later show or upsert.
+                clear = frame.Snapshot.Count > 0 && !ReferenceEquals(frame.Document, activeDocument);
             }
 
             if (clear)

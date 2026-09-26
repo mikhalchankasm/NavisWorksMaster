@@ -90,6 +90,18 @@ public sealed class WorldMarkerOverlayRendererArchitectureTests
         Assert.Contains("WorldMarkerOverlayGeometry.Build", source);
     }
 
+    [Fact]
+    public void Store_ClearsOnDocumentChangeEvenWhenEveryMarkerIsHidden()
+    {
+        var store = ReadStore();
+        var start = store.IndexOf("public static void OnDocumentChanged(", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        var body = store.Substring(start, store.IndexOf("public static", start + 10, StringComparison.Ordinal) - start);
+
+        Assert.Contains("Snapshot.Count", body);
+        Assert.DoesNotContain("IsEmpty", body);
+    }
+
     private static string ReadRenderer() => Read("NavisHelper", "WorldMarkerOverlayRenderer.cs");
 
     private static string ReadStore() => Read("NavisHelper", "WorldMarkerOverlayStore.cs");
