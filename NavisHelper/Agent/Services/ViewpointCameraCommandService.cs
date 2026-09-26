@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
 
@@ -6,6 +7,11 @@ namespace NavisHelper.Agent.Services
 {
     internal sealed class ViewpointCameraCommandService
     {
+        private const string OrthographicPlacementWarning =
+            "Navisworks holds the camera at effectivePosition instead of the requested position. " +
+            "In orthographic projection Navisworks chooses the camera's place on its line of sight; " +
+            "the view direction, up vector, and heightField are as requested.";
+
         private readonly DocumentCommandService _viewpointCommands;
 
         public ViewpointCameraCommandService(DocumentCommandService viewpointCommands)
@@ -45,6 +51,11 @@ namespace NavisHelper.Agent.Services
                 ApplyPlan(candidate, plan);
                 document.CurrentViewpoint.CopyFrom(candidate);
                 document.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All);
+
+                var applied = document.CurrentViewpoint.CreateCopy();
+                response.EffectivePosition = ToPointInfo(applied.Position);
+                if (!ViewpointCameraPlanHelper.PointsNearlyEqual(response.EffectivePosition, plan.Position))
+                    response.Warnings.Add(OrthographicPlacementWarning);
 
                 response.Applied = true;
                 if (plan.SaveRequested)
@@ -115,6 +126,7 @@ namespace NavisHelper.Agent.Services
                 SaveRequested = plan.SaveRequested,
                 SaveNameConflict = savePreview != null && savePreview.NameConflict,
                 Saved = false,
+                Warnings = new List<string>(),
             };
         }
 
@@ -145,14 +157,18 @@ namespace NavisHelper.Agent.Services
 
         private static void PointAndAlign(Viewpoint viewpoint, Point3D target, Vector3D up, double focalDistance)
         {
+            viewpoint.FocalDistance = focalDistance;
             viewpoint.RightOffsetAtFocalDistance = 0;
             viewpoint.UpOffsetAtFocalDistance = 0;
             viewpoint.RightOffsetFactor = 0;
             viewpoint.UpOffsetFactor = 0;
             viewpoint.PointAt(target);
             viewpoint.AlignUp(up);
+        }
 
-            viewpoint.FocalDistance = focalDistance;
+        private static Point3Info ToPointInfo(Point3D point)
+        {
+            return new Point3Info { X = point.X, Y = point.Y, Z = point.Z };
         }
 
         private static Point3D ToPoint(Point3Info point)

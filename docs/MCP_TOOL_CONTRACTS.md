@@ -1671,6 +1671,7 @@ Inputs: `scenarioId`, `expectedSha256`, `apply`, and `confirmDelete`. It preview
 Inputs: `scenarioId`, optional template `parameterValues`, `executionIntent=preview|exact_replay`, and optional context hints. It returns ordered existing-tool preview arguments, apply overrides, per-step plan hashes, planned write categories, and an `agentInstruction`; it never calls Navisworks itself.
 
 `exact_replay` is valid only after a direct current user request. It rejects parameter overrides and requires a strong strict-context match. A normal preview of an exact scenario returns no apply override and explicitly forbids execution. The initial operation allowlist is `selection_export_properties`, `selection_sets_build_viewpoints`, `clash_generate_report`, and `clash_save_viewpoints`.
+
 ## `viewpoint_set_camera`
 
 Sets the active Navisworks camera from exact document-global coordinates without
@@ -1694,13 +1695,21 @@ on a copy of the current viewpoint, then copies the finished camera into the
 document. If camera application or saving fails, it restores the original
 active viewpoint. The response reports the canonical target/direction,
 projection, effective zoom box, save conflict preview, and apply/save outcome.
-An explicit `position` remains authoritative after orthographic `ZoomBox`;
-an explicit `heightField` is applied last and therefore overrides zoom framing.
+An explicit `heightField` is applied last and therefore overrides zoom framing.
 Perspective `zoomTo` is rejected because Navisworks frames a perspective box by
 moving the camera, which conflicts with the exact-position contract; use
 `heightField` for perspective framing.
 If both camera application and rollback fail, the host returns
 `camera_state_restore_failed` with both error messages.
+
+After apply the response also reports `effectivePosition` and `warnings`.
+`effectivePosition` is a `Point3Info` read back from the document's current
+viewpoint after the new camera is copied in; it is where Navisworks actually
+holds the camera, not a restatement of the request. `warnings` is a string
+list that is never null. In orthographic projection Navisworks chooses the
+camera's place on its line of sight itself, so `effectivePosition` may differ
+from the requested `position`; when it differs, a warning says so and confirms
+that the view direction, up vector, and `heightField` are as requested.
 
 ## `get_current_section_box`
 

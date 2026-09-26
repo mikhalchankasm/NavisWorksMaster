@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace NavisHelper.Agent.Contracts
 {
@@ -28,6 +29,7 @@ namespace NavisHelper.Agent.Contracts
         public bool Apply { get; set; }
         public bool Applied { get; set; }
         public Point3Info Position { get; set; }
+        public Point3Info EffectivePosition { get; set; }
         public Point3Info Target { get; set; }
         public Point3Info Direction { get; set; }
         public Point3Info Up { get; set; }
@@ -41,6 +43,7 @@ namespace NavisHelper.Agent.Contracts
         public bool SaveNameConflict { get; set; }
         public bool Saved { get; set; }
         public int? CreatedFolderCount { get; set; }
+        public List<string> Warnings { get; set; }
     }
 
     public sealed class ViewpointCameraPlan
@@ -246,7 +249,7 @@ namespace NavisHelper.Agent.Contracts
             return new Point3Info { X = value.X * factor, Y = value.Y * factor, Z = value.Z * factor };
         }
 
-        private static bool PointsNearlyEqual(Point3Info left, Point3Info right)
+        public static bool PointsNearlyEqual(Point3Info left, Point3Info right)
         {
             var scale = Math.Max(
                 1,
