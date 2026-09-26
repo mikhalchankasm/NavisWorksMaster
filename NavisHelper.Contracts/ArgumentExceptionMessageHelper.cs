@@ -136,7 +136,7 @@ namespace NavisHelper.Agent.Contracts
 
             var valueStart = valueLeadAt + valueLead.Length;
             var valueLength = message.Length - valueTail.Length - valueStart;
-            if (valueLength <= 0)
+            if (valueLength < 0)
                 return -1;
 
             return leadAt;

@@ -101,6 +101,16 @@ public sealed class ArgumentExceptionMessageHelperTests
     }
 
     [Fact]
+    public void StripsTheAppendedTextFromAnOutOfRangeMessageWithAnEmptyActualValue()
+    {
+        var raw = new ArgumentOutOfRangeException("units", "", "Unsupported units.").Message;
+
+        Assert.Equal(
+            "Unsupported units.",
+            ArgumentExceptionMessageHelper.StripParameterNameSuffix(raw));
+    }
+
+    [Fact]
     public void LeavesAnOutOfRangeMessageUnchangedWhenItsAppendedTextIsNotAtTheEnd()
     {
         var raw = new ArgumentOutOfRangeException("document.Units", "Furlongs", "Unsupported Navisworks document units.").Message;
