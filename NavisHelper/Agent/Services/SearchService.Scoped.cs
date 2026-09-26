@@ -442,8 +442,17 @@ namespace NavisHelper.Agent.Services
         /// Releases an abandoned traversal before reporting it, and returns the
         /// exception for the caller to throw.
         ///
-        /// Matched items and pending stack nodes retain ModelItem wrappers after a
-        /// traversal hits its budget. Clear them before releasing abandoned items.
+        /// A traversal that hits its budget on a large model has materialized up to
+        /// MaxScopedScannedItems ModelItem wrappers. The matched items and the pending
+        /// stack keep some of them reachable, and a loaded heap makes every later
+        /// search in the session dramatically slower. Measured live on 6501.5.nwd,
+        /// when a `visited` set still held every scanned item: a whole-model search
+        /// returning 3616 matches took 554 ms in a fresh process and 7428 ms
+        /// immediately after one budget-exceeded traversal, with the whole
+        /// difference in path building rather than in the engine. Dropping the
+        /// references and collecting here stops one failed call from degrading the
+        /// calls after it. The cost is paid only on a path that has already spent
+        /// its entire budget.
         /// </summary>
         private static AgentCommandException AbandonScopedTraversal(
             int abandoned,
