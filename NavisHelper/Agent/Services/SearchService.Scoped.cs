@@ -50,25 +50,24 @@ namespace NavisHelper.Agent.Services
             }
 
             var matchedItems = countOnly ? null : new List<ModelItem>();
-            var matchedSet = countOnly ? null : new HashSet<ModelItem>();
-            var visited = new HashSet<ModelItem>();
             var sampleValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var stack = new Stack<ScopedSearchNode>();
+            // Scope roots are disjoint, and each child is pushed once by its unique parent.
             for (var index = roots.Count - 1; index >= 0; index--)
                 stack.Push(new ScopedSearchNode(roots[index], GetModelItemDepth(roots[index])));
 
             while (stack.Count > 0)
             {
                 if (started.ElapsedMilliseconds > MaxScopedTraversalMilliseconds)
-                    throw AbandonScopedTraversal(visited, matchedSet, matchedItems, stack,
+                    throw AbandonScopedTraversal(response.ScannedItemCount, matchedItems, stack,
                         "Scoped find_items exceeded the 45 second traversal budget. Narrow the scope or use matchDepth=first/countOnly.");
                 if (response.ScannedItemCount >= MaxScopedScannedItems)
-                    throw AbandonScopedTraversal(visited, matchedSet, matchedItems, stack,
+                    throw AbandonScopedTraversal(response.ScannedItemCount, matchedItems, stack,
                         "Scoped find_items exceeded the 1,000,000 item traversal limit. Narrow the scope.");
 
                 var node = stack.Pop();
                 var item = node.Item;
-                if (item == null || !visited.Add(item))
+                if (item == null)
                     continue;
                 response.ScannedItemCount++;
 
@@ -80,7 +79,7 @@ namespace NavisHelper.Agent.Services
                         response.DepthHistogram[node.Depth] = 0;
                     response.DepthHistogram[node.Depth]++;
 
-                    if (!countOnly && matchedSet.Add(item))
+                    if (!countOnly)
                         matchedItems.Add(item);
                     if (sampleValues.Count < MaxSearchSampleValues)
                     {
@@ -443,30 +442,15 @@ namespace NavisHelper.Agent.Services
         /// Releases an abandoned traversal before reporting it, and returns the
         /// exception for the caller to throw.
         ///
-        /// A traversal that hits its budget on a large model has materialized up to
-        /// MaxScopedScannedItems ModelItem wrappers into `visited`. They stay
-        /// reachable while these collections do, and the loaded heap makes every
-        /// later search in the session dramatically slower. Measured live on
-        /// 6501.5.nwd: a whole-model search returning 3616 matches took 554 ms in a
-        /// fresh process and 7428 ms immediately after one budget-exceeded
-        /// traversal, with the whole difference in path building rather than in the
-        /// engine. Dropping the references and collecting here stops one failed call
-        /// from degrading the calls after it. The cost is paid only on a path that
-        /// has already spent its entire budget.
+        /// Matched items and pending stack nodes retain ModelItem wrappers after a
+        /// traversal hits its budget. Clear them before releasing abandoned items.
         /// </summary>
         private static AgentCommandException AbandonScopedTraversal(
-            HashSet<ModelItem> visited,
-            HashSet<ModelItem> matchedSet,
+            int abandoned,
             List<ModelItem> matchedItems,
             Stack<ScopedSearchNode> stack,
             string message)
         {
-            var abandoned = visited == null ? 0 : visited.Count;
-
-            if (visited != null)
-                visited.Clear();
-            if (matchedSet != null)
-                matchedSet.Clear();
             if (matchedItems != null)
                 matchedItems.Clear();
             if (stack != null)
