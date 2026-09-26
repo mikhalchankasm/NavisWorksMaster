@@ -111,7 +111,7 @@ namespace NavisHelper.Agent.Services
             {
                 Markers = markers,
                 MarkerCount = markers.Count,
-                DocumentFileName = DescribeDocument(frame.Document),
+                DocumentFileName = frame.Snapshot.Count > 0 ? DescribeDocument(frame.Document) : null,
                 BoundToActiveDocument = boundToActive,
                 Version = diagnostics.Version,
                 StoredMarkerCount = diagnostics.StoredMarkerCount,
@@ -152,10 +152,17 @@ namespace NavisHelper.Agent.Services
 
         private void ApplySnapshot(Document document, WorldMarkerOverlaySnapshot next)
         {
+            if (next.Count == 0)
+            {
+                // An empty store belongs to no document: Clear drops the binding, so list reports
+                // no file name and a later document switch has nothing stale to describe.
+                WorldMarkerOverlayStore.Clear();
+                _documentIdentity = null;
+                return;
+            }
+
             WorldMarkerOverlayStore.Update(document, next);
-            _documentIdentity = next.Count > 0
-                ? ModelColorSchemeDocumentIdentity.Capture(document)
-                : null;
+            _documentIdentity = ModelColorSchemeDocumentIdentity.Capture(document);
         }
 
         private static WorldMarkerOverlaySnapshot EffectiveSnapshot(Document document)
