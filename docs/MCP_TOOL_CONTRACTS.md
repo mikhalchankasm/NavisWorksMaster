@@ -1719,8 +1719,8 @@ that the view direction, up vector, and `heightField` are as requested.
 `world_markers_set`, `world_markers_manage`, and `world_markers_list` drive the
 plugin-drawn overlay marker store bound to the active document. Markers are a
 view overlay, never model geometry: they are not saved with the document, are
-cleared when the document changes, are always drawn on top of the model, respect
-section clipping, and appear in `capture_current_view` output. The in-memory
+cleared when the document changes, are always drawn on top of the model, are not
+clipped by section boxes, and appear in `capture_current_view` output. The in-memory
 store holds at most 500 markers, never survives a restart, and is not shared
 between documents. Set and manage are dry-run by default.
 

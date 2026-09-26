@@ -14,7 +14,7 @@ internal sealed class NavisworksWorldMarkerTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Plans and optionally stores overlay world markers anchored at exact document coordinates. Markers are a plugin-drawn view overlay, never geometry in the model: they are not saved with the document, are cleared when the document changes, are always drawn on top of the model, respect section clipping, and appear in capture_current_view. The in-memory store holds at most 500 markers. Defaults to dry-run.")]
+    [Description("Plans and optionally stores overlay world markers anchored at exact document coordinates. Markers are a plugin-drawn view overlay, never geometry in the model: they are not saved with the document, are cleared when the document changes, are always drawn on top of the model, are not clipped by section boxes, and appear in capture_current_view. The in-memory store holds at most 500 markers. Defaults to dry-run.")]
     [ToolCapabilities(ToolEffects.View | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<WorldMarkerOverlaySetResponse> WorldMarkersSet(
         [Description("Required typed list of markers. name, x, y and z are required; x, y and z are in document units. Optional per marker: style (target, cross, circle, pin, pole, box), size figure in document units, sizePx head size in pixels (5 to 200, default 12), color, alpha (0 to 255), label, pole and group.")] List<WorldMarkerOverlaySpec> markers,
@@ -62,7 +62,7 @@ internal sealed class NavisworksWorldMarkerTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Lists the overlay world markers stored for the active document, with visibility flags and overlay diagnostics. Markers are a plugin-drawn view overlay, never model geometry: the store is not saved with the document, is cleared when the document changes, always draws on top of the model, respects section clipping, appears in capture_current_view, and holds at most 500 markers.")]
+    [Description("Lists the overlay world markers stored for the active document, with visibility flags and overlay diagnostics. Markers are a plugin-drawn view overlay, never model geometry: the store is not saved with the document, is cleared when the document changes, always draws on top of the model, is not clipped by section boxes, appears in capture_current_view, and holds at most 500 markers.")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<WorldMarkerOverlayListResponse> WorldMarkersList(
         [Description("Optional marker-name filter; blank entries are ignored.")] List<string> names = null,
