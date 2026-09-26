@@ -9,10 +9,10 @@ namespace NavisHelper.Agent.Contracts
     /// it is derived from a probe exception built at call time rather than
     /// hard-coded: the probe's message is a marker that cannot occur in a real
     /// error, so whatever the runtime appends after the marker is the suffix
-        /// shape, and a candidate message is stripped only when it ends with that
-        /// shape and the segment between the lead and the tail is a single
-        /// parameter identifier. Messages that do not end with the suffix are
-        /// returned unchanged.
+    /// shape, and a candidate message is stripped only when it ends with that
+    /// shape and the segment between the lead and the tail is a single
+    /// parameter identifier. Messages that do not end with the suffix are
+    /// returned unchanged.
     /// </summary>
     public static class ArgumentExceptionMessageHelper
     {
