@@ -610,8 +610,9 @@ namespace NavisHelper.Agent.Services
                 result.TraversedItemCount++;
                 var children = SafeChildren(item);
                 var hasChildren = children.Count > 0;
-                var hasGeometry = SafeBool(() => item.HasGeometry);
-                if (hasGeometry && (includeContainers || !hasChildren))
+                // The geometry probe is a native read per traversed item; containers the
+                // eligibility filter discards would throw its result away, so test the filter first.
+                if ((includeContainers || !hasChildren) && SafeBool(() => item.HasGeometry))
                     result.Items.Add(item);
 
                 for (var index = children.Count - 1; index >= 0; index--)
@@ -635,6 +636,29 @@ namespace NavisHelper.Agent.Services
             Dictionary<ModelItem, ModelColorSchemeCachedPropertyFacts> propertyCache = null,
             Dictionary<ModelItem, string> sourceFileCache = null)
         {
+            // The item's own property pass also resolves its source file, so the ancestor walk
+            // below can take that result from the cache instead of enumerating the tree twice.
+            ModelColorSchemeCachedPropertyFacts ownProperties = null;
+            if (item != null && collectProperties)
+            {
+                try
+                {
+                    ownProperties = ReadCachedProperties(
+                        item,
+                        maxPropertiesPerItem,
+                        categoryFilters,
+                        propertyFilters,
+                        propertyCache,
+                        findSourceFile: true);
+                    if (sourceFileCache != null && ownProperties.SourceFile != null)
+                        sourceFileCache[item] = ownProperties.SourceFile;
+                }
+                catch
+                {
+                    ownProperties = null;
+                }
+            }
+
             var facts = new ModelColorSchemeItemFacts
             {
                 Name = SafeString(() => item.DisplayName),
@@ -654,14 +678,27 @@ namespace NavisHelper.Agent.Services
                     propertyItems = item.AncestorsAndSelf;
                 else
                     propertyItems = new[] { item };
+                var isSelf = true;
                 foreach (var propertyItem in propertyItems)
                 {
-                    var cached = ReadCachedProperties(
-                        propertyItem,
-                        maxPropertiesPerItem,
-                        categoryFilters,
-                        propertyFilters,
-                        propertyCache);
+                    ModelColorSchemeCachedPropertyFacts cached;
+                    if (isSelf && ownProperties != null)
+                    {
+                        // Reuse the pass made above instead of reading the item's tree again.
+                        cached = ownProperties;
+                    }
+                    else
+                    {
+                        cached = ReadCachedProperties(
+                            propertyItem,
+                            maxPropertiesPerItem,
+                            categoryFilters,
+                            propertyFilters,
+                            propertyCache,
+                            findSourceFile: false);
+                    }
+
+                    isSelf = false;
                     foreach (var propertyFact in cached.Properties)
                     {
                         if (propertyCount >= maxPropertiesPerItem)
@@ -738,7 +775,8 @@ namespace NavisHelper.Agent.Services
             int maxProperties,
             List<string> categoryFilters,
             List<string> propertyFilters,
-            Dictionary<ModelItem, ModelColorSchemeCachedPropertyFacts> cache)
+            Dictionary<ModelItem, ModelColorSchemeCachedPropertyFacts> cache,
+            bool findSourceFile)
         {
             ModelColorSchemeCachedPropertyFacts cached;
             if (item != null && cache != null && cache.TryGetValue(item, out cached))
@@ -756,13 +794,14 @@ namespace NavisHelper.Agent.Services
 
                         var categoryName = SafeString(() => category.DisplayName);
                         var categoryInternalName = SafeString(() => category.Name);
-                        if (!MatchesOptionalFilters(
+                        var categoryMatches = MatchesOptionalFilters(
                             categoryFilters,
                             categoryName,
-                            categoryInternalName))
-                        {
+                            categoryInternalName);
+                        // With findSourceFile the source search ignores the filters, so a filtered-out
+                        // category is still scanned for a source-file property until one is found.
+                        if (!categoryMatches && (!findSourceFile || cached.SourceFile != null))
                             continue;
-                        }
 
                         foreach (var property in category.Properties)
                         {
@@ -771,21 +810,37 @@ namespace NavisHelper.Agent.Services
 
                             var propertyName = SafeString(() => property.DisplayName);
                             var propertyInternalName = SafeString(() => property.Name);
-                            if (!MatchesOptionalFilters(
-                                propertyFilters,
-                                propertyName,
-                                propertyInternalName))
-                            {
+                            var matchesFactFilters = categoryMatches &&
+                                                     !cached.Truncated &&
+                                                     MatchesOptionalFilters(
+                                                         propertyFilters,
+                                                         propertyName,
+                                                         propertyInternalName);
+                            var matchesSourceFile = findSourceFile &&
+                                                    cached.SourceFile == null &&
+                                                    IsSourceFileProperty(propertyName, propertyInternalName);
+                            if (!matchesFactFilters && !matchesSourceFile)
                                 continue;
+
+                            // One value read serves both the fact and the source-file match.
+                            var value = GetPropertyValue(property);
+                            if (matchesSourceFile && !string.IsNullOrWhiteSpace(value))
+                            {
+                                cached.SourceFile = value;
+                                if (cached.Truncated)
+                                    break;
                             }
 
-                            var value = GetPropertyValue(property);
+                            if (!matchesFactFilters)
+                                continue;
                             if (string.IsNullOrWhiteSpace(value))
                                 continue;
                             if (cached.Properties.Count >= maxProperties)
                             {
                                 cached.Truncated = true;
-                                break;
+                                if (!findSourceFile || cached.SourceFile != null)
+                                    break;
+                                continue;
                             }
 
                             cached.Properties.Add(new ModelColorSchemePropertyFact
@@ -795,10 +850,15 @@ namespace NavisHelper.Agent.Services
                                 Value = value,
                             });
                         }
-                        if (cached.Truncated)
+                        // Past the facts cap the scan continues with names only until the
+                        // source file is found; both done means the enumeration can stop.
+                        if (cached.Truncated && (!findSourceFile || cached.SourceFile != null))
                             break;
                     }
                 }
+
+                if (findSourceFile && cached.SourceFile == null)
+                    cached.SourceFile = string.Empty;
             }
             catch
             {
@@ -1293,6 +1353,8 @@ namespace NavisHelper.Agent.Services
         private sealed class ModelColorSchemeCachedPropertyFacts
         {
             public bool Truncated;
+            // Null until a findSourceFile pass has searched this item; string.Empty means searched and not found.
+            public string SourceFile;
             public List<ModelColorSchemePropertyFact> Properties =
                 new List<ModelColorSchemePropertyFact>();
         }
