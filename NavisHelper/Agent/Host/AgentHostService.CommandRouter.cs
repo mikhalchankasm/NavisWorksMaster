@@ -420,6 +420,24 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<ViewpointSetCameraRequest>,
             (document, request) => _viewpointCameraService.SetCamera(document, request));
 
+        router.Register<WorldMarkerOverlaySetRequest>(
+            HostCommandNames.WorldMarkersSet,
+            true,
+            DeserializePayload<WorldMarkerOverlaySetRequest>,
+            (document, request) => _worldMarkerOverlayService.Set(document, request));
+
+        router.Register<WorldMarkerOverlayManageRequest>(
+            HostCommandNames.WorldMarkersManage,
+            true,
+            DeserializePayload<WorldMarkerOverlayManageRequest>,
+            (document, request) => _worldMarkerOverlayService.Manage(document, request));
+
+        router.Register<WorldMarkerOverlayListRequest>(
+            HostCommandNames.WorldMarkersList,
+            false,
+            DeserializePayload<WorldMarkerOverlayListRequest>,
+            (document, request) => _worldMarkerOverlayService.List(document, request));
+
         router.Register<SaveDocumentRequest>(
             HostCommandNames.SaveDocument,
             true,

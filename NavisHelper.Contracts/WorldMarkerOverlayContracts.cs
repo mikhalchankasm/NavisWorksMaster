@@ -96,6 +96,20 @@ namespace NavisHelper.Agent.Contracts
         public string Mode { get; set; }
 
         public List<WorldMarkerOverlaySpec> Markers { get; set; } = new List<WorldMarkerOverlaySpec>();
+
+        /// <summary>Dry run by default; the store changes only when this is true.</summary>
+        public bool? Apply { get; set; }
+    }
+
+    public sealed class WorldMarkerOverlaySetResponse
+    {
+        /// <summary>True when the request asked to change the store; false for a dry run.</summary>
+        public bool Apply { get; set; }
+
+        /// <summary>True when a new snapshot was installed; false when refused or dry-run.</summary>
+        public bool Applied { get; set; }
+
+        public WorldMarkerOverlaySetResult Result { get; set; }
     }
 
     public sealed class WorldMarkerOverlaySetResult
@@ -122,6 +136,80 @@ namespace NavisHelper.Agent.Contracts
 
         /// <summary>Selects every marker that carries this group key.</summary>
         public string Group { get; set; }
+
+        /// <summary>Dry run by default; the store changes only when this is true.</summary>
+        public bool? Apply { get; set; }
+    }
+
+    public sealed class WorldMarkerOverlayManageResponse
+    {
+        /// <summary>True when the request asked to change the store; false for a dry run.</summary>
+        public bool Apply { get; set; }
+
+        /// <summary>True when a new snapshot was installed; false when refused or dry-run.</summary>
+        public bool Applied { get; set; }
+
+        public WorldMarkerOverlayManageResult Result { get; set; }
+    }
+
+    /// <summary>Read-only listing of the stored overlay markers; never changes the store.</summary>
+    public sealed class WorldMarkerOverlayListRequest
+    {
+        /// <summary>Optional marker-name filter, matched like planner names; blank entries are ignored.</summary>
+        public List<string> Names { get; set; } = new List<string>();
+
+        /// <summary>Optional group filter; null or blank means no group restriction.</summary>
+        public string Group { get; set; }
+    }
+
+    /// <summary>One stored marker as listed by world_markers_list.</summary>
+    public sealed class WorldMarkerOverlayListItem
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Z { get; set; }
+        public string Style { get; set; }
+        public int SizePx { get; set; }
+        public double? WorldSize { get; set; }
+        public WorldMarkerColor Color { get; set; }
+        public int? Alpha { get; set; }
+        public string Label { get; set; }
+        public bool PoleEnabled { get; set; }
+        public double PoleBaseZ { get; set; }
+        public double PoleTopZ { get; set; }
+        public string Group { get; set; }
+        public bool Visible { get; set; }
+    }
+
+    public sealed class WorldMarkerOverlayListResponse
+    {
+        /// <summary>The markers that passed the filters, in snapshot order.</summary>
+        public List<WorldMarkerOverlayListItem> Markers { get; set; } = new List<WorldMarkerOverlayListItem>();
+
+        public int MarkerCount { get; set; }
+
+        /// <summary>The document the store is bound to; empty when nothing is stored.</summary>
+        public string DocumentFileName { get; set; }
+
+        /// <summary>True when the stored snapshot belongs to the active document.</summary>
+        public bool BoundToActiveDocument { get; set; }
+
+        public long Version { get; set; }
+        public int StoredMarkerCount { get; set; }
+        public int VisibleMarkerCount { get; set; }
+        public int OverlayRenderCount { get; set; }
+        public int RenderBoundsCount { get; set; }
+
+        /// <summary>The marker count of the last draw pass; -1 before the first one.</summary>
+        public int LastDrawMarkerCount { get; set; }
+
+        public DateTime? LastDrawUtc { get; set; }
+        public string LastError { get; set; }
+
+        /// <summary>The overlay store lives in memory only and never survives a restart.</summary>
+        public bool Persistent { get; set; }
     }
 
     public sealed class WorldMarkerOverlayManageResult

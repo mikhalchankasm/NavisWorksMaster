@@ -101,6 +101,9 @@ namespace NavisHelper.Agent.Host
             _modelColorSchemeService.DiscardForDocumentChange();
             _matchSessionStore.Clear();
             _searchService.InvalidateRootSearchIndex();
+            // Overlay world markers belong to the document they were set on; the store
+            // drops them when the active document is another one (or none).
+            WorldMarkerOverlayStore.OnDocumentChanged(document);
             AttachTrackedDocument(document);
             RefreshDiscoveryFile(document);
         }

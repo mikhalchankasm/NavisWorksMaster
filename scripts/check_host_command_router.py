@@ -15,7 +15,7 @@ DISPATCH = ROOT / "NavisHelper" / "Agent" / "Host" / "AgentHostService.Dispatch.
 REQUEST_POLICY = ROOT / "NavisHelper.Contracts" / "HostRequestPolicy.cs"
 TRANSPORT = ROOT / "NavisHelper" / "Agent" / "Host" / "AgentHostService.Transport.cs"
 OPERATION_HISTORY = ROOT / "NavisHelper" / "Agent" / "Host" / "AgentHostService.OperationHistory.cs"
-EXPECTED_COMMAND_COUNT = 88
+EXPECTED_COMMAND_COUNT = 91
 EXPECTED_SPECIAL = {"FindItems"}
 EXPECTED_BYPASS = {
     "ClashReportStatus",
