@@ -129,7 +129,7 @@ namespace NavisHelper.Agent.Services
             if (!TryResolveSavedViewpointFolder(document.SavedViewpoints, normalizedFolderPath, false, out targetFolder, out folderExists, out createdFolderCount))
                 targetFolder = document.SavedViewpoints.RootItem;
 
-            var nameConflict = SavedItemExists(targetFolder, sanitizedName);
+            var nameConflict = folderExists && SavedItemExists(targetFolder, sanitizedName);
             if (apply && nameConflict)
                 throw new AgentCommandException(ErrorCodes.ViewpointNameConflict, "Viewpoint with the same name already exists in the target folder.");
 
