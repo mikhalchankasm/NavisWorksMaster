@@ -34,16 +34,21 @@ selection is cleared again before the measured rows, so the
 measured ``select_items`` row then establishes the table's "one root item
 selected" invariant for the selection rows that follow.
 
-The run refuses to start while a ``Roamer.exe`` process is already running, and
-closes Navisworks at the end with ``close_navisworks`` ``mode=discard`` (the
-document is never saved). Standard library only, plus ``McpClient`` from
-``scripts/navavishelper_mcp_smoke.py`` (this checkout's built MCP server over stdio).
+The run fails closed: it refuses to start unless it has ruled out an
+already-running ``Roamer.exe`` — when the ``tasklist`` check cannot run at all,
+the run stops before starting anything and says why. Once ``start_navisworks``
+has returned a ready host, that host is closed with ``close_navisworks``
+``mode=discard`` from a ``finally`` block (the document is never saved), so a
+failure in placeholder resolution, ``--out`` or serialization still closes what
+this run started. Standard library only, plus ``McpClient`` from
+``scripts/navishelper_mcp_smoke.py`` (this checkout's built MCP server over stdio).
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -133,9 +138,15 @@ def roamer_running():
     """True/False on Windows, None when the check cannot run."""
     if sys.platform != "win32":
         return None
+    # Resolve tasklist explicitly: CreateProcess would still find a System32
+    # tasklist through its own search order even with an empty PATH, and that
+    # must not turn an unrunnable check into a silent pass.
+    tasklist = shutil.which("tasklist")
+    if tasklist is None:
+        return None
     try:
         result = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq Roamer.exe", "/FO", "CSV", "/NH"],
+            [tasklist, "/FI", "IMAGENAME eq Roamer.exe", "/FO", "CSV", "/NH"],
             capture_output=True, text=True, errors="replace",
         )
     except OSError:
@@ -149,7 +160,9 @@ def timed_call(client, tool, arguments, timeout=CALL_TIMEOUT_SECONDS):
     """One tools/call with the timing envelope and the client wall clock recorded.
 
     Uses the raw request rather than McpClient.call_tool so a failing call still
-    yields its navishelper_timing (call_tool raises before the caller can read it).
+    yields its navishelper_timing (call_tool raises before the caller can read
+    it). A top-level JSON-RPC ``error`` object is a failure too, recorded as
+    ``status: "error"`` with its message, not as ``unknown``.
     """
     started_at = utc_now_iso()
     started = time.perf_counter()
@@ -164,6 +177,17 @@ def timed_call(client, tool, arguments, timeout=CALL_TIMEOUT_SECONDS):
             "startedAtUtc": started_at,
         }
     wall_ms = round((time.perf_counter() - started) * 1000, 1)
+
+    rpc_error = response.get("error")
+    if rpc_error is not None:
+        message = pick(rpc_error, "message")
+        return {
+            "status": "error", "elapsedMs": None, "wallMs": wall_ms,
+            "toolOk": None, "errorCode": pick(rpc_error, "code"),
+            "message": (str(message) if message is not None
+                        else json.dumps(rpc_error, ensure_ascii=False))[:500],
+            "startedAtUtc": started_at,
+        }
 
     result = response.get("result") or {}
     timing = None
@@ -339,8 +363,15 @@ def print_markdown_table(rows):
 def run_measurements(args):
     running = roamer_running()
     if running is None:
-        print("note: could not check for a running Roamer.exe; continuing", file=sys.stderr)
-    elif running:
+        print(
+            "refusing to run: could not check for an already-running Roamer.exe "
+            "(tasklist is missing, failed, or this is not Windows). This run "
+            "would close Navisworks with close_navisworks mode=discard, so it "
+            "must first rule out a host it did not start; failing closed.",
+            file=sys.stderr,
+        )
+        return 2
+    if running:
         print(
             "refusing to start: a Roamer.exe process is already running. "
             "Close it (or let it be measured, not launched) and re-run.",
@@ -351,6 +382,7 @@ def run_measurements(args):
     repo_root = Path(__file__).resolve().parents[1]
     notes = []
     client = McpClient(repo_root)
+    host_started = False
     try:
         client.initialize()
 
@@ -364,6 +396,7 @@ def run_measurements(args):
             raise RuntimeError(
                 f"start_navisworks did not reach host_ready (outcome={outcome!r}, "
                 f"failureReason={pick(started, 'failureReason')!r})")
+        host_started = True
 
         host_status = client.call_tool("host_status", {})
         plugin = {
@@ -407,11 +440,6 @@ def run_measurements(args):
                     calls.append(record)
                 rows.append((entry, calls))
 
-            close_record = timed_call(client, "close_navisworks",
-                                      {"mode": "discard", "apply": True, "confirmClose": True})
-            close_record.update({"kind": "close", "tool": "close_navisworks"})
-            out.write(json.dumps(close_record, ensure_ascii=False) + "\n")
-
         print(f"wrote {2 * len(PLAN) + 2} lines to {args.out}")
         print(f"model: {args.model}")
         print(f"start outcome: {outcome} "
@@ -423,6 +451,20 @@ def run_measurements(args):
         print_markdown_table(rows)
         return 0
     finally:
+        # Once start_navisworks reported host_ready this run owns a Navisworks:
+        # whatever failed above (placeholders, --out, serialization), close it
+        # with mode=discard — it must not outlive the run, nor ever be saved.
+        if host_started:
+            close_record = timed_call(client, "close_navisworks",
+                                      {"mode": "discard", "apply": True, "confirmClose": True})
+            close_record.update({"kind": "close", "tool": "close_navisworks"})
+            try:
+                with open(args.out, "a", encoding="utf-8", newline="\n") as out:
+                    out.write(json.dumps(close_record, ensure_ascii=False) + "\n")
+            except OSError as exc:
+                print(f"could not append the close record to {args.out} ({exc}): "
+                      f"{json.dumps(close_record, ensure_ascii=False)}",
+                      file=sys.stderr)
         client.close()
 
 
