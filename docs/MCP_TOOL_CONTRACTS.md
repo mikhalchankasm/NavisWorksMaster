@@ -123,6 +123,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `start_navisworks` | Host | No | No | No |
 | `start_subtree_names_dump` | Files, LocalState | Yes | Yes | No |
 | `unhide_selected` | View | Yes | Yes | Yes |
+| `viewpoint_set_camera` | View, Document | Yes | Yes | Yes |
 | `zoom_to_selection` | View | Yes | Yes | No |
 
 <!-- END GENERATED TOOL CAPABILITIES -->
@@ -1670,6 +1671,37 @@ Inputs: `scenarioId`, `expectedSha256`, `apply`, and `confirmDelete`. It preview
 Inputs: `scenarioId`, optional template `parameterValues`, `executionIntent=preview|exact_replay`, and optional context hints. It returns ordered existing-tool preview arguments, apply overrides, per-step plan hashes, planned write categories, and an `agentInstruction`; it never calls Navisworks itself.
 
 `exact_replay` is valid only after a direct current user request. It rejects parameter overrides and requires a strong strict-context match. A normal preview of an exact scenario returns no apply override and explicitly forbids execution. The initial operation allowlist is `selection_export_properties`, `selection_sets_build_viewpoints`, `clash_generate_report`, and `clash_save_viewpoints`.
+## `viewpoint_set_camera`
+
+Sets the active Navisworks camera from exact document-global coordinates without
+searching or traversing model items. It defaults to dry-run and changes neither
+selection, visibility, nor Section Box state.
+
+| Input | Type | Default | Meaning |
+|---|---|---:|---|
+| `position` | `Point3Info` | required | Exact camera position in document units. |
+| `target` / `direction` | `Point3Info` | exactly one required | Look-at point or direction vector. A target must differ from position; a direction must be non-zero. |
+| `up` | `Point3Info` | required | Finite non-zero vector that is not parallel to the view direction. |
+| `projection` | string | required | `perspective`, `orthographic`, or alias `ortho`. |
+| `heightField` | double? | `null` | Positive value. Perspective uses a vertical angle in radians below pi; orthographic uses document units. |
+| `zoomTo` | object? | `null` | Orthographic only. Exactly one of `point` plus positive `pointHalfSize`, or a strict `boundingBox.min/max`, all in document units. The point or box center must equal `target`, preventing exact orientation from undoing Navisworks framing. It uses `Viewpoint.ZoomBox` without model traversal. |
+| `saveName` | string | `""` | Optional Saved Viewpoint name. Existing-name conflict follows `create_viewpoint` semantics and blocks apply before camera mutation. |
+| `saveFolderPath` | string | `""` | Optional Saved Viewpoints folder; requires `saveName`. Missing folders are created only on apply. |
+| `apply` | bool | `false` | Apply the validated camera and optional save. |
+
+The host builds and validates the full plan before mutation. For apply it works
+on a copy of the current viewpoint, then copies the finished camera into the
+document. If camera application or saving fails, it restores the original
+active viewpoint. The response reports the canonical target/direction,
+projection, effective zoom box, save conflict preview, and apply/save outcome.
+An explicit `position` remains authoritative after orthographic `ZoomBox`;
+an explicit `heightField` is applied last and therefore overrides zoom framing.
+Perspective `zoomTo` is rejected because Navisworks frames a perspective box by
+moving the camera, which conflicts with the exact-position contract; use
+`heightField` for perspective framing.
+If both camera application and rollback fail, the host returns
+`camera_state_restore_failed` with both error messages.
+
 ## `get_current_section_box`
 
 Read-only capture of the enabled Section/Clip Box in the active view. The host strictly parses the `View.GetClippingPlanes()` `ClipPlaneSet` payload and accepts only enabled `OrientedBox3D` version 1 data. Disabled boxes, plane mode, malformed JSON, non-finite values, and unsupported versions return typed MCP errors. The tool does not change the viewpoint, clipping state, selection, or visibility and never exposes raw clipping JSON as its executable contract.

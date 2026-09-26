@@ -76,6 +76,7 @@ isolate_by_box
 show_all
 create_selection_set
 create_viewpoint
+viewpoint_set_camera
 save_document
 save_document_as
 close_navisworks

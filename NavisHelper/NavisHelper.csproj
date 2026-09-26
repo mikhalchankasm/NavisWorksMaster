@@ -599,6 +599,7 @@
     <Compile Include="Agent\Services\DocumentCommandService.SelectionQueries.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.SelectionSetQueries.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.ViewportCommands.cs" />
+    <Compile Include="Agent\Services\ViewpointCameraCommandService.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.Visibility.cs" />
     <Compile Include="Agent\Services\SectionBoxClippingParser.cs" />
     <Compile Include="Agent\Services\SectionBoxCaptureService.cs" />

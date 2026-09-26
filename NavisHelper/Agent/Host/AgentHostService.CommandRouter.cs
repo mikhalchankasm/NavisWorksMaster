@@ -414,6 +414,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<CreateViewpointRequest>,
             (document, request) => _commandService.CreateViewpoint(document, request));
 
+        router.Register<ViewpointSetCameraRequest>(
+            HostCommandNames.ViewpointSetCamera,
+            true,
+            DeserializePayload<ViewpointSetCameraRequest>,
+            (document, request) => _viewpointCameraService.SetCamera(document, request));
+
         router.Register<SaveDocumentRequest>(
             HostCommandNames.SaveDocument,
             true,
