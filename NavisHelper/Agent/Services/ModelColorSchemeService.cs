@@ -99,165 +99,192 @@ namespace NavisHelper.Agent.Services
 
             if (operation == "analyze")
             {
-                Analyze(
-                    collected.Items,
-                    request,
-                    maxPropertiesPerItem,
-                    candidateLimit,
-                    workBudgetSeconds,
-                    verbosity,
-                    operationTimer,
-                    phases,
-                    response);
-                response.Message = response.AnalysisTruncated
-                    ? "Model color analysis stopped at the host-side work budget. Narrow the scope or use analysis filters."
-                    : response.ItemsTruncated
-                    ? "Model color analysis completed on a truncated item scope. Increase maxItems for full coverage."
-                    : "Model color analysis completed.";
-                return response;
+                var analysisSucceeded = false;
+                try
+                {
+                    Analyze(
+                        collected.Items,
+                        request,
+                        maxPropertiesPerItem,
+                        candidateLimit,
+                        workBudgetSeconds,
+                        verbosity,
+                        operationTimer,
+                        phases,
+                        response);
+                    response.Message = response.AnalysisTruncated
+                        ? "Model color analysis stopped at the host-side work budget. Narrow the scope or use analysis filters."
+                        : response.ItemsTruncated
+                        ? "Model color analysis completed on a truncated item scope. Increase maxItems for full coverage."
+                        : "Model color analysis completed.";
+                    analysisSucceeded = true;
+                    return response;
+                }
+                finally
+                {
+                    LogPhaseTimings(
+                        "analyze",
+                        response.AnalyzedItemCount,
+                        analysisSucceeded ? "ok" : "error",
+                        phases,
+                        operationTimer);
+                }
             }
 
-            var preparedRules = PrepareRules(request.Rules);
-            var ruleBuckets = preparedRules
-                .Select(rule => new ModelColorSchemeRuleBucket { Rule = rule })
-                .ToList();
-            var propertyRules = preparedRules
-                .Where(rule => HasPropertyMatchers(rule.Rule))
-                .ToList();
-            var collectProperties = propertyRules.Count > 0;
-            var categoryFilters = propertyRules.Any(rule => rule.Rule.CategoryContains.Count == 0)
-                ? new List<string>()
-                : propertyRules
-                    .SelectMany(rule => rule.Rule.CategoryContains)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            var propertyFilters = propertyRules.Any(rule => rule.Rule.PropertyContains.Count == 0)
-                ? new List<string>()
-                : propertyRules
-                    .SelectMany(rule => rule.Rule.PropertyContains)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            var propertyFactsTruncated = false;
-            var propertyCache =
-                new Dictionary<ModelItem, ModelColorSchemeCachedPropertyFacts>();
-            var sourceFileCache = new Dictionary<ModelItem, string>();
-
-            for (var itemIndex = 0; itemIndex < collected.Items.Count; itemIndex++)
+            var applySucceeded = false;
+            try
             {
-                if (operationTimer.Elapsed.TotalSeconds >= workBudgetSeconds)
-                {
-                    response.ClassificationTruncated = true;
-                    response.Warnings.Add(
-                        "Classification stopped at the host-side work budget before the MCP timeout.");
-                    break;
-                }
+                var preparedRules = PrepareRules(request.Rules);
+                var ruleBuckets = preparedRules
+                    .Select(rule => new ModelColorSchemeRuleBucket { Rule = rule })
+                    .ToList();
+                var propertyRules = preparedRules
+                    .Where(rule => HasPropertyMatchers(rule.Rule))
+                    .ToList();
+                var collectProperties = propertyRules.Count > 0;
+                var categoryFilters = propertyRules.Any(rule => rule.Rule.CategoryContains.Count == 0)
+                    ? new List<string>()
+                    : propertyRules
+                        .SelectMany(rule => rule.Rule.CategoryContains)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                var propertyFilters = propertyRules.Any(rule => rule.Rule.PropertyContains.Count == 0)
+                    ? new List<string>()
+                    : propertyRules
+                        .SelectMany(rule => rule.Rule.PropertyContains)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                var propertyFactsTruncated = false;
+                var propertyCache =
+                    new Dictionary<ModelItem, ModelColorSchemeCachedPropertyFacts>();
+                var sourceFileCache = new Dictionary<ModelItem, string>();
 
-                var item = collected.Items[itemIndex];
-                var itemFacts = BuildItemFacts(
-                    item,
-                    maxPropertiesPerItem,
-                    categoryFilters,
-                    propertyFilters,
-                    includeAncestors: true,
-                    collectProperties: collectProperties,
-                    propertyCache: propertyCache,
-                    sourceFileCache: sourceFileCache,
-                    phases: phases);
-                propertyFactsTruncated |= itemFacts.PropertiesTruncated;
-                response.ClassifiedItemCount++;
-                var matchStarted = Stopwatch.GetTimestamp();
-                var matched = false;
-                for (var ruleIndex = 0; ruleIndex < preparedRules.Count; ruleIndex++)
+                for (var itemIndex = 0; itemIndex < collected.Items.Count; itemIndex++)
                 {
-                    if (!ModelColorSchemeRuleMatcher.MatchesPrepared(preparedRules[ruleIndex].Rule, itemFacts))
-                        continue;
-
-                    ruleBuckets[ruleIndex].Items.Add(item);
-                    if (string.IsNullOrWhiteSpace(ruleBuckets[ruleIndex].SampleItemName))
+                    if (operationTimer.Elapsed.TotalSeconds >= workBudgetSeconds)
                     {
-                        ruleBuckets[ruleIndex].SampleItemName = itemFacts.Name;
-                        ruleBuckets[ruleIndex].SampleItemPath = itemFacts.Path;
-                        ruleBuckets[ruleIndex].SampleSourceFile = itemFacts.SourceFile;
+                        response.ClassificationTruncated = true;
+                        response.Warnings.Add(
+                            "Classification stopped at the host-side work budget before the MCP timeout.");
+                        break;
                     }
-                    response.MatchedItemCount++;
-                    matched = true;
-                    break;
+
+                    var item = collected.Items[itemIndex];
+                    var itemFacts = BuildItemFacts(
+                        item,
+                        maxPropertiesPerItem,
+                        categoryFilters,
+                        propertyFilters,
+                        includeAncestors: true,
+                        collectProperties: collectProperties,
+                        propertyCache: propertyCache,
+                        sourceFileCache: sourceFileCache,
+                        phases: phases);
+                    propertyFactsTruncated |= itemFacts.PropertiesTruncated;
+                    response.ClassifiedItemCount++;
+                    var matchStarted = Stopwatch.GetTimestamp();
+                    var matched = false;
+                    for (var ruleIndex = 0; ruleIndex < preparedRules.Count; ruleIndex++)
+                    {
+                        if (!ModelColorSchemeRuleMatcher.MatchesPrepared(preparedRules[ruleIndex].Rule, itemFacts))
+                            continue;
+
+                        ruleBuckets[ruleIndex].Items.Add(item);
+                        if (string.IsNullOrWhiteSpace(ruleBuckets[ruleIndex].SampleItemName))
+                        {
+                            ruleBuckets[ruleIndex].SampleItemName = itemFacts.Name;
+                            ruleBuckets[ruleIndex].SampleItemPath = itemFacts.Path;
+                            ruleBuckets[ruleIndex].SampleSourceFile = itemFacts.SourceFile;
+                        }
+                        response.MatchedItemCount++;
+                        matched = true;
+                        break;
+                    }
+
+                    phases.Add("match", Stopwatch.GetTimestamp() - matchStarted);
+                    if (!matched)
+                        response.UnclassifiedItemCount++;
+                }
+                if (propertyFactsTruncated)
+                {
+                    response.Warnings.Add(
+                        "Property facts were truncated for one or more items. Narrow property matchers or increase maxPropertiesPerItem.");
+                }
+                if (response.ClassificationTruncated)
+                {
+                    response.UnprocessedItemCount =
+                        Math.Max(0, response.EligibleItemCount - response.ClassifiedItemCount);
                 }
 
-                phases.Add("match", Stopwatch.GetTimestamp() - matchStarted);
-                if (!matched)
-                    response.UnclassifiedItemCount++;
-            }
-            if (propertyFactsTruncated)
-            {
-                response.Warnings.Add(
-                    "Property facts were truncated for one or more items. Narrow property matchers or increase maxPropertiesPerItem.");
-            }
-            if (response.ClassificationTruncated)
-            {
-                response.UnprocessedItemCount =
-                    Math.Max(0, response.EligibleItemCount - response.ClassifiedItemCount);
-            }
+                var respondStarted = Stopwatch.GetTimestamp();
+                response.RuleResults = ruleBuckets
+                    .Select((bucket, index) => new ModelColorSchemeRuleResult
+                    {
+                        RuleIndex = index + 1,
+                        Name = bucket.Rule.Name,
+                        ColorHex = bucket.Rule.ColorHex,
+                        Transparency = bucket.Rule.Rule.Transparency,
+                        MatchedItemCount = bucket.Items.Count,
+                        SampleItemName = bucket.SampleItemName ?? string.Empty,
+                        SampleItemPath = bucket.SampleItemPath ?? string.Empty,
+                        SampleSourceFile = bucket.SampleSourceFile ?? string.Empty,
+                    })
+                    .ToList();
+                phases.Add("respond", Stopwatch.GetTimestamp() - respondStarted);
 
-            var respondStarted = Stopwatch.GetTimestamp();
-            response.RuleResults = ruleBuckets
-                .Select((bucket, index) => new ModelColorSchemeRuleResult
+                if (!apply)
                 {
-                    RuleIndex = index + 1,
-                    Name = bucket.Rule.Name,
-                    ColorHex = bucket.Rule.ColorHex,
-                    Transparency = bucket.Rule.Rule.Transparency,
-                    MatchedItemCount = bucket.Items.Count,
-                    SampleItemName = bucket.SampleItemName ?? string.Empty,
-                    SampleItemPath = bucket.SampleItemPath ?? string.Empty,
-                    SampleSourceFile = bucket.SampleSourceFile ?? string.Empty,
-                })
-                .ToList();
-            phases.Add("respond", Stopwatch.GetTimestamp() - respondStarted);
+                    response.Message = "Dry-run only. Review rule coverage, then pass apply=true to apply the model color scheme.";
+                    applySucceeded = true;
+                    return response;
+                }
 
-            if (!apply)
-            {
-                response.Message = "Dry-run only. Review rule coverage, then pass apply=true to apply the model color scheme.";
-                LogPhaseTimings("apply", response.ClassifiedItemCount, phases, operationTimer);
+                if (response.ItemsTruncated)
+                {
+                    throw new AgentCommandException(
+                        ErrorCodes.SchemaViolation,
+                        "The model color scope was truncated. Increase maxItems before apply=true; partial scheme application is not allowed.",
+                        logAsWarning: true);
+                }
+                if (response.ClassificationTruncated)
+                {
+                    throw new AgentCommandException(
+                        ErrorCodes.SchemaViolation,
+                        "Classification stopped at the host-side work budget. Narrow the scope before apply=true.");
+                }
+                if (propertyFactsTruncated)
+                {
+                    throw new AgentCommandException(
+                        ErrorCodes.SchemaViolation,
+                        "Property facts were truncated. Narrow property matchers or increase maxPropertiesPerItem before apply=true.");
+                }
+                if (response.MatchedItemCount > LargeApplyThreshold && request.ConfirmLargeApply != true)
+                {
+                    throw new AgentCommandException(
+                        ErrorCodes.SchemaViolation,
+                        "The scheme matches more than " + LargeApplyThreshold +
+                        " items. Review the dry-run and pass confirmLargeApply=true to apply.");
+                }
+
+                var applyStarted = Stopwatch.GetTimestamp();
+                Apply(
+                    document,
+                    ruleBuckets,
+                    request.ClearSelectionAfterApply.GetValueOrDefault(true),
+                    response);
+                phases.Add("apply", Stopwatch.GetTimestamp() - applyStarted);
+                applySucceeded = true;
                 return response;
             }
-
-            if (response.ItemsTruncated)
+            finally
             {
-                throw new AgentCommandException(
-                    ErrorCodes.SchemaViolation,
-                    "The model color scope was truncated. Increase maxItems before apply=true; partial scheme application is not allowed.",
-                    logAsWarning: true);
+                LogPhaseTimings(
+                    "apply",
+                    response.ClassifiedItemCount,
+                    applySucceeded ? "ok" : "error",
+                    phases,
+                    operationTimer);
             }
-            if (response.ClassificationTruncated)
-            {
-                throw new AgentCommandException(
-                    ErrorCodes.SchemaViolation,
-                    "Classification stopped at the host-side work budget. Narrow the scope before apply=true.");
-            }
-            if (propertyFactsTruncated)
-            {
-                throw new AgentCommandException(
-                    ErrorCodes.SchemaViolation,
-                    "Property facts were truncated. Narrow property matchers or increase maxPropertiesPerItem before apply=true.");
-            }
-            if (response.MatchedItemCount > LargeApplyThreshold && request.ConfirmLargeApply != true)
-            {
-                throw new AgentCommandException(
-                    ErrorCodes.SchemaViolation,
-                    "The scheme matches more than " + LargeApplyThreshold +
-                    " items. Review the dry-run and pass confirmLargeApply=true to apply.");
-            }
-
-            var applyStarted = Stopwatch.GetTimestamp();
-            Apply(
-                document,
-                ruleBuckets,
-                request.ClearSelectionAfterApply.GetValueOrDefault(true),
-                response);
-            phases.Add("apply", Stopwatch.GetTimestamp() - applyStarted);
-            LogPhaseTimings("apply", response.ClassifiedItemCount, phases, operationTimer);
-            return response;
         }
 
         public void DiscardForDocumentChange()
@@ -320,12 +347,14 @@ namespace NavisHelper.Agent.Services
         private static void LogPhaseTimings(
             string operation,
             int itemCount,
+            string outcome,
             PhaseTimings phases,
             Stopwatch operationTimer)
         {
             Logger.Info(
                 "model_color_scheme phases op=" + operation +
                 " items=" + itemCount +
+                " outcome=" + outcome +
                 " " + phases.Format() +
                 " elapsed_ms=" + operationTimer.ElapsedMilliseconds,
                 "AgentHost");
@@ -418,7 +447,6 @@ namespace NavisHelper.Agent.Services
                 .ToList();
             response.ReturnedCandidateCount = response.Candidates.Count;
             phases.Add("select", Stopwatch.GetTimestamp() - selectStarted);
-            LogPhaseTimings("analyze", response.AnalyzedItemCount, phases, operationTimer);
         }
 
         private void Apply(
