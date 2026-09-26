@@ -1093,6 +1093,23 @@ nothing measurable, so both were closed:
 So a `ModelItem` set costs what it keeps alive, not what it hashes. The rule that follows is
 in `docs/ARCHITECTURE.md`.
 
+**`hide_unselected` no longer stores the selection's subtree to count it.** With the model root
+selected, its keep set held all 41 016 items only to report `wouldKeepVisibleItemCount`; the
+count is now taken by walking the kept subtrees without storing them. Same setup as the
+`hide_unselected` rows above, six calls per arm, `main` `88850dd` against the change:
+
+| round | build | ms, calls 1 to 6 |
+| --- | --- | --- |
+| 1 | `main` | 879, 861, 839, 837, 838, 849 |
+| 1 | counted, not stored | 552, 834, 834, 834, 839, 828 |
+| 2 | counted, not stored | 640, 847, 843, 844, 835, 840 |
+| 2 | `main` | 859, 829, 829, 831, 838, 837 |
+
+Every call returned the same counts (41 016 kept, 0 hidden). The first call in a fresh process
+went from 0.86-0.88 s to 0.55-0.64 s; later calls are the same in both builds, which the
+collection after slow commands already keeps flat. A smaller gain than #79 and #80, whose sets
+were not only the sole reference but also grew the cost call after call.
+
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
 
