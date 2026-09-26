@@ -10,7 +10,10 @@ namespace NavisHelper
     /// All drawing is 2D, in <see cref="OverlayRender"/>: the world segments, head anchors and
     /// label anchors come from WorldMarkerOverlayGeometry figures that the store prebuilds once
     /// per store version; each frame only projects them and emits pixel lines, pixel head
-    /// glyphs and Text2D labels. <see cref="RenderPlugin.Render"/> is never overridden, because
+    /// glyphs and Text2D labels. Every native handle built while drawing a frame — each
+    /// Point2D passed to a pixel primitive — is disposed before the frame ends; a
+    /// ProjectionResult is plain managed data with no native handle to release.
+    /// <see cref="RenderPlugin.Render"/> is never overridden, because
     /// its 3D primitives never appear in the view. An exception inside a render callback is
     /// recorded in the store, never thrown.
     /// </summary>
@@ -89,7 +92,10 @@ namespace NavisHelper
             if (head == null)
                 return;
 
-            DrawHeadGlyph(graphics, marker, new Point2D(head.X, head.Y));
+            using (var center = new Point2D(head.X, head.Y))
+            {
+                DrawHeadGlyph(graphics, marker, center);
+            }
 
             if (string.IsNullOrEmpty(marker.Label))
                 return;
@@ -102,14 +108,12 @@ namespace NavisHelper
                 return;
 
             graphics.Color(marker.Color, marker.Alpha);
-            graphics.Text2D(
-                font,
-                marker.Label,
-                new Point2D(
-                    labelAnchor.X + marker.SizePx + LabelOffsetPx,
-                    labelAnchor.Y - marker.SizePx - LabelOffsetPx),
-                0,
-                0);
+            using (var labelOrigin = new Point2D(
+                labelAnchor.X + marker.SizePx + LabelOffsetPx,
+                labelAnchor.Y - marker.SizePx - LabelOffsetPx))
+            {
+                graphics.Text2D(font, marker.Label, labelOrigin, 0, 0);
+            }
         }
 
         private static void DrawSegments(View view, Graphics graphics, WorldMarkerOverlayMarkerGlyph marker)
@@ -122,11 +126,18 @@ namespace NavisHelper
             foreach (var segment in marker.Segments)
             {
                 var start = view.ProjectPoint(segment.Start, true, true);
-                var end = view.ProjectPoint(segment.End, true, true);
-                if (start == null || end == null)
+                if (start == null)
                     continue;
 
-                graphics.Line(new Point2D(start.X, start.Y), new Point2D(end.X, end.Y));
+                var end = view.ProjectPoint(segment.End, true, true);
+                if (end == null)
+                    continue;
+
+                using (var from = new Point2D(start.X, start.Y))
+                using (var to = new Point2D(end.X, end.Y))
+                {
+                    graphics.Line(from, to);
+                }
             }
         }
 
@@ -139,16 +150,28 @@ namespace NavisHelper
                 graphics.LineWidth(GlyphLineWidth);
                 graphics.Circle(center, radius, false);
                 graphics.Circle(center, radius * 0.5, false);
-                graphics.Line(new Point2D(center.X - radius, center.Y), new Point2D(center.X + radius, center.Y));
-                graphics.Line(new Point2D(center.X, center.Y - radius), new Point2D(center.X, center.Y + radius));
+                using (var west = new Point2D(center.X - radius, center.Y))
+                using (var east = new Point2D(center.X + radius, center.Y))
+                using (var north = new Point2D(center.X, center.Y - radius))
+                using (var south = new Point2D(center.X, center.Y + radius))
+                {
+                    graphics.Line(west, east);
+                    graphics.Line(north, south);
+                }
                 return;
             }
 
             if (string.Equals(marker.Style, WorldMarkerStyles.Cross, StringComparison.Ordinal))
             {
                 graphics.LineWidth(GlyphLineWidth);
-                graphics.Line(new Point2D(center.X - radius, center.Y - radius), new Point2D(center.X + radius, center.Y + radius));
-                graphics.Line(new Point2D(center.X - radius, center.Y + radius), new Point2D(center.X + radius, center.Y - radius));
+                using (var northWest = new Point2D(center.X - radius, center.Y - radius))
+                using (var southEast = new Point2D(center.X + radius, center.Y + radius))
+                using (var southWest = new Point2D(center.X - radius, center.Y + radius))
+                using (var northEast = new Point2D(center.X + radius, center.Y - radius))
+                {
+                    graphics.Line(northWest, southEast);
+                    graphics.Line(southWest, northEast);
+                }
                 return;
             }
 
@@ -163,7 +186,10 @@ namespace NavisHelper
             {
                 graphics.Circle(center, radius * 0.5, true);
                 graphics.LineWidth(GlyphLineWidth);
-                graphics.Line(new Point2D(center.X, center.Y), new Point2D(center.X, center.Y + radius));
+                using (var top = new Point2D(center.X, center.Y + radius))
+                {
+                    graphics.Line(center, top);
+                }
                 return;
             }
 

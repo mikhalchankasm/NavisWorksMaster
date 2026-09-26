@@ -12,6 +12,8 @@ namespace NavisHelper
     /// one frame reference per call. Per store version it prebuilds the native handles (Point3D
     /// segment ends and anchors, Colors, the union BoundingBox3D) by calling
     /// WorldMarkerOverlayGeometry once per visible marker, so no handle is built per frame.
+    /// When a new version replaces an old one, the old version's prebuilt handles (the Point3Ds
+    /// and the BoundingBox3D) are disposed instead of being left to their finalizers.
     /// After a change it requests a delayed redraw of the active view: OverlayRender, or All
     /// when the visible bounds changed.
     /// </summary>
@@ -49,6 +51,7 @@ namespace NavisHelper
                 next = BuildFrame(document, snapshot, _version + 1);
                 _frame = next;
                 _version = next.Version;
+                DisposeSuperseded(previous);
             }
 
             RequestRedraw(previous, next);
@@ -73,6 +76,7 @@ namespace NavisHelper
                     new WorldMarkerOverlayMarkerGlyph[0]);
                 _frame = next;
                 _version = next.Version;
+                DisposeSuperseded(previous);
             }
 
             RequestRedraw(previous, next);
@@ -146,6 +150,29 @@ namespace NavisHelper
                     _lastDrawUtc,
                     _lastError);
             }
+        }
+
+        // Store changes (Update/Clear) and rendering both run on the UI thread, one after the
+        // other, so once a new version has been swapped in no render callback can still be
+        // reading the superseded frame: a frame never draws a disposed version.
+        private static void DisposeSuperseded(WorldMarkerOverlayFrame frame)
+        {
+            if (frame == null || ReferenceEquals(frame, WorldMarkerOverlayFrame.Empty))
+                return;
+
+            foreach (var marker in frame.Markers)
+            {
+                foreach (var segment in marker.Segments)
+                {
+                    segment.Start.Dispose();
+                    segment.End.Dispose();
+                }
+
+                marker.HeadAnchor.Dispose();
+                marker.LabelAnchor.Dispose();
+            }
+
+            frame.Bounds.Dispose();
         }
 
         private static WorldMarkerOverlayFrame BuildFrame(Document document, WorldMarkerOverlaySnapshot snapshot, long version)

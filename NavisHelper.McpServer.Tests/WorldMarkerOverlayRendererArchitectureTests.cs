@@ -59,6 +59,26 @@ public sealed class WorldMarkerOverlayRendererArchitectureTests
     }
 
     [Fact]
+    public void Renderer_DisposesWhatProjectPointProduces()
+    {
+        var source = ReadRenderer();
+        // ProjectionResult is plain managed data; the native handles a projection creates are
+        // the Point2Ds built from its X/Y, so each one must be a `using` resource.
+        var created = Regex.Matches(source, @"new\s+Point2D\s*\(").Count;
+        var disposed = Regex.Matches(source, @"using\s*\(\s*var\s+\w+\s*=\s*new\s+Point2D\s*\(").Count;
+        Assert.True(created > 0, "expected the renderer to create Point2D handles per frame");
+        Assert.Equal(created, disposed);
+
+        foreach (Match projection in Regex.Matches(source, @"var\s+(?<name>\w+)\s*=\s*view\.ProjectPoint\("))
+        {
+            var name = projection.Groups["name"].Value;
+            Assert.True(
+                Regex.IsMatch(source, @"new\s+Point2D\s*\(\s*" + name + @"\.X"),
+                $"{name} must feed a disposed Point2D handle");
+        }
+    }
+
+    [Fact]
     public void Store_HoldsVersionedFramesAndRequestsDelayedRedraw()
     {
         var source = ReadStore();
