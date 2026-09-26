@@ -309,9 +309,11 @@ public sealed class WorldMarkerOverlayPlannerTests
 
         color.R = 9;
         hidden.Markers[0].Color.G = 9;
+        snapshot.Markers[0].Color.B = 9;
 
         Assert.Equal(1, snapshot.Markers[0].Color.R);
         Assert.Equal(2, snapshot.Markers[0].Color.G);
+        Assert.Equal(3, snapshot.Markers[0].Color.B);
     }
 
     [Fact]

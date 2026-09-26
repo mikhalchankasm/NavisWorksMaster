@@ -51,7 +51,7 @@ namespace NavisHelper.Agent.Contracts
             MarkerId = markerId; Name = name; X = x; Y = y; Z = z; Style = style; SizePx = sizePx;
             WorldSize = worldSize; Alpha = alpha; Label = label; PoleEnabled = poleEnabled;
             PoleBaseZ = poleBaseZ; PoleTopZ = poleTopZ; Group = group; Visible = visible;
-            Color = new WorldMarkerColor { R = color.R, G = color.G, B = color.B };
+            _color = new WorldMarkerColor { R = color.R, G = color.G, B = color.B };
         }
 
         public string MarkerId { get; }
@@ -62,7 +62,9 @@ namespace NavisHelper.Agent.Contracts
         public string Style { get; }
         public int SizePx { get; }
         public double? WorldSize { get; }
-        public WorldMarkerColor Color { get; }
+        private readonly WorldMarkerColor _color;
+        // A copy on every read: WorldMarkerColor is mutable, the stored marker is not.
+        public WorldMarkerColor Color => new WorldMarkerColor { R = _color.R, G = _color.G, B = _color.B };
         public int? Alpha { get; }
         public string Label { get; }
         public bool PoleEnabled { get; }
