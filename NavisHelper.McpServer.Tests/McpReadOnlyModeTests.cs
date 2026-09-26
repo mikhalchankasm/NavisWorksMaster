@@ -29,7 +29,7 @@ public sealed class McpReadOnlyModeTests
     {
         var methods = McpReadOnlyMode.RegisteredToolMethods().ToList();
         var mode = new McpReadOnlyMode(true, methods);
-        Assert.Equal(104, methods.Count);
+        Assert.Equal(105, methods.Count);
         Assert.Equal(36, methods.Count(method => method.GetCustomAttribute<ToolCapabilitiesAttribute>().Effects == ToolEffects.None));
         foreach (var method in methods)
         {
