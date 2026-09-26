@@ -19,7 +19,7 @@ public sealed class ToolCapabilitiesTests
     public void EveryMcpToolHasExactlyOneCapabilityDeclaration()
     {
         var methods = ToolMethods;
-        Assert.Equal(104, methods.Count);
+        Assert.Equal(105, methods.Count);
         foreach (var method in methods)
         {
             var declarations = method.GetCustomAttributes<ToolCapabilitiesAttribute>(inherit: false).ToList();
