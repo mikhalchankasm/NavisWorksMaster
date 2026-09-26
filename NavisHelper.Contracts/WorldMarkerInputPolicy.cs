@@ -177,13 +177,26 @@ namespace NavisHelper.Agent.Contracts
             var normalized = (value ?? string.Empty).Trim().Normalize(NormalizationForm.FormC);
             if (!allowEmpty && normalized.Length == 0)
                 throw new ArgumentException(fieldName + " is required.");
-            if (normalized.Length > maxLength)
+            var length = allowSupplementaryPlane ? CountUnicodeScalars(normalized) : normalized.Length;
+            if (length > maxLength)
                 throw new ArgumentException(fieldName + " must not exceed " + maxLength.ToString(CultureInfo.InvariantCulture) + " characters.");
             if (normalized.Any(character => char.IsControl(character) || character == '\r' || character == '\n'))
                 throw new ArgumentException(fieldName + " must not contain control characters or line breaks.");
             if (!allowSupplementaryPlane && normalized.Any(char.IsSurrogate))
                 throw new ArgumentException(fieldName + " supports Unicode BMP characters only.");
             return normalized;
+        }
+
+        private static int CountUnicodeScalars(string value)
+        {
+            var count = 0;
+            for (var index = 0; index < value.Length; index++)
+            {
+                if (char.IsSurrogatePair(value, index))
+                    index++;
+                count++;
+            }
+            return count;
         }
 
         private static double RequireCoordinate(double? value, string fieldName)

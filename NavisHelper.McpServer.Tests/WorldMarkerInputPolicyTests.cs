@@ -178,6 +178,31 @@ public sealed class WorldMarkerInputPolicyTests
     }
 
     [Fact]
+    public void NormalizeMarker_AcceptsLabelWithExactlyMaxSupplementaryPlaneCharacters()
+    {
+        var label = string.Concat(Enumerable.Repeat("\U0001F4CD", 256));
+        var marker = WorldMarkerInputPolicy.NormalizeMarker(new WorldMarkerSpec
+        {
+            Name = "M",
+            X = 0,
+            Y = 0,
+            Z = 0,
+            Label = label,
+        });
+
+        Assert.Equal(label, marker.Label);
+    }
+
+    [Fact]
+    public void NormalizeMarker_RejectsLabelAboveMaxSupplementaryPlaneCharacters()
+    {
+        var label = string.Concat(Enumerable.Repeat("\U0001F4CD", 257));
+        var marker = new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Z = 0, Label = label };
+
+        Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeMarker(marker));
+    }
+
+    [Fact]
     public void NormalizeMarker_RejectsMissingCoordinates()
     {
         var xError = Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeMarker(
