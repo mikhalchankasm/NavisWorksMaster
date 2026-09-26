@@ -6,26 +6,43 @@ namespace NavisHelper.McpServer.Tests;
 public sealed class WorldMarkerInputPolicyTests
 {
     [Fact]
-    public void NormalizeBatch_AppliesDocumentUnitAndMarkerDefaults()
+    public void NormalizeBatch_AppliesMarkerDefaultsAndPassesDocumentUnitsThrough()
     {
         var plan = WorldMarkerInputPolicy.NormalizeBatch(new WorldMarkerCreateRequest
         {
             DocumentUnits = "meters",
             Markers =
             {
-                new WorldMarkerSpec { Name = " Marker A ", X = 10, Y = 20 },
+                new WorldMarkerSpec { Name = " Marker A ", X = 10, Y = 20, Z = 5 },
             },
         });
 
         var marker = Assert.Single(plan.Markers);
-        Assert.Equal("Meters", plan.DocumentUnits);
+        Assert.Equal("meters", plan.DocumentUnits);
         Assert.Equal("Marker A", marker.Name);
-        Assert.Equal(0, marker.Z);
+        Assert.Equal(5, marker.Z);
         Assert.Equal(WorldMarkerStyles.Target, marker.Style);
         Assert.Equal(1, marker.Size);
         Assert.Equal((255, 0, 0), (marker.Color.R, marker.Color.G, marker.Color.B));
         Assert.False(marker.PoleEnabled);
         Assert.Matches("^wm-[0-9a-f]{16}$", marker.MarkerId);
+    }
+
+    [Fact]
+    public void NormalizeBatch_DoesNotRequireOrValidateDocumentUnits()
+    {
+        var missing = WorldMarkerInputPolicy.NormalizeBatch(new WorldMarkerCreateRequest
+        {
+            Markers = { new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Z = 0 } },
+        });
+        Assert.Null(missing.DocumentUnits);
+
+        var unvalidated = WorldMarkerInputPolicy.NormalizeBatch(new WorldMarkerCreateRequest
+        {
+            DocumentUnits = "furlongs",
+            Markers = { new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Z = 0 } },
+        });
+        Assert.Equal("furlongs", unvalidated.DocumentUnits);
     }
 
     [Fact]
@@ -41,8 +58,8 @@ public sealed class WorldMarkerInputPolicyTests
     public void NormalizeBatch_RejectsDuplicateNormalizedNamesBeforeReturningPlan()
     {
         var request = Request(
-            new WorldMarkerSpec { Name = "Marker", X = 0, Y = 0 },
-            new WorldMarkerSpec { Name = " marker ", X = 1, Y = 1 });
+            new WorldMarkerSpec { Name = "Marker", X = 0, Y = 0, Z = 0 },
+            new WorldMarkerSpec { Name = " marker ", X = 1, Y = 1, Z = 0 });
 
         var error = Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeBatch(request));
 
@@ -54,7 +71,7 @@ public sealed class WorldMarkerInputPolicyTests
     {
         var request = new WorldMarkerCreateRequest { DocumentUnits = "Meters" };
         for (var i = 0; i < 101; i++)
-            request.Markers.Add(new WorldMarkerSpec { Name = "M" + i, X = i, Y = i });
+            request.Markers.Add(new WorldMarkerSpec { Name = "M" + i, X = i, Y = i, Z = 0 });
 
         Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeBatch(request));
     }
@@ -64,7 +81,7 @@ public sealed class WorldMarkerInputPolicyTests
     {
         var request = new WorldMarkerCreateRequest { DocumentUnits = "Meters" };
         for (var i = 0; i < 100; i++)
-            request.Markers.Add(new WorldMarkerSpec { Name = "M" + i, X = i, Y = i });
+            request.Markers.Add(new WorldMarkerSpec { Name = "M" + i, X = i, Y = i, Z = 0 });
 
         Assert.Equal(100, WorldMarkerInputPolicy.NormalizeBatch(request).Markers.Count);
     }
@@ -91,6 +108,7 @@ public sealed class WorldMarkerInputPolicyTests
             Name = new string('A', WorldMarkerInputPolicy.MaxNameLength),
             X = 0,
             Y = 0,
+            Z = 0,
         });
         Assert.Equal(WorldMarkerInputPolicy.MaxNameLength, accepted.Name.Length);
 
@@ -99,6 +117,7 @@ public sealed class WorldMarkerInputPolicyTests
             Name = new string('A', WorldMarkerInputPolicy.MaxNameLength + 1),
             X = 0,
             Y = 0,
+            Z = 0,
         }));
     }
 
@@ -106,12 +125,72 @@ public sealed class WorldMarkerInputPolicyTests
     [InlineData("bad\nlabel")]
     [InlineData("bad\rlabel")]
     [InlineData("bad\tlabel")]
-    [InlineData("emoji \ud83d\ude80")]
-    public void NormalizeMarker_RejectsUnsafeOrUnsupportedLabel(string label)
+    public void NormalizeMarker_RejectsControlCharactersInLabel(string label)
     {
-        var marker = new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Label = label };
+        var marker = new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Z = 0, Label = label };
 
         Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeMarker(marker));
+    }
+
+    [Fact]
+    public void NormalizeMarker_AcceptsLongCyrillicLabel()
+    {
+        var marker = WorldMarkerInputPolicy.NormalizeMarker(new WorldMarkerSpec
+        {
+            Name = "M",
+            X = 0,
+            Y = 0,
+            Z = 0,
+            Label = new string('Ж', 256),
+        });
+
+        Assert.Equal(256, marker.Label.Length);
+    }
+
+    [Fact]
+    public void NormalizeMarker_RejectsLabelAboveMaxLength()
+    {
+        var marker = new WorldMarkerSpec
+        {
+            Name = "M",
+            X = 0,
+            Y = 0,
+            Z = 0,
+            Label = new string('Ж', WorldMarkerInputPolicy.MaxLabelLength + 1),
+        };
+
+        Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeMarker(marker));
+    }
+
+    [Fact]
+    public void NormalizeMarker_AcceptsSupplementaryPlaneLabel()
+    {
+        var marker = WorldMarkerInputPolicy.NormalizeMarker(new WorldMarkerSpec
+        {
+            Name = "M",
+            X = 0,
+            Y = 0,
+            Z = 0,
+            Label = "emoji \ud83d\ude80",
+        });
+
+        Assert.Equal("emoji \ud83d\ude80", marker.Label);
+    }
+
+    [Fact]
+    public void NormalizeMarker_RejectsMissingCoordinates()
+    {
+        var xError = Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeMarker(
+            new WorldMarkerSpec { Name = "M", X = null, Y = 0, Z = 0 }));
+        Assert.Contains("x is required", xError.Message);
+
+        var yError = Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeMarker(
+            new WorldMarkerSpec { Name = "M", X = 0, Y = null, Z = 0 }));
+        Assert.Contains("y is required", yError.Message);
+
+        var zError = Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeMarker(
+            new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Z = null }));
+        Assert.Contains("z is required", zError.Message);
     }
 
     [Theory]
@@ -120,7 +199,7 @@ public sealed class WorldMarkerInputPolicyTests
     [InlineData(double.NegativeInfinity)]
     public void NormalizeMarker_RejectsNonFiniteCoordinates(double value)
     {
-        var marker = new WorldMarkerSpec { Name = "M", X = value, Y = 0 };
+        var marker = new WorldMarkerSpec { Name = "M", X = value, Y = 0, Z = 0 };
 
         Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeMarker(marker));
     }
@@ -132,7 +211,7 @@ public sealed class WorldMarkerInputPolicyTests
     [InlineData(1000000001)]
     public void NormalizeMarker_RejectsSizeOutsideSupportedBounds(double size)
     {
-        var marker = new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Size = size };
+        var marker = new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Z = 0, Size = size };
 
         Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeMarker(marker));
     }
@@ -148,6 +227,7 @@ public sealed class WorldMarkerInputPolicyTests
             Name = "M",
             X = 0,
             Y = 0,
+            Z = 0,
             Color = new WorldMarkerColor { R = r, G = g, B = b },
         };
 
@@ -218,6 +298,7 @@ public sealed class WorldMarkerInputPolicyTests
             Name = "Ground pole",
             X = 1,
             Y = 2,
+            Z = 0,
             Style = "pole",
             Size = 3,
         });
@@ -252,6 +333,7 @@ public sealed class WorldMarkerInputPolicyTests
             Name = "Tiny pole",
             X = 1,
             Y = 2,
+            Z = 0,
             Style = "circle",
             Pole = new WorldMarkerPole { Enabled = true, BaseZ = 0, TopZ = WorldMarkerInputPolicy.MinSize / 2 },
         };
@@ -268,9 +350,10 @@ public sealed class WorldMarkerInputPolicyTests
             Name = "Bounded",
             X = WorldMarkerInputPolicy.MaxAbsoluteCoordinate - 1,
             Y = 0,
+            Z = 0,
             Size = 1,
         };
-        Assert.Equal(valid.X, WorldMarkerInputPolicy.NormalizeMarker(valid).X);
+        Assert.Equal(valid.X.Value, WorldMarkerInputPolicy.NormalizeMarker(valid).X);
 
         valid.X = WorldMarkerInputPolicy.MaxAbsoluteCoordinate;
         var error = Assert.Throws<ArgumentException>(() => WorldMarkerInputPolicy.NormalizeMarker(valid));
@@ -303,6 +386,7 @@ public sealed class WorldMarkerInputPolicyTests
             Name = "Optional pole",
             X = 1,
             Y = 2,
+            Z = 0,
             Size = 4,
             Style = "circle",
             Pole = new WorldMarkerPole { Enabled = true },
@@ -321,6 +405,7 @@ public sealed class WorldMarkerInputPolicyTests
             Name = "Disabled pole",
             X = 1,
             Y = 2,
+            Z = 0,
             Style = "circle",
             Pole = new WorldMarkerPole { Enabled = false, BaseZ = 1, TopZ = 8 },
         });
@@ -338,6 +423,7 @@ public sealed class WorldMarkerInputPolicyTests
             Name = "Unbounded pole",
             X = 0,
             Y = 0,
+            Z = 0,
             Style = "circle",
             Pole = new WorldMarkerPole
             {

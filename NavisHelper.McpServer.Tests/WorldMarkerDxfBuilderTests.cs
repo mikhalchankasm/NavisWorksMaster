@@ -69,6 +69,7 @@ public sealed class WorldMarkerDxfBuilderTests
                 Name = "M",
                 X = 1.25,
                 Y = 2.5,
+                Z = 0,
                 Style = "cross",
             }), "Meters");
 
@@ -89,6 +90,7 @@ public sealed class WorldMarkerDxfBuilderTests
             Name = "M",
             X = 0,
             Y = 0,
+            Z = 0,
             Label = "Метка 0А+39,00 \\ 50%",
         }), "Meters");
 
@@ -166,7 +168,7 @@ public sealed class WorldMarkerDxfBuilderTests
     [Fact]
     public void Build_RejectsNonFiniteDirectPlanCoordinates()
     {
-        var marker = Normalize(new WorldMarkerSpec { Name = "M", X = 0, Y = 0 });
+        var marker = Normalize(new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Z = 0 });
         marker.X = double.NaN;
 
         Assert.Throws<ArgumentException>(() => WorldMarkerDxfBuilder.Build(marker, "Meters"));
@@ -175,7 +177,7 @@ public sealed class WorldMarkerDxfBuilderTests
     [Fact]
     public void Build_RejectsDirectPlanCoordinateOutsideMagnitudeBound()
     {
-        var marker = Normalize(new WorldMarkerSpec { Name = "M", X = 0, Y = 0 });
+        var marker = Normalize(new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Z = 0 });
         marker.X = WorldMarkerInputPolicy.MaxAbsoluteCoordinate + 1;
 
         var error = Assert.Throws<ArgumentException>(() => WorldMarkerDxfBuilder.Build(marker, "Meters"));
@@ -196,7 +198,7 @@ public sealed class WorldMarkerDxfBuilderTests
     [Fact]
     public void Build_RejectsHandBuiltPlanOutsideMagnitudeBounds()
     {
-        var marker = Normalize(new WorldMarkerSpec { Name = "M", X = 0, Y = 0 });
+        var marker = Normalize(new WorldMarkerSpec { Name = "M", X = 0, Y = 0, Z = 0 });
         marker.Size = WorldMarkerInputPolicy.MinSize / 10;
 
         var error = Assert.Throws<ArgumentException>(() => WorldMarkerDxfBuilder.Build(marker, "Meters"));

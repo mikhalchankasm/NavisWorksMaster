@@ -11,7 +11,7 @@ namespace NavisHelper.Agent.Contracts
     {
         public const int MaxBatchSize = 100;
         public const int MaxNameLength = 128;
-        public const int MaxLabelLength = 255;
+        public const int MaxLabelLength = 256;
         public const int MaxEncodedLabelLength = 255;
         public const double DefaultSize = 1.0;
         public const double MinSize = 1e-6;
@@ -37,10 +37,9 @@ namespace NavisHelper.Agent.Contracts
             if (request.Markers.Count > MaxBatchSize)
                 throw new ArgumentException("markers must not contain more than " + MaxBatchSize.ToString(CultureInfo.InvariantCulture) + " items.", nameof(request));
 
-            var documentUnits = WorldMarkerDxfBuilder.NormalizeDocumentUnits(request.DocumentUnits);
             var result = new WorldMarkerBatchPlan
             {
-                DocumentUnits = documentUnits,
+                DocumentUnits = request.DocumentUnits,
                 ReplaceExisting = request.ReplaceExisting == true,
                 Apply = request.Apply == true,
             };
@@ -67,17 +66,16 @@ namespace NavisHelper.Agent.Contracts
                 throw new ArgumentException("markers[" + index.ToString(CultureInfo.InvariantCulture) + "] is required.");
 
             var name = NormalizeText(marker.Name, "name", MaxNameLength, false);
-            var label = NormalizeText(marker.Label, "label", MaxLabelLength, true);
+            var label = NormalizeText(marker.Label, "label", MaxLabelLength, true, allowSupplementaryPlane: true);
             var style = string.IsNullOrWhiteSpace(marker.Style)
                 ? WorldMarkerStyles.Target
                 : marker.Style.Trim().ToLowerInvariant();
             if (!SupportedStyles.Contains(style))
                 throw new ArgumentException("style must be target, cross, circle, pin, pole, or box.");
 
-            EnsureFinite(marker.X, "x");
-            EnsureFinite(marker.Y, "y");
-            var z = marker.Z.GetValueOrDefault(0.0);
-            EnsureFinite(z, "z");
+            var x = RequireCoordinate(marker.X, "x");
+            var y = RequireCoordinate(marker.Y, "y");
+            var z = RequireCoordinate(marker.Z, "z");
             var size = marker.Size.GetValueOrDefault(DefaultSize);
             EnsureFinite(size, "size");
             if (size < MinSize || size > MaxSize)
@@ -116,8 +114,8 @@ namespace NavisHelper.Agent.Contracts
             {
                 MarkerId = CreateMarkerId(name),
                 Name = name,
-                X = marker.X,
-                Y = marker.Y,
+                X = x,
+                Y = y,
                 Z = z,
                 Style = style,
                 Size = size,
@@ -128,7 +126,6 @@ namespace NavisHelper.Agent.Contracts
                 PoleTopZ = poleTopZ,
             };
             ValidateNumericBounds(result);
-            WorldMarkerDxfBuilder.EncodeText(result.Label);
             return result;
         }
 
@@ -149,8 +146,8 @@ namespace NavisHelper.Agent.Contracts
             ValidateBoundedCoordinate(marker.PoleBaseZ, "pole.baseZ");
             ValidateBoundedCoordinate(marker.PoleTopZ, "pole.topZ");
 
-            // This conservative envelope covers every v1-derived LINE/CIRCLE/TEXT coordinate,
-            // including box half-extents and the +0.6*size text insertion offset.
+            // This conservative envelope covers every coordinate derived from the marker
+            // anchor, including box half-extents and the label offset beside the anchor.
             ValidateBoundedCoordinate(marker.X - marker.Size, "derived x min");
             ValidateBoundedCoordinate(marker.X + marker.Size, "derived x max");
             ValidateBoundedCoordinate(marker.Y - marker.Size, "derived y min");
@@ -175,7 +172,7 @@ namespace NavisHelper.Agent.Contracts
             return result.ToString();
         }
 
-        private static string NormalizeText(string value, string fieldName, int maxLength, bool allowEmpty)
+        private static string NormalizeText(string value, string fieldName, int maxLength, bool allowEmpty, bool allowSupplementaryPlane = false)
         {
             var normalized = (value ?? string.Empty).Trim().Normalize(NormalizationForm.FormC);
             if (!allowEmpty && normalized.Length == 0)
@@ -184,9 +181,17 @@ namespace NavisHelper.Agent.Contracts
                 throw new ArgumentException(fieldName + " must not exceed " + maxLength.ToString(CultureInfo.InvariantCulture) + " characters.");
             if (normalized.Any(character => char.IsControl(character) || character == '\r' || character == '\n'))
                 throw new ArgumentException(fieldName + " must not contain control characters or line breaks.");
-            if (normalized.Any(char.IsSurrogate))
-                throw new ArgumentException(fieldName + " supports Unicode BMP characters only in DXF v1.");
+            if (!allowSupplementaryPlane && normalized.Any(char.IsSurrogate))
+                throw new ArgumentException(fieldName + " supports Unicode BMP characters only.");
             return normalized;
+        }
+
+        private static double RequireCoordinate(double? value, string fieldName)
+        {
+            if (!value.HasValue)
+                throw new ArgumentException(fieldName + " is required.");
+            EnsureFinite(value.Value, fieldName);
+            return value.Value;
         }
 
         private static void ValidateColor(WorldMarkerColor color)
