@@ -76,4 +76,36 @@ public sealed class ArgumentExceptionMessageHelperTests
             "camera_state_restore_failed. Apply error: view is degenerate Restore error: cannot move the camera.",
             ArgumentExceptionMessageHelper.StripParameterNameSuffix(message));
     }
+
+    [Fact]
+    public void StripsTheAppendedTextFromAnOutOfRangeMessageWithAnActualValue()
+    {
+        var raw = new ArgumentOutOfRangeException("document.Units", "Furlongs", "Unsupported Navisworks document units.").Message;
+
+        Assert.Equal(
+            "Unsupported Navisworks document units.",
+            ArgumentExceptionMessageHelper.StripParameterNameSuffix(raw));
+    }
+
+    [Fact]
+    public void HandlesActualValuesOfDifferentShapesInAnOutOfRangeMessage()
+    {
+        foreach (var actualValue in new[] { "Furlongs", "Chains and such", "0" })
+        {
+            var raw = new ArgumentOutOfRangeException("document.Units", actualValue, "Unsupported Navisworks document units.").Message;
+
+            Assert.Equal(
+                "Unsupported Navisworks document units.",
+                ArgumentExceptionMessageHelper.StripParameterNameSuffix(raw));
+        }
+    }
+
+    [Fact]
+    public void LeavesAnOutOfRangeMessageUnchangedWhenItsAppendedTextIsNotAtTheEnd()
+    {
+        var raw = new ArgumentOutOfRangeException("document.Units", "Furlongs", "Unsupported Navisworks document units.").Message;
+        var message = "context: " + raw + " followed by more words";
+
+        Assert.Equal(message, ArgumentExceptionMessageHelper.StripParameterNameSuffix(message));
+    }
 }

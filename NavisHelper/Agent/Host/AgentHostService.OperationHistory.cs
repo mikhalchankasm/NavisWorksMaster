@@ -276,7 +276,7 @@ namespace NavisHelper.Agent.Host
                 record.State = "failed";
                 record.Ok = false;
                 record.ErrorCode = string.IsNullOrWhiteSpace(errorCode) ? ErrorCodes.CommandFailed : errorCode;
-                record.ErrorMessage = errorMessage ?? string.Empty;
+                record.ErrorMessage = ArgumentExceptionMessageHelper.StripParameterNameSuffix(errorMessage) ?? string.Empty;
                 record.CompletedAtUtc = DateTime.UtcNow;
                 record.ElapsedMs = record.StartedAtUtc.HasValue
                     ? (long)Math.Max(0, (record.CompletedAtUtc.Value - record.StartedAtUtc.Value).TotalMilliseconds)
