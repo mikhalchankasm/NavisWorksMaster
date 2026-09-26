@@ -38,7 +38,7 @@ namespace NavisHelper.Agent.Services
             }
 
             var keepVisibleItemCount = KeepVisibleCounter.Count(
-                selectedItemSet, item => item.Parent, item => item.Children.Cast<ModelItem>());
+                selectedItemSet, itemsToKeepVisible, item => item.Parent, item => item.Children.Cast<ModelItem>());
 
             var itemsToHide = new List<ModelItem>();
             var rootSummaries = new VisibilityRootSummaryAccumulator();

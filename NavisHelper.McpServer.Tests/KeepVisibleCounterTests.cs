@@ -33,7 +33,8 @@ public sealed class KeepVisibleCounterTests
             selection.Insert(random.Next(selection.Count + 1), null);
 
             var expected = NaiveUnionCount(selection);
-            var actual = KeepVisibleCounter.Count(selection, node => node.Parent, node => node.Children);
+            var actual = KeepVisibleCounter.Count(
+                BuildSelected(selection), BuildKeepMarkers(selection), node => node.Parent, node => node.Children);
             Assert.Equal(expected, actual);
         }
     }
@@ -44,7 +45,9 @@ public sealed class KeepVisibleCounterTests
         var random = new Random(1234);
         var tree = FakeTree.BuildRandom(random, 350);
 
-        var actual = KeepVisibleCounter.Count(new[] { tree.Node(0) }, node => node.Parent, node => node.Children);
+        var actual = KeepVisibleCounter.Count(
+            new HashSet<FakeNode> { tree.Node(0) }, new HashSet<FakeNode> { tree.Node(0) },
+            node => node.Parent, node => node.Children);
 
         Assert.Equal(tree.NodeCount, actual);
     }
@@ -54,8 +57,9 @@ public sealed class KeepVisibleCounterTests
     {
         var tree = FakeTree.BuildFromParents(new[] { -1, 0, 1, 0, 3 });
 
+        var selection = new[] { tree.Node(2), tree.Node(4) };
         var actual = KeepVisibleCounter.Count(
-            new[] { tree.Node(2), tree.Node(4) }, node => node.Parent, node => node.Children);
+            BuildSelected(selection), BuildKeepMarkers(selection), node => node.Parent, node => node.Children);
 
         Assert.Equal(5, actual);
     }
@@ -65,8 +69,9 @@ public sealed class KeepVisibleCounterTests
     {
         var tree = FakeTree.BuildFromParents(new[] { -1, 0, 1, 2, 1, 4 });
 
+        var selection = new[] { tree.Node(1), tree.Node(3) };
         var actual = KeepVisibleCounter.Count(
-            new[] { tree.Node(1), tree.Node(3) }, node => node.Parent, node => node.Children);
+            BuildSelected(selection), BuildKeepMarkers(selection), node => node.Parent, node => node.Children);
 
         Assert.Equal(6, actual);
     }
@@ -74,7 +79,8 @@ public sealed class KeepVisibleCounterTests
     [Fact]
     public void Count_EmptySelectionReturnsZero()
     {
-        var actual = KeepVisibleCounter.Count(Array.Empty<FakeNode>(), node => node.Parent, node => node.Children);
+        var actual = KeepVisibleCounter.Count(
+            new HashSet<FakeNode>(), new HashSet<FakeNode>(), node => node.Parent, node => node.Children);
 
         Assert.Equal(0, actual);
     }
@@ -84,10 +90,34 @@ public sealed class KeepVisibleCounterTests
     {
         var tree = FakeTree.BuildFromParents(new[] { -1, 0, 1 });
 
+        var selection = new FakeNode[] { null, tree.Node(2), null };
         var actual = KeepVisibleCounter.Count(
-            new FakeNode[] { null, tree.Node(2), null }, node => node.Parent, node => node.Children);
+            BuildSelected(selection), BuildKeepMarkers(selection), node => node.Parent, node => node.Children);
 
         Assert.Equal(NaiveUnionCount(new[] { tree.Node(2) }), actual);
+    }
+
+    private static ISet<FakeNode> BuildSelected(IEnumerable<FakeNode> selection)
+    {
+        return new HashSet<FakeNode>(selection.Where(node => node != null));
+    }
+
+    private static ISet<FakeNode> BuildKeepMarkers(IEnumerable<FakeNode> selection)
+    {
+        var keepMarkers = new HashSet<FakeNode>();
+        foreach (var node in selection.Where(node => node != null))
+        {
+            keepMarkers.Add(node);
+
+            var ancestor = node.Parent;
+            while (ancestor != null)
+            {
+                keepMarkers.Add(ancestor);
+                ancestor = ancestor.Parent;
+            }
+        }
+
+        return keepMarkers;
     }
 
     private static int NaiveUnionCount(IEnumerable<FakeNode> selection)

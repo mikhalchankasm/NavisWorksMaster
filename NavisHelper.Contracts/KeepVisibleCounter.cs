@@ -5,53 +5,44 @@ namespace NavisHelper.Agent.Contracts
 {
     /// <summary>
     /// Counts the items hide_unselected would keep visible -- the union of the
-    /// selected items' subtrees and their ancestors -- without materializing that
-    /// union: only the selected items and their ancestors ever enter a set, so a
-    /// large selection does not keep thousands of subtree wrappers alive just to
-    /// produce a count.
+    /// selected items' subtrees and their ancestors -- without allocating any
+    /// set of its own: the caller already owns the selected items and every
+    /// keep marker, and each keep marker lies either inside a kept subtree or
+    /// is a strict ancestor of one, so the count is the sum of the kept
+    /// subtree sizes plus the caller's keep-marker count minus the keep
+    /// markers already inside those subtrees, found with one Contains per
+    /// visited node. Nothing is stored, so subtree wrappers are never kept
+    /// alive just to produce a count.
     /// </summary>
     public static class KeepVisibleCounter
     {
-        public static int Count<TNode>(IEnumerable<TNode> selected, Func<TNode, TNode> parent,
-            Func<TNode, IEnumerable<TNode>> children, IEqualityComparer<TNode> comparer = null) where TNode : class
+        public static int Count<TNode>(ISet<TNode> selected, ISet<TNode> keepMarkers,
+            Func<TNode, TNode> parent, Func<TNode, IEnumerable<TNode>> children) where TNode : class
         {
-            if (selected == null)
+            if (selected == null || keepMarkers == null)
                 return 0;
 
-            var effectiveComparer = comparer ?? EqualityComparer<TNode>.Default;
-            var selectedItems = new HashSet<TNode>(effectiveComparer);
+            var subtreeTotal = 0;
+            var subtreeKeepMarkers = 0;
             foreach (var item in selected)
             {
-                if (item != null)
-                    selectedItems.Add(item);
-            }
-
-            var ancestors = new HashSet<TNode>(effectiveComparer);
-            var subtreeTotal = 0;
-            foreach (var item in selectedItems)
-            {
-                if (HasSelectedAncestor(item, parent, selectedItems))
+                if (item == null || HasSelectedAncestor(item, parent, selected))
                     continue;
 
-                subtreeTotal += CountSubtree(item, children);
-
-                var current = parent(item);
-                while (current != null)
-                {
-                    ancestors.Add(current);
-                    current = parent(current);
-                }
+                var (size, markers) = CountSubtree(item, children, keepMarkers);
+                subtreeTotal += size;
+                subtreeKeepMarkers += markers;
             }
 
-            return subtreeTotal + ancestors.Count;
+            return subtreeTotal + keepMarkers.Count - subtreeKeepMarkers;
         }
 
-        private static bool HasSelectedAncestor<TNode>(TNode item, Func<TNode, TNode> parent, HashSet<TNode> selectedItems) where TNode : class
+        private static bool HasSelectedAncestor<TNode>(TNode item, Func<TNode, TNode> parent, ISet<TNode> selected) where TNode : class
         {
             var current = parent(item);
             while (current != null)
             {
-                if (selectedItems.Contains(current))
+                if (selected.Contains(current))
                     return true;
                 current = parent(current);
             }
@@ -59,20 +50,26 @@ namespace NavisHelper.Agent.Contracts
             return false;
         }
 
-        private static int CountSubtree<TNode>(TNode item, Func<TNode, IEnumerable<TNode>> children) where TNode : class
+        private static (int size, int markers) CountSubtree<TNode>(TNode item,
+            Func<TNode, IEnumerable<TNode>> children, ISet<TNode> keepMarkers) where TNode : class
         {
-            var count = 1;
+            var size = 1;
+            var markers = keepMarkers.Contains(item) ? 1 : 0;
             var childItems = children(item);
             if (childItems != null)
             {
                 foreach (var childItem in childItems)
                 {
-                    if (childItem != null)
-                        count += CountSubtree(childItem, children);
+                    if (childItem == null)
+                        continue;
+
+                    var (childSize, childMarkers) = CountSubtree(childItem, children, keepMarkers);
+                    size += childSize;
+                    markers += childMarkers;
                 }
             }
 
-            return count;
+            return (size, markers);
         }
     }
 }
