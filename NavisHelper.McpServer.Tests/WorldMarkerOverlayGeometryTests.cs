@@ -309,6 +309,8 @@ public sealed class WorldMarkerOverlayGeometryTests
         {
             Name = "M",
             X = 1e12 - 1,
+            Y = 0,
+            Z = 0,
             Size = 1,
             Style = "box",
         });
