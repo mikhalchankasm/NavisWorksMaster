@@ -9,8 +9,10 @@ namespace NavisHelper.Agent.Contracts
     /// it is derived from a probe exception built at call time rather than
     /// hard-coded: the probe's message is a marker that cannot occur in a real
     /// error, so whatever the runtime appends after the marker is the suffix
-    /// shape, and a candidate message is stripped only when it ends with that
-    /// shape. Messages that do not end with the suffix are returned unchanged.
+        /// shape, and a candidate message is stripped only when it ends with that
+        /// shape and the segment between the lead and the tail is a single
+        /// parameter identifier. Messages that do not end with the suffix are
+        /// returned unchanged.
     /// </summary>
     public static class ArgumentExceptionMessageHelper
     {
@@ -64,9 +66,24 @@ namespace NavisHelper.Agent.Contracts
             if (leadAt < 0)
                 return -1;
 
-            // The segment between lead and tail is the parameter identifier; it must be non-empty.
-            var parameterLength = message.Length - tail.Length - leadAt - lead.Length;
-            return parameterLength > 0 ? leadAt : -1;
+            var parameterStart = leadAt + lead.Length;
+            var parameterLength = message.Length - tail.Length - parameterStart;
+            if (parameterLength <= 0 || !IsParameterIdentifier(message, parameterStart, parameterLength))
+                return -1;
+
+            return leadAt;
+        }
+
+        private static bool IsParameterIdentifier(string message, int start, int length)
+        {
+            for (var i = start; i < start + length; i++)
+            {
+                var c = message[i];
+                if (!char.IsLetterOrDigit(c) && c != '_' && c != '.')
+                    return false;
+            }
+
+            return true;
         }
     }
 }

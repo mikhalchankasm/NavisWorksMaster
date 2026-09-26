@@ -55,4 +55,25 @@ public sealed class ArgumentExceptionMessageHelperTests
             Assert.Equal("value is invalid.", ArgumentExceptionMessageHelper.StripParameterNameSuffix(raw));
         }
     }
+
+    [Fact]
+    public void LeavesACompositeMessageIntactWhenOnlyAnEarlierSegmentCarriesTheSuffix()
+    {
+        var applyRaw = new ArgumentException("cannot move the camera.", "cameraState").Message;
+        var message = "camera_state_restore_failed. Apply error: " + applyRaw
+            + " Restore error: viewpoint lookup failed (name 'Main')";
+
+        Assert.Equal(message, ArgumentExceptionMessageHelper.StripParameterNameSuffix(message));
+    }
+
+    [Fact]
+    public void StillStripsTheSuffixWhenACompositeMessageEndsWithIt()
+    {
+        var restoreRaw = new ArgumentException("cannot move the camera.", "cameraState").Message;
+        var message = "camera_state_restore_failed. Apply error: view is degenerate Restore error: " + restoreRaw;
+
+        Assert.Equal(
+            "camera_state_restore_failed. Apply error: view is degenerate Restore error: cannot move the camera.",
+            ArgumentExceptionMessageHelper.StripParameterNameSuffix(message));
+    }
 }
