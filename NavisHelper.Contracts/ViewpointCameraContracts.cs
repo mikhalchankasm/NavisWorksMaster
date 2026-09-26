@@ -172,7 +172,9 @@ namespace NavisHelper.Agent.Contracts
                 var pointBox = CreateBox(
                     new Point3Info { X = zoomTo.Point.X - half, Y = zoomTo.Point.Y - half, Z = zoomTo.Point.Z - half },
                     new Point3Info { X = zoomTo.Point.X + half, Y = zoomTo.Point.Y + half, Z = zoomTo.Point.Z + half });
-                if (pointBox.Size.X <= 0 || pointBox.Size.Y <= 0 || pointBox.Size.Z <= 0)
+                if (!(pointBox.Min.X < zoomTo.Point.X && pointBox.Max.X > zoomTo.Point.X &&
+                      pointBox.Min.Y < zoomTo.Point.Y && pointBox.Max.Y > zoomTo.Point.Y &&
+                      pointBox.Min.Z < zoomTo.Point.Z && pointBox.Max.Z > zoomTo.Point.Z))
                     throw new ArgumentException("zoomTo.point and pointHalfSize must produce a box with positive extent on every axis; the point coordinates are too large for pointHalfSize.", nameof(zoomTo));
                 return pointBox;
             }

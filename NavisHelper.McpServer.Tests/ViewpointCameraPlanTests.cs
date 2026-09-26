@@ -481,6 +481,22 @@ public sealed class ViewpointCameraPlanTests
     }
 
     [Fact]
+    public void Build_RejectsPointZoomBoxWithOneSidedRoundingCollapse()
+    {
+        var request = ValidRequest();
+        request.Projection = "ortho";
+        request.Target = Point(9007199254740992, 0, 0);
+        request.ZoomTo = new ViewpointCameraZoomTo
+        {
+            Point = Point(9007199254740992, 0, 0),
+            PointHalfSize = 1,
+        };
+
+        var exception = Assert.Throws<ArgumentException>(() => ViewpointCameraPlanHelper.Build(request));
+        Assert.Contains("zoomTo.point and pointHalfSize must produce a box", exception.Message);
+    }
+
+    [Fact]
     public void Build_RejectsBoundingBoxWhoseExtentOverflows()
     {
         var request = ValidRequest();
