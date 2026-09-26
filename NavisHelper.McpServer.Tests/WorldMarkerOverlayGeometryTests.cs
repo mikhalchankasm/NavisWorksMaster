@@ -302,6 +302,44 @@ public sealed class WorldMarkerOverlayGeometryTests
         }
     }
 
+    [Fact]
+    public void Build_RejectsAnOverrideWorldSizeWhoseEnvelopeExceedsTheCoordinateLimit()
+    {
+        var marker = Normalize(new WorldMarkerSpec
+        {
+            Name = "M",
+            X = 1e12 - 1,
+            Size = 1,
+            Style = "box",
+        });
+
+        var error = Assert.Throws<ArgumentException>(() => WorldMarkerOverlayGeometry.Build(marker, 1e9));
+
+        Assert.Contains("derived x max", error.Message);
+        Assert.Equal(1, marker.Size);
+    }
+
+    [Fact]
+    public void Build_AcceptsALargerOverrideWorldSizeInsideTheCoordinateLimit()
+    {
+        var marker = Normalize(new WorldMarkerSpec
+        {
+            Name = "M",
+            X = 10,
+            Y = 20,
+            Z = 30,
+            Size = 4,
+            Style = "box",
+        });
+
+        var figure = WorldMarkerOverlayGeometry.Build(marker, 8);
+
+        Assert.Equal(12, figure.Segments.Count);
+        AssertSegment(figure.Segments[0], (6, 16, 26, 14, 16, 26));
+        AssertPoint(figure.LabelAnchor, 10, 20, 34);
+        Assert.Equal(4, marker.Size);
+    }
+
     private static WorldMarkerPlanItem Normalize(WorldMarkerSpec marker)
     {
         return WorldMarkerInputPolicy.NormalizeMarker(marker);

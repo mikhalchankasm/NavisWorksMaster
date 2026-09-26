@@ -85,7 +85,24 @@ namespace NavisHelper.Agent.Contracts
 
             var size = worldSize;
             if (size.HasValue)
+            {
                 EnsureWorldSize(size.Value);
+                WorldMarkerInputPolicy.ValidateNumericBounds(new WorldMarkerPlanItem
+                {
+                    MarkerId = marker.MarkerId,
+                    Name = marker.Name,
+                    X = marker.X,
+                    Y = marker.Y,
+                    Z = marker.Z,
+                    Style = marker.Style,
+                    Size = size.Value,
+                    Color = marker.Color,
+                    Label = marker.Label,
+                    PoleEnabled = marker.PoleEnabled,
+                    PoleBaseZ = marker.PoleBaseZ,
+                    PoleTopZ = marker.PoleTopZ,
+                });
+            }
 
             var anchor = new WorldMarkerPoint(marker.X, marker.Y, marker.Z);
             var head = anchor;
