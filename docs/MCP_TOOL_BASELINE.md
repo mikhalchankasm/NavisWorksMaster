@@ -8,7 +8,7 @@ had precise numbers for four tools and none for the rest.
 
 | | |
 | --- | --- |
-| date | 2026-09-20 |
+| date | 2026-09-20 (original read-only pass; the table below was re-run on 2026-09-26) |
 | model | `D:\Downloads\6501.5.nwd` — federated plant model, 3 root items, ~908 MB working set |
 | Navisworks | Manage 2027 |
 | plugin | host-reported `pluginAssemblyLength` 1586688, `pluginAssemblyLastWriteUtc` 2026-09-20T09:09:49Z, sha256 `af60b1b9…` |
@@ -16,7 +16,10 @@ had precise numbers for four tools and none for the rest.
 | scope of this row | the read-only pass only — the two clash windows ran a **different** plugin (`20bb4356…`) and a separately launched server, and the `rootName` message was checked later still on the branch build (`pluginAssemblyLength` 1588736). Latency is comparable only within one window, so each section states its own build instead of inheriting this one. |
 | tools covered | **101 of 105** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across six windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, 15 cases covering 7 tools in a fourth, the synchronous `dump_subtree_names` in a fifth, `viewpoint_set_camera` at its acceptance on 2026-09-26, and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 101 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **4** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
 
-Every number is `navishelper_timing.elapsed_ms`, which is the **MCP server's** measure
+The date and plugin rows above describe the 2026-09-20 read-only pass. The read-only
+table was re-run on 2026-09-26 and states its own build and conditions below.
+
+The original pass and later windows report `navishelper_timing.elapsed_ms`, which is the **MCP server's** measure
 of the whole call, not the Navisworks host's internal time. `McpToolTimingFilter` starts
 a stopwatch before invoking the tool and stops it after, so the figure includes the
 server's own work and the named-pipe round trip to the host, and excludes only the MCP
@@ -61,84 +64,112 @@ and the run restores them (`show_all`, nothing selected).
 
 ## The table
 
-Selection-dependent tools were measured with one root item selected, except
-`select_by_search`, which selects four items under a parent with three children and
-roughly 88 000 descendants.
+**Re-run on 2026-09-26:** `python scripts/measure_read_tools.py --out <file>` on
+`main` `d8d8eac`, in a fresh Navisworks Manage 2027 process with
+`D:\Downloads\6501.5.nwd`. The host reported `pluginAssemblyLength` 1598464 and
+`pluginAssemblyLastWriteUtc` 2026-09-26T02:48:41.9602036Z; the run started at
+2026-09-26T03:14:03Z. The table is the first current-build arm. The plugin under measurement is `d8d8eac`'s. The harness is `scripts/measure_read_tools.py` at `e330b20` (#87 before its review fixes, which changed only failure handling), run from that checkout. Its MCP server was built from the same tree, whose server code is `2550961`'s, and `elapsed_ms` includes that server's work. Each row was called
+twice in that process; the columns give the first call and the second (warm) call.
+
+The script resolved `$ROOT_NAME` to the first `list_root_items` item, the file node
+`6501.5.nwd` (`$ROOT_HANDLE` = `mh_000001`), which spans the whole model. Selecting
+one root item therefore selected the whole model. `PATH_2` resolved to
+`6501.5.nwd / /STORE`; `PATH_7` continued through `/6501.5-S`,
+`/6501.5-S.АМ`, `ZONE 1 of :PROFE /6501.5-S.АМ`, `/6501.5-CV-170`, and
+`BOX 1 of EQUIPMENT /6501.5-CV-170`. The 200-unit zone ran from
+`(3064.635, 1644.511, 23.820)` to `(3264.635, 1844.511, 223.820)`.
 
 | group | tool | status | first (host ms) | warm (host ms) | warm (wall ms) |
 | --- | --- | --- | --- | --- | --- |
-| diagnostics | `host_status` | ok | 36 | 23 | 24 |
-| diagnostics | `mcp_health_check` | ok | 113 | 88 | 89 |
-| diagnostics | `mcp_diagnostics` | ok | 2 | 1 | 1 |
+| diagnostics | `host_status` | ok | 23 | 22 | 24 |
+| diagnostics | `mcp_health_check` | ok | 127 | 89 | 90 |
+| diagnostics | `mcp_diagnostics` | ok | 2 | 1 | 2 |
 | diagnostics | `mcp_error_contract` | ok | 0 | 0 | 1 |
-| diagnostics | `mcp_recent_calls` | ok | 3 | 16 | 18 |
-| diagnostics | `list_navisworks_hosts` | ok | 1 | 1 | 2 |
-| diagnostics | `list_recent_navisworks_files` | ok | 10 | 3 | 4 |
-| query | `active_model_context` | ok | 57 | **57** | 57 |
-| query | `list_root_items` | ok | 10 | 12 | 12 |
-| query | `find_root_items_by_name` | ok | 13 | 12 | 13 |
-| query | `list_item_children` (2-level path) | ok | 17 | 13 | 13 |
-| query | `list_item_children` (7-level path) | ok | 15 | 23 | 24 |
-| query | `find_items` whole_model, all, countOnly | ok | 82 | 73 | 74 |
-| query | `find_items` scoped, all, countOnly | ok | 18 | 17 | 17 |
-| query | `find_items` scoped, first | ok | 19 | 20 | 20 |
-| query | `find_items_by_bbox` 200³ zone, 100k scan cap | ok | 5614 | **6084** | 6085 |
-| selection | `selection_status` (empty selection) | ok | 16 | 12 | 12 |
-| selection | `select_items` | ok | 83 | 67 | 67 |
-| selection | `selection_status` (1 item, with bbox) | ok | 46 | 36 | 37 |
-| selection | `selected_items_preview` | ok | 14 | 12 | 13 |
-| selection | `selected_items_tree` | ok | 16 | 12 | 12 |
-| selection | `selected_items_ancestry` | ok | 15 | 13 | 14 |
-| selection | `selection_copy_names` | ok | 14 | 11 | 11 |
-| selection | `select_by_search` descendants_of | ok | 345 | 333 | 334 |
-| reports | `selection_distinct_property_values` | ok | 34 | 13 | 13 |
-| reports | `selection_property_report` | ok | 18 | 14 | 19 |
-| properties | `item_properties_by_handle` | ok | 34 | 12 | 14 |
-| view | `current_viewpoint_info` | ok | 14 | 13 | 13 |
-| view | `list_saved_viewpoints` | ok | 12 | 11 | 12 |
-| view | `zoom_to_selection` | ok | 12 | 14 | 15 |
-| view | `focus_on_selection` | ok | 21 | 11 | 12 |
-| view | `fit_all` | ok | 20 | 19 | 19 |
-| sections | `get_current_section_box` | ok | 17 | 14 | 14 |
-| sets | `list_selection_sets` | ok | 13 | 39 | 39 |
+| diagnostics | `mcp_recent_calls` | ok | 10 | 8 | 10 |
+| diagnostics | `list_navisworks_hosts` | ok | 2 | 1 | 2 |
+| diagnostics | `list_recent_navisworks_files` | ok | 12 | 3 | 4 |
+| query | `active_model_context` | ok | 56 | 55 | 56 |
+| query | `list_root_items` | ok | 12 | 14 | 15 |
+| query | `find_root_items_by_name` | ok | 17 | 12 | 14 |
+| query | `list_item_children` (2-level path) | ok | 12 | 13 | 14 |
+| query | `list_item_children` (7-level path) | ok | 13 | 12 | 14 |
+| query | `find_items` whole_model, all, countOnly | ok | 117 | 103 | 104 |
+| query | `find_items` scoped, all, countOnly | ok | 1654 | 1864 | 1865 |
+| query | `find_items` scoped, first | ok | 191 | 100 | 100 |
+| query | `find_items_by_bbox` 200³ zone, 100k scan cap | ok | 1813 | 2310 | 2311 |
+| selection | `selection_status` (empty selection) | ok | 92 | 11 | 12 |
+| selection | `select_items` | ok | 44 | 37 | 38 |
+| selection | `selection_status` (1 item, with bbox) | ok | 33 | 29 | 30 |
+| selection | `selected_items_preview` | ok | 22 | 13 | 14 |
+| selection | `selected_items_tree` | ok | 25 | 12 | 13 |
+| selection | `selected_items_ancestry` | ok | 24 | 11 | 12 |
+| selection | `selection_copy_names` | ok | 19 | 18 | 19 |
+| selection | `select_by_search` descendants_of | ok | 308 | 292 | 294 |
+| reports | `selection_distinct_property_values` | ok | 30 | 11 | 12 |
+| reports | `selection_property_report` | ok | 23 | 12 | 13 |
+| properties | `item_properties_by_handle` | ok | 29 | 11 | 12 |
+| view | `current_viewpoint_info` | ok | 15 | 12 | 13 |
+| view | `list_saved_viewpoints` | ok | 11 | 9 | 10 |
+| view | `zoom_to_selection` | ok | 18 | 28 | 29 |
+| view | `focus_on_selection` | ok | 21 | 18 | 19 |
+| view | `fit_all` | ok | 24 | 14 | 15 |
+| sections | `get_current_section_box` | ok | 32 | 12 | 13 |
+| sets | `list_selection_sets` | ok | 12 | 11 | 12 |
 | scenarios | `list_scenarios` | ok | 38 | 2 | 2 |
-| scenarios | `scenario_capabilities` | ok | 8 | 0 | 6 |
-| clash | `clash_bbox_pair_plan` sourceMode=selection | ok | 27 | 13 | 14 |
-| visibility | `hide_selected` apply=false | ok | 19 | 14 | 15 |
-| visibility | `show_all` | ok | 85 | 77 | 78 |
+| scenarios | `scenario_capabilities` | ok | 10 | 0 | 1 |
+| clash | `clash_bbox_pair_plan` sourceMode=selection | ok | 55 | 12 | 13 |
+| visibility | `hide_selected` apply=false | ok | 139 | 206 | 207 |
+| visibility | `show_all` | ok | 117 | 54 | 55 |
 
-Every probe returned `ok`. Two probes failed on the first attempt with
+Every probe in the 2026-09-26 run returned `ok`. In the original pass, two probes
+failed on the first attempt with
 `Unknown parameter(s)` because the harness passed argument names the tools do not
 have — worth recording because the strict unknown-argument check is what caught it,
 and a client that guesses a parameter name gets told rather than silently ignored.
 
+### Then and now, under the same script
+
+The curator ran `measure_read_tools.py` on the 2026-09-20 build `adc0a5c`
+(`pluginAssemblyLength` 1586688) and `main` `d8d8eac`, interleaved old, current,
+current, old. Each arm used a fresh Navisworks 2027 process and the same script and
+model. These host-side warm ranges cover both arms of each build:
+
+- `select_by_search` descendants_of: 54.859-54.899 s with errors to 292 ms, now `ok`;
+  scoped `find_items` countOnly: 45.071-45.094 s with errors to 1.709-1.864 s, now `ok`.
+- `hide_selected` dry run: 5.814-6.014 s to 206-218 ms;
+  `find_items_by_bbox`: 10.018-10.024 s to 2.289-2.310 s.
+- `selection_distinct_property_values` first call: 53.345-54.833 s with errors to
+  27-30 ms, now `ok`. Its old warm calls ranged from 15 to 1590 ms, so the first
+  calls give the clearer comparison.
+
+The first call immediately after a heavy traversal was about 80-90 ms higher on the
+current build: `selection_status` (empty selection) rose from 11-13 to 92-93 ms after
+the bbox scan; scoped `find_items` first rose from 104-105 to 191-198 ms after scoped
+countOnly. This is consistent with #63's post-call collection waiting at the start of
+the next call; their warm calls stayed near the old values. The published 2026-09-20
+table's scoped `find_items` rows (17-20 ms) and `hide_selected` (14 ms) are **not
+comparable** to this table: that pass did not record its selected root, and those
+figures indicate a smaller root than this script's whole-model file node.
+
 ## What the table says
 
-**Exactly two warm measurements exceed 100 ms**, and most of the read surface is
-10-25 ms:
+**Five warm host measurements exceed 100 ms:** `find_items_by_bbox` at 2310 ms,
+scoped `find_items` countOnly at 1864 ms, `select_by_search` at 292 ms,
+`hide_selected` dry run at 206 ms, and whole-model `find_items` countOnly at
+103 ms. Most other warm calls are around 10-30 ms. The bbox result is one sample;
+the historical caveat below demonstrates why a single bbox timing is not a stable
+before/after comparison. `select_by_search` performs two whole-model native searches,
+one for the condition and one to resolve the parent; the scope test is bounded by
+the answer (see `docs/PERSISTENT_SCENARIO_LIBRARY_CONTRACT.md`).
 
-1. **`find_items_by_bbox` - 6 084 ms.** Two orders of magnitude slower than anything else
-   measured. See the caveat below: repeated sampling later the same day showed this
-   operation is bimodal on this machine, so 6 084 is one draw from a wide distribution
-   rather than a stable value.
-2. **`select_by_search` - 333 ms.** Two whole-model native searches, one for the
-   condition and one to resolve the parent. That is inherent to the contract rather than
-   waste; the scope test itself is bounded by the answer, see
-   `docs/PERSISTENT_SCENARIO_LIBRARY_CONTRACT.md`.
-
-Separately, and *not* a latency exception: **`active_model_context` costs 57 ms on both
-calls.** It is the only tool that gains nothing from a second call while its neighbours
-halve, which looked like a cache that was missing. It is not. The tool is a server-side
+**`active_model_context` costs 56 ms first and 55 ms warm.** It is a server-side
 composite of four sequential host calls: `host_status`, `list_root_items`,
 `list_saved_viewpoints`, `list_selection_sets`. There is nothing to warm up, and nothing is
 being redone -- it makes four round trips because it reports four things.
 
-The arithmetic does not close, and saying so is more useful than a tidy sum. This table's
-warm figures for those four are 23, 12, 11 and **39** ms, which is 85 -- more than the 57
-the composite measured. The discrepancy sits in `list_selection_sets`, whose two samples
-here were 13 ms then 39 ms: its warm figure is the unreliable one, and at ~12 ms the four
-would sum to about 58. So four round trips is the explanation for 57 ms; the component
-figures are not precise enough to derive it.
+Their separate warm samples are 22, 14, 9 and 11 ms, totaling 56 ms, close to the
+composite's 55 ms. These are separate calls, so the sum is a check on scale rather
+than a timing decomposition of the composite call.
 
 Two ways of "fixing" it that would be wrong, recorded so nobody tries them:
 
@@ -149,11 +180,10 @@ Two ways of "fixing" it that would be wrong, recorded so nobody tries them:
   Concurrency here does not make the tool faster, it makes it fail. That constraint
   applies to every composite tool, not just this one.
 
-The only real reduction available is one host command that gathers all four in a single
-dispatch, saving three round trips. That is a contract addition for roughly 37 ms on a
-call made once per task, so it is recorded here rather than built.
+One host command gathering all four could save three round trips, but would add a
+contract for a call made once per task; it is recorded here rather than built.
 
-`selection_status` costs 12 ms with nothing selected and 36 ms with one item, because it
+`selection_status` costs 11 ms warm with nothing selected and 29 ms with one item, because it
 computes a bounding box. `includeBoundingBox=false` is the cheap form.
 
 ### Caveat on `find_items_by_bbox`
@@ -1157,6 +1187,9 @@ wrong as soon as a row moves.
 
 A number here is only comparable to a number taken the same way:
 
+- for the read-only table, use `python scripts/measure_read_tools.py --out <file>`;
+  its `$ROOT_NAME` is the first `list_root_items` item, the file node spanning
+  the whole model in the 2026-09-26 run;
 - same model, and stated — `6501.5.nwd` is federated and its RVM branch has empty
   internal property names, which changes what the native search can match;
 - **a fresh Navisworks process**, because an abandoned traversal leaves hundreds of

@@ -166,7 +166,7 @@ namespace NavisHelper.Agent.Host
                 ["request_id"] = requestId == null ? (JToken)JValue.CreateNull() : new JValue(requestId),
                 ["ok"] = false,
                 ["error_code"] = errorCode,
-                ["error_message"] = errorMessage,
+                ["error_message"] = ArgumentExceptionMessageHelper.StripParameterNameSuffix(errorMessage),
                 ["elapsed_ms"] = Math.Max(0, elapsedMs),
                 ["payload"] = JValue.CreateNull(),
             };
