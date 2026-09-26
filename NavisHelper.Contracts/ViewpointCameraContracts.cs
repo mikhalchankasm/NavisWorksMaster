@@ -45,6 +45,7 @@ namespace NavisHelper.Agent.Contracts
         private const double MinimumVectorLength = 1e-12;
         private const double ParallelSinEpsilon = 1e-6;
         private const double CoordinateMatchEpsilon = 1e-9;
+        private const double DirectionPreservationTolerance = 1e-6;
 
         public static ViewpointCameraPlan Build(ViewpointSetCameraRequest request)
         {
@@ -97,11 +98,18 @@ namespace NavisHelper.Agent.Contracts
             var target = hasTarget ? CopyPoint(request.Target) : Add(request.Position, request.Direction);
             if (!IsFinitePoint(target))
                 throw new ArgumentException("position plus direction must remain inside the finite numeric range.", nameof(request));
-            double effectiveDirectionLength;
-            if (!hasTarget &&
-                (!TryGetFiniteLength(Subtract(target, request.Position), out effectiveDirectionLength) ||
-                 effectiveDirectionLength <= MinimumVectorLength))
-                throw new ArgumentException("Camera target and position must differ, and direction must be non-zero.", nameof(request));
+            if (!hasTarget)
+            {
+                var displacement = Subtract(target, request.Position);
+                double effectiveDirectionLength;
+                if (!TryGetFiniteLength(displacement, out effectiveDirectionLength) ||
+                    effectiveDirectionLength <= MinimumVectorLength)
+                    throw new ArgumentException("Camera target and position must differ, and direction must be non-zero.", nameof(request));
+                double preservedOffsetLength;
+                if (!TryGetFiniteLength(Subtract(displacement, request.Direction), out preservedOffsetLength) ||
+                    preservedOffsetLength > DirectionPreservationTolerance * directionLength)
+                    throw new ArgumentException("The derived target does not preserve the requested direction; position plus direction lost a material part of the direction vector.", nameof(request));
+            }
 
             var zoomBox = BuildZoomBox(request.ZoomTo, projection, target);
             var saveName = (request.SaveName ?? string.Empty).Trim();
@@ -161,9 +169,14 @@ namespace NavisHelper.Agent.Contracts
                 if (!PointsNearlyEqual(zoomTo.Point, target))
                     throw new ArgumentException("zoomTo.point must equal the camera target so exact orientation and framing do not conflict.", nameof(zoomTo));
                 var half = zoomTo.PointHalfSize.Value;
-                return CreateBox(
+                var pointBox = CreateBox(
                     new Point3Info { X = zoomTo.Point.X - half, Y = zoomTo.Point.Y - half, Z = zoomTo.Point.Z - half },
                     new Point3Info { X = zoomTo.Point.X + half, Y = zoomTo.Point.Y + half, Z = zoomTo.Point.Z + half });
+                if (!(pointBox.Min.X < zoomTo.Point.X && pointBox.Max.X > zoomTo.Point.X &&
+                      pointBox.Min.Y < zoomTo.Point.Y && pointBox.Max.Y > zoomTo.Point.Y &&
+                      pointBox.Min.Z < zoomTo.Point.Z && pointBox.Max.Z > zoomTo.Point.Z))
+                    throw new ArgumentException("zoomTo.point and pointHalfSize must produce a box with positive extent on every axis; the point coordinates are too large for pointHalfSize.", nameof(zoomTo));
+                return pointBox;
             }
 
             if (zoomTo.PointHalfSize.HasValue)
@@ -233,17 +246,15 @@ namespace NavisHelper.Agent.Contracts
 
         public static bool PointsNearlyEqual(Point3Info left, Point3Info right)
         {
-            var scale = Math.Max(
-                1,
-                Math.Max(
-                    Math.Max(Math.Abs(left.X), Math.Abs(right.X)),
-                    Math.Max(
-                        Math.Max(Math.Abs(left.Y), Math.Abs(right.Y)),
-                        Math.Max(Math.Abs(left.Z), Math.Abs(right.Z)))));
-            var tolerance = CoordinateMatchEpsilon * scale;
-            return Math.Abs(left.X - right.X) <= tolerance &&
-                   Math.Abs(left.Y - right.Y) <= tolerance &&
-                   Math.Abs(left.Z - right.Z) <= tolerance;
+            return AxisNearlyEqual(left.X, right.X) &&
+                   AxisNearlyEqual(left.Y, right.Y) &&
+                   AxisNearlyEqual(left.Z, right.Z);
+        }
+
+        private static bool AxisNearlyEqual(double left, double right)
+        {
+            var scale = Math.Max(1, Math.Max(Math.Abs(left), Math.Abs(right)));
+            return Math.Abs(left - right) <= CoordinateMatchEpsilon * scale;
         }
 
         private static bool TryGetFiniteLength(Point3Info value, out double length)

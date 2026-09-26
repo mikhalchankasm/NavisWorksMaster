@@ -240,6 +240,31 @@ public sealed class ViewpointCameraPlanTests
     }
 
     [Fact]
+    public void Build_AcceptsGeoreferencedDirectionWithinPreservationTolerance()
+    {
+        var request = ValidRequest();
+        request.Position = Point(500000000, 7000000000, 100000);
+        request.Target = null;
+        request.Direction = Point(1, 1, -0.5);
+
+        var plan = ViewpointCameraPlanHelper.Build(request);
+
+        AssertPoint(plan.Direction, 1, 1, -0.5);
+        Assert.Equal(1.5, plan.FocalDistance, 9);
+    }
+
+    [Fact]
+    public void Build_RejectsDerivedTargetThatLosesDirectionComponent()
+    {
+        var request = ValidRequest();
+        request.Position = Point(9007199254740992, 0, 0);
+        request.Target = null;
+        request.Direction = Point(1, 1, 0);
+
+        Assert.Throws<ArgumentException>(() => ViewpointCameraPlanHelper.Build(request));
+    }
+
+    [Fact]
     public void Build_RejectsTargetWhoseDerivedDirectionOverflows()
     {
         var request = ValidRequest();
@@ -321,6 +346,32 @@ public sealed class ViewpointCameraPlanTests
         };
 
         Assert.Throws<ArgumentException>(() => ViewpointCameraPlanHelper.Build(request));
+    }
+
+    [Fact]
+    public void Build_RejectsOffCenterZoomPointMaskedByLargeCoordinate()
+    {
+        var request = ValidRequest();
+        request.Projection = "ortho";
+        request.Target = Point(9007199254740992, 0, 0);
+        request.ZoomTo = new ViewpointCameraZoomTo
+        {
+            Point = Point(9007199254740992, 1000000, 0),
+            PointHalfSize = 2,
+        };
+
+        Assert.Throws<ArgumentException>(() => ViewpointCameraPlanHelper.Build(request));
+    }
+
+    [Fact]
+    public void PointsNearlyEqual_ComparesEachAxisAgainstItsOwnScale()
+    {
+        Assert.False(ViewpointCameraPlanHelper.PointsNearlyEqual(
+            Point(9007199254740992, 0, 0),
+            Point(9007199254740992, 1000000, 0)));
+        Assert.True(ViewpointCameraPlanHelper.PointsNearlyEqual(
+            Point(9007199254740992, 0, 0),
+            Point(9007199254740992, 0.0000000001, 0)));
     }
 
     [Fact]
@@ -412,6 +463,37 @@ public sealed class ViewpointCameraPlanTests
         };
 
         Assert.Throws<ArgumentException>(() => ViewpointCameraPlanHelper.Build(request));
+    }
+
+    [Fact]
+    public void Build_RejectsPointZoomBoxCollapsedByRounding()
+    {
+        var request = ValidRequest();
+        request.Projection = "ortho";
+        request.Target = Point(9007199254740992, 0, 0);
+        request.ZoomTo = new ViewpointCameraZoomTo
+        {
+            Point = Point(9007199254740992, 0, 0),
+            PointHalfSize = 0.1,
+        };
+
+        Assert.Throws<ArgumentException>(() => ViewpointCameraPlanHelper.Build(request));
+    }
+
+    [Fact]
+    public void Build_RejectsPointZoomBoxWithOneSidedRoundingCollapse()
+    {
+        var request = ValidRequest();
+        request.Projection = "ortho";
+        request.Target = Point(9007199254740992, 0, 0);
+        request.ZoomTo = new ViewpointCameraZoomTo
+        {
+            Point = Point(9007199254740992, 0, 0),
+            PointHalfSize = 1,
+        };
+
+        var exception = Assert.Throws<ArgumentException>(() => ViewpointCameraPlanHelper.Build(request));
+        Assert.Contains("zoomTo.point and pointHalfSize must produce a box", exception.Message);
     }
 
     [Fact]
