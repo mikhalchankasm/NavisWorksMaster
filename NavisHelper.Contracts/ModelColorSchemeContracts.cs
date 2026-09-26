@@ -95,11 +95,33 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class ModelColorSchemeItemFacts
     {
+        private string _path;
+
         public string Name { get; set; }
-        public string Path { get; set; }
         public string SourceFile { get; set; }
         public bool PropertiesTruncated { get; set; }
         public List<ModelColorSchemePropertyFact> Properties { get; set; } = new List<ModelColorSchemePropertyFact>();
+
+        public Func<string> PathFactory { get; set; }
+
+        public string Path
+        {
+            get
+            {
+                var factory = PathFactory;
+                if (factory != null)
+                {
+                    _path = factory() ?? string.Empty;
+                    PathFactory = null;
+                }
+                return _path;
+            }
+            set
+            {
+                _path = value;
+                PathFactory = null;
+            }
+        }
     }
 
     public sealed class ModelColorSchemePropertyFact
@@ -140,7 +162,7 @@ namespace NavisHelper.Agent.Contracts
                 return true;
 
             if (!MatchesContains(item.Name, rule.NameContains) ||
-                !MatchesContains(item.Path, rule.PathContains) ||
+                (HasValues(rule.PathContains) && !MatchesContains(item.Path, rule.PathContains)) ||
                 !MatchesContains(item.SourceFile, rule.SourceFileContains))
             {
                 return false;

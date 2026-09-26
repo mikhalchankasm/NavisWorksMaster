@@ -172,9 +172,10 @@ namespace NavisHelper.Agent.Services
                     var item = collected.Items[itemIndex];
                     var itemFacts = BuildItemFacts(
                         item,
-                        maxPropertiesPerItem,
-                        categoryFilters,
-                        propertyFilters,
+                        pathHolder: out var itemPathHolder,
+                        maxPropertiesPerItem: maxPropertiesPerItem,
+                        categoryFilters: categoryFilters,
+                        propertyFilters: propertyFilters,
                         includeAncestors: true,
                         collectProperties: collectProperties,
                         propertyCache: propertyCache,
@@ -193,7 +194,7 @@ namespace NavisHelper.Agent.Services
                         if (string.IsNullOrWhiteSpace(ruleBuckets[ruleIndex].SampleItemName))
                         {
                             ruleBuckets[ruleIndex].SampleItemName = itemFacts.Name;
-                            ruleBuckets[ruleIndex].SampleItemPath = itemFacts.Path;
+                            ruleBuckets[ruleIndex].SampleItemPathHolder = itemPathHolder;
                             ruleBuckets[ruleIndex].SampleSourceFile = itemFacts.SourceFile;
                         }
                         response.MatchedItemCount++;
@@ -226,7 +227,9 @@ namespace NavisHelper.Agent.Services
                         Transparency = bucket.Rule.Rule.Transparency,
                         MatchedItemCount = bucket.Items.Count,
                         SampleItemName = bucket.SampleItemName ?? string.Empty,
-                        SampleItemPath = bucket.SampleItemPath ?? string.Empty,
+                        SampleItemPath = bucket.SampleItemPathHolder == null
+                            ? string.Empty
+                            : bucket.SampleItemPathHolder.GetPath() ?? string.Empty,
                         SampleSourceFile = bucket.SampleSourceFile ?? string.Empty,
                     })
                     .ToList();
@@ -393,9 +396,10 @@ namespace NavisHelper.Agent.Services
 
                 var facts = BuildItemFacts(
                     item,
-                    maxPropertiesPerItem,
-                    categoryFilters,
-                    propertyFilters,
+                    pathHolder: out var pathHolder,
+                    maxPropertiesPerItem: maxPropertiesPerItem,
+                    categoryFilters: categoryFilters,
+                    propertyFilters: propertyFilters,
                     includeAncestors: true,
                     collectProperties: true,
                     propertyCache: propertyCache,
@@ -405,8 +409,8 @@ namespace NavisHelper.Agent.Services
                 propertyFactsTruncated |= facts.PropertiesTruncated;
                 var candidatesStarted = Stopwatch.GetTimestamp();
                 var itemCandidateKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                AddCandidate(candidates, distinctCountByKind, itemCandidateKeys, "source_file", string.Empty, string.Empty, facts.SourceFile, facts, ref candidatesCapped);
-                AddCandidate(candidates, distinctCountByKind, itemCandidateKeys, "display_name", string.Empty, string.Empty, facts.Name, facts, ref candidatesCapped);
+                AddCandidate(candidates, distinctCountByKind, itemCandidateKeys, "source_file", string.Empty, string.Empty, facts.SourceFile, facts, pathHolder, ref candidatesCapped);
+                AddCandidate(candidates, distinctCountByKind, itemCandidateKeys, "display_name", string.Empty, string.Empty, facts.Name, facts, pathHolder, ref candidatesCapped);
                 foreach (var property in facts.Properties)
                 {
                     AddCandidate(
@@ -418,6 +422,7 @@ namespace NavisHelper.Agent.Services
                         property.Property,
                         property.Value,
                         facts,
+                        pathHolder,
                         ref candidatesCapped);
                 }
                 phases.Add("candidates", Stopwatch.GetTimestamp() - candidatesStarted);
@@ -690,6 +695,7 @@ namespace NavisHelper.Agent.Services
 
         private static ModelColorSchemeItemFacts BuildItemFacts(
             ModelItem item,
+            out ModelColorSchemeItemPathHolder pathHolder,
             int maxPropertiesPerItem,
             List<string> categoryFilters,
             List<string> propertyFilters,
@@ -726,10 +732,11 @@ namespace NavisHelper.Agent.Services
             }
 
             var namePathStarted = Stopwatch.GetTimestamp();
+            pathHolder = new ModelColorSchemeItemPathHolder(item);
             var facts = new ModelColorSchemeItemFacts
             {
                 Name = SafeString(() => item.DisplayName),
-                Path = BuildItemPath(item),
+                PathFactory = pathHolder.GetPath,
             };
             if (phases != null)
                 phases.Add("name_path", Stopwatch.GetTimestamp() - namePathStarted);
@@ -813,6 +820,7 @@ namespace NavisHelper.Agent.Services
             string property,
             string value,
             ModelColorSchemeItemFacts facts,
+            ModelColorSchemeItemPathHolder pathHolder,
             ref bool candidatesCapped)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -842,7 +850,7 @@ namespace NavisHelper.Agent.Services
                     Property = property ?? string.Empty,
                     Value = normalizedValue,
                     SampleItemName = facts.Name ?? string.Empty,
-                    SampleItemPath = facts.Path ?? string.Empty,
+                    SampleItemPathHolder = pathHolder,
                     SampleSourceFile = facts.SourceFile ?? string.Empty,
                 };
                 candidates[key] = candidate;
@@ -1411,8 +1419,32 @@ namespace NavisHelper.Agent.Services
             public ModelColorSchemePreparedRule Rule;
             public ModelItemCollection Items = new ModelItemCollection();
             public string SampleItemName;
-            public string SampleItemPath;
+            public ModelColorSchemeItemPathHolder SampleItemPathHolder;
             public string SampleSourceFile;
+        }
+
+        // The path is built from the ModelItem only when it is emitted; the holder never
+        // references the facts object, so an unused path keeps no property list alive.
+        private sealed class ModelColorSchemeItemPathHolder
+        {
+            private readonly ModelItem _item;
+            private string _path;
+            private bool _pathBuilt;
+
+            public ModelColorSchemeItemPathHolder(ModelItem item)
+            {
+                _item = item;
+            }
+
+            public string GetPath()
+            {
+                if (!_pathBuilt)
+                {
+                    _path = BuildItemPath(_item);
+                    _pathBuilt = true;
+                }
+                return _path;
+            }
         }
 
         private sealed class ModelColorSchemeCollectionResult
@@ -1448,7 +1480,7 @@ namespace NavisHelper.Agent.Services
             public string Value;
             public int Count;
             public string SampleItemName;
-            public string SampleItemPath;
+            public ModelColorSchemeItemPathHolder SampleItemPathHolder;
             public string SampleSourceFile;
 
             public ModelColorSchemeCandidate ToResponse(string verbosity)
@@ -1465,7 +1497,11 @@ namespace NavisHelper.Agent.Services
                     Value = compact ? TruncateText(Value, 500) : Value,
                     Count = Count,
                     SampleItemName = compact ? TruncateText(SampleItemName, 200) : SampleItemName,
-                    SampleItemPath = compact ? string.Empty : SampleItemPath,
+                    SampleItemPath = compact
+                        ? string.Empty
+                        : SampleItemPathHolder == null
+                            ? string.Empty
+                            : SampleItemPathHolder.GetPath() ?? string.Empty,
                     SampleSourceFile = compact ? TruncateText(SampleSourceFile, 300) : SampleSourceFile,
                 };
             }
