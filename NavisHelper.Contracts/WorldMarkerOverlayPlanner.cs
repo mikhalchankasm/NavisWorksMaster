@@ -87,7 +87,9 @@ namespace NavisHelper.Agent.Contracts
             if (blankNames || blankIds || (request.Group != null && group == null))
                 return (snapshot, RefusedManage(operation, snapshot.Count));
             var hasSelector = nameKeys.Count > 0 || idKeys.Count > 0 || group != null;
-            var selectAll = operation == WorldMarkerOverlayOperations.Clear && !hasSelector;
+            if (!hasSelector && operation == WorldMarkerOverlayOperations.Delete)
+                return (snapshot, RefusedSelectorFreeDelete(snapshot.Count));
+            var selectAll = !hasSelector;
 
             var next = new List<WorldMarkerOverlayMarker>(snapshot.Count);
             var hidden = 0; var shown = 0; var deleted = 0;
@@ -193,6 +195,14 @@ namespace NavisHelper.Agent.Contracts
                 Operation = operation, Accepted = false, MarkerCount = markerCount,
                 RefusalReason = "blank selectors (empty or whitespace-only names, ids, or group) are refused; " +
                     "omit every selector to act on the whole store; the snapshot is unchanged.",
+            };
+
+        private static WorldMarkerOverlayManageResult RefusedSelectorFreeDelete(int markerCount) =>
+            new WorldMarkerOverlayManageResult
+            {
+                Operation = WorldMarkerOverlayOperations.Delete, Accepted = false, MarkerCount = markerCount,
+                RefusalReason = "delete without a selector would remove every stored marker and is refused; " +
+                    "pass names, ids, or group, or use clear to remove everything; the snapshot is unchanged.",
             };
 
         private static WorldMarkerOverlayMarker NormalizeSpec(WorldMarkerOverlaySpec spec, int index)

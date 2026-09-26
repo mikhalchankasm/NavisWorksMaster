@@ -45,6 +45,7 @@ builder.Services
     .WithTools<NavisworksViewpointCameraTools>()
     .WithTools<NavisworksViewpointTools>()
     .WithTools<NavisworksVisibilityTools>()
+    .WithTools<NavisworksWorldMarkerTools>()
     .WithTools<NavisworksSectionBoxTools>()
     .WithTools<NavisworksStartupTools>()
     .WithTools<NavisworksSelectionReportTools>()
