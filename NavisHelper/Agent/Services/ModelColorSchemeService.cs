@@ -76,6 +76,8 @@ namespace NavisHelper.Agent.Services
                     "includeContainers=true is analysis-only because container overrides can propagate to matched descendants.");
             }
             var operationTimer = Stopwatch.StartNew();
+            var phases = new PhaseTimings();
+            var collectStarted = Stopwatch.GetTimestamp();
             var collected = CollectItems(
                 document,
                 scope,
@@ -83,6 +85,7 @@ namespace NavisHelper.Agent.Services
                 includeContainers,
                 operationTimer,
                 workBudgetSeconds);
+            phases.Add("collect", Stopwatch.GetTimestamp() - collectStarted);
             response.TraversedItemCount = collected.TraversedItemCount;
             response.EligibleItemCount = collected.Items.Count;
             response.ItemsTruncated = collected.Truncated;
@@ -104,6 +107,7 @@ namespace NavisHelper.Agent.Services
                     workBudgetSeconds,
                     verbosity,
                     operationTimer,
+                    phases,
                     response);
                 response.Message = response.AnalysisTruncated
                     ? "Model color analysis stopped at the host-side work budget. Narrow the scope or use analysis filters."
@@ -157,9 +161,11 @@ namespace NavisHelper.Agent.Services
                     includeAncestors: true,
                     collectProperties: collectProperties,
                     propertyCache: propertyCache,
-                    sourceFileCache: sourceFileCache);
+                    sourceFileCache: sourceFileCache,
+                    phases: phases);
                 propertyFactsTruncated |= itemFacts.PropertiesTruncated;
                 response.ClassifiedItemCount++;
+                var matchStarted = Stopwatch.GetTimestamp();
                 var matched = false;
                 for (var ruleIndex = 0; ruleIndex < preparedRules.Count; ruleIndex++)
                 {
@@ -178,6 +184,7 @@ namespace NavisHelper.Agent.Services
                     break;
                 }
 
+                phases.Add("match", Stopwatch.GetTimestamp() - matchStarted);
                 if (!matched)
                     response.UnclassifiedItemCount++;
             }
@@ -192,6 +199,7 @@ namespace NavisHelper.Agent.Services
                     Math.Max(0, response.EligibleItemCount - response.ClassifiedItemCount);
             }
 
+            var respondStarted = Stopwatch.GetTimestamp();
             response.RuleResults = ruleBuckets
                 .Select((bucket, index) => new ModelColorSchemeRuleResult
                 {
@@ -205,10 +213,12 @@ namespace NavisHelper.Agent.Services
                     SampleSourceFile = bucket.SampleSourceFile ?? string.Empty,
                 })
                 .ToList();
+            phases.Add("respond", Stopwatch.GetTimestamp() - respondStarted);
 
             if (!apply)
             {
                 response.Message = "Dry-run only. Review rule coverage, then pass apply=true to apply the model color scheme.";
+                LogPhaseTimings("apply", response.ClassifiedItemCount, phases, operationTimer);
                 return response;
             }
 
@@ -239,11 +249,14 @@ namespace NavisHelper.Agent.Services
                     " items. Review the dry-run and pass confirmLargeApply=true to apply.");
             }
 
+            var applyStarted = Stopwatch.GetTimestamp();
             Apply(
                 document,
                 ruleBuckets,
                 request.ClearSelectionAfterApply.GetValueOrDefault(true),
                 response);
+            phases.Add("apply", Stopwatch.GetTimestamp() - applyStarted);
+            LogPhaseTimings("apply", response.ClassifiedItemCount, phases, operationTimer);
             return response;
         }
 
@@ -304,6 +317,20 @@ namespace NavisHelper.Agent.Services
             return response;
         }
 
+        private static void LogPhaseTimings(
+            string operation,
+            int itemCount,
+            PhaseTimings phases,
+            Stopwatch operationTimer)
+        {
+            Logger.Info(
+                "model_color_scheme phases op=" + operation +
+                " items=" + itemCount +
+                " " + phases.Format() +
+                " elapsed_ms=" + operationTimer.ElapsedMilliseconds,
+                "AgentHost");
+        }
+
         private void Analyze(
             List<ModelItem> items,
             ModelColorSchemeRequest request,
@@ -312,6 +339,7 @@ namespace NavisHelper.Agent.Services
             int workBudgetSeconds,
             string verbosity,
             Stopwatch operationTimer,
+            PhaseTimings phases,
             ModelColorSchemeResponse response)
         {
             var categoryFilters = ModelColorSchemeRuleMatcher.NormalizeValues(request.AnalysisCategoryFilters);
@@ -342,9 +370,11 @@ namespace NavisHelper.Agent.Services
                     includeAncestors: true,
                     collectProperties: true,
                     propertyCache: propertyCache,
-                    sourceFileCache: sourceFileCache);
+                    sourceFileCache: sourceFileCache,
+                    phases: phases);
                 response.AnalyzedItemCount++;
                 propertyFactsTruncated |= facts.PropertiesTruncated;
+                var candidatesStarted = Stopwatch.GetTimestamp();
                 var itemCandidateKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 AddCandidate(candidates, distinctCountByKind, itemCandidateKeys, "source_file", string.Empty, string.Empty, facts.SourceFile, facts, ref candidatesCapped);
                 AddCandidate(candidates, distinctCountByKind, itemCandidateKeys, "display_name", string.Empty, string.Empty, facts.Name, facts, ref candidatesCapped);
@@ -361,7 +391,9 @@ namespace NavisHelper.Agent.Services
                         facts,
                         ref candidatesCapped);
                 }
+                phases.Add("candidates", Stopwatch.GetTimestamp() - candidatesStarted);
             }
+            var selectStarted = Stopwatch.GetTimestamp();
             if (candidatesCapped)
             {
                 response.Warnings.Add(
@@ -385,6 +417,8 @@ namespace NavisHelper.Agent.Services
                 .Select(candidate => candidate.ToResponse(verbosity))
                 .ToList();
             response.ReturnedCandidateCount = response.Candidates.Count;
+            phases.Add("select", Stopwatch.GetTimestamp() - selectStarted);
+            LogPhaseTimings("analyze", response.AnalyzedItemCount, phases, operationTimer);
         }
 
         private void Apply(
@@ -634,13 +668,15 @@ namespace NavisHelper.Agent.Services
             bool includeAncestors = false,
             bool collectProperties = true,
             Dictionary<ModelItem, ModelColorSchemeCachedPropertyFacts> propertyCache = null,
-            Dictionary<ModelItem, string> sourceFileCache = null)
+            Dictionary<ModelItem, string> sourceFileCache = null,
+            PhaseTimings phases = null)
         {
             // The item's own property pass also resolves its source file, so the ancestor walk
             // below can take that result from the cache instead of enumerating the tree twice.
             ModelColorSchemeCachedPropertyFacts ownProperties = null;
             if (item != null && collectProperties)
             {
+                var ownStarted = Stopwatch.GetTimestamp();
                 try
                 {
                     ownProperties = ReadCachedProperties(
@@ -657,67 +693,84 @@ namespace NavisHelper.Agent.Services
                 {
                     ownProperties = null;
                 }
+                if (phases != null)
+                    phases.Add("own_properties", Stopwatch.GetTimestamp() - ownStarted);
             }
 
+            var namePathStarted = Stopwatch.GetTimestamp();
             var facts = new ModelColorSchemeItemFacts
             {
                 Name = SafeString(() => item.DisplayName),
                 Path = BuildItemPath(item),
-                SourceFile = GetSourceFileFromProperties(item, sourceFileCache),
             };
+            if (phases != null)
+                phases.Add("name_path", Stopwatch.GetTimestamp() - namePathStarted);
+            var sourceFileStarted = Stopwatch.GetTimestamp();
+            facts.SourceFile = GetSourceFileFromProperties(item, sourceFileCache);
             if (string.IsNullOrWhiteSpace(facts.SourceFile))
                 facts.SourceFile = GetSourceFile(item);
+            if (phases != null)
+                phases.Add("source_file", Stopwatch.GetTimestamp() - sourceFileStarted);
             if (item == null || !collectProperties)
                 return facts;
 
             var propertyCount = 0;
+            var ancestorsStarted = Stopwatch.GetTimestamp();
             try
             {
-                IEnumerable<ModelItem> propertyItems;
-                if (includeAncestors)
-                    propertyItems = item.AncestorsAndSelf;
-                else
-                    propertyItems = new[] { item };
-                var isSelf = true;
-                foreach (var propertyItem in propertyItems)
+                try
                 {
-                    ModelColorSchemeCachedPropertyFacts cached;
-                    if (isSelf && ownProperties != null)
-                    {
-                        // Reuse the pass made above instead of reading the item's tree again.
-                        cached = ownProperties;
-                    }
+                    IEnumerable<ModelItem> propertyItems;
+                    if (includeAncestors)
+                        propertyItems = item.AncestorsAndSelf;
                     else
+                        propertyItems = new[] { item };
+                    var isSelf = true;
+                    foreach (var propertyItem in propertyItems)
                     {
-                        cached = ReadCachedProperties(
-                            propertyItem,
-                            maxPropertiesPerItem,
-                            categoryFilters,
-                            propertyFilters,
-                            propertyCache,
-                            findSourceFile: false);
-                    }
+                        ModelColorSchemeCachedPropertyFacts cached;
+                        if (isSelf && ownProperties != null)
+                        {
+                            // Reuse the pass made above instead of reading the item's tree again.
+                            cached = ownProperties;
+                        }
+                        else
+                        {
+                            cached = ReadCachedProperties(
+                                propertyItem,
+                                maxPropertiesPerItem,
+                                categoryFilters,
+                                propertyFilters,
+                                propertyCache,
+                                findSourceFile: false);
+                        }
 
-                    isSelf = false;
-                    foreach (var propertyFact in cached.Properties)
-                    {
-                        if (propertyCount >= maxPropertiesPerItem)
+                        isSelf = false;
+                        foreach (var propertyFact in cached.Properties)
+                        {
+                            if (propertyCount >= maxPropertiesPerItem)
+                            {
+                                facts.PropertiesTruncated = true;
+                                return facts;
+                            }
+                            facts.Properties.Add(propertyFact);
+                            propertyCount++;
+                        }
+                        if (cached.Truncated)
                         {
                             facts.PropertiesTruncated = true;
                             return facts;
                         }
-                        facts.Properties.Add(propertyFact);
-                        propertyCount++;
-                    }
-                    if (cached.Truncated)
-                    {
-                        facts.PropertiesTruncated = true;
-                        return facts;
                     }
                 }
+                catch
+                {
+                }
             }
-            catch
+            finally
             {
+                if (phases != null)
+                    phases.Add("ancestor_properties", Stopwatch.GetTimestamp() - ancestorsStarted);
             }
 
             return facts;
