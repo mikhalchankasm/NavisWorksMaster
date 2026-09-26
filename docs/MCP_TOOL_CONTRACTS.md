@@ -1127,7 +1127,7 @@ Safety:
 - Applying a replacement scheme first restores the previous active scheme.
 - A stale session is cleared without touching a newly opened document.
 - `clearSelectionAfterApply=true` is the default because Navisworks selection highlighting can mask permanent material colors. The cleared selection is captured and restored by reset when the user has not selected something else.
-- Apply verifies up to 100 affected items through both `PermanentColor` and `ActiveColor`, returning `colorVerificationSampleCount`, `permanentColorMatchCount`, and `activeColorMatchCount`.
+- Apply verifies up to 100 affected items through both `PermanentColor` and `ActiveColor`, returning `colorVerificationSampleCount`, `permanentColorMatchCount`, and `activeColorMatchCount`. Colors are compared at the 8-bit precision of `colorHex`, because Navisworks does not return a written channel bit for bit. A mismatch warning names how many samples differ and the first requested and read color.
 - `sourceFileContains` prefers the inherited Navisworks `Source File` / `Файл источника` property and falls back to the model API path.
 - Analysis reserves preview space for every available candidate kind so frequent property values do not hide `source_file` and `display_name`.
 
