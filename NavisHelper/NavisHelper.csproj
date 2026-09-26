@@ -747,6 +747,8 @@
     <Compile Include="Core\SelectionBoxSettings.cs" />
     <Compile Include="Core\ViewpointCameraHelper.cs" />
     <Compile Include="SelectionPreviewManager.cs" />
+    <Compile Include="WorldMarkerOverlayRenderer.cs" />
+    <Compile Include="WorldMarkerOverlayStore.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="ColorsByName.addin">
