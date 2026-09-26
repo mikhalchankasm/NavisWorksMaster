@@ -156,6 +156,7 @@ namespace NavisHelper.Agent.Services
                     propertyFilters,
                     includeAncestors: true,
                     collectProperties: collectProperties,
+                    cacheSelf: includeContainers,
                     propertyCache: propertyCache,
                     sourceFileCache: sourceFileCache);
                 propertyFactsTruncated |= itemFacts.PropertiesTruncated;
@@ -341,6 +342,7 @@ namespace NavisHelper.Agent.Services
                     propertyFilters,
                     includeAncestors: true,
                     collectProperties: true,
+                    cacheSelf: request.IncludeContainers.GetValueOrDefault(false),
                     propertyCache: propertyCache,
                     sourceFileCache: sourceFileCache);
                 response.AnalyzedItemCount++;
@@ -598,13 +600,19 @@ namespace NavisHelper.Agent.Services
                     stack.Push(roots[index]);
             }
 
-            var visited = new HashSet<ModelItem>();
+            // The visited set can only catch a duplicate when the traversal starts
+            // from more than one selected root that can overlap; model roots are
+            // disjoint and a single root walks a tree, so everywhere else each Add
+            // would return true and the per-item native hashing is pure cost.
+            var visited = scope == "selection" && stack.Count > 1
+                ? new HashSet<ModelItem>()
+                : null;
             while (stack.Count > 0 &&
                    result.TraversedItemCount < maxItems &&
                    operationTimer.Elapsed.TotalSeconds < workBudgetSeconds)
             {
                 var item = stack.Pop();
-                if (item == null || !visited.Add(item))
+                if (item == null || visited != null && !visited.Add(item))
                     continue;
 
                 result.TraversedItemCount++;
@@ -631,6 +639,7 @@ namespace NavisHelper.Agent.Services
             int maxPropertiesPerItem,
             List<string> categoryFilters,
             List<string> propertyFilters,
+            bool cacheSelf,
             bool includeAncestors = false,
             bool collectProperties = true,
             Dictionary<ModelItem, ModelColorSchemeCachedPropertyFacts> propertyCache = null,
@@ -643,14 +652,17 @@ namespace NavisHelper.Agent.Services
             {
                 try
                 {
+                    // The caches are only ever read back for ancestors of later items;
+                    // with cacheSelf off every collected item is a leaf, so its own
+                    // entries can never hit and keying it in is pure native-hash cost.
                     ownProperties = ReadCachedProperties(
                         item,
                         maxPropertiesPerItem,
                         categoryFilters,
                         propertyFilters,
-                        propertyCache,
+                        cacheSelf ? propertyCache : null,
                         findSourceFile: true);
-                    if (sourceFileCache != null && ownProperties.SourceFile != null)
+                    if (cacheSelf && sourceFileCache != null && ownProperties.SourceFile != null)
                         sourceFileCache[item] = ownProperties.SourceFile;
                 }
                 catch
@@ -659,11 +671,17 @@ namespace NavisHelper.Agent.Services
                 }
             }
 
+            // Keeping the item out of sourceFileCache above means its own pass's
+            // source file must travel with the call instead of through the cache.
+            string ownSourceFile = null;
+            if (!cacheSelf && ownProperties != null)
+                ownSourceFile = ownProperties.SourceFile;
+
             var facts = new ModelColorSchemeItemFacts
             {
                 Name = SafeString(() => item.DisplayName),
                 Path = BuildItemPath(item),
-                SourceFile = GetSourceFileFromProperties(item, sourceFileCache),
+                SourceFile = GetSourceFileFromProperties(item, sourceFileCache, ownSourceFile),
             };
             if (string.IsNullOrWhiteSpace(facts.SourceFile))
                 facts.SourceFile = GetSourceFile(item);
@@ -1221,12 +1239,26 @@ namespace NavisHelper.Agent.Services
 
         private static string GetSourceFileFromProperties(
             ModelItem item,
-            Dictionary<ModelItem, string> cache)
+            Dictionary<ModelItem, string> cache,
+            string ownSourceFile = null)
         {
             try
             {
+                // The caller's own pass already searched the item and kept it out of
+                // the cache: a non-blank ownSourceFile settles the walk at once, a
+                // blank one leaves only the ancestors to scan below.
+                if (!string.IsNullOrWhiteSpace(ownSourceFile))
+                    return ownSourceFile;
+                var skipSelf = ownSourceFile != null;
                 foreach (var current in item.AncestorsAndSelf)
                 {
+                    if (skipSelf)
+                    {
+                        // The first element is the item itself, already searched.
+                        skipSelf = false;
+                        continue;
+                    }
+
                     string cached;
                     if (cache != null && cache.TryGetValue(current, out cached))
                     {
