@@ -171,7 +171,6 @@ namespace NavisHelper
                 }
 
                 marker.HeadAnchor.Dispose();
-                marker.LabelAnchor.Dispose();
             }
 
             frame.Bounds.Dispose();
@@ -225,7 +224,6 @@ namespace NavisHelper
                 marker.Alpha.HasValue ? marker.Alpha.Value / 255.0 : 1.0,
                 Color.FromByteRGB((byte)color.R, (byte)color.G, (byte)color.B),
                 new Point3D(figure.HeadAnchor.X, figure.HeadAnchor.Y, figure.HeadAnchor.Z),
-                new Point3D(figure.LabelAnchor.X, figure.LabelAnchor.Y, figure.LabelAnchor.Z),
                 marker.Label,
                 segments);
         }
@@ -330,7 +328,6 @@ namespace NavisHelper
             double alpha,
             Color color,
             Point3D headAnchor,
-            Point3D labelAnchor,
             string label,
             WorldMarkerOverlaySegment3D[] segments)
         {
@@ -339,7 +336,6 @@ namespace NavisHelper
             Alpha = alpha;
             Color = color;
             HeadAnchor = headAnchor;
-            LabelAnchor = labelAnchor;
             Label = label;
             Segments = segments;
         }
@@ -354,8 +350,6 @@ namespace NavisHelper
         public Color Color { get; }
 
         public Point3D HeadAnchor { get; }
-
-        public Point3D LabelAnchor { get; }
 
         public string Label { get; }
 

@@ -35,24 +35,20 @@ namespace NavisHelper.Agent.Contracts
     /// <summary>What one overlay marker contributes to a frame.</summary>
     public sealed class WorldMarkerOverlayFigure
     {
-        internal WorldMarkerOverlayFigure(
-            IReadOnlyList<WorldMarkerSegment> segments,
-            WorldMarkerPoint headAnchor,
-            WorldMarkerPoint labelAnchor)
+        internal WorldMarkerOverlayFigure(IReadOnlyList<WorldMarkerSegment> segments, WorldMarkerPoint headAnchor)
         {
             Segments = segments;
             HeadAnchor = headAnchor;
-            LabelAnchor = labelAnchor;
         }
 
         /// <summary>The world-space segments to project; empty when the marker has neither a world size nor a pole.</summary>
         public IReadOnlyList<WorldMarkerSegment> Segments { get; }
 
-        /// <summary>The world point the pixel head is centred on: the top of a pin stem, otherwise the marker anchor.</summary>
+        /// <summary>
+        /// The world point the pixel head is centred on and the label is tied to: the marker point itself,
+        /// so a head survives section clipping as long as the marker point does.
+        /// </summary>
         public WorldMarkerPoint HeadAnchor { get; }
-
-        /// <summary>The world point the label is drawn beside, offset in pixels: the highest point of the marker.</summary>
-        public WorldMarkerPoint LabelAnchor { get; }
     }
 
     /// <summary>
@@ -105,8 +101,6 @@ namespace NavisHelper.Agent.Contracts
             }
 
             var anchor = new WorldMarkerPoint(marker.X, marker.Y, marker.Z);
-            var head = anchor;
-            var topZ = marker.Z;
             var segments = new List<WorldMarkerSegment>();
 
             if (size.HasValue)
@@ -116,11 +110,9 @@ namespace NavisHelper.Agent.Contracts
                 {
                     case WorldMarkerStyles.Box:
                         AppendBox(segments, marker.X, marker.Y, marker.Z, half);
-                        topZ = marker.Z + half;
                         break;
                     case WorldMarkerStyles.Cross:
                         AppendCross(segments, marker.X, marker.Y, marker.Z, half);
-                        topZ = marker.Z + half;
                         break;
                     case WorldMarkerStyles.Target:
                         AppendRing(segments, marker.X, marker.Y, marker.Z, half);
@@ -130,9 +122,7 @@ namespace NavisHelper.Agent.Contracts
                         AppendRing(segments, marker.X, marker.Y, marker.Z, half);
                         break;
                     case WorldMarkerStyles.Pin:
-                        head = new WorldMarkerPoint(marker.X, marker.Y, marker.Z + size.Value);
-                        segments.Add(new WorldMarkerSegment(anchor, head));
-                        topZ = head.Z;
+                        segments.Add(Segment(marker.X, marker.Y, marker.Z, marker.X, marker.Y, marker.Z + size.Value));
                         break;
                     case WorldMarkerStyles.Pole:
                         break;
@@ -140,15 +130,9 @@ namespace NavisHelper.Agent.Contracts
             }
 
             if (marker.PoleEnabled)
-            {
                 segments.Add(Segment(marker.X, marker.Y, marker.PoleBaseZ, marker.X, marker.Y, marker.PoleTopZ));
-                topZ = Math.Max(topZ, Math.Max(marker.PoleBaseZ, marker.PoleTopZ));
-            }
 
-            return new WorldMarkerOverlayFigure(
-                segments.AsReadOnly(),
-                head,
-                new WorldMarkerPoint(marker.X, marker.Y, Math.Max(topZ, head.Z)));
+            return new WorldMarkerOverlayFigure(segments.AsReadOnly(), anchor);
         }
 
         private static bool IsSupportedStyle(string style)

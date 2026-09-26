@@ -55,7 +55,6 @@ public sealed class WorldMarkerOverlayGeometryTests
             (12, 22, 28, 12, 22, 32),
             (8, 22, 28, 8, 22, 32));
         AssertPoint(figure.HeadAnchor, 10, 20, 30);
-        AssertPoint(figure.LabelAnchor, 10, 20, 32);
     }
 
     [Fact]
@@ -76,7 +75,6 @@ public sealed class WorldMarkerOverlayGeometryTests
             (10, 18, 30, 10, 22, 30),
             (10, 20, 28, 10, 20, 32));
         AssertPoint(figure.HeadAnchor, 10, 20, 30);
-        AssertPoint(figure.LabelAnchor, 10, 20, 32);
     }
 
     [Fact]
@@ -101,7 +99,6 @@ public sealed class WorldMarkerOverlayGeometryTests
         AssertSegment(figure.Segments[32], (8, 20, 30, 12, 20, 30));
         AssertSegment(figure.Segments[33], (10, 18, 30, 10, 22, 30));
         AssertPoint(figure.HeadAnchor, 10, 20, 30);
-        AssertPoint(figure.LabelAnchor, 10, 20, 30);
     }
 
     [Fact]
@@ -120,7 +117,7 @@ public sealed class WorldMarkerOverlayGeometryTests
         Assert.Equal(WorldMarkerOverlayGeometry.RingSegmentCount, figure.Segments.Count);
         AssertPoint(figure.Segments[0].Start, 12, 20, 30);
         AssertPoint(figure.Segments[0].End, 11.96157056080646, 20.390180644032256, 30);
-        AssertPoint(figure.LabelAnchor, 10, 20, 30);
+        AssertPoint(figure.HeadAnchor, 10, 20, 30);
     }
 
     [Fact]
@@ -148,7 +145,7 @@ public sealed class WorldMarkerOverlayGeometryTests
     }
 
     [Fact]
-    public void Build_Pin_DrawsAVerticalStemAndAnchorsTheHeadAtItsTop()
+    public void Build_Pin_DrawsAVerticalStemAndAnchorsTheHeadAtTheMarkerPoint()
     {
         var figure = WorldMarkerOverlayGeometry.Build(Normalize(new WorldMarkerSpec
         {
@@ -161,8 +158,35 @@ public sealed class WorldMarkerOverlayGeometryTests
         }));
 
         AssertSegments(figure, (10, 20, 30, 10, 20, 34));
-        AssertPoint(figure.HeadAnchor, 10, 20, 34);
-        AssertPoint(figure.LabelAnchor, 10, 20, 34);
+        AssertPoint(figure.HeadAnchor, 10, 20, 30);
+    }
+
+    [Theory]
+    [InlineData(WorldMarkerStyles.Target)]
+    [InlineData(WorldMarkerStyles.Cross)]
+    [InlineData(WorldMarkerStyles.Circle)]
+    [InlineData(WorldMarkerStyles.Pin)]
+    [InlineData(WorldMarkerStyles.Box)]
+    [InlineData(WorldMarkerStyles.Pole)]
+    public void Build_AnchorsTheHeadAtTheExactMarkerPointForEveryStyle(string style)
+    {
+        var figure = WorldMarkerOverlayGeometry.Build(Normalize(new WorldMarkerSpec
+        {
+            Name = "M",
+            X = 10,
+            Y = 20,
+            Z = 30,
+            Size = 4,
+            Style = style,
+        }));
+
+        AssertPoint(figure.HeadAnchor, 10, 20, 30);
+    }
+
+    [Fact]
+    public void Build_ProducesFiguresWithoutALabelAnchor()
+    {
+        Assert.Null(typeof(WorldMarkerOverlayFigure).GetProperty("LabelAnchor"));
     }
 
     [Fact]
@@ -181,7 +205,6 @@ public sealed class WorldMarkerOverlayGeometryTests
 
         AssertSegments(figure, (10, 20, 5, 10, 20, 42));
         AssertPoint(figure.HeadAnchor, 10, 20, 30);
-        AssertPoint(figure.LabelAnchor, 10, 20, 42);
     }
 
     [Fact]
@@ -201,7 +224,7 @@ public sealed class WorldMarkerOverlayGeometryTests
         Assert.Equal(13, figure.Segments.Count);
         AssertPoint(figure.Segments[12].Start, 10, 20, 0);
         AssertPoint(figure.Segments[12].End, 10, 20, 40);
-        AssertPoint(figure.LabelAnchor, 10, 20, 40);
+        AssertPoint(figure.HeadAnchor, 10, 20, 30);
     }
 
     [Fact]
@@ -222,7 +245,6 @@ public sealed class WorldMarkerOverlayGeometryTests
 
         AssertSegments(withPole, (10, 20, 0, 10, 20, 40));
         AssertPoint(withPole.HeadAnchor, 10, 20, 30);
-        AssertPoint(withPole.LabelAnchor, 10, 20, 40);
 
         var withoutPole = WorldMarkerOverlayGeometry.Build(Normalize(new WorldMarkerSpec
         {
@@ -236,7 +258,6 @@ public sealed class WorldMarkerOverlayGeometryTests
 
         Assert.Empty(withoutPole.Segments);
         AssertPoint(withoutPole.HeadAnchor, 10, 20, 30);
-        AssertPoint(withoutPole.LabelAnchor, 10, 20, 30);
     }
 
     [Fact]
@@ -338,7 +359,7 @@ public sealed class WorldMarkerOverlayGeometryTests
 
         Assert.Equal(12, figure.Segments.Count);
         AssertSegment(figure.Segments[0], (6, 16, 26, 14, 16, 26));
-        AssertPoint(figure.LabelAnchor, 10, 20, 34);
+        AssertPoint(figure.HeadAnchor, 10, 20, 30);
         Assert.Equal(4, marker.Size);
     }
 
