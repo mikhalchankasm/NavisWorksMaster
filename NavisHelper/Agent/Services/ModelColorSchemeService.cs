@@ -1041,7 +1041,12 @@ namespace NavisHelper.Agent.Services
                 return true;
             if (left == null || right == null)
                 return false;
-            return left.R == right.R && left.G == right.G && left.B == right.B;
+            return ModelColorSchemeColorVerifier.ChannelsMatch(ToRgb(left), ToRgb(right));
+        }
+
+        private static ModelColorSchemeRgb ToRgb(Autodesk.Navisworks.Api.Color color)
+        {
+            return new ModelColorSchemeRgb(color.R, color.G, color.B);
         }
 
         private static string ColorKey(Autodesk.Navisworks.Api.Color color)
@@ -1167,46 +1172,35 @@ namespace NavisHelper.Agent.Services
             List<Tuple<ModelItem, Autodesk.Navisworks.Api.Color>> samples,
             ModelColorSchemeResponse response)
         {
+            var readings = new List<ModelColorSchemeColorSample>();
             foreach (var sample in samples ??
                 new List<Tuple<ModelItem, Autodesk.Navisworks.Api.Color>>())
             {
+                if (sample.Item1 == null ||
+                    sample.Item2 == null ||
+                    !SafeBool(() => sample.Item1.HasGeometry))
+                {
+                    continue;
+                }
+                var reading = new ModelColorSchemeColorSample { Requested = ToRgb(sample.Item2) };
                 try
                 {
-                    if (sample.Item1 == null || !sample.Item1.HasGeometry)
-                        continue;
-                    response.ColorVerificationSampleCount++;
-                    if (ColorsEqual(
-                        sample.Item1.Geometry.PermanentColor,
-                        sample.Item2))
-                    {
-                        response.PermanentColorMatchCount++;
-                    }
-                    if (ColorsEqual(
-                        sample.Item1.Geometry.ActiveColor,
-                        sample.Item2))
-                    {
-                        response.ActiveColorMatchCount++;
-                    }
+                    var geometry = sample.Item1.Geometry;
+                    reading.Permanent = ToRgbOrNull(geometry.PermanentColor);
+                    reading.Active = ToRgbOrNull(geometry.ActiveColor);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    reading.ReadError = ex.Message;
                 }
+                readings.Add(reading);
             }
+            ModelColorSchemeColorVerifier.Tally(readings, response);
+        }
 
-            if (response.ColorVerificationSampleCount > 0 &&
-                response.PermanentColorMatchCount <
-                response.ColorVerificationSampleCount)
-            {
-                response.Warnings.Add(
-                    "Navisworks did not retain the requested permanent color on every verification sample.");
-            }
-            else if (response.ColorVerificationSampleCount > 0 &&
-                     response.ActiveColorMatchCount <
-                     response.ColorVerificationSampleCount)
-            {
-                response.Warnings.Add(
-                    "Permanent colors were stored, but another Navisworks display layer still masks some active colors.");
-            }
+        private static ModelColorSchemeRgb? ToRgbOrNull(Autodesk.Navisworks.Api.Color color)
+        {
+            return color == null ? (ModelColorSchemeRgb?)null : ToRgb(color);
         }
 
         private static string NormalizeOperation(string value)
