@@ -94,6 +94,7 @@ namespace NavisHelper.Agent.Contracts
         public const string ShowAll = "show_all";
         public const string CreateSelectionSet = "create_selection_set";
         public const string CreateViewpoint = "create_viewpoint";
+        public const string ViewpointSetCamera = "viewpoint_set_camera";
         public const string SaveDocument = "save_document";
         public const string SaveDocumentAs = "save_document_as";
         public const string CloseNavisworks = "close_navisworks";
