@@ -90,7 +90,9 @@ namespace NavisHelper
         {
             DrawSegments(view, graphics, marker);
 
-            var head = view.ProjectPoint(marker.HeadAnchor, true, true);
+            // sectionClip: false (owner's decision, 2026-09-26): markers are pointers and stay visible
+            // outside a section box; frustumClip: true still drops points behind the camera.
+            var head = view.ProjectPoint(marker.HeadAnchor, false, true);
             if (head == null)
                 return;
 
@@ -123,11 +125,11 @@ namespace NavisHelper
             graphics.Color(marker.Color, marker.Alpha);
             foreach (var segment in marker.Segments)
             {
-                var start = view.ProjectPoint(segment.Start, true, true);
+                var start = view.ProjectPoint(segment.Start, false, true);
                 if (start == null)
                     continue;
 
-                var end = view.ProjectPoint(segment.End, true, true);
+                var end = view.ProjectPoint(segment.End, false, true);
                 if (end == null)
                     continue;
 

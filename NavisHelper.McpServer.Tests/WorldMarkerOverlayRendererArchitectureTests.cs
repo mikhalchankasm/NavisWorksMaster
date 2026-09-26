@@ -48,6 +48,19 @@ public sealed class WorldMarkerOverlayRendererArchitectureTests
     }
 
     [Fact]
+    public void Renderer_IgnoresSectionClippingButKeepsFrustumClipping()
+    {
+        var source = ReadRenderer();
+        var calls = Regex.Matches(source, @"ProjectPoint\(([^,]+),\s*(true|false),\s*(true|false)\)");
+        Assert.NotEmpty(calls);
+        Assert.All(calls.Cast<Match>(), call =>
+        {
+            Assert.Equal("false", call.Groups[2].Value);
+            Assert.Equal("true", call.Groups[3].Value);
+        });
+    }
+
+    [Fact]
     public void Renderer_ProjectsGeometrySegmentsAndDrawsText2DLabels()
     {
         var source = ReadRenderer();
