@@ -34,8 +34,17 @@ public sealed class WorldMarkerOverlayServiceArchitectureTests
         var body = MethodBody(source, "private void ApplySnapshot(");
 
         Assert.Contains("WorldMarkerOverlayStore.Update(document, next)", body);
-        Assert.Contains("next.Count > 0", body);
+        Assert.Contains("next.Count == 0", body);
+        Assert.Contains("WorldMarkerOverlayStore.Clear()", body);
         Assert.Contains("ModelColorSchemeDocumentIdentity.Capture(document)", body);
+    }
+
+    [Fact]
+    public void List_NamesADocumentOnlyWhileMarkersAreStored()
+    {
+        var source = ReadService();
+
+        Assert.Contains("DocumentFileName = frame.Snapshot.Count > 0 ? DescribeDocument(frame.Document) : null", source);
     }
 
     private static string ReadService() =>
