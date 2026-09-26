@@ -88,3 +88,6 @@ section_box_viewpoint
 zoom_to_selection
 focus_on_selection
 fit_all
+world_markers_set
+world_markers_manage
+world_markers_list

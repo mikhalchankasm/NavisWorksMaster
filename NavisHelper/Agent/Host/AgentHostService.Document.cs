@@ -101,6 +101,9 @@ namespace NavisHelper.Agent.Host
             _modelColorSchemeService.DiscardForDocumentChange();
             _matchSessionStore.Clear();
             _searchService.InvalidateRootSearchIndex();
+            // Overlay world markers belong to the document they were set on; the store
+            // drops them when the active document is another one (or none).
+            WorldMarkerOverlayStore.OnDocumentChanged(document);
             AttachTrackedDocument(document);
             RefreshDiscoveryFile(document);
         }
@@ -110,6 +113,7 @@ namespace NavisHelper.Agent.Host
             var document = Autodesk.Navisworks.Api.Application.ActiveDocument;
             _clashIsolationService.HandleDocumentFileNameChanged(document);
             _modelColorSchemeService.HandleDocumentFileNameChanged(document);
+            _worldMarkerOverlayService.HandleDocumentFileNameChanged(document);
             _matchSessionStore.Clear();
             _searchService.InvalidateRootSearchIndex();
             _commandService.FailRunningSubtreeNameDumps("Active document file name changed while dump job was running.");

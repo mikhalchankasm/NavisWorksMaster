@@ -106,6 +106,9 @@ namespace NavisHelper.Agent.Contracts
         public const string ZoomToSelection = "zoom_to_selection";
         public const string FocusOnSelection = "focus_on_selection";
         public const string FitAll = "fit_all";
+        public const string WorldMarkersSet = "world_markers_set";
+        public const string WorldMarkersManage = "world_markers_manage";
+        public const string WorldMarkersList = "world_markers_list";
     }
 
     public static class NavisworksCloseModes

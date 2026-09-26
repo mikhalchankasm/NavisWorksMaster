@@ -40,6 +40,7 @@ namespace NavisHelper.Agent.Host
         private readonly SearchService _searchService = new SearchService();
         private readonly DocumentCommandService _commandService = new DocumentCommandService();
         private readonly ViewpointCameraCommandService _viewpointCameraService;
+        private readonly WorldMarkerOverlayService _worldMarkerOverlayService = new WorldMarkerOverlayService();
         private readonly ClashIsolationService _clashIsolationService = new ClashIsolationService();
         private readonly ModelColorSchemeService _modelColorSchemeService = new ModelColorSchemeService();
         private readonly SectionBoxCaptureService _sectionBoxCaptureService = new SectionBoxCaptureService();
