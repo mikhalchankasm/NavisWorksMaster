@@ -1090,9 +1090,8 @@ nothing measurable, so both were closed:
   `analyze` stayed at 3.3-3.9 s against 2.5-4.1 s for `main`, whose drift across the window was
   larger than any difference. `collected.Items` holds every wrapper either way.
 
-So a `ModelItem` set costs what it keeps alive, not what it hashes. Before adding one to a
-walk, ask whether it would be the only reference to the wrappers it holds; if it would, bound
-it by what the call returns.
+So a `ModelItem` set costs what it keeps alive, not what it hashes. The rule that follows is
+in `docs/ARCHITECTURE.md`.
 
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
