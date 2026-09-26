@@ -220,7 +220,7 @@ def choose_names(list_response, explicit_names):
     for item in items:
         file_name = item.get("fileName") or item.get("file_name") or ""
         lowered = file_name.lower()
-        if lowered.endswith(".rvm") or lowered.endswith(".dwg"):
+        if (lowered.endswith(".rvm") or lowered.endswith(".dwg")) and file_name not in names:
             names.append(file_name)
         if len(names) >= 2:
             break
