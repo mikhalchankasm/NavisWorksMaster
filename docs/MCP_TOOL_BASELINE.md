@@ -485,8 +485,10 @@ fresh processes (`main` `0510480` against the change), three calls per case per 
   both builds. The dry run is 5-10 % faster. The audit estimated a third of the call.
 - So the second enumeration was not where the time goes. Both of the call's caches are
   keyed by `ModelItem` and receive every item, although only ancestors are ever looked up
-  again, the pattern that cost 4 s in the clash-matrix walk. That is the next thing to
-  measure here.
+  again, the pattern that cost 4 s in the clash-matrix walk. Measured later the same day
+  (#82, closed): leaving the items out of both caches and dropping `visited` bought nothing
+  measurable, because `collected.Items` keeps every item's wrapper alive for the whole call
+  anyway. See "What a `ModelItem` set actually costs" below.
 
 `open_latest_navisworks_file` is higher still at 18 526 ms, and is not a counter-example to
 that: it starts a Navisworks process and loads a 39 MB federated model, so it belongs with
@@ -1056,9 +1058,41 @@ answer differed.
 - Every call of the change returned the complete answer, identical to `main`'s first call
   (all 41 016 matched, the first 20 returned). A filter that matches nothing returned the
   same answer in both builds.
-- So the 4 s was the set, not the matching: about 100 us per entry for hashing a native
-  object and keeping its wrapper alive. Other `ModelItem`-keyed sets filled once per scanned
-  item are the next place to look.
+- So the 4 s was the set, not the matching: about 100 us per entry. The next measurements
+  show which half of that it is: keeping the wrapper alive, not hashing it.
+
+**What a `ModelItem` set actually costs.** A read-only audit listed every set and dictionary
+keyed by `ModelItem`; four were changed and measured on 2026-09-26 against `main` `7bd821e`,
+with one build carrying all four (they touch different tools), two rounds interleaved in fresh
+processes. Every call returned the same answer in both builds.
+
+Two sets were the **only** thing keeping their wrappers reachable, and bounding or removing
+them paid off:
+
+| tool, `6513.nwd` | round | `main`, ms | change, ms |
+| --- | --- | --- | --- |
+| `find_items_by_bbox`, whole model, containers, `maxResults=100` (#79) | 1 | 1202, 1113, 1128 | 534, 427, 440 |
+| | 2 | 1361, 1262, 1255 | 619, 551, 576 |
+| scoped `find_items`, `countOnly`, 41 015 scanned (#80) | 1 | 1259, 1570, 2081 | 249, 268, 218 |
+| | 2 | 1262, 1638, 2014 | 254, 223, 237 |
+
+`find_items_by_bbox` put all 41 016 matches into its dedup set to return 100; the scoped
+traversal put every scanned item into `visited`. Half the time and 5-8 times less, and the
+scoped call no longer grows call after call.
+
+Two changes removed hashing whose items another collection keeps alive anyway, and bought
+nothing measurable, so both were closed:
+
+- `find_items`' sort (#81) looked up both items in a `Dictionary<ModelItem, string>` on every
+  comparison, about 300 000 lookups for 11 142 matches; replacing it with a keyed sort left
+  1.1-2.1 s against 1.1-1.8 s, plus one 3.0 s first call on the change, within the noise. The match list holds every wrapper either way.
+- `model_color_scheme` (#82) stopped putting leaves into its two caches and dropped `visited`;
+  `analyze` stayed at 3.3-3.9 s against 2.5-4.1 s for `main`, whose drift across the window was
+  larger than any difference. `collected.Items` holds every wrapper either way.
+
+So a `ModelItem` set costs what it keeps alive, not what it hashes. Before adding one to a
+walk, ask whether it would be the only reference to the wrappers it holds; if it would, bound
+it by what the call returns.
 
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
