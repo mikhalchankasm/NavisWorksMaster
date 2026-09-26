@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Autodesk.Navisworks.Api;
@@ -732,7 +733,7 @@ namespace NavisHelper.Agent.Services
 
             var value = GetObjectProperty(viewpoint, propertyName);
             if (value != null)
-                properties[propertyName] = Convert.ToString(value);
+                properties[propertyName] = Convert.ToString(value, CultureInfo.InvariantCulture);
         }
 
         private static BoundingBoxInfo ToBoundingBoxInfo(BoundingBox3D box)
