@@ -41,24 +41,35 @@ namespace NavisHelper.Agent.Contracts
         public string Group { get; set; }
     }
 
+    /// <summary>A stored marker; frozen at creation, so a snapshot can never be edited through it.</summary>
     public sealed class WorldMarkerOverlayMarker
     {
-        public string MarkerId { get; set; }
-        public string Name { get; set; }
-        public double X { get; set; }
-        public double Y { get; set; }
-        public double Z { get; set; }
-        public string Style { get; set; }
-        public int SizePx { get; set; }
-        public double? WorldSize { get; set; }
-        public WorldMarkerColor Color { get; set; }
-        public int? Alpha { get; set; }
-        public string Label { get; set; }
-        public bool PoleEnabled { get; set; }
-        public double PoleBaseZ { get; set; }
-        public double PoleTopZ { get; set; }
-        public string Group { get; set; }
-        public bool Visible { get; set; }
+        internal WorldMarkerOverlayMarker(string markerId, string name, double x, double y, double z, string style,
+            int sizePx, double? worldSize, WorldMarkerColor color, int? alpha, string label, bool poleEnabled,
+            double poleBaseZ, double poleTopZ, string group, bool visible)
+        {
+            MarkerId = markerId; Name = name; X = x; Y = y; Z = z; Style = style; SizePx = sizePx;
+            WorldSize = worldSize; Alpha = alpha; Label = label; PoleEnabled = poleEnabled;
+            PoleBaseZ = poleBaseZ; PoleTopZ = poleTopZ; Group = group; Visible = visible;
+            Color = new WorldMarkerColor { R = color.R, G = color.G, B = color.B };
+        }
+
+        public string MarkerId { get; }
+        public string Name { get; }
+        public double X { get; }
+        public double Y { get; }
+        public double Z { get; }
+        public string Style { get; }
+        public int SizePx { get; }
+        public double? WorldSize { get; }
+        public WorldMarkerColor Color { get; }
+        public int? Alpha { get; }
+        public string Label { get; }
+        public bool PoleEnabled { get; }
+        public double PoleBaseZ { get; }
+        public double PoleTopZ { get; }
+        public string Group { get; }
+        public bool Visible { get; }
     }
 
     public sealed class WorldMarkerOverlaySnapshot
@@ -113,6 +124,10 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class WorldMarkerOverlayManageResult
     {
+        /// <summary>False when the request was refused; the snapshot is then left unchanged.</summary>
+        public bool Accepted { get; set; } = true;
+
+        public string RefusalReason { get; set; }
         public string Operation { get; set; }
         public int Hidden { get; set; }
         public int Shown { get; set; }
