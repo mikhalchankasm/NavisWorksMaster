@@ -36,13 +36,13 @@ internal sealed class NavisworksWorldMarkerTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Hides, shows, deletes, or clears stored overlay world markers; markers are a plugin-drawn view overlay, never model geometry, not saved with the document, cleared when the document changes, always drawn on top of the model, and visible in capture_current_view. A blank selector entry (an empty or whitespace-only name, id, or group) is refused, while a request with no selector at all acts on every stored marker; the store holds at most 500 markers. Defaults to dry-run.")]
+    [Description("Hides, shows, deletes, or clears stored overlay world markers; markers are a plugin-drawn view overlay, never model geometry, not saved with the document, cleared when the document changes, always drawn on top of the model, and visible in capture_current_view. A blank selector entry (an empty or whitespace-only name, id, or group) is refused; with no selector at all hide, show, and clear act on every stored marker, while delete with no selector is refused and clear is the way to remove everything; the store holds at most 500 markers. Defaults to dry-run.")]
     [ToolCapabilities(ToolEffects.View | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<WorldMarkerOverlayManageResponse> WorldMarkersManage(
-        [Description("Required operation: hide, show, delete, or clear. clear with no selector removes every stored marker.")] string operation,
+        [Description("Required operation: hide, show, delete, or clear. With no selector at all hide, show, and clear act on every stored marker; delete with no selector is refused (use clear).")] string operation,
         [Description("Optional marker-name selectors; blank entries are refused.")] List<string> names = null,
         [Description("Optional marker ids as returned by world_markers_list; blank entries are refused.")] List<string> ids = null,
-        [Description("Optional group selector; blank is refused. Omit every selector to act on all stored markers.")] string group = null,
+        [Description("Optional group selector; blank is refused. Omit every selector to act on all stored markers; delete without a selector is refused and needs names, ids, or group.")] string group = null,
         [Description("False validates and previews the operation; true applies it to the overlay. Default is false.")] bool apply = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",

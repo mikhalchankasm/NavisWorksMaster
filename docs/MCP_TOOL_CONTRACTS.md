@@ -1741,16 +1741,18 @@ The response reports `apply`, `applied`, and the plan result: `accepted`,
 
 | Input | Type | Default | Meaning |
 |---|---|---:|---|
-| `operation` | string | required | `hide`, `show`, `delete`, or `clear`. |
+| `operation` | string | required | `hide`, `show`, `delete`, or `clear`. With no selector at all, `hide` and `show` act on every stored marker and `clear` removes everything; `delete` with no selector is refused (use `clear`). |
 | `names` | string[] | `[]` | Marker-name selectors; a blank entry refuses the request. |
 | `ids` | string[] | `[]` | Marker ids from `world_markers_list`; a blank entry refuses the request. |
-| `group` | string | `null` | Group selector; blank refuses. With no selector at all the operation acts on every stored marker. |
+| `group` | string | `null` | Group selector; blank refuses. With no selector at all the operation acts on every stored marker, except `delete`, which needs a selector. |
 | `apply` | bool | `false` | Dry-run returns the plan; only `true` installs the new snapshot. |
 
 The response reports `apply`, `applied`, and the result: `operation`, `hidden`,
 `shown`, `deleted`, the remaining `markerCount`, and `missingNames`/`missingIds`
-for selectors that matched nothing. A request that selects nothing changes
-nothing.
+for selectors that matched nothing. `accepted` is `false` with a `refusalReason`
+(the snapshot unchanged) when a selector entry is blank or when `delete` arrives
+with no selector at all; that refusal reason points at `clear`. A request that
+selects nothing changes nothing.
 
 ### `world_markers_list`
 

@@ -246,6 +246,52 @@ public sealed class WorldMarkerOverlayPlannerTests
     }
 
     [Fact]
+    public void Manage_HideWithoutSelectorsHidesEveryStoredMarker()
+    {
+        var seed = Seed(Spec("A"), Spec("B", group: "g"), Spec("C"));
+
+        var (next, result) = Manage(seed, ManageRequest("hide"));
+
+        Assert.True(result.Accepted);
+        Assert.Equal(3, result.Hidden);
+        Assert.Equal(3, result.MarkerCount);
+        Assert.All(next.Markers, marker => Assert.False(marker.Visible));
+        Assert.All(seed.Markers, marker => Assert.True(marker.Visible));
+    }
+
+    [Fact]
+    public void Manage_ShowWithoutSelectorsShowsEveryStoredMarker()
+    {
+        var seed = Seed(Spec("A"), Spec("B"), Spec("C"));
+        var (hidden, hideResult) = Manage(seed, ManageRequest("hide", names: new[] { "A", "B", "C" }));
+        Assert.Equal(3, hideResult.Hidden);
+
+        var (shown, result) = Manage(hidden, ManageRequest("show"));
+
+        Assert.True(result.Accepted);
+        Assert.Equal(3, result.Shown);
+        Assert.Equal(3, result.MarkerCount);
+        Assert.All(shown.Markers, marker => Assert.True(marker.Visible));
+        Assert.All(hidden.Markers, marker => Assert.False(marker.Visible));
+    }
+
+    [Fact]
+    public void Manage_RefusesDeleteWithoutSelectorsAndPointsAtClear()
+    {
+        var seed = Seed(Spec("A"), Spec("B", group: "g"));
+
+        var (next, result) = Manage(seed, ManageRequest("delete"));
+
+        Assert.False(result.Accepted);
+        Assert.Equal("delete", result.Operation);
+        Assert.Contains("clear", result.RefusalReason, StringComparison.OrdinalIgnoreCase);
+        Assert.Same(seed, next);
+        Assert.Equal(2, result.MarkerCount);
+        Assert.Equal(0, result.Hidden + result.Shown + result.Deleted);
+        Assert.Equal(new[] { "A", "B" }, seed.Markers.Select(m => m.Name).ToArray());
+    }
+
+    [Fact]
     public void Manage_ClearWithoutSelectorsRemovesEverything()
     {
         var seed = Seed(Spec("A"), Spec("B", group: "g"), Spec("C"));
