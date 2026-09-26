@@ -1313,10 +1313,7 @@ namespace NavisHelper.Agent.Services
 
         private static List<ModelItem> SortMatchesByPath(List<ModelItem> matches)
         {
-            var sortPathCache = new Dictionary<ModelItem, string>();
-            matches.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(
-                GetCachedPath(left, sortPathCache),
-                GetCachedPath(right, sortPathCache)));
+            KeyedSortHelper.SortByKey(matches, BuildItemPath, StringComparer.OrdinalIgnoreCase);
             return matches;
         }
     }

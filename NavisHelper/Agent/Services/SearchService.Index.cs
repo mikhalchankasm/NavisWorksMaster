@@ -591,16 +591,5 @@ namespace NavisHelper.Agent.Services
 
             return string.Join(" / ", stack.ToArray());
         }
-
-        private static string GetCachedPath(ModelItem item, IDictionary<ModelItem, string> pathCache)
-        {
-            string path;
-            if (pathCache.TryGetValue(item, out path))
-                return path;
-
-            path = BuildItemPath(item);
-            pathCache[item] = path;
-            return path;
-        }
     }
 }
