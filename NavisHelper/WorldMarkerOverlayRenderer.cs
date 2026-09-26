@@ -7,10 +7,12 @@ namespace NavisHelper
 {
     /// <summary>
     /// Draws the visible overlay world markers held by <see cref="WorldMarkerOverlayStore"/>.
-    /// All drawing is 2D, in <see cref="OverlayRender"/>: the world segments, head anchors and
-    /// label anchors come from WorldMarkerOverlayGeometry figures that the store prebuilds once
-    /// per store version; each frame only projects them and emits pixel lines, pixel head
-    /// glyphs and Text2D labels. Every native handle built while drawing a frame — each
+    /// All drawing is 2D, in <see cref="OverlayRender"/>: the world segments and head anchors
+    /// come from WorldMarkerOverlayGeometry figures that the store prebuilds once per store
+    /// version; each frame only projects them and emits pixel lines, pixel head glyphs and
+    /// Text2D labels drawn beside the projected head. When the head projection is clipped
+    /// away the head glyph and the label are skipped; segments are still drawn wherever both
+    /// of their ends project. Every native handle built while drawing a frame — each
     /// Point2D passed to a pixel primitive — is disposed before the frame ends; a
     /// ProjectionResult is plain managed data with no native handle to release.
     /// <see cref="RenderPlugin.Render"/> is never overridden, because
@@ -88,7 +90,9 @@ namespace NavisHelper
         {
             DrawSegments(view, graphics, marker);
 
-            var head = view.ProjectPoint(marker.HeadAnchor, true, true);
+            // sectionClip: false (owner's decision, 2026-09-26): markers are pointers and stay visible
+            // outside a section box; frustumClip: true still drops points behind the camera.
+            var head = view.ProjectPoint(marker.HeadAnchor, false, true);
             if (head == null)
                 return;
 
@@ -100,17 +104,13 @@ namespace NavisHelper
             if (string.IsNullOrEmpty(marker.Label))
                 return;
 
-            var labelAnchor = view.ProjectPoint(marker.LabelAnchor, true, true);
-            if (labelAnchor == null)
-                return;
-
             if (!graphics.CanRenderText2D(font, marker.Label))
                 return;
 
             graphics.Color(marker.Color, marker.Alpha);
             using (var labelOrigin = new Point2D(
-                labelAnchor.X + marker.SizePx + LabelOffsetPx,
-                labelAnchor.Y - marker.SizePx - LabelOffsetPx))
+                head.X + marker.SizePx + LabelOffsetPx,
+                head.Y - marker.SizePx - LabelOffsetPx))
             {
                 graphics.Text2D(font, marker.Label, labelOrigin, 0, 0);
             }
@@ -125,11 +125,11 @@ namespace NavisHelper
             graphics.Color(marker.Color, marker.Alpha);
             foreach (var segment in marker.Segments)
             {
-                var start = view.ProjectPoint(segment.Start, true, true);
+                var start = view.ProjectPoint(segment.Start, false, true);
                 if (start == null)
                     continue;
 
-                var end = view.ProjectPoint(segment.End, true, true);
+                var end = view.ProjectPoint(segment.End, false, true);
                 if (end == null)
                     continue;
 

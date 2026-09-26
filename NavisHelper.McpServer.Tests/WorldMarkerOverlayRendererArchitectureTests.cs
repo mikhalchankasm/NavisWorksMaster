@@ -48,6 +48,19 @@ public sealed class WorldMarkerOverlayRendererArchitectureTests
     }
 
     [Fact]
+    public void Renderer_IgnoresSectionClippingButKeepsFrustumClipping()
+    {
+        var source = ReadRenderer();
+        var calls = Regex.Matches(source, @"ProjectPoint\(([^,]+),\s*(true|false),\s*(true|false)\)");
+        Assert.NotEmpty(calls);
+        Assert.All(calls.Cast<Match>(), call =>
+        {
+            Assert.Equal("false", call.Groups[2].Value);
+            Assert.Equal("true", call.Groups[3].Value);
+        });
+    }
+
+    [Fact]
     public void Renderer_ProjectsGeometrySegmentsAndDrawsText2DLabels()
     {
         var source = ReadRenderer();
@@ -56,6 +69,30 @@ public sealed class WorldMarkerOverlayRendererArchitectureTests
         Assert.Contains("Text2D", source);
         Assert.Contains("DepthTest(false)", source);
         Assert.Contains("Blend(true)", source);
+    }
+
+    [Fact]
+    public void Renderer_PlacesTheLabelAtTheProjectedHeadPlusThePixelOffset()
+    {
+        var source = ReadRenderer();
+        Assert.DoesNotContain("LabelAnchor", source);
+        Assert.DoesNotContain("LabelAnchor", ReadStore());
+        Assert.Single(Regex.Matches(source, @"ProjectPoint\(\s*marker\.HeadAnchor"));
+        Assert.Contains("head.X + marker.SizePx + LabelOffsetPx", source);
+        Assert.Contains("head.Y - marker.SizePx - LabelOffsetPx", source);
+    }
+
+    [Fact]
+    public void Renderer_SkipsTheHeadAndLabelWhenTheHeadIsClippedAway()
+    {
+        var source = ReadRenderer();
+        Assert.Contains("if (head == null)", source);
+        // The null check returns before the head glyph and the label, while the segments
+        // were already drawn wherever both of their ends project.
+        Assert.Contains("DrawSegments(view, graphics, marker);", source);
+        var drawSegments = source.IndexOf("DrawSegments(view, graphics, marker);", StringComparison.Ordinal);
+        var headCheck = source.IndexOf("if (head == null)", StringComparison.Ordinal);
+        Assert.True(drawSegments >= 0 && headCheck > drawSegments, "segments must be drawn before the clipped-head check returns");
     }
 
     [Fact]
