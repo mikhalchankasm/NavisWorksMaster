@@ -1015,6 +1015,30 @@ in fresh processes (`main` `82e0064` against the change), three calls per case p
   Every match goes into the identity dedup set, which keeps a wrapper per matched item
   reachable for the call, the shape #21 measured. That is not fixed here.
 
+**Fixed by bounding the dedup set by the items the walk returns.** The walk enumerates each
+item once, so the set only has to keep a duplicate out of the matrix: it now receives an item
+only while `matches` has room, at most `maxSelectedItems` (1000). Same setup, `main` `0510480`
+(with the ancestor chain above) against the change:
+
+| round | build | filter matches nothing, ms | filter matches every item, ms |
+| --- | --- | --- | --- |
+| 1 | `main` | 2273, 2559, 2331 | 7082, 10724\*, 10662\* |
+| 1 | bounded set | 2382, 2345, 2547 | 2196, 2453, 2491 |
+| 2 | bounded set | 2191, 2510, 2261 | 2284, 2557, 2221 |
+| 2 | `main` | 2325, 2642, 2451 | 6964, 10676\*, 10678\* |
+
+\* stopped at the 10 s traversal budget, each time after a different number of items, so each
+answer differed.
+
+- Matching every item now costs what matching none does, 2.2-2.6 s, on every call. The first
+  call went from 7.0 s to 2.2-2.3 s; the later ones from the 10 s budget to 2.2-2.6 s.
+- Every call of the change returned the complete answer, identical to `main`'s first call
+  (all 41 016 matched, the first 20 returned). A filter that matches nothing returned the
+  same answer in both builds.
+- So the 4 s was the set, not the matching: about 100 us per entry for hashing a native
+  object and keeping its wrapper alive. Other `ModelItem`-keyed sets filled once per scanned
+  item are the next place to look.
+
 The timings in the earlier windows were taken before this fix, so the caveat above still
 applies to them: compare first calls in fresh processes.
 
