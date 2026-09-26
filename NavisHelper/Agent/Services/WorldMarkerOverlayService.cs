@@ -13,10 +13,15 @@ namespace NavisHelper.Agent.Services
     /// by calling <see cref="WorldMarkerOverlayStore.Update(Document, WorldMarkerOverlaySnapshot)"/>.
     /// A refused plan (cap, blank selectors) is reported, not thrown, in both modes. List is
     /// read-only. The commands only touch the overlay store: no model traversal, no selection,
-    /// no document mutation, no files.
+    /// no document mutation, no files. An applied non-empty snapshot captures a
+    /// <see cref="ModelColorSchemeDocumentIdentity"/> so
+    /// <see cref="HandleDocumentFileNameChanged(Document)"/> can tell a Save As from another
+    /// file opened in the same Document wrapper.
     /// </summary>
     internal sealed class WorldMarkerOverlayService
     {
+        private ModelColorSchemeDocumentIdentity _documentIdentity;
+
         public WorldMarkerOverlaySetResponse Set(Document document, WorldMarkerOverlaySetRequest request)
         {
             if (document == null)
@@ -38,7 +43,7 @@ namespace NavisHelper.Agent.Services
             var response = new WorldMarkerOverlaySetResponse { Apply = request.Apply == true, Result = plan };
             if (response.Apply && plan.Accepted)
             {
-                WorldMarkerOverlayStore.Update(document, next);
+                ApplySnapshot(document, next);
                 response.Applied = true;
             }
 
@@ -66,7 +71,7 @@ namespace NavisHelper.Agent.Services
             var response = new WorldMarkerOverlayManageResponse { Apply = request.Apply == true, Result = plan };
             if (response.Apply && plan.Accepted)
             {
-                WorldMarkerOverlayStore.Update(document, next);
+                ApplySnapshot(document, next);
                 response.Applied = true;
             }
 
@@ -118,6 +123,39 @@ namespace NavisHelper.Agent.Services
                 LastError = diagnostics.LastError,
                 Persistent = false,
             };
+        }
+
+        /// <summary>
+        /// Document file-name hook: File &gt; Open usually keeps the same Document wrapper and
+        /// replaces its content, and the whole snapshot counts, hidden markers included. When
+        /// the model content no longer matches the identity captured at apply time the store is
+        /// cleared; a Save As keeps the model graph, so the markers stay and the identity is
+        /// recaptured with the new file name.
+        /// </summary>
+        public void HandleDocumentFileNameChanged(Document document)
+        {
+            if (WorldMarkerOverlayStore.Current.Snapshot.Count == 0)
+            {
+                _documentIdentity = null;
+                return;
+            }
+
+            if (_documentIdentity != null && _documentIdentity.HasSameModelContent(document))
+            {
+                _documentIdentity = ModelColorSchemeDocumentIdentity.Capture(document);
+                return;
+            }
+
+            _documentIdentity = null;
+            WorldMarkerOverlayStore.Clear();
+        }
+
+        private void ApplySnapshot(Document document, WorldMarkerOverlaySnapshot next)
+        {
+            WorldMarkerOverlayStore.Update(document, next);
+            _documentIdentity = next.Count > 0
+                ? ModelColorSchemeDocumentIdentity.Capture(document)
+                : null;
         }
 
         private static WorldMarkerOverlaySnapshot EffectiveSnapshot(Document document)
