@@ -113,6 +113,7 @@ namespace NavisHelper.Agent.Host
             var document = Autodesk.Navisworks.Api.Application.ActiveDocument;
             _clashIsolationService.HandleDocumentFileNameChanged(document);
             _modelColorSchemeService.HandleDocumentFileNameChanged(document);
+            _worldMarkerOverlayService.HandleDocumentFileNameChanged(document);
             _matchSessionStore.Clear();
             _searchService.InvalidateRootSearchIndex();
             _commandService.FailRunningSubtreeNameDumps("Active document file name changed while dump job was running.");
