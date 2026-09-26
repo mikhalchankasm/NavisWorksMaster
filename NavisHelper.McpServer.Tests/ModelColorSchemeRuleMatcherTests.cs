@@ -95,4 +95,67 @@ public sealed class ModelColorSchemeRuleMatcherTests
             rule,
             new ModelColorSchemeItemFacts()));
     }
+
+    [Fact]
+    public void Matches_DoesNotBuildPathWhenRuleHasNoPathMatcher()
+    {
+        var factoryCalls = 0;
+        var item = new ModelColorSchemeItemFacts
+        {
+            Name = "Panel LP-01",
+            PathFactory = () =>
+            {
+                factoryCalls++;
+                return "Store/Level 1/Panel LP-01";
+            },
+        };
+        var rule = new ModelColorSchemeRule
+        {
+            NameContains = ["panel"],
+        };
+
+        Assert.True(ModelColorSchemeRuleMatcher.Matches(rule, item));
+        Assert.Equal(0, factoryCalls);
+    }
+
+    [Fact]
+    public void PathFactory_RunsOnceHoweverOftenPathIsRead()
+    {
+        var factoryCalls = 0;
+        var item = new ModelColorSchemeItemFacts
+        {
+            PathFactory = () =>
+            {
+                factoryCalls++;
+                return "Store/Level 1/Cable Tray";
+            },
+        };
+        var rule = new ModelColorSchemeRule
+        {
+            PathContains = ["cable tray"],
+        };
+
+        Assert.True(ModelColorSchemeRuleMatcher.Matches(rule, item));
+        Assert.True(ModelColorSchemeRuleMatcher.MatchesPrepared(rule, item));
+        Assert.Equal("Store/Level 1/Cable Tray", item.Path);
+        Assert.Equal("Store/Level 1/Cable Tray", item.Path);
+        Assert.Equal(1, factoryCalls);
+    }
+
+    [Fact]
+    public void Matches_PathSetDirectlyStillMatches()
+    {
+        var item = new ModelColorSchemeItemFacts
+        {
+            Path = "Store/Level 1/Cable Tray",
+        };
+
+        Assert.True(ModelColorSchemeRuleMatcher.Matches(
+            new ModelColorSchemeRule { PathContains = ["cable tray"] },
+            item));
+        Assert.False(ModelColorSchemeRuleMatcher.Matches(
+            new ModelColorSchemeRule { PathContains = ["panel"] },
+            item));
+        Assert.Equal("Store/Level 1/Cable Tray", item.Path);
+    }
 }
