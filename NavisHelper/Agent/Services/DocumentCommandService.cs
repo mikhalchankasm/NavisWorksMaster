@@ -30,15 +30,6 @@ namespace NavisHelper.Agent.Services
         private const int DefaultVisibilityPreviewLimit = 10;
         private const int MaxVisibilityPreviewLimit = 50;
         private const int VisibilityRootSummaryLimit = 20;
-        private const string ItemInternalCategory = "LcOaNode";
-        private const string SourceFileInternalProperty = "LcOaNodeSourceFile";
-        private static readonly Tuple<string, string>[] SourceFileDisplayProperties =
-        {
-            Tuple.Create("Item", "Source File"),
-            Tuple.Create("Элемент", "Файл источника"),
-            Tuple.Create(string.Empty, "Source File"),
-            Tuple.Create(string.Empty, "Файл источника"),
-        };
 
 
         /// <summary>
@@ -1089,40 +1080,7 @@ namespace NavisHelper.Agent.Services
 
         private static DataProperty TryFindSourceFileProperty(ModelItem item)
         {
-            if (item == null || item.PropertyCategories == null)
-                return null;
-
-            foreach (PropertyCategory category in item.PropertyCategories)
-            {
-                if (category == null || category.Properties == null)
-                    continue;
-
-                if (string.Equals(category.Name, ItemInternalCategory, StringComparison.OrdinalIgnoreCase))
-                {
-                    foreach (DataProperty property in category.Properties)
-                    {
-                        if (property != null && string.Equals(property.Name, SourceFileInternalProperty, StringComparison.OrdinalIgnoreCase))
-                            return property;
-                    }
-                }
-
-                foreach (var alias in SourceFileDisplayProperties)
-                {
-                    if (!string.IsNullOrWhiteSpace(alias.Item1) &&
-                        !string.Equals(category.DisplayName, alias.Item1, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    foreach (DataProperty property in category.Properties)
-                    {
-                        if (property != null && string.Equals(property.DisplayName, alias.Item2, StringComparison.OrdinalIgnoreCase))
-                            return property;
-                    }
-                }
-            }
-
-            return null;
+            return NativePropertyLookup.FindSourceFileProperty(item);
         }
 
         private static string GetPropertyDisplayValue(DataProperty property)

@@ -15,15 +15,17 @@ NavisHelper is a C# plugin suite for Autodesk Navisworks Manage (2024/2025/2026/
 
 ### Plugin System
 
-Entry point is `RibbonLoader.cs` — a `CommandHandlerPlugin` decorated with `[Plugin]`, `[RibbonLayout]`, `[RibbonTab]`, and `[Command]` attributes. It routes ribbon button clicks to the corresponding `AddInPlugin` implementations via `Application.Plugins.ExecuteAddInPlugin()`.
+`RibbonLoader.cs` is an `EventWatcherPlugin` with a `[Plugin]` attribute. After loading, it polls `ComponentManager.Ribbon` until available, then creates or reuses the NavisHelper tab, panel, and button through AdWindows ribbon objects. The button's `ShowPanelCommandHandler` finds and loads `NavisHelperDockPane.CBC`, then toggles the dock pane's visibility.
 
-The ribbon UI is defined in `CustomRibbon.xaml` (embedded resource) using Autodesk's AdWindows ribbon framework.
+`CustomRibbon.xaml` is embedded but is not loaded by `RibbonLoader`; the loader's only `GetManifestResourceStream` call loads button images.
 
-### Key Plugins (each is an `AddInPlugin` with its own `.addin` manifest)
+### Key Plugins
+
+The bundle's `PackageContents.xml` registers `NavisHelper.dll` for each supported Navisworks version. The build copies the DLL and dependencies into the bundle; it does not deploy a separate `.addin` manifest for each plugin.
 
 - **ColorsByName** (`ColorsByName.cs`) — Core plugin. Reads a text file with `name;R,G,B;transparency` lines and applies colors to matching model items. Uses a 3-tier search fallback: internal property name → display name property → recursive display name matching.
 - **AIColorObjects** (`AIColorObjects.cs`) — Thin plugin entry point for OpenRouter-powered coloring. It delegates to `AIColorWorkflow`, which uses the separate .NET 9 `NavisHelper.AiWorker` process for OpenRouter HTTPS; failed API calls never return local fallback colors as AI results.
-- **AIColorSchemeSelector** (`AIColorSchemeSelector.cs`) — UI for selecting from 10 predefined color schemes defined in `ColorSchemes.cs`.
+- **AIColorSchemeSelector** (`AIColorSchemeSelector.cs`) — UI for selecting from 14 predefined color schemes defined in `ColorSchemes.cs`.
 - **CsvAttributeLoader** (`CsvAttributeLoader.cs`) — Bulk loads attributes from semicolon-delimited CSV files. Builds an indexed lookup via `SearchCondition`-based queries.
 - **MarkupViewpoint** (`MarkupViewpoint.cs`) — Creates a saved viewpoint with red ellipse markups around each selected element from the current orthographic or perspective camera. It reuses the MCP `MarkupSelection` workflow and `View.ProjectPoint()` projection. Prompts for viewpoint name via WinForms dialog (with clipboard auto-fill).
 - **ShortestDistanceMarker** (`ShortestDistanceMarker.cs`) — Compatibility command that opens the `Высоты Z` tab. The active workflow reads every selected item's bounding-box `Max Z`, then creates persistent vector labels or dimension lines from the top-face center to a configurable global Z level.
@@ -106,7 +108,13 @@ Type FindType(string fullName) {
     }
     return null;
 }
-// Usage: FindType("Autodesk.Navisworks.Internal.ApiImplementation.LcRmFrameworkInterface")
+// For each type, try Api.Interop first, then Internal.ApiImplementation.
+var frameworkType =
+    FindType("Autodesk.Navisworks.Api.Interop.LcRmFrameworkInterface") ??
+    FindType("Autodesk.Navisworks.Internal.ApiImplementation.LcRmFrameworkInterface");
+var contextType =
+    FindType("Autodesk.Navisworks.Api.Interop.LcUCIPExecutionContext") ??
+    FindType("Autodesk.Navisworks.Internal.ApiImplementation.LcUCIPExecutionContext");
 ```
 Section enable command: `LcRmFrameworkInterface.ExecuteCommand("RoamerGUI_OM_SECTION_MASTER_ENABLE", LcUCIPExecutionContext.eTOOLBAR)`
 
