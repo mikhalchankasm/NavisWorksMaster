@@ -95,6 +95,51 @@ def extract_tools(root: Path) -> list[ToolInfo]:
     return sorted(tools, key=lambda item: item.tool_name)
 
 
+def check_documented_tool_counts(root: Path, tool_count: int) -> list[str]:
+    # Each pattern identifies one current prose claim. Historical verification
+    # snapshots in the READMEs are intentionally outside this check.
+    claims = {
+        "README.md": [
+            (r"The source registers \*\*(\d+) distinct MCP tools\*\*", tool_count),
+            (r"from the (\d+) `\[McpServerTool\]` methods", tool_count),
+            (r"generated (\d+)-row index", tool_count),
+        ],
+        "README.ru.md": [
+            (r"В исходниках зарегистрировано \*\*(\d+) разных MCP-инструментов\*\*", tool_count),
+            (r"из (\d+) методов `\[McpServerTool\]`", tool_count),
+            (r"индекс из (\d+) строк", tool_count),
+        ],
+        "docs/MCP_CLIENT_GUIDE.md": [
+            (r"The full surface is (\d+) tools and", tool_count),
+            (r"^\| unset, or `all` \| (\d+) \|", tool_count),
+            (r"^\| `core,clash` \| (\d+) \|", 74),
+            (r"^\| `core` \| (\d+) \|", 45),
+        ],
+        "docs/reference/README_FULL.md": [
+            (r"Not required for the (\d+) registered MCP tools", tool_count),
+            (r"The current server registers (\d+) tools\.", tool_count),
+        ],
+        "docs/reference/README_FULL.ru.md": [
+            (r"Не требуется для (\d+) зарегистрированных MCP-инструментов", tool_count),
+            (r"Текущий сервер регистрирует (\d+) инструментов\.", tool_count),
+        ],
+    }
+    errors = []
+    for relative_path, patterns in claims.items():
+        path = root / relative_path
+        content = path.read_text(encoding="utf-8-sig")
+        for pattern, expected in patterns:
+            matches = list(re.finditer(pattern, content, flags=re.MULTILINE))
+            if not matches:
+                errors.append(f"{relative_path}:1: missing tool count claim matching {pattern!r}; expected {expected}")
+            for match in matches:
+                actual = int(match.group(1))
+                if actual != expected:
+                    line = content.count("\n", 0, match.start()) + 1
+                    errors.append(f"{relative_path}:{line}: documented {actual} tools; expected {expected}")
+    return errors
+
+
 def render_index(tools: list[ToolInfo]) -> str:
     lines = [
         BEGIN_MARKER,
@@ -149,6 +194,11 @@ def main(argv: list[str]) -> int:
     root = repo_root()
     catalog_path = root / "docs" / "NAVISWORKS_MCP_COMMAND_CATALOG.md"
     tools = extract_tools(root)
+    count_errors = check_documented_tool_counts(root, len(tools))
+    if count_errors:
+        for error in count_errors:
+            print(error)
+        return 1
     generated = render_index(tools)
     catalog_text = catalog_path.read_text(encoding="utf-8-sig")
 
