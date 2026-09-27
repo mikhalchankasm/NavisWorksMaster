@@ -47,6 +47,7 @@ namespace NavisHelper.Agent.Services
             var includeHidden = request.IncludeHidden.GetValueOrDefault(true);
             var includeContainers = request.IncludeContainers.GetValueOrDefault(false);
             var sourceFileContains = (request.SourceFileContains ?? string.Empty).Trim();
+            var isCenterMode = string.Equals(matchMode, SpatialSearchOptionsHelper.Center, StringComparison.OrdinalIgnoreCase);
             var started = Stopwatch.StartNew();
             var matches = new List<SpatialMatch>();
             var response = new FindItemsByBboxResponse
@@ -74,7 +75,22 @@ namespace NavisHelper.Agent.Services
                     // children -- so a plain `continue` below means "keep descending", and
                     // only the prune sets the flag.
                     var skipThisSubtree = false;
-                    foreach (ModelItem item in SpatialSubtreeWalk.Walk(modelRoot, ChildItems, node => skipThisSubtree))
+                    // The walker owns the wrappers it yields: a fresh ModelItem on
+                    // every access, each this loop's alone -- except those that went
+                    // into matches, which seenItems holds for the handle and the
+                    // preview. Release runs after the item's subtree, so a stored
+                    // ancestor is kept while its descendants are still disposed.
+                    foreach (ModelItem item in SpatialSubtreeWalk.Walk(
+                                 modelRoot,
+                                 ChildItems,
+                                 node => skipThisSubtree,
+                                 node =>
+                                 {
+                                     // The model root may be Navisworks' own cached wrapper; only
+                                     // the walk's descendants are provably fresh (TECH-W13 probe).
+                                     if (!ReferenceEquals(node, modelRoot) && !seenItems.Contains(node))
+                                         DisposeItem(node);
+                                 }))
                     {
                         skipThisSubtree = false;
 
@@ -110,19 +126,26 @@ namespace NavisHelper.Agent.Services
                             continue;
                         }
 
+                        // Every read of Min or Max hands back a fresh native wrapper,
+                        // so both corners are read once here and shared by the prune
+                        // below and the match at the bottom of the loop.
+                        var itemMin = ToSpatialPoint(box, takeMin: true);
+                        var itemMax = ToSpatialPoint(box, takeMin: false);
+
                         // The same mode-independent test that rules out whole models,
                         // read on the item's own box: it encloses the item's children,
                         // so non-overlap rules out every mode for the whole subtree. An
                         // unreadable (null) box fails open here -- the item does not
                         // match below, but its children are still walked.
                         if (!SpatialModelPruning.ModelExtentsCanHoldAMatch(
-                                ToSpatialPoint(box, takeMin: true),
-                                ToSpatialPoint(box, takeMin: false),
+                                itemMin,
+                                itemMax,
                                 request.Min,
                                 request.Max))
                         {
                             response.OutsideItemCount++;
                             skipThisSubtree = true;
+                            DisposeBox(box);
                             continue;
                         }
 
@@ -131,8 +154,14 @@ namespace NavisHelper.Agent.Services
                         // Count property, checked against the 2027 assembly -- so LINQ's
                         // Count() enumerates every child, allocating a wrapper each, to
                         // answer whether there is at least one. Any() stops at the first.
-                        if (!includeContainers && item.Children != null && item.Children.Any())
+                        // The collection itself is read once for the same reason every
+                        // other native wrapper in this loop is.
+                        var childItems = item.Children;
+                        if (!includeContainers && childItems != null && childItems.Any())
+                        {
+                            DisposeBox(box);
                             continue;
+                        }
 
                         // Deferred. TryGetSourceFile walks every property category on the
                         // item and, failing that, every ancestor doing the same -- the most
@@ -146,16 +175,29 @@ namespace NavisHelper.Agent.Services
                         {
                             sourceFile = TryGetSourceFile(item) ?? string.Empty;
                             if (sourceFile.IndexOf(sourceFileContains, StringComparison.OrdinalIgnoreCase) < 0)
+                            {
+                                DisposeBox(box);
                                 continue;
+                            }
                         }
 
-                        if (box == null || !MatchesSpatialBox(box, request.Min, request.Max, matchMode))
+                        if (!SpatialBoxMatch.Matches(
+                                itemMin,
+                                itemMax,
+                                isCenterMode ? ToCenterPoint(box) : null,
+                                request.Min,
+                                request.Max,
+                                matchMode))
+                        {
+                            DisposeBox(box);
                             continue;
+                        }
 
                         response.MatchedItemCount++;
                         if (matches.Count >= maxResults)
                         {
                             response.ResultsTruncated = true;
+                            DisposeBox(box);
                             continue;
                         }
 
@@ -163,7 +205,10 @@ namespace NavisHelper.Agent.Services
                         // Only returned items enter the set, bounding it by maxResults and
                         // avoiding retention of native item wrappers for later zone matches.
                         if (!seenItems.Add(item))
+                        {
+                            DisposeBox(box);
                             continue;
+                        }
 
                         // The path is still what the result is presented and sorted by;
                         // it is simply no longer what identity is decided by, and it is
@@ -321,26 +366,37 @@ namespace NavisHelper.Agent.Services
             return new SpatialPoint { X = point.X, Y = point.Y, Z = point.Z };
         }
 
-        private static bool MatchesSpatialBox(BoundingBox3D item, SpatialPoint min, SpatialPoint max, string matchMode)
+        // The center is a native wrapper read like the corners are; in center mode it
+        // is read once, here, and handed to the pure match. Corner and center points are
+        // not disposed: a box may hand back its own points, and a stored box still needs them.
+        private static SpatialPoint ToCenterPoint(BoundingBox3D box)
         {
-            if (string.Equals(matchMode, SpatialSearchOptionsHelper.Contains, StringComparison.OrdinalIgnoreCase))
-            {
-                return item.Min.X >= min.X && item.Max.X <= max.X &&
-                       item.Min.Y >= min.Y && item.Max.Y <= max.Y &&
-                       item.Min.Z >= min.Z && item.Max.Z <= max.Z;
-            }
+            if (box == null)
+                return null;
 
-            if (string.Equals(matchMode, SpatialSearchOptionsHelper.Center, StringComparison.OrdinalIgnoreCase))
-            {
-                var center = item.Center;
-                return center.X >= min.X && center.X <= max.X &&
-                       center.Y >= min.Y && center.Y <= max.Y &&
-                       center.Z >= min.Z && center.Z <= max.Z;
-            }
+            var center = box.Center;
+            return new SpatialPoint { X = center.X, Y = center.Y, Z = center.Z };
+        }
 
-            return item.Min.X <= max.X && item.Max.X >= min.X &&
-                   item.Min.Y <= max.Y && item.Max.Y >= min.Y &&
-                   item.Min.Z <= max.Z && item.Max.Z >= min.Z;
+        // A native wrapper this search owns -- an item below the model root, or a box
+        // that did not go into the result -- is
+        // released as soon as the code is done with it, not left to the finalizer:
+        // a heap of stale wrappers slows every later search in the session. Dispose
+        // is an interop call that can throw on a torn-down document, so each
+        // release is wrapped and the exception ignored -- cleanup must never
+        // become the failure the caller sees.
+        private static void DisposeItem(ModelItem item)
+        {
+            if (item == null)
+                return;
+            try { item.Dispose(); } catch (Exception) { }
+        }
+
+        private static void DisposeBox(BoundingBox3D box)
+        {
+            if (box == null)
+                return;
+            try { box.Dispose(); } catch (Exception) { }
         }
 
         private static SpatialSearchItem BuildSpatialPreviewItem(SpatialMatch match)

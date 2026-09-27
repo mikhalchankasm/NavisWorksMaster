@@ -128,6 +128,118 @@ public sealed class SpatialSubtreeWalkTests
             events);
     }
 
+    [Fact]
+    public void ReleaseIsCalledOncePerYieldedItem()
+    {
+        var yielded = new List<string>();
+        var released = new List<string>();
+        foreach (var node in SpatialSubtreeWalk.Walk(
+                     SampleTree(),
+                     node => node.Children,
+                     node => false,
+                     node => released.Add(node.Name)))
+        {
+            yielded.Add(node.Name);
+        }
+
+        // Every item the walk yielded is released, and no item twice: same
+        // multiset of names, no repeats.
+        Assert.Equal(9, yielded.Count);
+        Assert.Equal(yielded.Count, released.Count);
+        Assert.Equal(
+            yielded.OrderBy(name => name, StringComparer.Ordinal),
+            released.OrderBy(name => name, StringComparer.Ordinal));
+        Assert.Equal(released.Count, released.Distinct().Count());
+    }
+
+    [Fact]
+    public void ReleaseFollowsTheItemsDescendants()
+    {
+        var released = new List<string>();
+        foreach (var node in SpatialSubtreeWalk.Walk(
+                     SampleTree(),
+                     node => node.Children,
+                     node => false,
+                     node => released.Add(node.Name)))
+        {
+            // The releases are recorded in the callback; the assertion is below.
+        }
+
+        // Every parent is released only after all of its descendants -- A after
+        // a1 and a2, H after h1, R last of all -- the order a walk that owns
+        // native wrappers must keep, because the descendants are reached
+        // through the parent.
+        Assert.Equal(new[] { "a1", "a2", "A", "B", "g1", "h1", "H", "G", "R" }, released);
+    }
+
+    [Fact]
+    public void SkippedSubtreesAreReleasedToo()
+    {
+        var events = new List<string>();
+        foreach (var node in SpatialSubtreeWalk.Walk(
+                     SampleTree(),
+                     node => node.Children,
+                     node => node.Name == "A",
+                     node => events.Add("release:" + node.Name)))
+        {
+            events.Add("visit:" + node.Name);
+        }
+
+        // A was yielded, so it is released -- right after the consumer saw it,
+        // before the walk moves on to B, because none of A's descendants will
+        // be walked. Everything else keeps the children-before-parent order.
+        Assert.Equal(
+            new[]
+            {
+                "visit:R",
+                "visit:A", "release:A",
+                "visit:B", "release:B",
+                "visit:G", "visit:g1", "release:g1", "visit:H", "visit:h1",
+                "release:h1", "release:H", "release:G", "release:R",
+            },
+            events);
+    }
+
+    [Fact]
+    public void ItemsHiddenByASkipAreNeverReleased()
+    {
+        var released = new List<string>();
+        foreach (var node in SpatialSubtreeWalk.Walk(
+                     SampleTree(),
+                     node => node.Children,
+                     node => node.Name == "A" || node.Name == "G",
+                     node => released.Add(node.Name)))
+        {
+            // Only the releases matter here.
+        }
+
+        // a1, a2, g1, H and h1 were never yielded, so they are never released;
+        // A and G themselves were, each exactly once.
+        Assert.Equal(new[] { "A", "B", "G", "R" }, released);
+    }
+
+    [Fact]
+    public void AnAbandonedWalkStillReleasesEveryYieldedItem()
+    {
+        var released = new List<string>();
+        foreach (var node in SpatialSubtreeWalk.Walk(
+                     SampleTree(),
+                     node => node.Children,
+                     node => false,
+                     node => released.Add(node.Name)))
+        {
+            if (node.Name == "a1")
+                break;
+        }
+
+        // The search breaks out of the walk when its budget runs out. The item
+        // in flight and every ancestor still on the stack are released, innermost
+        // first, and so are the siblings already copied out but never reached
+        // (a2 under A; B and G under R). Children never asked for (g1, H, h1)
+        // were never obtained, so they are not released.
+        Assert.Equal(new[] { "a1", "a2", "A", "B", "G", "R" }, released);
+    }
+
     private static List<string> WalkNames(Node root, Func<Node, bool> skipChildrenOf)
     {
         var names = new List<string>();

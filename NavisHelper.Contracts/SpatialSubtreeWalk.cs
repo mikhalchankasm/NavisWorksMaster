@@ -54,6 +54,35 @@ namespace NavisHelper.Agent.Contracts
             return WalkCore(root, childrenOf, skipChildrenOf);
         }
 
+        /// <summary>
+        /// The releasing form of the walk: same order and skipping semantics, plus
+        /// <paramref name="release"/>, called exactly once per yielded item, when
+        /// the walker is done with it -- after the item's subtree is finished, or
+        /// right after the item when its children are skipped, absent or empty;
+        /// never for an item that was not yielded. Exhausted or abandoned children
+        /// enumerators and sequences are disposed when <see cref="IDisposable"/>,
+        /// and an abandoned walk still releases what it yielded, innermost first.
+        /// This is the form a caller that owns the yielded wrappers uses: Navisworks
+        /// hands out a fresh one on every access.
+        /// </summary>
+        /// <typeparam name="T">The node type.</typeparam>
+        /// <param name="release">Called exactly once per yielded item, when the walker is done with it; the other parameters are as in the two-callback overload.</param>
+        public static IEnumerable<T> Walk<T>(
+            T root,
+            Func<T, IEnumerable<T>> childrenOf,
+            Func<T, bool> skipChildrenOf,
+            Action<T> release)
+        {
+            if (childrenOf == null)
+                throw new ArgumentNullException(nameof(childrenOf));
+            if (skipChildrenOf == null)
+                throw new ArgumentNullException(nameof(skipChildrenOf));
+            if (release == null)
+                throw new ArgumentNullException(nameof(release));
+
+            return WalkReleasing(root, childrenOf, skipChildrenOf, release);
+        }
+
         private static IEnumerable<T> WalkCore<T>(
             T root,
             Func<T, IEnumerable<T>> childrenOf,
@@ -97,6 +126,78 @@ namespace NavisHelper.Agent.Contracts
             {
                 while (pending.Count > 0)
                     pending.Pop().Dispose();
+            }
+        }
+
+        private static IEnumerable<T> WalkReleasing<T>(
+            T root,
+            Func<T, IEnumerable<T>> childrenOf,
+            Func<T, bool> skipChildrenOf,
+            Action<T> release)
+        {
+            if (root == null)
+                yield break;
+
+            // One release site per item, in a finally around everything after the
+            // yield: it runs when the subtree is finished, right after a skipped or
+            // childless item, when the walk is abandoned at this very yield, and
+            // when a delegate throws -- once per yielded item on every path, and
+            // always after the item's descendants, which release in their own
+            // frames first.
+            try
+            {
+                yield return root;
+
+                if (skipChildrenOf(root))
+                    yield break;
+
+                var children = childrenOf(root);
+                if (children == null)
+                    yield break;
+
+                // The children are copied out before any of them is walked, and the
+                // sequence is disposed right after. A lazily enumerated Navisworks
+                // collection cannot survive the release of the child it last handed
+                // out: the first live run of this walk failed every call with
+                // "Object has been Disposed" until the siblings were materialized,
+                // the same order the scoped find_items walk already used.
+                var siblings = new List<T>();
+                try
+                {
+                    foreach (var child in children)
+                    {
+                        if (child != null)
+                            siblings.Add(child);
+                    }
+                }
+                finally
+                {
+                    var disposableSequence = children as IDisposable;
+                    if (disposableSequence != null)
+                        disposableSequence.Dispose();
+                }
+
+                // Once copied out, the siblings are this walk's too. If it is abandoned
+                // (the search's item or time budget), the ones it never reached are
+                // released here, so a truncated search leaks no wrappers either.
+                var next = 0;
+                try
+                {
+                    for (; next < siblings.Count; next++)
+                    {
+                        foreach (var descended in WalkReleasing(siblings[next], childrenOf, skipChildrenOf, release))
+                            yield return descended;
+                    }
+                }
+                finally
+                {
+                    for (var unvisited = next + 1; unvisited < siblings.Count; unvisited++)
+                        release(siblings[unvisited]);
+                }
+            }
+            finally
+            {
+                release(root);
             }
         }
     }
