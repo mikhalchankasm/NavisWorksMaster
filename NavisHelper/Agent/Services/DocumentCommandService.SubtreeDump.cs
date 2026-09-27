@@ -66,7 +66,7 @@ namespace NavisHelper.Agent.Services
                         WriteDumpSubtreeNamesCsvHeader(writer, includePath, includeSourceFile);
 
                     var pending = new Stack<DumpTraversalFrame>();
-                    pending.Push(new DumpTraversalFrame(rootItem, 0));
+                    pending.Push(new DumpTraversalFrame(rootItem, 0, false));
                     while (pending.Count > 0)
                     {
                         if (processedCount >= MaxSynchronousDumpItems || stopwatch.ElapsedMilliseconds >= MaxSynchronousDumpElapsedMs)
@@ -91,6 +91,7 @@ namespace NavisHelper.Agent.Services
 
                         PushDumpChildren(pending, frame.Item, frame.Depth + 1);
                         processedCount++;
+                        ReleaseDumpFrameItem(frame);
                     }
                 }
 
@@ -176,7 +177,7 @@ namespace NavisHelper.Agent.Services
                     UpdatedAtUtc = DateTime.UtcNow,
                     DocumentKey = BuildDumpDocumentKey(document),
                 };
-                job.Pending.Push(new DumpTraversalFrame(rootItem, 0));
+                job.Pending.Push(new DumpTraversalFrame(rootItem, 0, false));
 
                 lock (_dumpSubtreeNamesJobs)
                 {
@@ -413,6 +414,7 @@ namespace NavisHelper.Agent.Services
                 PushDumpChildren(job.Pending, frame.Item, frame.Depth + 1);
                 job.ProcessedItemCount++;
                 processedThisPoll++;
+                ReleaseDumpFrameItem(frame);
             }
 
             job.UpdatedAtUtc = DateTime.UtcNow;
@@ -443,16 +445,47 @@ namespace NavisHelper.Agent.Services
 
         private static void PushDumpChildren(Stack<DumpTraversalFrame> pending, ModelItem item, int childDepth)
         {
-            if (pending == null || item == null || item.Children == null)
+            if (pending == null || item == null)
                 return;
 
-            var children = item.Children.Cast<ModelItem>().ToList();
+            // One read, not two: the null check used to ask for the children again,
+            // and every access allocates its own enumerable.
+            var itemChildren = item.Children;
+            if (itemChildren == null)
+                return;
+
+            var children = itemChildren.Cast<ModelItem>().ToList();
             for (var index = children.Count - 1; index >= 0; index--)
             {
-                var child = children[index];
-                pending.Push(new DumpTraversalFrame(child, childDepth));
+                pending.Push(new DumpTraversalFrame(children[index], childDepth, true));
                 if (pending.Count > MaxDumpPendingItems)
                     throw new AgentCommandException(ErrorCodes.CommandFailed, "Dump traversal queue is too large. Use a more specific root item.");
+            }
+        }
+
+        /// <summary>
+        /// Releases the item wrapper a frame brought into the walk, once the row it
+        /// fed is written and its children are queued.
+        ///
+        /// The TECH-W13 live probe showed Navisworks hands out a fresh managed
+        /// ModelItem on every access, so a wrapper this walk popped is solely its
+        /// own, and it holds a native weak reference that only Dispose or its
+        /// finalizer releases. A whole-model dump pops one per item; left to the
+        /// finalizer, they are what kept the heap loaded for every call after the
+        /// dump. The root frame is the one exception, because the synchronous
+        /// response reads the root item again after its loop.
+        /// </summary>
+        private static void ReleaseDumpFrameItem(DumpTraversalFrame frame)
+        {
+            if (frame == null || !frame.OwnsItem || frame.Item == null)
+                return;
+
+            try
+            {
+                frame.Item.Dispose();
+            }
+            catch
+            {
             }
         }
 
@@ -800,14 +833,22 @@ namespace NavisHelper.Agent.Services
 
         private sealed class DumpTraversalFrame
         {
-            public DumpTraversalFrame(ModelItem item, int depth)
+            public DumpTraversalFrame(ModelItem item, int depth, bool ownsItem)
             {
                 Item = item;
                 Depth = depth;
+                OwnsItem = ownsItem;
             }
 
             public ModelItem Item { get; private set; }
             public int Depth { get; private set; }
+
+            /// <summary>
+            /// Whether the walk may release this frame's item wrapper once the item
+            /// is processed. False only for the root frame; see
+            /// <see cref="ReleaseDumpFrameItem"/>.
+            /// </summary>
+            public bool OwnsItem { get; private set; }
         }
 
         private sealed class DumpSubtreeNamesJob
