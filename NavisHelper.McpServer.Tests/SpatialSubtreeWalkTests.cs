@@ -233,10 +233,11 @@ public sealed class SpatialSubtreeWalkTests
         }
 
         // The search breaks out of the walk when its budget runs out. The item
-        // in flight plus every ancestor still on the stack were yielded, so
-        // they are released, innermost first -- and nothing that was never
-        // yielded (a2 and everything after it) is.
-        Assert.Equal(new[] { "a1", "A", "R" }, released);
+        // in flight and every ancestor still on the stack are released, innermost
+        // first, and so are the siblings already copied out but never reached
+        // (a2 under A; B and G under R). Children never asked for (g1, H, h1)
+        // were never obtained, so they are not released.
+        Assert.Equal(new[] { "a1", "a2", "A", "B", "G", "R" }, released);
     }
 
     private static List<string> WalkNames(Node root, Func<Node, bool> skipChildrenOf)

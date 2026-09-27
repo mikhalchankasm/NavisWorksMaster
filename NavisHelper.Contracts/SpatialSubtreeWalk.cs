@@ -177,10 +177,22 @@ namespace NavisHelper.Agent.Contracts
                         disposableSequence.Dispose();
                 }
 
-                for (var index = 0; index < siblings.Count; index++)
+                // Once copied out, the siblings are this walk's too. If it is abandoned
+                // (the search's item or time budget), the ones it never reached are
+                // released here, so a truncated search leaks no wrappers either.
+                var next = 0;
+                try
                 {
-                    foreach (var descended in WalkReleasing(siblings[index], childrenOf, skipChildrenOf, release))
-                        yield return descended;
+                    for (; next < siblings.Count; next++)
+                    {
+                        foreach (var descended in WalkReleasing(siblings[next], childrenOf, skipChildrenOf, release))
+                            yield return descended;
+                    }
+                }
+                finally
+                {
+                    for (var unvisited = next + 1; unvisited < siblings.Count; unvisited++)
+                        release(siblings[unvisited]);
                 }
             }
             finally
