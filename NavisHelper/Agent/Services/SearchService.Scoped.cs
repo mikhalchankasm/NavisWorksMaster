@@ -609,9 +609,9 @@ namespace NavisHelper.Agent.Services
 
         private sealed class CompiledManualSearch
         {
-            private readonly FindItemsCondition[] conditions;
-            private readonly ResolvedProperty[] resolvedProperties;
-            private readonly string[] comparisons;
+            private readonly FindItemsCondition[] _conditions;
+            private readonly ResolvedProperty[] _resolvedProperties;
+            private readonly string[] _comparisons;
 
             private CompiledManualSearch(
                 FindItemsCondition[] conditions,
@@ -620,20 +620,20 @@ namespace NavisHelper.Agent.Services
                 bool hasConditionLogic,
                 bool matchAll)
             {
-                this.conditions = conditions;
-                this.resolvedProperties = resolvedProperties;
-                this.comparisons = comparisons;
+                _conditions = conditions;
+                _resolvedProperties = resolvedProperties;
+                _comparisons = comparisons;
                 HasConditionLogic = hasConditionLogic;
                 MatchAll = matchAll;
             }
 
             public bool HasConditionLogic { get; private set; }
             public bool MatchAll { get; private set; }
-            public int Count => conditions.Length;
+            public int Count => _conditions.Length;
 
-            public FindItemsCondition GetCondition(int index) => conditions[index];
-            public ResolvedProperty GetResolvedProperty(int index) => resolvedProperties[index];
-            public string GetComparison(int index) => comparisons[index];
+            public FindItemsCondition GetCondition(int index) => _conditions[index];
+            public ResolvedProperty GetResolvedProperty(int index) => _resolvedProperties[index];
+            public string GetComparison(int index) => _comparisons[index];
 
             public static CompiledManualSearch Compile(FindItemsSearch search)
             {
