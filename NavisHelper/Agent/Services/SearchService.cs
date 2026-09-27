@@ -31,9 +31,8 @@ namespace NavisHelper.Agent.Services
         private const int RequestTimeoutSafetyMarginMilliseconds = 8000;
         private const string DefaultCategory = "Item";
         private const string DefaultProperty = "Name";
-        private const string ItemInternalCategory = "LcOaNode";
+        private const string ItemInternalCategory = NativePropertyLookup.ItemInternalCategory;
         private const string ItemUserNameInternalProperty = "LcOaSceneBaseUserName";
-        private const string SourceFileInternalProperty = "LcOaNodeSourceFile";
         private readonly object _rootSearchIndexLock = new object();
         private RootSearchIndex _rootSearchIndex;
 
@@ -47,19 +46,11 @@ namespace NavisHelper.Agent.Services
 
 
 
-        private static readonly (string Category, string Property)[] SourceFileDisplayProperties =
-        {
-            ("Item", "Source File"),
-            ("Элемент", "Файл источника"),
-            ("", "Source File"),
-            ("", "Файл источника"),
-        };
-
         private static readonly KnownPropertyDefinition[] KnownProperties =
         {
             new KnownPropertyDefinition(
                 ItemInternalCategory,
-                SourceFileInternalProperty,
+                NativePropertyLookup.SourceFileInternalProperty,
                 true,
                 new[] { "Item", "Элемент" },
                 new[] { "Source File", "Файл источника" }),
