@@ -1204,7 +1204,7 @@ across builds except for per-process identifiers.
 | #115 | Same | Same | `mcp_health_check` | 86 | 52 |
 | #116 | Read each `DataProperty.Value` once | Same | `model_color_scheme` analyze, STORE selected | ≈2547 (the two other builds in the window) | 2426 (−5%) |
 | #119 | One `host_status` per health check; call-log clean-up once a day | Same | `mcp_health_check` | 92 | 61 |
-| #120 | Only request-time generation-0 collections count toward a forced collection | Same | `list_saved_viewpoints` right after 20 s idle + `host_status` | 76–115 | 9–11 |
+| #120 | Only request-time generation-0 collections count toward a forced collection | Same | `list_saved_viewpoints` right after 20 s idle + `host_status` | 73–115 | 9–11 |
 
 #113 returned identical answers in every arm, including the 11.6 MB dump CSV byte for byte.
 #116's `main` arms ran first and last and measured 2684 ms; part of that gap was position,
