@@ -89,15 +89,25 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
         await RunHealthStep(response, "active_model_context", async () =>
         {
-            if (status == null || !status.HasActiveDocument)
+            // Reuse the status read above. If that step failed, this one asks again, so it
+            // reports the host's own error rather than a missing document.
+            var context = status == null
+                ? await ActiveModelContext(
+                    rootItemLimit: rootItemLimit,
+                    includeRootAliases: false,
+                    includeSavedItemsSummary: true,
+                    instanceId: instanceId,
+                    navisworksVersion: navisworksVersion,
+                    cancellationToken: cancellationToken).ConfigureAwait(false)
+                : await BuildActiveModelContextAsync(
+                    status,
+                    rootItemLimit,
+                    includeRootAliases: false,
+                    includeSavedItemsSummary: true,
+                    target,
+                    cancellationToken).ConfigureAwait(false);
+            if (context.HostStatus == null || !context.HostStatus.HasActiveDocument)
                 throw new InvalidOperationException(ErrorCodes.NoActiveDocument + ": Active model context has no active document.");
-            var context = await BuildActiveModelContextAsync(
-                status,
-                rootItemLimit,
-                includeRootAliases: false,
-                includeSavedItemsSummary: true,
-                target,
-                cancellationToken).ConfigureAwait(false);
             if (context.RootItems == null || context.RootItems.RootItemCount < 1)
                 throw new InvalidOperationException(ErrorCodes.CommandFailed + ": Active model context returned no root items.");
         }).ConfigureAwait(false);
