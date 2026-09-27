@@ -128,6 +128,16 @@ Section enable command: `LcRmFrameworkInterface.ExecuteCommand("RoamerGUI_OM_SEC
 
 `View.ProjectPoint(Point3D, bool, bool)` returns a `ProjectionResult` with `X`, `Y`, `Depth` properties. This is the official Navisworks .NET API for 3D-to-2D projection; the local distilled note is `docs/research/navisworks-api-notes.md`. Prefer this over manual quaternion-based projection for perspective views.
 
+### Overlay drawing and document identity
+
+Live findings on Navisworks 2027 (2026-09-26, NW-03): `RenderPlugin.Render` is called, but its model-space primitives reach neither the screen nor a capture. Its 2D `OverlayRender` draws under any active tool and appears in `capture_current_view` (COM exporter) and `View.GenerateImage(ScenePlusOverlay, ...)`, but not `View.GenerateImage(Scene, ...)`. Therefore `WorldMarkerOverlayRenderer` draws in 2D; a `ToolPlugin` overlay such as `ClashMarkerTool` draws only while that tool is active.
+
+For `ProjectPoint(point, sectionClip, frustumClip)`, `sectionClip = true` drops points outside a section box. World markers pass `false` by the owner's decision. `ProjectionResult` is plain managed, while `Point2D`, `Point3D`, `Color`, and `BoundingBox3D` are `NativeHandle`s; dispose per-frame `Point2D` instances.
+
+File > Open usually retains the same `Application.MainDocument` object, so `ActiveDocumentChanged` does not fire. Per-document state must also handle the tracked document's `FileNameChanged`. Save As keeps state when `ModelColorSchemeDocumentIdentity.HasSameModelContent` holds; opening another file clears it, as in clash isolation, the colour scheme, and world markers.
+
+Navisworks 2027 does not load a minimal DXF that declares `AC1027` and contains only HEADER and ENTITIES, with no tables or handles. It either opens empty or a modal import error blocks the process. This is why DXF world markers were dropped.
+
 ### Conditional Compilation
 
 The `.csproj` uses conditional `<ItemGroup>` blocks to select Navisworks API DLL paths based on the active configuration. Configurations containing "2024" reference Navisworks Manage 2024, "2025" reference 2025, "2026" reference 2026, and "2027" reference 2027. The default (plain Debug/Release) also references Navisworks 2026. All DLL paths follow the pattern `C:\Program Files\Autodesk\Navisworks Manage 20XX\<DllName>.dll`.
