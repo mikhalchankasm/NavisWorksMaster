@@ -903,11 +903,13 @@ path, is blunt, and costs about 0.1 s of host time each time.
 ### The fix: collect after heavy work
 
 The host now does by itself what the test build did in `host_status`
-(`HeavyWorkCollectionPolicy`; see `docs/ARCHITECTURE.md`). After a gated request, once four
-or more generation-0 collections have passed since the last forced one, it collects, drains
-finalizers and collects again on a pool thread. The next gated request waits for that
-before it starts. It was measured against `main` (`942f3d8`) like the test build, but back
-to back: `host_status` and then the call, with no idle pad. Rows are in run order:
+(`HeavyWorkCollectionPolicy`; see `docs/ARCHITECTURE.md`). Only generation-0 collections
+while a request runs count toward the threshold of four since the last forced one (#120);
+collections between requests do not count. After a gated request reaches that threshold,
+the host collects, drains finalizers and collects again on a pool thread. The next gated
+request waits for that before it starts. It was measured against `main` (`942f3d8`) like
+the test build, but back to back: `host_status` and then the call, with no idle pad. Rows
+are in run order:
 
 | round | build | ms, calls 1 to 8 |
 | --- | --- | --- |
@@ -1181,6 +1183,51 @@ box, and each case was called twice in a row.
 
 The tools touch only the plugin's in-memory overlay store and never the model, so every call is a
 round trip plus planning. Drawing happens in the next redraw (`OverlayRender`), outside these numbers.
+
+## The 2026-09-27 speed window
+
+On Navisworks Manage 2027, each window ran builds in palindrome order (base, A, B, …,
+B, A, base), with each arm in a fresh process using its build's plugin and MCP server
+verified by host-reported plugin identity; calls were read-only or dry runs, documents
+were discarded, and the live bundle was restored byte for byte (46 of 46 files).
+Figures are host ms (`navishelper_timing.elapsed_ms`), medians of repeated calls
+excluding each process's first call unless stated otherwise; answers were compared
+across builds except for per-process identifiers.
+
+| PR | change | model | case | before (ms) | after (ms) |
+| --- | --- | --- | --- | ---: | ---: |
+| #113 | One native source-file lookup (`NativePropertyLookup`) | `6513.nwd`, 41 016 items | `clash_create_matrix_from_selection` walk, filter matching nothing | 1817 | 1568 (−14%) |
+| #113 | Same | Same | `dump_subtree_names` async, whole model, `includeSourceFile` | 4031 | 3573 (−11%) |
+| #115 | Three host log lines per request instead of eight | `6501.5.nwd` | `list_saved_viewpoints` | 11 | 5 |
+| #115 | Same | Same | `host_status` | 20 | 13 |
+| #115 | Same | Same | `selection_property_report`, STORE selected | 12 | 5 |
+| #115 | Same | Same | `mcp_health_check` | 86 | 52 |
+| #116 | Read each `DataProperty.Value` once | Same | `model_color_scheme` analyze, STORE selected | ≈2547 (the two other builds in the window) | 2426 (−5%) |
+| #119 | One `host_status` per health check; call-log clean-up once a day | Same | `mcp_health_check` | 92 | 61 |
+| #120 | Only request-time generation-0 collections count toward a forced collection | Same | `list_saved_viewpoints` right after 20 s idle + `host_status` | 76–115 | 9–11 |
+
+#113 returned identical answers in every arm, including the 11.6 MB dump CSV byte for byte.
+#116's `main` arms ran first and last and measured 2684 ms; part of that gap was position,
+so the fair comparison is against the two other builds in the same window.
+
+Two findings were refuted and not merged:
+
+1. **Native memory counters for `host_status` (branch `glm/cheap-host-status`, no PR).**
+   On a ~900 MB Roamer, reading working set, private bytes and handle count with psapi
+   `GetProcessMemoryInfo` and `GetProcessHandleCount` instead of `Process.WorkingSet64`,
+   `PrivateMemorySize64` and `HandleCount` was slower: `host_status` 19 → 26 ms,
+   `mcp_health_check` 81 → 95 ms, and `active_model_context` 52 → 58 ms. The three
+   `Process` properties share one snapshot per `Process` object.
+2. **Resolving scoped `find_items` conditions once per call (#114, closed).** Removing
+   only per-item managed allocations (`ResolveProperty`, `NormalizeComparison`, LINQ
+   closures) doubled scoped `countOnly` on `6501.5.nwd` from 1685 to 3538 ms in all
+   16 calls over two processes, with identical answers. The likely explanation is that
+   fewer generation-0 collections during the walk leave more per-item `NativeHandle`
+   wrappers waiting for finalization, so native references stay alive longer; [the
+   call-after-call slowdown](#throughput-falls-call-after-call-inside-one-navisworks-process)
+   shows the same effect across calls. Fewer wrappers per item helped (#113, #116), but
+   fewer managed allocations alone hurt; disposing the walk's own wrappers is the next
+   lever, after the wrapper-identity probe in TECH-W13.
 
 ## What still has no number
 
