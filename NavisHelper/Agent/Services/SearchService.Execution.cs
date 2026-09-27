@@ -586,14 +586,6 @@ namespace NavisHelper.Agent.Services
             return result;
         }
 
-        private static bool MatchesManualCondition(ModelItem item, FindItemsCondition condition)
-        {
-            var comparison = NormalizeComparison(condition.Operator);
-            var resolved = ResolveProperty(condition);
-
-            return MatchesManualCondition(item, condition, resolved, comparison);
-        }
-
         private static bool MatchesManualCondition(ModelItem item, FindItemsCondition condition, ResolvedProperty resolved, string comparison)
         {
             var matched = MatchesManualConditionPositive(item, condition, resolved, comparison);

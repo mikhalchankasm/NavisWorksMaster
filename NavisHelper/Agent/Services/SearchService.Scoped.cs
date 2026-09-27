@@ -49,6 +49,7 @@ namespace NavisHelper.Agent.Services
                 return BuildNativeScopedResponse(response, search, nativeMatches, previewLimit, sessionStore);
             }
 
+            var compiledSearch = CompiledManualSearch.Compile(search);
             var matchedItems = countOnly ? null : new List<ModelItem>();
             var sampleValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var stack = new Stack<ScopedSearchNode>();
@@ -71,7 +72,7 @@ namespace NavisHelper.Agent.Services
                     continue;
                 response.ScannedItemCount++;
 
-                var matched = MatchesSearchManually(item, search);
+                var matched = MatchesSearchManually(item, compiledSearch);
                 if (matched)
                 {
                     response.MatchedItemCount++;
@@ -209,37 +210,43 @@ namespace NavisHelper.Agent.Services
             };
         }
 
-        private static bool MatchesSearchManually(ModelItem item, FindItemsSearch search)
+        private static bool MatchesSearchManually(ModelItem item, CompiledManualSearch compiled)
         {
-            if (search == null || search.Conditions == null || search.Conditions.Count == 0)
+            if (compiled == null || compiled.Count == 0)
                 return false;
 
-            var hasConditionLogic = search.Conditions.Skip(1).Any(condition =>
-                condition != null && string.Equals(
-                    condition.LogicalOperator,
-                    FindItemsConditionOptionsHelper.Or,
-                    StringComparison.OrdinalIgnoreCase));
-            if (!hasConditionLogic)
+            if (!compiled.HasConditionLogic)
             {
-                var matchAll = string.Equals(search.CombineOperator, FindItemsCombineOperators.All, StringComparison.OrdinalIgnoreCase);
-                return matchAll
-                    ? search.Conditions.All(condition => MatchesManualCondition(item, condition))
-                    : search.Conditions.Any(condition => MatchesManualCondition(item, condition));
+                if (compiled.MatchAll)
+                {
+                    for (var index = 0; index < compiled.Count; index++)
+                    {
+                        if (!MatchesManualCondition(item, compiled.GetCondition(index), compiled.GetResolvedProperty(index), compiled.GetComparison(index)))
+                            return false;
+                    }
+                    return true;
+                }
+
+                for (var index = 0; index < compiled.Count; index++)
+                {
+                    if (MatchesManualCondition(item, compiled.GetCondition(index), compiled.GetResolvedProperty(index), compiled.GetComparison(index)))
+                        return true;
+                }
+                return false;
             }
 
             var anyGroupMatched = false;
-            var currentGroupMatched = MatchesManualCondition(item, search.Conditions[0]);
-            for (var index = 1; index < search.Conditions.Count; index++)
+            var currentGroupMatched = MatchesManualCondition(item, compiled.GetCondition(0), compiled.GetResolvedProperty(0), compiled.GetComparison(0));
+            for (var index = 1; index < compiled.Count; index++)
             {
-                var condition = search.Conditions[index];
-                if (string.Equals(condition.LogicalOperator, FindItemsConditionOptionsHelper.Or, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(compiled.GetCondition(index).LogicalOperator, FindItemsConditionOptionsHelper.Or, StringComparison.OrdinalIgnoreCase))
                 {
                     anyGroupMatched |= currentGroupMatched;
-                    currentGroupMatched = MatchesManualCondition(item, condition);
+                    currentGroupMatched = MatchesManualCondition(item, compiled.GetCondition(index), compiled.GetResolvedProperty(index), compiled.GetComparison(index));
                 }
                 else
                 {
-                    currentGroupMatched &= MatchesManualCondition(item, condition);
+                    currentGroupMatched &= MatchesManualCondition(item, compiled.GetCondition(index), compiled.GetResolvedProperty(index), compiled.GetComparison(index));
                 }
             }
             return anyGroupMatched || currentGroupMatched;
@@ -598,6 +605,63 @@ namespace NavisHelper.Agent.Services
 
             public ModelItem Item { get; private set; }
             public int Depth { get; private set; }
+        }
+
+        private sealed class CompiledManualSearch
+        {
+            private readonly FindItemsCondition[] conditions;
+            private readonly ResolvedProperty[] resolvedProperties;
+            private readonly string[] comparisons;
+
+            private CompiledManualSearch(
+                FindItemsCondition[] conditions,
+                ResolvedProperty[] resolvedProperties,
+                string[] comparisons,
+                bool hasConditionLogic,
+                bool matchAll)
+            {
+                this.conditions = conditions;
+                this.resolvedProperties = resolvedProperties;
+                this.comparisons = comparisons;
+                HasConditionLogic = hasConditionLogic;
+                MatchAll = matchAll;
+            }
+
+            public bool HasConditionLogic { get; private set; }
+            public bool MatchAll { get; private set; }
+            public int Count => conditions.Length;
+
+            public FindItemsCondition GetCondition(int index) => conditions[index];
+            public ResolvedProperty GetResolvedProperty(int index) => resolvedProperties[index];
+            public string GetComparison(int index) => comparisons[index];
+
+            public static CompiledManualSearch Compile(FindItemsSearch search)
+            {
+                var source = search == null ? null : search.Conditions;
+                if (source == null || source.Count == 0)
+                    return new CompiledManualSearch(
+                        new FindItemsCondition[0], new ResolvedProperty[0], new string[0], false, false);
+
+                var compiledConditions = new FindItemsCondition[source.Count];
+                var compiledResolved = new ResolvedProperty[source.Count];
+                var compiledComparisons = new string[source.Count];
+                var hasConditionLogic = false;
+                for (var index = 0; index < source.Count; index++)
+                {
+                    var condition = source[index];
+                    compiledConditions[index] = condition;
+                    compiledComparisons[index] = NormalizeComparison(condition.Operator);
+                    compiledResolved[index] = ResolveProperty(condition);
+                    if (index > 0 && !hasConditionLogic && condition != null && string.Equals(
+                            condition.LogicalOperator,
+                            FindItemsConditionOptionsHelper.Or,
+                            StringComparison.OrdinalIgnoreCase))
+                        hasConditionLogic = true;
+                }
+
+                var matchAll = string.Equals(search.CombineOperator, FindItemsCombineOperators.All, StringComparison.OrdinalIgnoreCase);
+                return new CompiledManualSearch(compiledConditions, compiledResolved, compiledComparisons, hasConditionLogic, matchAll);
+            }
         }
     }
 }
