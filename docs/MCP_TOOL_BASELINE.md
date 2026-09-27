@@ -903,13 +903,12 @@ path, is blunt, and costs about 0.1 s of host time each time.
 ### The fix: collect after heavy work
 
 The host now does by itself what the test build did in `host_status`
-(`HeavyWorkCollectionPolicy`; see `docs/ARCHITECTURE.md`). Only generation-0 collections
-while a request runs count toward the threshold of four since the last forced one (#120);
-collections between requests do not count. After a gated request reaches that threshold,
-the host collects, drains finalizers and collects again on a pool thread. The next gated
-request waits for that before it starts. It was measured against `main` (`942f3d8`) like
-the test build, but back to back: `host_status` and then the call, with no idle pad. Rows
-are in run order:
+(`HeavyWorkCollectionPolicy`; its trigger rule, including which generation-0 collections
+count since #120, is kept in `docs/ARCHITECTURE.md`). Once the rule fires after a gated
+request, the host collects, drains finalizers and collects again on a pool thread. The next
+gated request waits for that before it starts. It was measured against `main` (`942f3d8`)
+like the test build, but back to back: `host_status` and then the call, with no idle pad.
+Rows are in run order:
 
 | round | build | ms, calls 1 to 8 |
 | --- | --- | --- |
