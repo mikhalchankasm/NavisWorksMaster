@@ -169,7 +169,7 @@ public sealed class FindItemsNativeScopedPolicyTests
     [Fact]
     public void ScopedExecutor_PrunesInTheEngine_AndRestoresFirstAcrossVariants()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var nativeScoped = File.ReadAllText(
             Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.NativeScoped.cs"));
         var scoped = File.ReadAllText(
@@ -192,7 +192,7 @@ public sealed class FindItemsNativeScopedPolicyTests
     [Fact]
     public void GroupedConditions_HonourTheComparisonField()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var rules = File.ReadAllText(
             Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.Rules.cs"));
 
@@ -320,18 +320,8 @@ public sealed class FindItemsNativeScopedPolicyTests
 
     private static string ReadRepositoryFile(string relativePath)
     {
-        var path = Path.Combine(FindRepositoryRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var path = Path.Combine(RepositoryPaths.Root, relativePath.Replace('/', Path.DirectorySeparatorChar));
         Assert.True(File.Exists(path), path + " is missing; re-point this guard.");
         return File.ReadAllText(path);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-            directory = directory.Parent;
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
     }
 }

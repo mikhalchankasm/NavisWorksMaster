@@ -531,7 +531,7 @@ namespace NavisHelper.WPF
                             try { propertyName = property.DisplayName; } catch { propertyName = "(property)"; }
                             if (string.IsNullOrWhiteSpace(propertyName)) propertyName = property.Name ?? "(property)";
                             string value = string.Empty;
-                            try { value = property.Value == null ? string.Empty : property.Value.ToDisplayString() ?? string.Empty; } catch { }
+                            try { var variant = property.Value; value = variant == null ? string.Empty : variant.ToDisplayString() ?? string.Empty; } catch { }
                             lines.Add($"{EscapeCsv(path)};{EscapeCsv(display)};{EscapeCsv(categoryName)};{EscapeCsv(propertyName)};{EscapeCsv(value)}");
                         }
                     }

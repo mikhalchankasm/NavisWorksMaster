@@ -124,7 +124,7 @@ namespace NavisHelper.Agent.Host
                 command = requestObject.Value<string>("command");
                 ValidateProtocolVersion(requestObject.Value<string>("protocol_version"));
 
-                Logger.Info("request_id=" + (requestId ?? "<null>") + " command=" + (command ?? "<null>") + " received", "AgentHost");
+                Logger.Info(HostRequestLogLines.Arrival(requestId, command), "AgentHost");
                 RecordOperationStarted(requestId, command);
 
                 if (HostRequestPolicy.IsRequestGateBypassCommand(command))

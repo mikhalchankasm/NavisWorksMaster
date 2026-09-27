@@ -8,7 +8,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void ActiveAiPath_HasNoSyncOverAsync()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var files = Directory.GetFiles(
                 Path.Combine(root, "NavisHelper", "AI"),
                 "*.cs")
@@ -37,7 +37,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void CompiledAiPath_UsesCoordinatorAndExcludesLegacyColorService()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var projectPath = Path.Combine(
             root,
             "NavisHelper",
@@ -73,7 +73,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void ActivePluginPath_HasNoDirectOpenRouterHttpTransport()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var project = XDocument.Load(Path.Combine(
             root,
             "NavisHelper",
@@ -95,7 +95,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void Worker_IsInSolutionAndPackageInventory()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var solution = File.ReadAllText(Path.Combine(root, "NavisHelper.sln"));
         var package = File.ReadAllText(Path.Combine(
             root,
@@ -119,7 +119,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void Ci_PublishesWorkerBeforeSkipBuildDistributionSmoke()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var workflow = File.ReadAllText(Path.Combine(
             root,
             ".github",
@@ -148,7 +148,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void AiConfigAndActivePath_HaveSingleKeySource()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var config = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -171,7 +171,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void ProductionAiPath_HasNoStaticModelRecommendations()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var files = Directory.GetFiles(
                 Path.Combine(root, "NavisHelper", "AI"),
                 "*.cs")
@@ -198,7 +198,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void DynamicModelRefresh_IsSafeDuringInitialLocalizationBinding()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -214,7 +214,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void SettingsBuilder_IsOwnedByPanelLifecycle()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var panel = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -236,7 +236,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void SettingsAsyncContinuations_UseCapturedGenerations()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -264,7 +264,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void RefreshModels_ContainsItsAsyncExceptionPath()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -288,7 +288,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void SettingsValidationAndCatalog_UseIndependentTimeoutScopes()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -340,7 +340,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void SettingsDiagnostics_HaveNoSecretOrPayloadInputs()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var policy = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -359,7 +359,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void SettingsProductionPath_UsesExplicitBackgroundAndUiBoundaries()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -391,7 +391,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void SettingsProductionPath_HasNoBlockingUiWaits()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var source = string.Join("\n", new[]
         {
             File.ReadAllText(Path.Combine(
@@ -420,7 +420,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void WorkerCancellationCallback_DoesNotTerminateProcessInline()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var runner = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -468,7 +468,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void ConnectHandler_AwaitsBackgroundCaptureBeforeValidation()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -492,7 +492,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void AllSettingsAsyncVoidBoundariesObserveFailures()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -512,7 +512,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void ModelSelectionUpdatesRuntimeBeforeBackgroundPersistence()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -540,7 +540,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void AiWorkflowCapturesOneImmutableConfigSnapshot()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var workflow = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -559,7 +559,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void RefreshCancellationMutation_UsesUiGate()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -587,7 +587,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void SettingsTimeoutClassificationDoesNotUseCallbackBoolean()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -605,7 +605,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void WorkerProtocolAndDistributionManifest_AreVersionThree()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var protocol = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -628,7 +628,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void McpContracts_RemainIndependentOfOpenRouterColoring()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var contracts = string.Join("\n", Directory.GetFiles(
                 Path.Combine(root, "NavisHelper.Contracts"),
                 "*.cs",
@@ -646,7 +646,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void Disconnect_CancelsTheActiveOpenRouterColorOperation()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var settings = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -673,7 +673,7 @@ public sealed class AIColorArchitectureTests
     [Fact]
     public void AiPanelResources_HaveNeutralRussianParity()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var neutral = ResourceKeys(Path.Combine(
             root,
             "NavisHelper",
@@ -703,20 +703,5 @@ public sealed class AIColorArchitectureTests
             .Select(element => (string)element.Attribute("name"))
             .Where(value => value != null)
             .ToHashSet(StringComparer.Ordinal);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(
-                    directory.FullName,
-                    "NavisHelper.sln")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-        throw new DirectoryNotFoundException(
-            "Could not locate NavisHelper.sln.");
     }
 }
