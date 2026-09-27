@@ -76,7 +76,7 @@ public sealed class FindItemsNativeSearchPolicyTests
         // CreateSearchCondition, where a condition that never becomes a native
         // condition never reaches it, and no second copy of the routing rule exists to
         // drift from the first.
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
 
         var rules = File.ReadAllText(
             Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.Rules.cs"));
@@ -203,7 +203,7 @@ public sealed class FindItemsNativeSearchPolicyTests
     [Fact]
     public void SearchService_AssignsPruningExplicitly_AndDedupsByItemIdentity()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var execution = File.ReadAllText(
             Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.Execution.cs"));
         var commands = File.ReadAllText(
@@ -223,15 +223,5 @@ public sealed class FindItemsNativeSearchPolicyTests
         Assert.Contains("new FindItemsMatchSet<ModelItem>()", execution, StringComparison.Ordinal);
         Assert.DoesNotContain("Dictionary<string, ModelItem>", execution, StringComparison.Ordinal);
         Assert.DoesNotContain("HashSet<string>(StringComparer.OrdinalIgnoreCase)", execution, StringComparison.Ordinal);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-            directory = directory.Parent;
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
     }
 }
