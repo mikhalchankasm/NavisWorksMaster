@@ -97,4 +97,73 @@ public sealed class HeavyWorkCollectionPolicyTests
         Assert.False(policy.ShouldCollect(40));
         Assert.True(policy.ShouldCollect(41));
     }
+
+    [Fact]
+    public void CollectionsBetweenRequestsDoNotCount()
+    {
+        var policy = new HeavyWorkCollectionPolicy(0);
+        policy.BeginRequest(0);
+
+        Assert.False(policy.ShouldCollect(1, 10));
+        policy.EndRequest(1);
+
+        // The host idles and Navisworks collects three times on its own.
+        policy.BeginRequest(4);
+
+        Assert.False(policy.ShouldCollect(4, 10));
+    }
+
+    [Fact]
+    public void CollectionsAccumulateAcrossRequestsUntilTheThreshold()
+    {
+        var policy = new HeavyWorkCollectionPolicy(0);
+
+        policy.BeginRequest(0);
+        Assert.False(policy.ShouldCollect(2, 10));
+        policy.EndRequest(2);
+
+        policy.BeginRequest(20);
+        Assert.False(policy.ShouldCollect(21, 10));
+        policy.EndRequest(21);
+
+        policy.BeginRequest(40);
+        Assert.True(policy.ShouldCollect(42, 10));
+    }
+
+    [Fact]
+    public void ForcedCollectionResetsTheAccumulatedRequestCount()
+    {
+        var policy = new HeavyWorkCollectionPolicy(0);
+
+        policy.BeginRequest(0);
+        Assert.False(policy.ShouldCollect(HeavyWorkCollectionPolicy.Threshold - 1, 10));
+        policy.EndRequest(HeavyWorkCollectionPolicy.Threshold - 1);
+
+        policy.BeginRequest(50);
+        Assert.True(policy.ShouldCollect(51, 10));
+        policy.RecordCollection(53);
+
+        policy.BeginRequest(80);
+        Assert.False(policy.ShouldCollect(80 + HeavyWorkCollectionPolicy.Threshold - 1, 10));
+    }
+
+    [Fact]
+    public void TheCurrentRequestCountsTowardsTheThreshold()
+    {
+        var policy = new HeavyWorkCollectionPolicy(0);
+        policy.BeginRequest(100);
+
+        Assert.True(policy.ShouldCollect(100 + HeavyWorkCollectionPolicy.Threshold, 10));
+    }
+
+    [Fact]
+    public void AskingDoesNotCloseTheRequest()
+    {
+        var policy = new HeavyWorkCollectionPolicy(0);
+        policy.BeginRequest(0);
+
+        Assert.False(policy.ShouldCollect(2, 10));
+        Assert.False(policy.ShouldCollect(2, 10));
+        Assert.Equal(2, policy.CollectionsSinceLast(2));
+    }
 }

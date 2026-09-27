@@ -29,14 +29,29 @@ namespace NavisHelper.Agent.Host
         private int _inFlight;
         private Task _task;
 
+        /// <summary>
+        /// Opens the request the caller is about to run, so that only the generation-0
+        /// collections it causes count towards the next forced collection.
+        /// </summary>
+        public void BeginRequest()
+        {
+            _policy.BeginRequest(GC.CollectionCount(0));
+        }
+
         public void ScheduleIfDue(long commandMilliseconds)
         {
             var gen0Now = GC.CollectionCount(0);
             if (!_policy.ShouldCollect(gen0Now, commandMilliseconds))
+            {
+                _policy.EndRequest(gen0Now);
                 return;
+            }
 
             if (Interlocked.CompareExchange(ref _inFlight, 1, 0) != 0)
+            {
+                _policy.EndRequest(gen0Now);
                 return;
+            }
 
             var gen0CollectionsSinceLast = _policy.CollectionsSinceLast(gen0Now);
             _task = Task.Run(() =>
