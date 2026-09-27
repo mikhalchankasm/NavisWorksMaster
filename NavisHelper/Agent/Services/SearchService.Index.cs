@@ -547,7 +547,7 @@ namespace NavisHelper.Agent.Services
             var current = item;
             while (current != null)
             {
-                var sourceFileProperty = TryFindSourceFileProperty(current);
+                var sourceFileProperty = NativePropertyLookup.FindSourceFileProperty(current);
                 if (sourceFileProperty != null)
                     return GetPropertyDisplayValue(sourceFileProperty);
 
@@ -555,22 +555,6 @@ namespace NavisHelper.Agent.Services
             }
 
             return string.Empty;
-        }
-
-        private static DataProperty TryFindSourceFileProperty(ModelItem item)
-        {
-            var property = TryFindInternalPropertyCore(item, ItemInternalCategory, SourceFileInternalProperty);
-            if (property != null)
-                return property;
-
-            foreach (var alias in SourceFileDisplayProperties)
-            {
-                property = TryFindDisplayPropertyCore(item, alias.Category, alias.Property);
-                if (property != null)
-                    return property;
-            }
-
-            return null;
         }
 
         private static string BuildItemPath(ModelItem item)
