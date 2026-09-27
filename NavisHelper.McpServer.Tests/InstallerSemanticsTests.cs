@@ -82,7 +82,7 @@ public sealed class InstallerSemanticsTests
     private static string ReadInstaller()
     {
         return File.ReadAllText(Path.Combine(
-                FindRepositoryRoot(),
+                RepositoryPaths.Root,
                 "installer",
                 "NavisHelper.iss"))
             .Replace("\r\n", "\n", StringComparison.Ordinal)
@@ -100,18 +100,5 @@ public sealed class InstallerSemanticsTests
         return nextSection < 0
             ? installer.Substring(contentStart)
             : installer.Substring(contentStart, nextSection - contentStart);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not locate NavisHelper.sln.");
     }
 }

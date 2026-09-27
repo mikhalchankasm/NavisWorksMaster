@@ -380,7 +380,7 @@ public sealed class AiWorkerTransportTests
     [Fact]
     public void ProcessRunner_StartsConcurrentRedirectReadersBeforeWaiting()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var source = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -590,17 +590,5 @@ public sealed class AiWorkerTransportTests
                         name => name,
                         _ => "1,2,3",
                         StringComparer.Ordinal)));
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-        throw new DirectoryNotFoundException("Could not locate NavisHelper.sln.");
     }
 }
