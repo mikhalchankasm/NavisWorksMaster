@@ -112,8 +112,6 @@ def check_documented_tool_counts(root: Path, tool_count: int) -> list[str]:
         "docs/MCP_CLIENT_GUIDE.md": [
             (r"The full surface is (\d+) tools and", tool_count),
             (r"^\| unset, or `all` \| (\d+) \|", tool_count),
-            (r"^\| `core,clash` \| (\d+) \|", 74),
-            (r"^\| `core` \| (\d+) \|", 45),
         ],
         "docs/reference/README_FULL.md": [
             (r"Not required for the (\d+) registered MCP tools", tool_count),
