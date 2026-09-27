@@ -86,7 +86,9 @@ namespace NavisHelper.Agent.Services
                                  node => skipThisSubtree,
                                  node =>
                                  {
-                                     if (!seenItems.Contains(node))
+                                     // The model root may be Navisworks' own cached wrapper; only
+                                     // the walk's descendants are provably fresh (TECH-W13 probe).
+                                     if (!ReferenceEquals(node, modelRoot) && !seenItems.Contains(node))
                                          DisposeItem(node);
                                  }))
                     {
@@ -361,26 +363,23 @@ namespace NavisHelper.Agent.Services
                 return null;
 
             var point = takeMin ? box.Min : box.Max;
-            var copied = new SpatialPoint { X = point.X, Y = point.Y, Z = point.Z };
-            DisposePoint(point);
-            return copied;
+            return new SpatialPoint { X = point.X, Y = point.Y, Z = point.Z };
         }
 
         // The center is a native wrapper read like the corners are; in center mode it
-        // is read once, here, and handed to the pure match. The wrapper itself is
-        // released as soon as its coordinates are copied, like every corner is.
+        // is read once, here, and handed to the pure match. Corner and center points are
+        // not disposed: a box may hand back its own points, and a stored box still needs them.
         private static SpatialPoint ToCenterPoint(BoundingBox3D box)
         {
             if (box == null)
                 return null;
 
             var center = box.Center;
-            var copied = new SpatialPoint { X = center.X, Y = center.Y, Z = center.Z };
-            DisposePoint(center);
-            return copied;
+            return new SpatialPoint { X = center.X, Y = center.Y, Z = center.Z };
         }
 
-        // A native wrapper this search reads -- item, box, corner, center -- is
+        // A native wrapper this search owns -- an item below the model root, or a box
+        // that did not go into the result -- is
         // released as soon as the code is done with it, not left to the finalizer:
         // a heap of stale wrappers slows every later search in the session. Dispose
         // is an interop call that can throw on a torn-down document, so each
@@ -398,13 +397,6 @@ namespace NavisHelper.Agent.Services
             if (box == null)
                 return;
             try { box.Dispose(); } catch (Exception) { }
-        }
-
-        private static void DisposePoint(Point3D point)
-        {
-            if (point == null)
-                return;
-            try { point.Dispose(); } catch (Exception) { }
         }
 
         private static SpatialSearchItem BuildSpatialPreviewItem(SpatialMatch match)
