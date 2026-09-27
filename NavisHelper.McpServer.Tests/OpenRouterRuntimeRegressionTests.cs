@@ -394,7 +394,7 @@ public sealed class OpenRouterRuntimeRegressionTests
     [Fact]
     public void ProductionCapabilityFormatterContainsNoHardcodedDisplayLabels()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var source = File.ReadAllText(Path.Combine(
             root, "NavisHelper", "AI", "OpenRouterModelSelection.cs"));
         var formatter = source.Split("internal static class OpenRouterModelCapabilities")[1]
@@ -411,7 +411,7 @@ public sealed class OpenRouterRuntimeRegressionTests
     [Fact]
     public void VisibleSearchLabelUsesLocalizedResourceBinding()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var selector = File.ReadAllText(Path.Combine(
             root, "NavisHelper", "WPF", "OpenRouterModelSelector.cs"));
         var settings = File.ReadAllText(Path.Combine(
@@ -517,7 +517,7 @@ public sealed class OpenRouterRuntimeRegressionTests
     [Fact]
     public void ProductionSourcesContainNoPinnedModelIdsOrAutomaticRetry()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var production = string.Join("\n", Directory.GetFiles(
                 Path.Combine(root, "NavisHelper"), "*.cs", SearchOption.AllDirectories)
             .Concat(Directory.GetFiles(
@@ -606,7 +606,7 @@ public sealed class OpenRouterRuntimeRegressionTests
     private static Dictionary<string, string> LoadResourceFile(string name)
     {
         var path = Path.Combine(
-            FindRepositoryRoot(),
+            RepositoryPaths.Root,
             "NavisHelper",
             "Properties",
             name);
@@ -650,17 +650,5 @@ public sealed class OpenRouterRuntimeRegressionTests
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
             });
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-        throw new DirectoryNotFoundException();
     }
 }

@@ -144,20 +144,7 @@ public sealed class WorldMarkerOverlayRendererArchitectureTests
     private static string ReadStore() => Read("NavisHelper", "WorldMarkerOverlayStore.cs");
 
     private static string Read(params string[] parts) =>
-        File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));
-
-    private static string Root()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not locate NavisHelper.sln.");
-    }
+        File.ReadAllText(Path.Combine(new[] { RepositoryPaths.Root }.Concat(parts).ToArray()));
 
     private static IReadOnlyList<(string Name, string Body)> OverrideBodies(string source)
     {
