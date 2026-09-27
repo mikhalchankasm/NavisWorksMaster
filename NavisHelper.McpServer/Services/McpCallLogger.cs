@@ -20,6 +20,7 @@ internal sealed class McpCallLogger
     private static readonly Mutex CrossProcessMutex = new Mutex(false, "NavisHelperMcpCallLogger");
     private readonly object _syncRoot = new object();
     private readonly string _logDirectory;
+    private DateTime? _lastCleanupDateUtc;
 
     public McpCallLogger()
     {
@@ -164,7 +165,13 @@ internal sealed class McpCallLogger
                     if (!hasMutex)
                         return;
 
-                    DeleteExpiredLogFiles(_logDirectory);
+                    var cleanupDateUtc = DateTime.UtcNow.Date;
+                    if (_lastCleanupDateUtc != cleanupDateUtc)
+                    {
+                        DeleteExpiredLogFiles(_logDirectory);
+                        _lastCleanupDateUtc = cleanupDateUtc;
+                    }
+
                     RotateLogFileIfNeeded(logFilePath);
 
                     using var stream = new FileStream(logFilePath, FileMode.Append, FileAccess.Write, FileShare.Read);

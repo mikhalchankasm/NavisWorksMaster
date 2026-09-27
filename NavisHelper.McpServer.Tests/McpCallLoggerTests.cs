@@ -36,6 +36,34 @@ public sealed class McpCallLoggerTests : IDisposable
         Assert.False(File.Exists(expiredLogPath));
     }
 
+    [Fact]
+    public void Log_FirstCallOnALoggerDeletesExpiredDatedLogFile()
+    {
+        var expiredDate = DateTime.UtcNow.Date.AddDays(-30).ToString("yyyyMMdd");
+        var expiredLogPath = Path.Combine(_tempDirectory, "mcp-calls-" + expiredDate + ".jsonl");
+        File.WriteAllText(expiredLogPath, "{}" + Environment.NewLine);
+
+        var logger = new McpCallLogger();
+        logger.Log(new { event_name = "first" });
+
+        Assert.False(File.Exists(expiredLogPath));
+    }
+
+    [Fact]
+    public void Log_SecondCallOnTheSameUtcDayKeepsExpiredDatedLogFileCreatedAfterTheFirst()
+    {
+        var logger = new McpCallLogger();
+        logger.Log(new { event_name = "first" });
+
+        var expiredDate = DateTime.UtcNow.Date.AddDays(-30).ToString("yyyyMMdd");
+        var expiredLogPath = Path.Combine(_tempDirectory, "mcp-calls-" + expiredDate + ".jsonl");
+        File.WriteAllText(expiredLogPath, "{}" + Environment.NewLine);
+
+        logger.Log(new { event_name = "second" });
+
+        Assert.True(File.Exists(expiredLogPath));
+    }
+
     [Theory]
     [InlineData(StartNavisworksOutcomes.HostReady, true, "ok")]
     [InlineData(StartNavisworksOutcomes.ProcessExited, false, "process_exited")]

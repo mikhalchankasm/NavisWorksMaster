@@ -89,15 +89,15 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
 
         await RunHealthStep(response, "active_model_context", async () =>
         {
-            var context = await ActiveModelContext(
-                rootItemLimit: rootItemLimit,
+            if (status == null || !status.HasActiveDocument)
+                throw new InvalidOperationException(ErrorCodes.NoActiveDocument + ": Active model context has no active document.");
+            var context = await BuildActiveModelContextAsync(
+                status,
+                rootItemLimit,
                 includeRootAliases: false,
                 includeSavedItemsSummary: true,
-                instanceId: instanceId,
-                navisworksVersion: navisworksVersion,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (context.HostStatus == null || !context.HostStatus.HasActiveDocument)
-                throw new InvalidOperationException(ErrorCodes.NoActiveDocument + ": Active model context has no active document.");
+                target,
+                cancellationToken).ConfigureAwait(false);
             if (context.RootItems == null || context.RootItems.RootItemCount < 1)
                 throw new InvalidOperationException(ErrorCodes.CommandFailed + ": Active model context returned no root items.");
         }).ConfigureAwait(false);
@@ -164,6 +164,17 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
     {
         var target = CreateTarget(instanceId, navisworksVersion);
         var status = await _hostBridgeClient.HostStatusAsync(new HostStatusRequest(), cancellationToken, target).ConfigureAwait(false);
+        return await BuildActiveModelContextAsync(status, rootItemLimit, includeRootAliases, includeSavedItemsSummary, target, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<ActiveModelContextResponse> BuildActiveModelContextAsync(
+        HostStatusResponse status,
+        int rootItemLimit,
+        bool includeRootAliases,
+        bool includeSavedItemsSummary,
+        HostTargetOptions target,
+        CancellationToken cancellationToken)
+    {
         var rootItems = await _hostBridgeClient.ListRootItemsAsync(new ListRootItemsRequest
         {
             Limit = rootItemLimit,
