@@ -47,6 +47,7 @@ namespace NavisHelper.Agent.Services
             var includeHidden = request.IncludeHidden.GetValueOrDefault(true);
             var includeContainers = request.IncludeContainers.GetValueOrDefault(false);
             var sourceFileContains = (request.SourceFileContains ?? string.Empty).Trim();
+            var isCenterMode = string.Equals(matchMode, SpatialSearchOptionsHelper.Center, StringComparison.OrdinalIgnoreCase);
             var started = Stopwatch.StartNew();
             var matches = new List<SpatialMatch>();
             var response = new FindItemsByBboxResponse
@@ -110,14 +111,20 @@ namespace NavisHelper.Agent.Services
                             continue;
                         }
 
+                        // Every read of Min or Max hands back a fresh native wrapper,
+                        // so both corners are read once here and shared by the prune
+                        // below and the match at the bottom of the loop.
+                        var itemMin = ToSpatialPoint(box, takeMin: true);
+                        var itemMax = ToSpatialPoint(box, takeMin: false);
+
                         // The same mode-independent test that rules out whole models,
                         // read on the item's own box: it encloses the item's children,
                         // so non-overlap rules out every mode for the whole subtree. An
                         // unreadable (null) box fails open here -- the item does not
                         // match below, but its children are still walked.
                         if (!SpatialModelPruning.ModelExtentsCanHoldAMatch(
-                                ToSpatialPoint(box, takeMin: true),
-                                ToSpatialPoint(box, takeMin: false),
+                                itemMin,
+                                itemMax,
                                 request.Min,
                                 request.Max))
                         {
@@ -131,7 +138,10 @@ namespace NavisHelper.Agent.Services
                         // Count property, checked against the 2027 assembly -- so LINQ's
                         // Count() enumerates every child, allocating a wrapper each, to
                         // answer whether there is at least one. Any() stops at the first.
-                        if (!includeContainers && item.Children != null && item.Children.Any())
+                        // The collection itself is read once for the same reason every
+                        // other native wrapper in this loop is.
+                        var childItems = item.Children;
+                        if (!includeContainers && childItems != null && childItems.Any())
                             continue;
 
                         // Deferred. TryGetSourceFile walks every property category on the
@@ -149,7 +159,13 @@ namespace NavisHelper.Agent.Services
                                 continue;
                         }
 
-                        if (box == null || !MatchesSpatialBox(box, request.Min, request.Max, matchMode))
+                        if (!SpatialBoxMatch.Matches(
+                                itemMin,
+                                itemMax,
+                                isCenterMode ? ToCenterPoint(box) : null,
+                                request.Min,
+                                request.Max,
+                                matchMode))
                             continue;
 
                         response.MatchedItemCount++;
@@ -321,26 +337,15 @@ namespace NavisHelper.Agent.Services
             return new SpatialPoint { X = point.X, Y = point.Y, Z = point.Z };
         }
 
-        private static bool MatchesSpatialBox(BoundingBox3D item, SpatialPoint min, SpatialPoint max, string matchMode)
+        // The center is a native wrapper read like the corners are; in center mode it
+        // is read once, here, and handed to the pure match.
+        private static SpatialPoint ToCenterPoint(BoundingBox3D box)
         {
-            if (string.Equals(matchMode, SpatialSearchOptionsHelper.Contains, StringComparison.OrdinalIgnoreCase))
-            {
-                return item.Min.X >= min.X && item.Max.X <= max.X &&
-                       item.Min.Y >= min.Y && item.Max.Y <= max.Y &&
-                       item.Min.Z >= min.Z && item.Max.Z <= max.Z;
-            }
+            if (box == null)
+                return null;
 
-            if (string.Equals(matchMode, SpatialSearchOptionsHelper.Center, StringComparison.OrdinalIgnoreCase))
-            {
-                var center = item.Center;
-                return center.X >= min.X && center.X <= max.X &&
-                       center.Y >= min.Y && center.Y <= max.Y &&
-                       center.Z >= min.Z && center.Z <= max.Z;
-            }
-
-            return item.Min.X <= max.X && item.Max.X >= min.X &&
-                   item.Min.Y <= max.Y && item.Max.Y >= min.Y &&
-                   item.Min.Z <= max.Z && item.Max.Z >= min.Z;
+            var center = box.Center;
+            return new SpatialPoint { X = center.X, Y = center.Y, Z = center.Z };
         }
 
         private static SpatialSearchItem BuildSpatialPreviewItem(SpatialMatch match)

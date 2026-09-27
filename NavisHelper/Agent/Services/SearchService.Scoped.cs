@@ -92,9 +92,10 @@ namespace NavisHelper.Agent.Services
                         continue;
                 }
 
-                var children = item.Children == null
+                var itemChildren = item.Children;
+                var children = itemChildren == null
                     ? new List<ModelItem>()
-                    : item.Children.Cast<ModelItem>().Where(child => child != null).ToList();
+                    : itemChildren.Cast<ModelItem>().Where(child => child != null).ToList();
                 for (var childIndex = children.Count - 1; childIndex >= 0; childIndex--)
                     stack.Push(new ScopedSearchNode(children[childIndex], node.Depth + 1));
             }
