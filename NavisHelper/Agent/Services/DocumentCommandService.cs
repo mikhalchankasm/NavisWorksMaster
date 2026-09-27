@@ -1085,16 +1085,20 @@ namespace NavisHelper.Agent.Services
 
         private static string GetPropertyDisplayValue(DataProperty property)
         {
-            if (property == null || property.Value == null)
+            if (property == null)
+                return string.Empty;
+
+            var value = property.Value;
+            if (value == null)
                 return string.Empty;
 
             try
             {
-                return property.Value.ToDisplayString();
+                return value.ToDisplayString();
             }
             catch
             {
-                return property.Value.ToString();
+                return value.ToString();
             }
         }
 

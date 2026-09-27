@@ -206,7 +206,7 @@ public sealed class AISettingsUiLayoutTests
     [Fact]
     public void SettingsAiLayout_HasNoLegacyFixedWidthsOrProviderCombo()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var sources = string.Join("\n", new[]
         {
             SettingsBuilderSource(),
@@ -237,7 +237,7 @@ public sealed class AISettingsUiLayoutTests
     [Fact]
     public void ModelSelector_HasSeparateClosedAndDropdownPresentations()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var selector = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -273,7 +273,7 @@ public sealed class AISettingsUiLayoutTests
     [Fact]
     public void ConnectionHeader_IsBoundedForNarrowDockPanel()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var connection = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -304,7 +304,7 @@ public sealed class AISettingsUiLayoutTests
     [Fact]
     public void NeutralAndRussianResources_HaveCompleteKeyParity()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var neutral = ResourceKeys(Path.Combine(
             root,
             "NavisHelper",
@@ -366,7 +366,7 @@ public sealed class AISettingsUiLayoutTests
     [Fact]
     public void PresentationState_HasNoNetworkKeyOrPersistenceDependencies()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var source = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper",
@@ -394,7 +394,7 @@ public sealed class AISettingsUiLayoutTests
     private static string SettingsBuilderSource()
     {
         return File.ReadAllText(Path.Combine(
-            FindRepositoryRoot(),
+            RepositoryPaths.Root,
             "NavisHelper",
             "WPF",
             "NavisHelperSettingsTabBuilder.cs"));
@@ -412,7 +412,7 @@ public sealed class AISettingsUiLayoutTests
     private static string ResourceValue(string fileName, string key)
     {
         var path = Path.Combine(
-            FindRepositoryRoot(),
+            RepositoryPaths.Root,
             "NavisHelper",
             "Properties",
             fileName);
@@ -425,20 +425,5 @@ public sealed class AISettingsUiLayoutTests
                     StringComparison.Ordinal))
             .Element("value")
             .Value;
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(
-                    directory.FullName,
-                    "NavisHelper.sln")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-        throw new DirectoryNotFoundException(
-            "Could not locate NavisHelper.sln.");
     }
 }

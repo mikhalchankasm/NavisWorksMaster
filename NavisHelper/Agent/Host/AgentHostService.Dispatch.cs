@@ -44,37 +44,32 @@ namespace NavisHelper.Agent.Host
                 throw new AgentCommandException(ErrorCodes.HostUiContextUnavailable, "UI synchronization context is not available.");
 
             var startedAt = Stopwatch.StartNew();
-            Logger.Info(
-                "request_id=" + requestId + " command=" + command + " ui_dispatch_start timeout_ms=" + timeoutMs + " dispatcher=" + GetUiDispatcherLabel(),
-                "AgentHost");
+            var dispatcher = GetUiDispatcherLabel();
 
             object payload = InvokeOnUiThread<object>(() =>
             {
-                Logger.Info(
-                    "request_id=" + requestId + " command=" + command + " ui_callback_start elapsed_ms=" + startedAt.ElapsedMilliseconds,
-                    "AgentHost");
+                // Read before any document work: this is the wait for the UI thread, which
+                // is what separates a starved dispatcher from a slow command.
+                var uiWaitMs = startedAt.ElapsedMilliseconds;
 
                 var document = Autodesk.Navisworks.Api.Application.ActiveDocument;
-                Logger.Info(
-                    "request_id=" + requestId + " command=" + command + " active_document_resolved document=\"" + GetDocumentTitleForLog(document) + "\" elapsed_ms=" + startedAt.ElapsedMilliseconds,
-                    "AgentHost");
-
                 RefreshDiscoveryFile(document);
                 Logger.Info(
-                    "request_id=" + requestId + " command=" + command + " discovery_refreshed elapsed_ms=" + startedAt.ElapsedMilliseconds,
-                    "AgentHost");
-                Logger.Info(
-                    "request_id=" + requestId + " command=" + command + " operation_start selected_item_count=" + GetSelectedItemCountForLog(document) +
-                    " parameters=" + BuildPayloadSummaryForLog(payloadToken) + " elapsed_ms=" + startedAt.ElapsedMilliseconds,
+                    HostRequestLogLines.OperationStart(
+                        requestId,
+                        command,
+                        timeoutMs,
+                        dispatcher,
+                        GetDocumentTitleForLog(document),
+                        GetSelectedItemCountForLog(document),
+                        BuildPayloadSummaryForLog(payloadToken),
+                        uiWaitMs),
                     "AgentHost");
 
                 if (string.Equals(command, HostCommandNames.FindItems, StringComparison.OrdinalIgnoreCase))
                 {
                     EnsureDocument(document);
                     var request = DeserializePayload<FindItemsRequest>(payloadToken);
-                    Logger.Info(
-                        "request_id=" + requestId + " command=" + command + " find_items_search_start elapsed_ms=" + startedAt.ElapsedMilliseconds,
-                        "AgentHost");
                     return _searchService.FindItems(document, request, _matchSessionStore, timeoutMs);
                 }
 
@@ -88,15 +83,12 @@ namespace NavisHelper.Agent.Host
             }, timeoutMs, requestGateLease, requestId, command, startedAt);
 
             startedAt.Stop();
-            Logger.Info(
-                "request_id=" + requestId + " command=" + command + " ui_dispatch_done elapsed_ms=" + startedAt.ElapsedMilliseconds,
-                "AgentHost");
 
             bool responseTruncated;
             var responseJson = BuildSuccessResponseJson(requestId, startedAt.ElapsedMilliseconds, payload, out responseTruncated);
             RecordOperationCompleted(requestId, command, startedAt.ElapsedMilliseconds, payload, responseTruncated);
 
-            Logger.Info("request_id=" + requestId + " command=" + command + " elapsed_ms=" + startedAt.ElapsedMilliseconds, "AgentHost");
+            Logger.Info(HostRequestLogLines.Completed(requestId, command, startedAt.ElapsedMilliseconds), "AgentHost");
             WriteFrame(server, responseJson);
             if (payload is CloseNavisworksResponse closeResponse &&
                 closeResponse.ExitScheduled)
@@ -220,7 +212,7 @@ namespace NavisHelper.Agent.Host
             var responseJson = BuildSuccessResponseJson(requestId, startedAt.ElapsedMilliseconds, payload, out responseTruncated);
             RecordOperationCompleted(requestId, command, startedAt.ElapsedMilliseconds, payload, responseTruncated);
 
-            Logger.Info("request_id=" + requestId + " command=" + command + " bypass elapsed_ms=" + startedAt.ElapsedMilliseconds, "AgentHost");
+            Logger.Info(HostRequestLogLines.BypassCompleted(requestId, command, startedAt.ElapsedMilliseconds), "AgentHost");
             WriteFrame(server, responseJson);
         }
 
