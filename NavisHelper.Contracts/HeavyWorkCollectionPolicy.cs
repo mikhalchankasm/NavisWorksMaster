@@ -9,7 +9,8 @@ namespace NavisHelper.Agent.Contracts
     /// The count stands in for "how much was allocated": a whole-model walk of 41 000
     /// items causes about six generation-0 collections and `host_status` none. Only
     /// collections that happen while a request runs count, so the caller opens each
-    /// request with <see cref="BeginRequest"/>; what Navisworks collects on its own in
+    /// request with <see cref="BeginRequest"/> and, when no collection is due, closes it
+    /// with <see cref="EndRequest"/>; what Navisworks collects on its own in
     /// between says nothing about the work the host was asked to do, and charging it to
     /// the next request makes a cheap command pay for a full collection. The baseline
     /// is taken after each forced collection, so the collections it performs itself
@@ -55,14 +56,19 @@ namespace NavisHelper.Agent.Contracts
             _requestStartCollectionCount = gen0Now;
         }
 
-        private bool IsDue(int gen0Now, bool slowCommand)
+        /// <summary>
+        /// Closes a request that did not lead to a forced collection: its generation-0
+        /// collections are carried towards the next one.
+        /// </summary>
+        public void EndRequest(int gen0Now)
         {
-            if (CollectionsSinceLast(gen0Now) >= Threshold || slowCommand)
-                return true;
-
             _collectedInEarlierRequests = CollectionsSinceLast(gen0Now);
             _requestStartCollectionCount = gen0Now;
-            return false;
+        }
+
+        private bool IsDue(int gen0Now, bool slowCommand)
+        {
+            return CollectionsSinceLast(gen0Now) >= Threshold || slowCommand;
         }
     }
 }

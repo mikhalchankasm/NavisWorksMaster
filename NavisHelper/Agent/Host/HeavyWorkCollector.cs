@@ -42,10 +42,16 @@ namespace NavisHelper.Agent.Host
         {
             var gen0Now = GC.CollectionCount(0);
             if (!_policy.ShouldCollect(gen0Now, commandMilliseconds))
+            {
+                _policy.EndRequest(gen0Now);
                 return;
+            }
 
             if (Interlocked.CompareExchange(ref _inFlight, 1, 0) != 0)
+            {
+                _policy.EndRequest(gen0Now);
                 return;
+            }
 
             var gen0CollectionsSinceLast = _policy.CollectionsSinceLast(gen0Now);
             _task = Task.Run(() =>
