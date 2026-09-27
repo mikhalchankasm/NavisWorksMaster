@@ -54,6 +54,35 @@ namespace NavisHelper.Agent.Contracts
             return WalkCore(root, childrenOf, skipChildrenOf);
         }
 
+        /// <summary>
+        /// The releasing form of the walk: same order and skipping semantics, plus
+        /// <paramref name="release"/>, called exactly once per yielded item, when
+        /// the walker is done with it -- after the item's subtree is finished, or
+        /// right after the item when its children are skipped, absent or empty;
+        /// never for an item that was not yielded. Exhausted or abandoned children
+        /// enumerators and sequences are disposed when <see cref="IDisposable"/>,
+        /// and an abandoned walk still releases what it yielded, innermost first.
+        /// This is the form a caller that owns the yielded wrappers uses: Navisworks
+        /// hands out a fresh one on every access.
+        /// </summary>
+        /// <typeparam name="T">The node type.</typeparam>
+        /// <param name="release">Called exactly once per yielded item, when the walker is done with it; the other parameters are as in the two-callback overload.</param>
+        public static IEnumerable<T> Walk<T>(
+            T root,
+            Func<T, IEnumerable<T>> childrenOf,
+            Func<T, bool> skipChildrenOf,
+            Action<T> release)
+        {
+            if (childrenOf == null)
+                throw new ArgumentNullException(nameof(childrenOf));
+            if (skipChildrenOf == null)
+                throw new ArgumentNullException(nameof(skipChildrenOf));
+            if (release == null)
+                throw new ArgumentNullException(nameof(release));
+
+            return WalkReleasing(root, childrenOf, skipChildrenOf, release);
+        }
+
         private static IEnumerable<T> WalkCore<T>(
             T root,
             Func<T, IEnumerable<T>> childrenOf,
@@ -97,6 +126,59 @@ namespace NavisHelper.Agent.Contracts
             {
                 while (pending.Count > 0)
                     pending.Pop().Dispose();
+            }
+        }
+
+        private static IEnumerable<T> WalkReleasing<T>(
+            T root,
+            Func<T, IEnumerable<T>> childrenOf,
+            Func<T, bool> skipChildrenOf,
+            Action<T> release)
+        {
+            if (root == null)
+                yield break;
+
+            // One release site per item, in a finally around everything after the
+            // yield: it runs when the subtree is finished, right after a skipped or
+            // childless item, when the walk is abandoned at this very yield, and
+            // when a delegate throws -- once per yielded item on every path, and
+            // always after the item's descendants, which release in their own
+            // frames first.
+            try
+            {
+                yield return root;
+
+                if (skipChildrenOf(root))
+                    yield break;
+
+                var children = childrenOf(root);
+                if (children == null)
+                    yield break;
+
+                // foreach disposes the enumerator on exit; the sequence itself is
+                // this walk's to dispose too when it is disposable -- exhausted or
+                // abandoned, like the enumerator.
+                try
+                {
+                    foreach (var child in children)
+                    {
+                        if (child == null)
+                            continue;
+
+                        foreach (var descended in WalkReleasing(child, childrenOf, skipChildrenOf, release))
+                            yield return descended;
+                    }
+                }
+                finally
+                {
+                    var disposableSequence = children as IDisposable;
+                    if (disposableSequence != null)
+                        disposableSequence.Dispose();
+                }
+            }
+            finally
+            {
+                release(root);
             }
         }
     }

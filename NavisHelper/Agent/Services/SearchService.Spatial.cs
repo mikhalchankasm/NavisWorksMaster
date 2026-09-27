@@ -75,7 +75,20 @@ namespace NavisHelper.Agent.Services
                     // children -- so a plain `continue` below means "keep descending", and
                     // only the prune sets the flag.
                     var skipThisSubtree = false;
-                    foreach (ModelItem item in SpatialSubtreeWalk.Walk(modelRoot, ChildItems, node => skipThisSubtree))
+                    // The walker owns the wrappers it yields: a fresh ModelItem on
+                    // every access, each this loop's alone -- except those that went
+                    // into matches, which seenItems holds for the handle and the
+                    // preview. Release runs after the item's subtree, so a stored
+                    // ancestor is kept while its descendants are still disposed.
+                    foreach (ModelItem item in SpatialSubtreeWalk.Walk(
+                                 modelRoot,
+                                 ChildItems,
+                                 node => skipThisSubtree,
+                                 node =>
+                                 {
+                                     if (!seenItems.Contains(node))
+                                         DisposeItem(node);
+                                 }))
                     {
                         skipThisSubtree = false;
 
@@ -130,6 +143,7 @@ namespace NavisHelper.Agent.Services
                         {
                             response.OutsideItemCount++;
                             skipThisSubtree = true;
+                            DisposeBox(box);
                             continue;
                         }
 
@@ -142,7 +156,10 @@ namespace NavisHelper.Agent.Services
                         // other native wrapper in this loop is.
                         var childItems = item.Children;
                         if (!includeContainers && childItems != null && childItems.Any())
+                        {
+                            DisposeBox(box);
                             continue;
+                        }
 
                         // Deferred. TryGetSourceFile walks every property category on the
                         // item and, failing that, every ancestor doing the same -- the most
@@ -156,7 +173,10 @@ namespace NavisHelper.Agent.Services
                         {
                             sourceFile = TryGetSourceFile(item) ?? string.Empty;
                             if (sourceFile.IndexOf(sourceFileContains, StringComparison.OrdinalIgnoreCase) < 0)
+                            {
+                                DisposeBox(box);
                                 continue;
+                            }
                         }
 
                         if (!SpatialBoxMatch.Matches(
@@ -166,12 +186,16 @@ namespace NavisHelper.Agent.Services
                                 request.Min,
                                 request.Max,
                                 matchMode))
+                        {
+                            DisposeBox(box);
                             continue;
+                        }
 
                         response.MatchedItemCount++;
                         if (matches.Count >= maxResults)
                         {
                             response.ResultsTruncated = true;
+                            DisposeBox(box);
                             continue;
                         }
 
@@ -179,7 +203,10 @@ namespace NavisHelper.Agent.Services
                         // Only returned items enter the set, bounding it by maxResults and
                         // avoiding retention of native item wrappers for later zone matches.
                         if (!seenItems.Add(item))
+                        {
+                            DisposeBox(box);
                             continue;
+                        }
 
                         // The path is still what the result is presented and sorted by;
                         // it is simply no longer what identity is decided by, and it is
@@ -334,18 +361,50 @@ namespace NavisHelper.Agent.Services
                 return null;
 
             var point = takeMin ? box.Min : box.Max;
-            return new SpatialPoint { X = point.X, Y = point.Y, Z = point.Z };
+            var copied = new SpatialPoint { X = point.X, Y = point.Y, Z = point.Z };
+            DisposePoint(point);
+            return copied;
         }
 
         // The center is a native wrapper read like the corners are; in center mode it
-        // is read once, here, and handed to the pure match.
+        // is read once, here, and handed to the pure match. The wrapper itself is
+        // released as soon as its coordinates are copied, like every corner is.
         private static SpatialPoint ToCenterPoint(BoundingBox3D box)
         {
             if (box == null)
                 return null;
 
             var center = box.Center;
-            return new SpatialPoint { X = center.X, Y = center.Y, Z = center.Z };
+            var copied = new SpatialPoint { X = center.X, Y = center.Y, Z = center.Z };
+            DisposePoint(center);
+            return copied;
+        }
+
+        // A native wrapper this search reads -- item, box, corner, center -- is
+        // released as soon as the code is done with it, not left to the finalizer:
+        // a heap of stale wrappers slows every later search in the session. Dispose
+        // is an interop call that can throw on a torn-down document, so each
+        // release is wrapped and the exception ignored -- cleanup must never
+        // become the failure the caller sees.
+        private static void DisposeItem(ModelItem item)
+        {
+            if (item == null)
+                return;
+            try { item.Dispose(); } catch (Exception) { }
+        }
+
+        private static void DisposeBox(BoundingBox3D box)
+        {
+            if (box == null)
+                return;
+            try { box.Dispose(); } catch (Exception) { }
+        }
+
+        private static void DisposePoint(Point3D point)
+        {
+            if (point == null)
+                return;
+            try { point.Dispose(); } catch (Exception) { }
         }
 
         private static SpatialSearchItem BuildSpatialPreviewItem(SpatialMatch match)
