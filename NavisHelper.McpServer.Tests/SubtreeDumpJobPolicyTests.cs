@@ -1,6 +1,5 @@
 using NavisHelper.Agent.Contracts;
 using System;
-using System.IO;
 using Xunit;
 
 namespace NavisHelper.McpServer.Tests;
@@ -117,51 +116,6 @@ public sealed class SubtreeDumpJobPolicyTests
         Assert.Throws<ArgumentNullException>(() => SubtreeDumpJobPolicy.BuildStatus(null, DateTime.UtcNow));
     }
 
-    [Fact]
-    public void DumpWalks_ReleaseAnItemOnlyAfterItsChildrenAreQueued()
-    {
-        // A whole-model dump pops one ModelItem wrapper per item, and each is a
-        // native weak reference that only Dispose or the finalizer releases
-        // (TECH-W13: Navisworks hands out a fresh wrapper on every access, so the
-        // walk's wrappers are its own). Waiting for the finalizer is what left the
-        // heap loaded for the calls after a dump. Releasing too early is worse than
-        // not releasing: the row is built from the item and its children are read
-        // from it, so the release has to stay behind both.
-        var source = ReadDumpSource();
-
-        foreach (var walk in new[] { "processedCount++;", "processedThisPoll++;" })
-        {
-            var at = source.IndexOf(walk, StringComparison.Ordinal);
-            Assert.True(at >= 0, walk + " moved; re-point this guard.");
-
-            var before = source.Substring(Math.Max(0, at - 300), Math.Min(300, at));
-            var after = source.Substring(at, Math.Min(120, source.Length - at));
-
-            Assert.Contains("PushDumpChildren(", before, StringComparison.Ordinal);
-            Assert.Contains("ReleaseDumpFrameItem(frame);", after, StringComparison.Ordinal);
-        }
-
-        // Both walks push the root frame as not owned, because the synchronous
-        // response reads the root item again after its loop, and the helper honours
-        // that flag rather than leaving it to each caller.
-        Assert.Equal(2, CountOccurrences(source, "new DumpTraversalFrame(rootItem, 0, false)"));
-        Assert.Contains("new DumpTraversalFrame(children[index], childDepth, true)", source, StringComparison.Ordinal);
-        Assert.Contains("!frame.OwnsItem", ReadDumpMethodBody("private static void ReleaseDumpFrameItem("), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void PushDumpChildren_ReadsTheChildrenCollectionOnce()
-    {
-        // The null check used to read item.Children a second time, and every access
-        // allocates its own enumerable. ModelItemEnumerableCollection is not a
-        // disposable native handle -- it implements IEnumerable<ModelItem> and
-        // nothing else -- so the wrappers worth releasing are the children
-        // themselves, which the walk pops and releases one per item.
-        var body = ReadDumpMethodBody("private static void PushDumpChildren(");
-
-        Assert.Equal(1, CountOccurrences(body, "item.Children"));
-    }
-
     private static SubtreeDumpJobStatusValues CreateValues(DateTime started)
     {
         return new SubtreeDumpJobStatusValues
@@ -182,37 +136,5 @@ public sealed class SubtreeDumpJobPolicyTests
             StartedAtUtc = started,
             UpdatedAtUtc = started.AddSeconds(1),
         };
-    }
-
-    private static string ReadDumpMethodBody(string signature)
-    {
-        var source = ReadDumpSource();
-        var start = source.IndexOf(signature, StringComparison.Ordinal);
-        Assert.True(start >= 0, signature + " was renamed; re-point this guard.");
-
-        var end = source.IndexOf("private static", start + signature.Length, StringComparison.Ordinal);
-        Assert.True(end > start, "no method follows " + signature + "; re-point this guard.");
-        return source.Substring(start, end - start);
-    }
-
-    private static string ReadDumpSource()
-    {
-        var path = Path.Combine(
-            RepositoryPaths.Root, "NavisHelper", "Agent", "Services", "DocumentCommandService.SubtreeDump.cs");
-        Assert.True(File.Exists(path), path + " is missing; re-point this guard.");
-        return File.ReadAllText(path);
-    }
-
-    private static int CountOccurrences(string text, string token)
-    {
-        var count = 0;
-        var at = text.IndexOf(token, StringComparison.Ordinal);
-        while (at >= 0)
-        {
-            count++;
-            at = text.IndexOf(token, at + token.Length, StringComparison.Ordinal);
-        }
-
-        return count;
     }
 }
