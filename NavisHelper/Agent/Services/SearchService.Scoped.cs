@@ -52,12 +52,28 @@ namespace NavisHelper.Agent.Services
             var matchedItems = countOnly ? null : new List<ModelItem>();
             var sampleValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var stack = new Stack<ScopedSearchNode>();
+            var scopeRoots = new HashSet<ModelItem>(roots);
             // Scope roots are disjoint, and each child is pushed once by its unique parent.
             for (var index = roots.Count - 1; index >= 0; index--)
                 stack.Push(new ScopedSearchNode(roots[index], GetModelItemDepth(roots[index])));
 
+            // TECH-W13 live probe: Navisworks hands out a fresh managed ModelItem
+            // wrapper on every access, so every wrapper this walk pops is solely
+            // its own and can be released as soon as its iteration is fully
+            // processed (children pushed, or the matchDepth=first continue)
+            // instead of waiting for its finalizer. The previous iteration's
+            // wrapper is released at the top of the next iteration and after the
+            // loop; scope roots and items kept in matchedItems outlive the walk
+            // and are never disposed here.
+            ModelItem previousItem = null;
             while (stack.Count > 0)
             {
+                if (previousItem != null && IsWalkOwnedWrapper(previousItem, scopeRoots, matchedItems))
+                {
+                    try { previousItem.Dispose(); }
+                    catch { }
+                }
+                previousItem = stack.Peek().Item;
                 if (started.ElapsedMilliseconds > MaxScopedTraversalMilliseconds)
                     throw AbandonScopedTraversal(response.ScannedItemCount, matchedItems, stack,
                         "Scoped find_items exceeded the 45 second traversal budget. Narrow the scope or use matchDepth=first/countOnly.");
@@ -96,10 +112,20 @@ namespace NavisHelper.Agent.Services
                 var children = itemChildren == null
                     ? new List<ModelItem>()
                     : itemChildren.Cast<ModelItem>().Where(child => child != null).ToList();
+                if (itemChildren is IDisposable disposableChildren)
+                {
+                    try { disposableChildren.Dispose(); }
+                    catch { }
+                }
                 for (var childIndex = children.Count - 1; childIndex >= 0; childIndex--)
                     stack.Push(new ScopedSearchNode(children[childIndex], node.Depth + 1));
             }
 
+            if (previousItem != null && IsWalkOwnedWrapper(previousItem, scopeRoots, matchedItems))
+            {
+                try { previousItem.Dispose(); }
+                catch { }
+            }
             response.SampleValuesFromModel = sampleValues.ToList();
             var result = new FindItemsResult
             {
@@ -127,6 +153,19 @@ namespace NavisHelper.Agent.Services
             }
             response.Results.Add(result);
             return response;
+        }
+
+        private static bool IsWalkOwnedWrapper(
+            ModelItem item,
+            HashSet<ModelItem> scopeRoots,
+            List<ModelItem> matchedItems)
+        {
+            if (item == null || scopeRoots.Contains(item))
+                return false;
+            // A kept item was added to matchedItems in its own iteration, so at
+            // release time it is always the list's last entry.
+            return matchedItems == null || matchedItems.Count == 0 ||
+                !ReferenceEquals(matchedItems[matchedItems.Count - 1], item);
         }
 
         private static FindItemsResponse BuildFindItemsPreflight(
