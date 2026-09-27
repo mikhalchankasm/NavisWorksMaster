@@ -155,18 +155,19 @@ namespace NavisHelper.Agent.Contracts
                 if (children == null)
                     yield break;
 
-                // foreach disposes the enumerator on exit; the sequence itself is
-                // this walk's to dispose too when it is disposable -- exhausted or
-                // abandoned, like the enumerator.
+                // The children are copied out before any of them is walked, and the
+                // sequence is disposed right after. A lazily enumerated Navisworks
+                // collection cannot survive the release of the child it last handed
+                // out: the first live run of this walk failed every call with
+                // "Object has been Disposed" until the siblings were materialized,
+                // the same order the scoped find_items walk already used.
+                var siblings = new List<T>();
                 try
                 {
                     foreach (var child in children)
                     {
-                        if (child == null)
-                            continue;
-
-                        foreach (var descended in WalkReleasing(child, childrenOf, skipChildrenOf, release))
-                            yield return descended;
+                        if (child != null)
+                            siblings.Add(child);
                     }
                 }
                 finally
@@ -174,6 +175,12 @@ namespace NavisHelper.Agent.Contracts
                     var disposableSequence = children as IDisposable;
                     if (disposableSequence != null)
                         disposableSequence.Dispose();
+                }
+
+                for (var index = 0; index < siblings.Count; index++)
+                {
+                    foreach (var descended in WalkReleasing(siblings[index], childrenOf, skipChildrenOf, release))
+                        yield return descended;
                 }
             }
             finally
