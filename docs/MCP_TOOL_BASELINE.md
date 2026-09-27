@@ -825,9 +825,10 @@ build has no visible effect there either. Even a first call in a fresh process r
 3.1 to 8.6 s, which is noise on this machine on top of the cost of building a large
 response.
 
-Still untested: the `ModelItem` wrappers themselves, which the walk also creates and never
-disposes. Disposing those is not safe without knowing whether Navisworks hands the same
-wrapper to other holders, and it needs in-process evidence first.
+The earlier "Still untested: the `ModelItem` wrappers themselves" question is answered by
+the TECH-W13 probe: repeated `Children` and `Parent` reads returned fresh managed wrappers
+for the same native items. The walks changed in #122–#124 now dispose wrappers they own;
+see the [ownership and disposal rules](ARCHITECTURE.md).
 
 **What the host's own counters show.** `host_status` reports the process's GC collections
 per generation, managed heap, private memory, CPU time and handle count. They were read
@@ -1225,8 +1226,25 @@ Two findings were refuted and not merged:
    wrappers waiting for finalization, so native references stay alive longer; [the
    call-after-call slowdown](#throughput-falls-call-after-call-inside-one-navisworks-process)
    shows the same effect across calls. Fewer wrappers per item helped (#113, #116), but
-   fewer managed allocations alone hurt; disposing the walk's own wrappers is the next
-   lever, after the wrapper-identity probe in TECH-W13.
+   fewer managed allocations alone hurt; #122–#124 later measured the effect of disposal.
+
+**TECH-W13: wrappers owned by completed walks.** A probe build on `6501.5.nwd` visited
+371 027 items in a scoped `find_items` under the root. For the first 2000 items with
+children, two reads of `item.Children` returned different managed wrappers for the first
+child in 2000 of 2000 cases (`ReferenceEquals` false), while `Equals` was true in 2000
+of 2000. Two reads of `item.Parent` returned different wrappers in 1999 of 1999 cases.
+The [ownership and disposal rules](ARCHITECTURE.md) follow from that probe and the live runs.
+
+| PR | walk | model | case | before (ms) | after (ms) |
+| --- | --- | --- | --- | ---: | ---: |
+| #122 | scoped `find_items` | `6501.5.nwd` | `countOnly` under the root, median of 16 calls | 1676 | 738 |
+| #123 | `find_items_by_bbox` | `6501.5.nwd` | 200-unit zone, intersects, median of 12 calls | 3154 | 1752 |
+| #123 | Same | Same | centre mode, median of 6 calls | 4364 | 2338 |
+| #124 | `dump_subtree_names` (async job) | `6513.nwd`, 41 016 items | whole model with `includeSourceFile`, mean of 2 runs | 3508 | 2927 |
+
+Answers were identical in every call, including the 11.6 MB dump CSV byte for byte.
+Calls on the same build within one process still grow somewhat: `find_items_by_bbox`
+went from 1.1 to 2.0 s over six calls because other walks still leave wrappers behind.
 
 ## What still has no number
 
