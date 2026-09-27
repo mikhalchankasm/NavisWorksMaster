@@ -364,16 +364,20 @@ namespace NavisHelper.Agent.Services
 
         private static string GetSelectionPropertyReportValue(DataProperty property)
         {
-            if (property == null || property.Value == null)
+            if (property == null)
+                return string.Empty;
+
+            var value = property.Value;
+            if (value == null)
                 return string.Empty;
 
             try
             {
-                return property.Value.ToDisplayString() ?? string.Empty;
+                return value.ToDisplayString() ?? string.Empty;
             }
             catch
             {
-                return property.Value.ToString() ?? string.Empty;
+                return value.ToString() ?? string.Empty;
             }
         }
 

@@ -723,7 +723,8 @@ namespace NavisHelper.Agent.Services
 
             try
             {
-                return property.Value == null ? string.Empty : property.Value.ToDisplayString() ?? string.Empty;
+                var variant = property.Value;
+                return variant == null ? string.Empty : variant.ToDisplayString() ?? string.Empty;
             }
             catch
             {
