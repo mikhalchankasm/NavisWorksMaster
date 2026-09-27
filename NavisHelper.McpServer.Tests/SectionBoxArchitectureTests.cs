@@ -41,7 +41,7 @@ public sealed class SectionBoxArchitectureTests
     [Fact]
     public void HostRouter_RegistersBothCommands_AndProgramRegistersSeparateToolContainer()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var router = File.ReadAllText(Path.Combine(root, "NavisHelper", "Agent", "Host", "AgentHostService.CommandRouter.cs"));
         var program = File.ReadAllText(Path.Combine(root, "NavisHelper.McpServer", "Program.cs"));
 
@@ -53,7 +53,7 @@ public sealed class SectionBoxArchitectureTests
     [Fact]
     public void CaptureAndPreviewSources_DoNotWriteSectionBoxSelectionOrVisibility()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var capture = File.ReadAllText(Path.Combine(root, "NavisHelper", "Agent", "Services", "SectionBoxCaptureService.cs"));
         var replay = File.ReadAllText(Path.Combine(root, "NavisHelper", "Agent", "Services", "BoxIsolationService.cs"));
 
@@ -77,7 +77,7 @@ public sealed class SectionBoxArchitectureTests
     [Fact]
     public void ReplayDuration_IsWiredThroughBridgeAndFitsHostDispatcherCap()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var bridge = File.ReadAllText(Path.Combine(
             root,
             "NavisHelper.McpServer",
@@ -102,13 +102,5 @@ public sealed class SectionBoxArchitectureTests
         var maximumBridge = SectionBoxIsolationLimits.GetBridgeRequestTimeoutMilliseconds(
             SectionBoxIsolationLimits.MaximumMaxDurationSeconds);
         Assert.True(maximumBridge <= ProtocolConstants.MaximumHostRequestTimeoutMilliseconds);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-            directory = directory.Parent;
-        return Assert.IsType<DirectoryInfo>(directory).FullName;
     }
 }

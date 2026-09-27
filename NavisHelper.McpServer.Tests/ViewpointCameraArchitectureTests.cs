@@ -22,7 +22,7 @@ public sealed class ViewpointCameraArchitectureTests
     [Fact]
     public void Registrations_ExposeOneNewCommandThroughDedicatedBoundaries()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var program = Read(root, "NavisHelper.McpServer", "Program.cs");
         var router = Read(root, "NavisHelper", "Agent", "Host", "AgentHostService.CommandRouter.cs");
         var project = Read(root, "NavisHelper", "NavisHelper.csproj");
@@ -36,7 +36,7 @@ public sealed class ViewpointCameraArchitectureTests
     [Fact]
     public void HostService_DoesNotTraverseOrMutateUnrelatedDocumentState()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var service = Read(root, "NavisHelper", "Agent", "Services", "ViewpointCameraCommandService.cs");
 
         Assert.DoesNotContain("Descendants", service, StringComparison.Ordinal);
@@ -51,7 +51,7 @@ public sealed class ViewpointCameraArchitectureTests
     [Fact]
     public void HostService_UsesOnlyReviewedCameraAndViewpointSaveApis()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var service = Read(root, "NavisHelper", "Agent", "Services", "ViewpointCameraCommandService.cs");
 
         Assert.Contains("viewpoint.Position = position", service, StringComparison.Ordinal);
@@ -66,7 +66,7 @@ public sealed class ViewpointCameraArchitectureTests
     [Fact]
     public void CameraFamily_DoesNotModifyLegacyViewpointGodPartial()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var service = Read(root, "NavisHelper", "Agent", "Services", "ViewpointCameraCommandService.cs");
         var tool = Read(root, "NavisHelper.McpServer", "Tools", "NavisworksViewpointCameraTools.cs");
 
@@ -79,17 +79,5 @@ public sealed class ViewpointCameraArchitectureTests
     private static string Read(string root, params string[] parts)
     {
         return File.ReadAllText(Path.Combine(new[] { root }.Concat(parts).ToArray()));
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-        throw new DirectoryNotFoundException("Repository root was not found.");
     }
 }
