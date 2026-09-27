@@ -181,7 +181,7 @@ public sealed class LocalizationTests
     [Fact]
     public void NeutralAndRussianResourcesHaveUniqueMatchingKeySets()
     {
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         string neutralPath = Path.Combine(repoRoot, "NavisHelper", "Properties", "Resources.resx");
         string russianPath = Path.Combine(repoRoot, "NavisHelper", "Properties", "Resources.ru.resx");
 
@@ -327,7 +327,7 @@ public sealed class LocalizationTests
     [Fact]
     public void RibbonVisibleTextIsDirectInvariantNavisHelper()
     {
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         string source = File.ReadAllText(Path.Combine(
             repoRoot,
             "NavisHelper",
@@ -868,7 +868,7 @@ public sealed class LocalizationTests
     [Fact]
     public void ActivePanelUsesInvariantOperationReasonAndPersistedNames()
     {
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         string operations = File.ReadAllText(Path.Combine(
             repoRoot,
             "NavisHelper",
@@ -902,7 +902,7 @@ public sealed class LocalizationTests
     [Fact]
     public void ClashDocumentChangeResetClearsLocalizedGroupContentsCachesBeforeUiWork()
     {
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         string source = File.ReadAllText(Path.Combine(
             repoRoot,
             "NavisHelper",
@@ -939,7 +939,7 @@ public sealed class LocalizationTests
     [Fact]
     public void ManagerDiagnosticStatusesRemainBaselineAgentInputs()
     {
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         string selectionManager = File.ReadAllText(Path.Combine(
             repoRoot,
             "NavisHelper",
@@ -981,7 +981,7 @@ public sealed class LocalizationTests
         Assert.DoesNotContain(neutral.Keys, key => Regex.IsMatch(key, @"^P\d{3}$"));
         Assert.DoesNotContain(russian.Keys, key => Regex.IsMatch(key, @"^P\d{3}$"));
 
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         Assert.False(File.Exists(Path.Combine(
             repoRoot,
             "NavisHelper",
@@ -1015,7 +1015,7 @@ public sealed class LocalizationTests
     public void DynamicPanelResourceFamiliesAreComplete()
     {
         (Dictionary<string, string> neutral, _) = LoadProductionResourceValues();
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         string panelSource = File.ReadAllText(Path.Combine(
             repoRoot,
             "NavisHelper",
@@ -1056,7 +1056,7 @@ public sealed class LocalizationTests
     [Fact]
     public void PaletteExecutedStatusKeepsCommandTitleAsLocalizedArgument()
     {
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         string source = File.ReadAllText(Path.Combine(
             repoRoot,
             "NavisHelper",
@@ -1081,7 +1081,7 @@ public sealed class LocalizationTests
     [Fact]
     public void StaticPanelLocalizationAuditPasses()
     {
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         var startInfo = new ProcessStartInfo
         {
             FileName = "python",
@@ -1108,7 +1108,7 @@ public sealed class LocalizationTests
     [Fact]
     public void SettingsLanguageSectionUsesTwoRadioButtonsInOneGroup()
     {
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         string source = File.ReadAllText(Path.Combine(
             repoRoot,
             "NavisHelper",
@@ -1142,7 +1142,7 @@ public sealed class LocalizationTests
     private static (Dictionary<string, string> Neutral, Dictionary<string, string> Russian)
         LoadProductionResourceValues()
     {
-        string repoRoot = FindRepositoryRoot();
+        string repoRoot = RepositoryPaths.Root;
         return (
             GetResourceValues(Path.Combine(
                 repoRoot,
@@ -1185,19 +1185,6 @@ public sealed class LocalizationTests
             (resourceKey, nestedArguments) =>
                 service.Format(resourceKey, nestedArguments));
         return service.Format(descriptor.ResourceKey, arguments);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        DirectoryInfo directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find repository root.");
     }
 
     private sealed class TempDirectory : IDisposable
