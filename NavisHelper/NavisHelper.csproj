@@ -648,7 +648,6 @@
     <Compile Include="AI\OpenRouterModelSelection.cs" />
     <Compile Include="AI\OpenRouterKeyStore.cs" />
     <Compile Include="ColorSchemes.cs" />
-    <Compile Include="ColorsByNameHandler.cs" />
     <Compile Include="Core\ColorParser.cs" />
     <Compile Include="Core\ClashOperationProtocolReason.cs" />
     <Compile Include="Core\PersistedModelNames.cs" />
@@ -679,7 +678,6 @@
     <Compile Include="SelectionHatchBoundsMarker.cs" />
     <Compile Include="ImportPslists.cs" />
     <Compile Include="Core\Logger.cs" />
-    <Compile Include="NavisSaveUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
