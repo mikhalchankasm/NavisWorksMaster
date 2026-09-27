@@ -29,6 +29,15 @@ namespace NavisHelper.Agent.Host
         private int _inFlight;
         private Task _task;
 
+        /// <summary>
+        /// Opens the request the caller is about to run, so that only the generation-0
+        /// collections it causes count towards the next forced collection.
+        /// </summary>
+        public void BeginRequest()
+        {
+            _policy.BeginRequest(GC.CollectionCount(0));
+        }
+
         public void ScheduleIfDue(long commandMilliseconds)
         {
             var gen0Now = GC.CollectionCount(0);
