@@ -1033,6 +1033,9 @@ namespace NavisHelper.Agent.Services
             }
         }
 
+        // Exact on purpose: both colors come from Navisworks, and a sub-byte permanent
+        // override must still count as an override so reset restores it. Requested
+        // versus read-back colors are compared by ModelColorSchemeColorVerifier instead.
         private static bool ColorsEqual(
             Autodesk.Navisworks.Api.Color left,
             Autodesk.Navisworks.Api.Color right)
@@ -1041,7 +1044,7 @@ namespace NavisHelper.Agent.Services
                 return true;
             if (left == null || right == null)
                 return false;
-            return ModelColorSchemeColorVerifier.ChannelsMatch(ToRgb(left), ToRgb(right));
+            return left.R == right.R && left.G == right.G && left.B == right.B;
         }
 
         private static ModelColorSchemeRgb ToRgb(Autodesk.Navisworks.Api.Color color)
