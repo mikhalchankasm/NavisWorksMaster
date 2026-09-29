@@ -470,8 +470,10 @@ resolution time substantially.
 
 Match handles (`mh_*`) are session traversal references, not stable model
 identities. They can expire or be invalidated by intervening document/search
-changes; on `stale_match_reference`, repeat the originating search. For durable
-scope, prefer `scopeNodePath` or a Selection Set `itemId` freshly obtained from
+changes; `stale_match_reference` now states whether a handle expired after idle
+time, was evicted from the 100 most recently used handles, was cleared on a
+document change, or was never issued by this host. Repeat the originating search.
+For durable scope, prefer `scopeNodePath` or a Selection Set `itemId` freshly obtained from
 `list_selection_sets`.
 
 ## `clash_tests_from_sets`
