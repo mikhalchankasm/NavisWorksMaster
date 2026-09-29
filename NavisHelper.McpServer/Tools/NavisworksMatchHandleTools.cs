@@ -14,7 +14,7 @@ internal sealed class NavisworksMatchHandleTools : NavisworksToolBase
 
     [McpServerTool]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
-    [Description("Pages through the items behind one match handle from find_items or find_items_by_bbox without searching again and without changing the selection, visibility, or the camera. Use it when a match holds more items than the 20-row preview shows: totalItemCount and hasMore say how much is left, nextOffset is the offset the next page continues from, and an offset past the end returns an empty page. Handles are runtime-only and expire, so a stale one fails with the reason instead of an empty list.")]
+    [Description("Pages through the items behind one match handle from find_items or find_items_by_bbox without searching again and without changing the selection, visibility, or the camera. Use it when a match holds more items than the 20-row preview shows: totalItemCount and hasMore say how much is left, nextOffset is the offset the next page continues from, and an offset past the end returns an empty page. The handle holds what the search returned, which can be fewer than its matchedItemCount (find_items_by_bbox keeps at most maxResults). Handles are runtime-only and expire, so a stale one fails with the reason instead of an empty list.")]
     public Task<MatchHandleItemsResponse> MatchHandleItems(
         [Description("Required opaque match handle returned by find_items or find_items_by_bbox. Runtime-only; never persist it in a scenario.")] string matchHandle,
         [Description("Zero-based index of the first item to return. Default is 0; negative values are treated as 0.")] int offset = 0,

@@ -1854,7 +1854,14 @@ holds, not just the preview), the applied `offset` and `limit`,
 `returnedItemCount`, `nextOffset`, and `hasMore`. Each item in `items[]`
 carries `index`, `displayName`, `classDisplayName`, `path`, and `sourceFile`;
 `path` and `sourceFile` are empty strings when their include flag is `false`,
-never null.
+never null. `sourceFile` is the nearest file node at or above the item: under
+an `.rvm` appended to an `.nwd` it is the `.rvm`.
+
+`totalItemCount` is what the handle holds, which is what the search returned,
+not what it matched. `find_items_by_bbox` keeps at most `maxResults` (up to
+10000) and says so with `resultsTruncated`, while its `matchedItemCount` counts
+every match; on the NVK5 model a zone matched 69,277 items and its handle held
+10,000. Narrow the zone or the conditions to reach the rest.
 
 Paging follows one rule: keep passing `nextOffset` back as `offset` until
 `hasMore` is `false`. `items[i].index == offset + i`, so pages splice in the

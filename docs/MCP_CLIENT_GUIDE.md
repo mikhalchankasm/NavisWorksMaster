@@ -52,9 +52,9 @@ Measured 2026-09-29 once `match_handle_items` was added:
 
 | Spec | Tools | `tools/list` | Approx. tokens |
 |---|---:|---:|---:|
-| unset, or `all` | 109 | 191.1 KB | ~56,600 |
-| `core,clash` | 75 | 123.6 KB | ~36,600 |
-| `core` | 46 | 55.1 KB | **~16,300** |
+| unset, or `all` | 109 | 191.3 KB | ~56,700 |
+| `core,clash` | 75 | 123.7 KB | ~36,700 |
+| `core` | 46 | 55.2 KB | **~16,400** |
 
 Sets: `meta`, `query`, `selection`, `view`, `sets`, `viewpoints`, `markup`,
 `sections`, `reports`, `clash`, `scenarios`, `lifecycle`. The alias `core`
