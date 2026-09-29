@@ -276,6 +276,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<ItemPropertiesByHandleRequest>,
             (document, request) => _commandService.ItemPropertiesByHandle(document, request, _matchSessionStore));
 
+        router.Register<MatchHandleItemsRequest>(
+            HostCommandNames.MatchHandleItems,
+            true,
+            DeserializePayload<MatchHandleItemsRequest>,
+            (document, request) => _matchHandleItemsService.GetItems(request));
+
         router.Register<CurrentViewpointInfoRequest>(
             HostCommandNames.CurrentViewpointInfo,
             true,

@@ -49,6 +49,7 @@ namespace NavisHelper.Agent.Host
         private readonly ClashBatchRunService _clashBatchRunService;
         private readonly NavisworksApplicationCloseService _applicationCloseService;
         private readonly MatchSessionStore _matchSessionStore = new MatchSessionStore();
+        private readonly MatchHandleItemsService _matchHandleItemsService;
         private readonly CommandRouter _commandRouter;
         private readonly object _operationHistorySync = new object();
         private readonly Dictionary<string, OperationRecord> _operationHistory = new Dictionary<string, OperationRecord>(StringComparer.OrdinalIgnoreCase);
@@ -70,6 +71,7 @@ namespace NavisHelper.Agent.Host
         internal AgentHostService()
         {
             _viewpointCameraService = new ViewpointCameraCommandService(_commandService);
+            _matchHandleItemsService = new MatchHandleItemsService(_matchSessionStore);
             _applicationCloseService = new NavisworksApplicationCloseService(_commandService);
             _clashBatchRunService = new ClashBatchRunService(PostToUi);
             _commandRouter = CreateCommandRouter();

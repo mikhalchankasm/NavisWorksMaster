@@ -71,6 +71,7 @@ namespace NavisHelper.Agent.Contracts
         public const string SelectedItemsAncestry = "selected_items_ancestry";
         public const string SelectedItemsTree = "selected_items_tree";
         public const string ItemPropertiesByHandle = "item_properties_by_handle";
+        public const string MatchHandleItems = "match_handle_items";
         public const string CurrentViewpointInfo = "current_viewpoint_info";
         public const string ListSavedViewpoints = "list_saved_viewpoints";
         public const string SavedViewpointsExport = "saved_viewpoints_export";
