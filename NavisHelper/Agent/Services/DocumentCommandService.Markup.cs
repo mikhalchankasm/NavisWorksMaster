@@ -304,8 +304,7 @@ namespace NavisHelper.Agent.Services
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Viewpoint name is required.");
 
             var selectedItems = document.CurrentSelection.SelectedItems;
-            var hasSelectedItems = selectedItems != null && selectedItems.Count > 0;
-            if (!hasSelectedItems)
+            if (selectedItems == null || selectedItems.Count == 0)
                 throw new AgentCommandException(ErrorCodes.NoSelection, "There is no active selection to section.");
 
             var apply = request.Apply == true;
