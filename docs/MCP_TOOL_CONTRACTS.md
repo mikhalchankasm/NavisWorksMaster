@@ -1867,7 +1867,10 @@ Paging follows one rule: keep passing `nextOffset` back as `offset` until
 `hasMore` is `false`. `items[i].index == offset + i`, so pages splice in the
 handle's own order and cannot be reassembled wrongly. An `offset` at or past
 `totalItemCount` is an empty page (`returnedItemCount=0`, `hasMore=false`),
-not an error. A whole match is covered exactly once by walking
+not an error. A page also stops early, with `sizeLimited=true`, once its items
+reach 3 MiB, below the 4 MiB pipe frame; `returnedItemCount`, `nextOffset` and
+`hasMore` then describe the rows actually returned, so the rule above still
+holds. A whole match is covered exactly once by walking
 `nextOffset` pages; `limit=1` walks one item at a time.
 
 The handle is resolved against the same session store the search tools wrote:
