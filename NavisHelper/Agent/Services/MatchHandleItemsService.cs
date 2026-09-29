@@ -170,7 +170,7 @@ namespace NavisHelper.Agent.Services
         private static string GetSourceFileCached(
             IDictionary<string, string> sourceFilesByPath,
             IList<ModelItem> chain,
-            IList<string> chainPaths)
+            IReadOnlyList<string> chainPaths)
         {
             // Climb from the item until a node has the property or a cached answer;
             // every node passed on the way has no property of its own, so it shares
