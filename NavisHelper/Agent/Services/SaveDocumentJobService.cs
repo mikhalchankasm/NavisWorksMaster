@@ -71,7 +71,13 @@ namespace NavisHelper.Agent.Services
             }
             catch (Exception ex)
             {
-                Transition(nowUtc => job.Fail("The save could not be scheduled on the UI thread: " + ex.Message, nowUtc));
+                // The job is failed so a new start is allowed, and start itself fails:
+                // it must not report a save that will never run as running.
+                var message = "The save could not be scheduled on the UI thread: " + ex.Message;
+                Transition(nowUtc => job.Fail(message, nowUtc));
+                if (ex is AgentCommandException)
+                    throw;
+                throw new AgentCommandException(ErrorCodes.CommandFailed, message);
             }
         }
 

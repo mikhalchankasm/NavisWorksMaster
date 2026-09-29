@@ -454,7 +454,7 @@ namespace NavisHelper.Agent.Host
             HostCommandNames.StartSaveDocument,
             true,
             DeserializePayload<StartSaveDocumentRequest>,
-            (document, request) => _saveDocumentJobService.Start(document, request));
+            (document, request) => AttachInstanceId(_saveDocumentJobService.Start(document, request)));
 
         router.Register<CloseNavisworksRequest>(
             HostCommandNames.CloseNavisworks,
