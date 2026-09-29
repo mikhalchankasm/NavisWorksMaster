@@ -29,8 +29,8 @@ public sealed class McpReadOnlyModeTests
     {
         var methods = McpReadOnlyMode.RegisteredToolMethods().ToList();
         var mode = new McpReadOnlyMode(true, methods);
-        Assert.Equal(109, methods.Count);
-        Assert.Equal(38, methods.Count(method => method.GetCustomAttribute<ToolCapabilitiesAttribute>().Effects == ToolEffects.None));
+        Assert.Equal(111, methods.Count);
+        Assert.Equal(39, methods.Count(method => method.GetCustomAttribute<ToolCapabilitiesAttribute>().Effects == ToolEffects.None));
         foreach (var method in methods)
         {
             var name = System.Text.RegularExpressions.Regex.Replace(

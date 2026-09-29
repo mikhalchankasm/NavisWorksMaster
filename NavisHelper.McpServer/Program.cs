@@ -35,6 +35,7 @@ builder.Services
     })
     .WithStdioServerTransport()
     .WithTools<NavisworksDocumentTools>()
+    .WithTools<NavisworksSaveJobTools>()
     .WithTools<NavisworksHostTools>()
     .WithTools<NavisworksMarkupTools>()
     .WithTools<NavisworksMatchHandleTools>()
