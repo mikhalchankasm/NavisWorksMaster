@@ -40,7 +40,7 @@ Navisworks Manage plugin and local MCP server for design engineers and BIM coord
 | Declared package dependencies | MCP server: `Microsoft.Extensions.Hosting` 8.0.1 and `ModelContextProtocol` 1.2.0. Plugin: `Microsoft.Toolkit.Uwp.Notifications` 7.1.3, `Newtonsoft.Json` 13.0.3, Windows SDK Contracts 10.0.19041.1, `System.Runtime.WindowsRuntime` 4.6.0, `System.Runtime.WindowsRuntime.UI.Xaml` 4.6.0, `System.ValueTuple` 4.5.0, and reference-assembly packages. |
 | Optional script dependencies | Python is used only by some smoke/check scripts, not by the MCP runtime. The minimum Python and PowerShell versions are not specified. <!-- TODO: уточнить --> |
 | HTTP bridge port | None. The MCP client starts the server over stdio; the server connects to the Navisworks plugin through a local Windows named pipe. |
-| LLM API access | Not required for the 108 registered MCP tools. The separate `AIColorObjects` function connects a user-provided OpenRouter key from the Settings tab and stores it in the user-scoped `OPEN_ROUTER_NW_KEY`; API billing depends on the selected model. |
+| LLM API access | Not required for the 110 registered MCP tools. The separate `AIColorObjects` function connects a user-provided OpenRouter key from the Settings tab and stores it in the user-scoped `OPEN_ROUTER_NW_KEY`; API billing depends on the selected model. |
 | AI data egress | The OpenRouter action sends selected objects’ display names to the external OpenRouter API under the user’s key. The separate **Apply local palette** action sends nothing. Account for this when working with NDA-controlled models. The registered MCP tool path remains local. |
 
 ## Installation
@@ -106,7 +106,7 @@ This is a local stdio server configuration. Do not add a host, URL, or port. The
 
 ## Available tools
 
-The current server registers 108 tools. Parameter types, required markers, and defaults below are taken from the recorded `tools/list` schemas.
+The current server registers 110 tools. Parameter types, required markers, and defaults below are taken from the recorded `tools/list` schemas.
 
 ### Core model, selection, visibility, and viewpoints
 

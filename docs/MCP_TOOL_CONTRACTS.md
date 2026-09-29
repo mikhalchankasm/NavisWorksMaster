@@ -97,6 +97,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `reveal_selected` | View | Yes | Yes | Yes |
 | `save_document` | Document, Files | Yes | Yes | No |
 | `save_document_as` | Document, Files | Yes | Yes | No |
+| `save_document_status` | None | Yes | No | No |
 | `save_scenario` | Files, LocalState | No | No | Yes |
 | `saved_viewpoints_export` | Files | Yes | Yes | No |
 | `saved_viewpoints_import` | Document | Yes | Yes | Yes |
@@ -121,6 +122,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `selection_status` | None | Yes | Yes | No |
 | `show_all` | View | Yes | Yes | Yes |
 | `start_navisworks` | Host | No | No | No |
+| `start_save_document` | Document, Files | Yes | Yes | No |
 | `start_subtree_names_dump` | Files, LocalState | Yes | Yes | No |
 | `unhide_selected` | View | Yes | Yes | Yes |
 | `viewpoint_set_camera` | View, Document | Yes | Yes | Yes |
@@ -1715,6 +1717,47 @@ list that is never null. In orthographic projection Navisworks chooses the
 camera's place on its line of sight itself, so `effectivePosition` may differ
 from the requested `position`; when it differs, a warning says so and confirms
 that the view direction, up vector, and `heightField` are as requested.
+
+## `start_save_document`
+
+Starts the same save as `save_document` — the active document to its current
+path, `.nwd`/`.nwf` validation and all — but returns at once with an
+`operationId` instead of waiting for the write. Built for documents whose save
+outlasts the client's call timeout: the save itself keeps running on the
+Navisworks UI thread, and `save_document_status` stays answerable while it runs.
+`save_document` is unchanged.
+
+| Input | Type | Default | Meaning |
+|---|---|---:|---|
+| `instanceId` | string | `""` | Optional explicit Navisworks host. |
+| `navisworksVersion` | string | `""` | Optional version filter. |
+
+Key outputs: `operationId`, `state` (`running`), `isRunning`, `path` (the
+resolved current path), `elapsedMs`, `message`.
+
+One job at a time. A second `start_save_document` while the job is `running` is
+a `schema_violation`; poll `save_document_status` until it reports `completed`
+or `failed`. A job whose document has no current path fails the same way
+`save_document` does — start resolves and validates the path before returning.
+If the active document changes between start and the posted save, the job fails
+without touching the new document. While the save writes, other calls that need
+the UI thread wait behind it; poll only `save_document_status` until it is done.
+
+## `save_document_status`
+
+Inputs are `operationId` (required), optional `instanceId`, and optional
+`navisworksVersion`.
+
+Key outputs: `operationId`, `state` (`running|completed|failed`), `isRunning`,
+`path`, `format`, `fileSizeBytes`, `elapsedMs`, `errorMessage`,
+`startedAtUtc`, `completedAtUtc`, `message`. `elapsedMs` tracks the current time
+while running and freezes at completion.
+
+The poll is read-only, bypasses `host_busy`, and is answered without the
+Navisworks UI thread, so it replies while the save is still writing. An unknown
+or superseded `operationId` returns `command_failed`. Like the other status
+polls it is never recorded in the operation history, so it cannot evict the
+call you actually care about from `last_operation_status`.
 
 ## Overlay world markers
 
