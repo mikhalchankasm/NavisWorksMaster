@@ -892,14 +892,15 @@ build against 0.03 s in the base, which bounds what the forced collection costs.
   releases. The test did both at once and does not separate them. The base's natural full
   collection, around call 5, which does not wait for finalizers, gave only partial relief:
   2.4 s on call 6, against 1.2 s with the forced one.
-- It does not name the objects. The prime suspects are the `ModelItem` wrappers the walk
-  creates and never disposes: about 41 000 per call, each a `NativeHandle` with a finalizer.
-  The bounding boxes are ruled out by the test above.
+- It does not name the objects. The prime suspects were the `ModelItem` wrappers the walk
+  created and, at the time of this test, never disposed: about 41 000 per call, each a
+  `NativeHandle` with a finalizer. The bounding boxes are ruled out by the test above.
 
-Two fixes follow, each to be measured the same way against this base. Disposing the
-wrappers the walk owns is precise, but first needs proof that Navisworks does not hand the
-same wrapper to other holders. A full collection after a large walk, off the call's own
-path, is blunt, and costs about 0.1 s of host time each time.
+Two fixes followed, each measured the same way against this base. Disposing the wrappers
+the walk owns is precise, but needed proof first that Navisworks does not hand the same
+wrapper to other holders; the TECH-W13 probe gave it, and #122–#124 dispose them (see
+above). A full collection after a large walk, off the call's own path, is blunt, and costs
+about 0.1 s of host time each time.
 
 ### The fix: collect after heavy work
 
