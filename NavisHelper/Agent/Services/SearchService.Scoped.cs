@@ -49,6 +49,7 @@ namespace NavisHelper.Agent.Services
                 return BuildNativeScopedResponse(response, search, nativeMatches, previewLimit, sessionStore);
             }
 
+            var preparedSearch = PrepareManualSearch(search);
             var matchedItems = countOnly ? null : new List<ModelItem>();
             var sampleValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var stack = new Stack<ScopedSearchNode>();
@@ -87,7 +88,7 @@ namespace NavisHelper.Agent.Services
                     continue;
                 response.ScannedItemCount++;
 
-                var matched = MatchesSearchManually(item, search);
+                var matched = MatchesSearchManually(item, preparedSearch);
                 if (matched)
                 {
                     response.MatchedItemCount++;
@@ -251,38 +252,93 @@ namespace NavisHelper.Agent.Services
 
         private static bool MatchesSearchManually(ModelItem item, FindItemsSearch search)
         {
-            if (search == null || search.Conditions == null || search.Conditions.Count == 0)
+            return MatchesSearchManually(item, PrepareManualSearch(search));
+        }
+
+        private static bool MatchesSearchManually(ModelItem item, PreparedManualSearch prepared)
+        {
+            if (prepared == null)
                 return false;
-
-            var hasConditionLogic = search.Conditions.Skip(1).Any(condition =>
-                condition != null && string.Equals(
-                    condition.LogicalOperator,
-                    FindItemsConditionOptionsHelper.Or,
-                    StringComparison.OrdinalIgnoreCase));
-            if (!hasConditionLogic)
+            if (prepared.EqualsValues != null)
             {
-                var matchAll = string.Equals(search.CombineOperator, FindItemsCombineOperators.All, StringComparison.OrdinalIgnoreCase);
-                return matchAll
-                    ? search.Conditions.All(condition => MatchesManualCondition(item, condition))
-                    : search.Conditions.Any(condition => MatchesManualCondition(item, condition));
+                var name = item == null ? string.Empty : item.DisplayName ?? string.Empty;
+                return !string.IsNullOrWhiteSpace(name) &&
+                       prepared.EqualsValues.Contains(NormalizeConditionString(name, prepared.EqualsReference));
             }
 
-            var anyGroupMatched = false;
-            var currentGroupMatched = MatchesManualCondition(item, search.Conditions[0]);
-            for (var index = 1; index < search.Conditions.Count; index++)
+            return prepared.Groups.Any(group => group.All(entry =>
+                MatchesManualCondition(item, entry.Condition, entry.Resolved, entry.Comparison)));
+        }
+
+        private static PreparedManualSearch PrepareManualSearch(FindItemsSearch search)
+        {
+            if (search == null || search.Conditions == null || search.Conditions.Count == 0)
+                return null;
+
+            var groups = FindItemsConditionGroups.Split(search.Conditions);
+            if (groups.Count == 1 &&
+                !string.Equals(search.CombineOperator, FindItemsCombineOperators.All, StringComparison.OrdinalIgnoreCase))
+                groups = search.Conditions.Select((condition, index) => new List<int> { index }).ToList();
+
+            var preparedGroups = groups
+                .Select(group => group.Select(index => PrepareManualCondition(search.Conditions[index])).ToList())
+                .ToList();
+            var equalsValues = TryBuildEqualsFastPath(preparedGroups);
+            return new PreparedManualSearch(
+                preparedGroups,
+                equalsValues,
+                equalsValues == null ? null : preparedGroups[0][0].Condition);
+        }
+
+        private static (FindItemsCondition Condition, ResolvedProperty Resolved, string Comparison) PrepareManualCondition(FindItemsCondition condition)
+        {
+            return (condition, ResolveProperty(condition), NormalizeComparison(condition.Operator));
+        }
+
+        private static HashSet<string> TryBuildEqualsFastPath(
+            List<List<(FindItemsCondition Condition, ResolvedProperty Resolved, string Comparison)>> groups)
+        {
+            var first = groups[0][0].Condition;
+            var ignoreCase = first.IgnoreCase.GetValueOrDefault(true);
+            var ignoreCharWidth = first.IgnoreCharWidth.GetValueOrDefault(false);
+            var ignoreDiacritics = first.IgnoreDiacritics.GetValueOrDefault(false);
+            var values = new HashSet<string>(ignoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            foreach (var group in groups)
             {
-                var condition = search.Conditions[index];
-                if (string.Equals(condition.LogicalOperator, FindItemsConditionOptionsHelper.Or, StringComparison.OrdinalIgnoreCase))
-                {
-                    anyGroupMatched |= currentGroupMatched;
-                    currentGroupMatched = MatchesManualCondition(item, condition);
-                }
-                else
-                {
-                    currentGroupMatched &= MatchesManualCondition(item, condition);
-                }
+                if (group.Count != 1)
+                    return null;
+
+                var entry = group[0];
+                if (!string.Equals(entry.Comparison, FindItemsComparisons.Equal, StringComparison.OrdinalIgnoreCase) ||
+                    entry.Condition.Negate.GetValueOrDefault(false) ||
+                    entry.Condition.IgnoreCase.GetValueOrDefault(true) != ignoreCase ||
+                    entry.Condition.IgnoreCharWidth.GetValueOrDefault(false) != ignoreCharWidth ||
+                    entry.Condition.IgnoreDiacritics.GetValueOrDefault(false) != ignoreDiacritics ||
+                    entry.Resolved == null ||
+                    !entry.Resolved.IsDefaultItemNameTarget)
+                    return null;
+
+                values.Add(NormalizeConditionString(entry.Condition.Value, entry.Condition));
             }
-            return anyGroupMatched || currentGroupMatched;
+
+            return values;
+        }
+
+        private sealed class PreparedManualSearch
+        {
+            public PreparedManualSearch(
+                List<List<(FindItemsCondition Condition, ResolvedProperty Resolved, string Comparison)>> groups,
+                HashSet<string> equalsValues,
+                FindItemsCondition equalsReference)
+            {
+                Groups = groups;
+                EqualsValues = equalsValues;
+                EqualsReference = equalsReference;
+            }
+
+            public List<List<(FindItemsCondition Condition, ResolvedProperty Resolved, string Comparison)>> Groups { get; private set; }
+            public HashSet<string> EqualsValues { get; private set; }
+            public FindItemsCondition EqualsReference { get; private set; }
         }
 
         private static List<ModelItem> ResolveFindItemsScopeRoots(
