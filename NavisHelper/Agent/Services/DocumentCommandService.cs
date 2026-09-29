@@ -872,6 +872,9 @@ namespace NavisHelper.Agent.Services
             SelectedItemsTreeResponse response)
         {
             var selectedPath = chainPaths[selectedDepth];
+            // The selected leaf is read from its own item, never from the path cache:
+            // distinct same-named siblings share a path, and flat format lists each one.
+            var leafBox = includeBoundingBoxes ? TryBuildBoundingBoxInfo(selectedItem) : null;
             var item = new SelectedItemsTreeFlatItem
             {
                 SelectionIndex = selectionIndex,
@@ -882,7 +885,7 @@ namespace NavisHelper.Agent.Services
                 RootName = rootName ?? string.Empty,
                 SourceFile = sourceFile ?? string.Empty,
                 IsSelectedLeaf = true,
-                BoundingBox = includeBoundingBoxes ? TryGetBoundingBoxCached(boxesByPath, selectedPath, selectedItem) : null,
+                BoundingBox = leafBox,
             };
 
             for (var depth = 0; depth < chainItems.Count; depth++)
@@ -894,15 +897,19 @@ namespace NavisHelper.Agent.Services
                 }
 
                 var chainItem = chainItems[depth];
-                item.Chain.Add(BuildSelectedItemsTreePathNode(
+                var isLeaf = depth == selectedDepth;
+                var node = BuildSelectedItemsTreePathNode(
                     chainItem,
                     depth,
                     chainPaths[depth],
                     rootName,
                     sourceFile,
-                    depth == selectedDepth,
-                    includeBoundingBoxes,
-                    boxesByPath));
+                    isLeaf,
+                    includeBoundingBoxes && !isLeaf,
+                    boxesByPath);
+                if (isLeaf)
+                    node.BoundingBox = leafBox;
+                item.Chain.Add(node);
             }
 
             return item;
