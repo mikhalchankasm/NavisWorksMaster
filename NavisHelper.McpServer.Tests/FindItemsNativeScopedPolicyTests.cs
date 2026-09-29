@@ -225,9 +225,11 @@ public sealed class FindItemsNativeScopedPolicyTests
     [Fact]
     public void BuildTraversalBudgetMessage_names_the_progress_and_the_remedy()
     {
-        var message = FindItemsNativeScopedPolicy.BuildTraversalBudgetMessage(2, 5);
+        var message = FindItemsNativeScopedPolicy.BuildTraversalBudgetMessage(FindItemsScopes.WholeModel, 2, 5);
 
         Assert.Contains("2 of 5 native searches", message, StringComparison.Ordinal);
+        // whole_model reaches this path too, so the text names the scope instead of saying "Scoped".
+        Assert.Contains("scope=whole_model", message, StringComparison.Ordinal);
         Assert.Contains("Narrow the scope", message, StringComparison.Ordinal);
         // matchDepth is already first on this path, so suggesting it would be
         // advice the caller has already taken.

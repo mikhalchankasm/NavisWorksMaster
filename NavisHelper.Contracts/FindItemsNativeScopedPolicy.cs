@@ -56,9 +56,9 @@ namespace NavisHelper.Agent.Contracts
         /// fails. matchDepth is already first here, so narrowing the scope is
         /// the only remedy left to name.
         /// </summary>
-        public static string BuildTraversalBudgetMessage(int completedVariants, int totalVariants)
+        public static string BuildTraversalBudgetMessage(string scope, int completedVariants, int totalVariants)
         {
-            return "Scoped find_items exceeded the 45 second traversal budget after "
+            return "find_items (scope=" + scope + ") exceeded the 45 second traversal budget after "
                 + completedVariants.ToString(CultureInfo.InvariantCulture)
                 + " of "
                 + totalVariants.ToString(CultureInfo.InvariantCulture)

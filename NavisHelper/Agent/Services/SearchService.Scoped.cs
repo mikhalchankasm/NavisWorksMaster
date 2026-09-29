@@ -44,7 +44,7 @@ namespace NavisHelper.Agent.Services
 
             List<ModelItem> nativeMatches;
             if (ShouldTryNativeScopedSearch(search, scope, matchDepth, countOnly) &&
-                TryExecuteNativeScopedSearch(document, search, roots, started, out nativeMatches))
+                TryExecuteNativeScopedSearch(document, search, roots, scope, started, out nativeMatches))
             {
                 return BuildNativeScopedResponse(response, search, nativeMatches, previewLimit, sessionStore);
             }
