@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Navisworks.Api;
-using NavisHelper.Contracts;
+using NavisHelper.Agent.Contracts;
 
 namespace NavisHelper.Agent.Session
 {

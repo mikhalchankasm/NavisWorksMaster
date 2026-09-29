@@ -1,5 +1,5 @@
 using System;
-using NavisHelper.Contracts;
+using NavisHelper.Agent.Contracts;
 using Xunit;
 
 namespace NavisHelper.McpServer.Tests

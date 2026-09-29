@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace NavisHelper.Contracts
+namespace NavisHelper.Agent.Contracts
 {
     public sealed class MatchHandleLedger
     {
