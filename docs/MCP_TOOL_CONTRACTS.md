@@ -338,11 +338,10 @@ under both readings; a `0` is truthful under only one.
 `scope=whole_model` with `matchDepth=all` (and no `starts_with`/`ends_with`
 condition) is answered by the native Navisworks
 `Search`, which runs with `PruneBelowMatch = true`: the engine **does not return
-descendants of a matching item**. Every other routing — any non-`whole_model`
-scope, `matchDepth=first`, or a `starts_with`/`ends_with`
-condition — is answered by the manual traversal, and `matchDepth=all` there
-returns nested matches as well. The one exception is an eligible scoped
-`matchDepth=first` request, which the engine answers with pruning on because
+descendants of a matching item**. Scoped `matchDepth=all` requests and
+`starts_with`/`ends_with` conditions use the manual traversal, which returns
+nested matches for `matchDepth=all`. Eligible `matchDepth=first` requests,
+including `scope=whole_model`, use the native search with pruning on because
 pruning and `first` mean the same thing there; see the next section for what
 makes a request eligible and what that costs in `scannedItemCount`.
 
@@ -411,9 +410,10 @@ non-`countOnly` form.
 
 ### Scoped `matchDepth=first` is answered by the engine
 
-A scoped search (`current_selection`, `under_handle`, `under_named_node`) with
-`matchDepth=first` is handed to the native Navisworks search rooted at the scope,
-with `PruneBelowMatch = true`. Engine pruning *is* `matchDepth=first` — stop at
+An eligible search with `matchDepth=first` is handed to the native Navisworks search
+rooted at its scope. This includes `scope=whole_model` alongside
+`current_selection`, `under_handle`, and `under_named_node`. The search uses
+`PruneBelowMatch = true`. Engine pruning *is* `matchDepth=first` — stop at
 the shallowest match on each branch — so the two paths return the same set, and
 the engine does the walking.
 

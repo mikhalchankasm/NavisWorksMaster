@@ -28,6 +28,7 @@ namespace NavisHelper.Agent.Services
             Document document,
             FindItemsSearch search,
             IList<ModelItem> roots,
+            string scope,
             Stopwatch started,
             out List<ModelItem> matches)
         {
@@ -72,7 +73,7 @@ namespace NavisHelper.Agent.Services
                             "AgentHost");
                         throw AbandonNativeScopedSearch(
                             found,
-                            FindItemsNativeScopedPolicy.BuildTraversalBudgetMessage(completedVariants, variants.Count));
+                            FindItemsNativeScopedPolicy.BuildTraversalBudgetMessage(scope, completedVariants, variants.Count));
                     }
 
                     var nativeSearch = new Search();

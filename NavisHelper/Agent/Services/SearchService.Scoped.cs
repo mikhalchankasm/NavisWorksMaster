@@ -44,7 +44,7 @@ namespace NavisHelper.Agent.Services
 
             List<ModelItem> nativeMatches;
             if (ShouldTryNativeScopedSearch(search, scope, matchDepth, countOnly) &&
-                TryExecuteNativeScopedSearch(document, search, roots, started, out nativeMatches))
+                TryExecuteNativeScopedSearch(document, search, roots, scope, started, out nativeMatches))
             {
                 return BuildNativeScopedResponse(response, search, nativeMatches, previewLimit, sessionStore);
             }
@@ -76,10 +76,10 @@ namespace NavisHelper.Agent.Services
                 previousItem = stack.Peek().Item;
                 if (started.ElapsedMilliseconds > MaxScopedTraversalMilliseconds)
                     throw AbandonScopedTraversal(response.ScannedItemCount, matchedItems, stack,
-                        "Scoped find_items exceeded the 45 second traversal budget. Narrow the scope or use matchDepth=first/countOnly.");
+                        "find_items (scope=" + scope + ") exceeded the 45 second traversal budget. Narrow the scope or use matchDepth=first/countOnly.");
                 if (response.ScannedItemCount >= MaxScopedScannedItems)
                     throw AbandonScopedTraversal(response.ScannedItemCount, matchedItems, stack,
-                        "Scoped find_items exceeded the 1,000,000 item traversal limit. Narrow the scope.");
+                        "find_items (scope=" + scope + ") exceeded the 1,000,000 item traversal limit. Narrow the scope.");
 
                 var node = stack.Pop();
                 var item = node.Item;
