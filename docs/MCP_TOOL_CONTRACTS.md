@@ -11,8 +11,6 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 
 `mcp_diagnostics` and `mcp_health_check` expose `protocolVersion`, `mcpServerVersion`, and host `pluginVersion`. `protocolVersion` is the additive MCP-server to in-process-host wire contract version. Host status/health/discovery surfaces expose `hostLogFilePath` when the host plugin can compute the NavisHelper log path. If `mcpServerVersion` and `pluginVersion` differ, reinstall/update the NavisHelper bundle and MCP server from the same distribution package before running write tools.
 
-`find_items_by_bbox` applies two of its filters hierarchically: Navisworks hides an item's descendants with the item, so `includeHidden=false` skips the whole subtree of a hidden ancestor rather than the hidden item alone, and a model loaded from an `.nwd` or `.nwf` container is never pruned by `sourceFileContains`, because its items report the files they were appended from, not the container's own name. See the `find_items_by_bbox` section for both rules.
-
 ## Tool capabilities
 
 <!-- BEGIN GENERATED TOOL CAPABILITIES -->
