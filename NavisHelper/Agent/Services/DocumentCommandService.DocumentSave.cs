@@ -33,7 +33,7 @@ namespace NavisHelper.Agent.Services
             return SaveDocumentToPath(document, targetPath, exists);
         }
 
-        private static SaveDocumentResponse SaveDocumentToPath(Document document, string path, bool overwritten)
+        internal static SaveDocumentResponse SaveDocumentToPath(Document document, string path, bool overwritten)
         {
             try
             {
@@ -62,7 +62,7 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private static string NormalizeExistingDocumentPath(string path)
+        internal static string NormalizeExistingDocumentPath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "The current document has no file path. Use save_document_as with an absolute .nwd or .nwf path.");

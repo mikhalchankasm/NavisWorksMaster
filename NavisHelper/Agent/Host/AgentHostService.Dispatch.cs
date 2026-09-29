@@ -66,18 +66,27 @@ namespace NavisHelper.Agent.Host
                         uiWaitMs),
                     "AgentHost");
 
-                if (string.Equals(command, HostCommandNames.FindItems, StringComparison.OrdinalIgnoreCase))
+                // The client stops waiting at timeoutMs; serializing the reply and
+                // writing the frame need the reserve. The deadline is measured on
+                // the request's own clock, which already counts the UI wait, so it
+                // is not reduced by the time elapsed so far.
+                var reserveMs = Math.Max(2000, timeoutMs / 10);
+                var budgetMs = timeoutMs - reserveMs;
+                using (HostRequestDeadline.Begin(budgetMs, () => startedAt.ElapsedMilliseconds))
                 {
-                    EnsureDocument(document);
-                    var request = DeserializePayload<FindItemsRequest>(payloadToken);
-                    return _searchService.FindItems(document, request, _matchSessionStore, timeoutMs);
-                }
+                    if (string.Equals(command, HostCommandNames.FindItems, StringComparison.OrdinalIgnoreCase))
+                    {
+                        EnsureDocument(document);
+                        var request = DeserializePayload<FindItemsRequest>(payloadToken);
+                        return _searchService.FindItems(document, request, _matchSessionStore, timeoutMs);
+                    }
 
-                object routedPayload;
-                // Every router handler, including close preparation/save/discard,
-                // executes inside this UI-dispatched callback.
-                if (_commandRouter.TryDispatch(command, document, payloadToken, EnsureDocument, out routedPayload))
-                    return routedPayload;
+                    object routedPayload;
+                    // Every router handler, including close preparation/save/discard,
+                    // executes inside this UI-dispatched callback.
+                    if (_commandRouter.TryDispatch(command, document, payloadToken, EnsureDocument, out routedPayload))
+                        return routedPayload;
+                }
 
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Unsupported command: " + command);
             }, timeoutMs, requestGateLease, requestId, command, startedAt);
@@ -202,6 +211,9 @@ namespace NavisHelper.Agent.Host
                     break;
                 case HostRequestGateBypassKind.CancelClashRun:
                     payload = _clashBatchRunService.Cancel(DeserializePayload<CancelClashRunRequest>(payloadToken));
+                    break;
+                case HostRequestGateBypassKind.SaveDocumentStatus:
+                    payload = AttachInstanceId(_saveDocumentJobService.Status(DeserializePayload<SaveDocumentStatusRequest>(payloadToken)));
                     break;
                 default:
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "Unsupported request gate bypass command: " + command);
@@ -333,6 +345,20 @@ namespace NavisHelper.Agent.Host
         }
 
         private DumpSubtreeNamesJobStatusResponse AttachInstanceId(DumpSubtreeNamesJobStatusResponse response)
+        {
+            if (response != null)
+                response.InstanceId = _instanceId ?? string.Empty;
+            return response;
+        }
+
+        private StartSaveDocumentResponse AttachInstanceId(StartSaveDocumentResponse response)
+        {
+            if (response != null)
+                response.InstanceId = _instanceId ?? string.Empty;
+            return response;
+        }
+
+        private SaveDocumentStatusResponse AttachInstanceId(SaveDocumentStatusResponse response)
         {
             if (response != null)
                 response.InstanceId = _instanceId ?? string.Empty;
