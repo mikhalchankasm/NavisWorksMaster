@@ -251,6 +251,16 @@ namespace NavisHelper.Agent.Services
                 return response;
 
             var rootBuilders = new Dictionary<string, SelectedItemsTreeBuildNode>(StringComparer.OrdinalIgnoreCase);
+            // Both caches live for this one call and hold no ModelItem wrapper.
+            // They are keyed by the printed path, the identity this tree already
+            // groups its nodes by, where keying by item would retain one `Parent`
+            // wrapper per path until the call ends. The cost is that distinct
+            // ancestors with the same path share a box (the `tree` format already
+            // merges them into one node), and two roots that share a display name
+            // share a source file -- see ARCHITECTURE.md, "Result identity". A
+            // selected leaf's box is always read from its own item.
+            var boxesByPath = new Dictionary<string, BoundingBoxInfo>(StringComparer.Ordinal);
+            var sourceFilesByRootPath = new Dictionary<string, string>(StringComparer.Ordinal);
             var selectionIndex = 0;
 
             foreach (ModelItem item in selectedItems.Take(maxItems))
@@ -259,11 +269,12 @@ namespace NavisHelper.Agent.Services
                 if (chainItems.Count == 0)
                     continue;
 
+                var chainPaths = ItemChainPaths.Build(BuildChainNames(chainItems));
                 var rootItem = chainItems[0];
                 var rootName = GetItemDisplayName(rootItem);
-                var sourceFile = TryGetSourceFile(rootItem) ?? string.Empty;
+                var sourceFile = TryGetSourceFileCached(sourceFilesByRootPath, chainPaths[0], rootItem);
                 var selectedDepth = chainItems.Count - 1;
-                var selectedPath = BuildItemPath(item);
+                var selectedPath = chainPaths[selectedDepth];
 
                 if (string.Equals(format, SelectedItemsTreeFormatFlat, StringComparison.OrdinalIgnoreCase))
                 {
@@ -271,11 +282,13 @@ namespace NavisHelper.Agent.Services
                         selectionIndex,
                         item,
                         chainItems,
+                        chainPaths,
                         rootName,
                         sourceFile,
                         selectedDepth,
                         maxDepth,
                         includeBoundingBoxes,
+                        boxesByPath,
                         response));
                 }
                 else
@@ -283,11 +296,13 @@ namespace NavisHelper.Agent.Services
                     AddSelectedItemTreePath(
                         rootBuilders,
                         chainItems,
+                        chainPaths,
                         rootName,
                         sourceFile,
                         selectedPath,
                         maxDepth,
                         includeBoundingBoxes,
+                        boxesByPath,
                         response);
                 }
 
