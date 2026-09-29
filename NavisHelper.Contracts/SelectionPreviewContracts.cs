@@ -77,6 +77,7 @@ namespace NavisHelper.Agent.Contracts
         public int ReturnedItemCount { get; set; }
         public bool Truncated { get; set; }
         public bool DepthTruncated { get; set; }
+        public bool DeadlineTruncated { get; set; }
         public List<SelectedItemsTreeNode> Roots { get; set; } = new List<SelectedItemsTreeNode>();
         public List<SelectedItemsTreeFlatItem> Items { get; set; } = new List<SelectedItemsTreeFlatItem>();
     }
