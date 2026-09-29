@@ -338,11 +338,10 @@ under both readings; a `0` is truthful under only one.
 `scope=whole_model` with `matchDepth=all` (and no `starts_with`/`ends_with`
 condition) is answered by the native Navisworks
 `Search`, which runs with `PruneBelowMatch = true`: the engine **does not return
-descendants of a matching item**. Every other routing — any non-`whole_model`
-scope, `matchDepth=first`, or a `starts_with`/`ends_with`
-condition — is answered by the manual traversal, and `matchDepth=all` there
-returns nested matches as well. The one exception is an eligible scoped
-`matchDepth=first` request, which the engine answers with pruning on because
+descendants of a matching item**. Scoped `matchDepth=all` requests and
+`starts_with`/`ends_with` conditions use the manual traversal, which returns
+nested matches for `matchDepth=all`. Eligible `matchDepth=first` requests,
+including `scope=whole_model`, use the native search with pruning on because
 pruning and `first` mean the same thing there; see the next section for what
 makes a request eligible and what that costs in `scannedItemCount`.
 
@@ -411,9 +410,10 @@ non-`countOnly` form.
 
 ### Scoped `matchDepth=first` is answered by the engine
 
-A scoped search (`current_selection`, `under_handle`, `under_named_node`) with
-`matchDepth=first` is handed to the native Navisworks search rooted at the scope,
-with `PruneBelowMatch = true`. Engine pruning *is* `matchDepth=first` — stop at
+An eligible search with `matchDepth=first` is handed to the native Navisworks search
+rooted at its scope. This includes `scope=whole_model` alongside
+`current_selection`, `under_handle`, and `under_named_node`. The search uses
+`PruneBelowMatch = true`. Engine pruning *is* `matchDepth=first` — stop at
 the shallowest match on each branch — so the two paths return the same set, and
 the engine does the walking.
 
@@ -470,8 +470,10 @@ resolution time substantially.
 
 Match handles (`mh_*`) are session traversal references, not stable model
 identities. They can expire or be invalidated by intervening document/search
-changes; on `stale_match_reference`, repeat the originating search. For durable
-scope, prefer `scopeNodePath` or a Selection Set `itemId` freshly obtained from
+changes; `stale_match_reference` now states whether a handle expired after idle
+time, was evicted from the 100 most recently used handles, was cleared on a
+document change, or was never issued by this host. Repeat the originating search.
+For durable scope, prefer `scopeNodePath` or a Selection Set `itemId` freshly obtained from
 `list_selection_sets`.
 
 ## `clash_tests_from_sets`
@@ -570,7 +572,7 @@ Inputs:
 | --- | --- | --- | --- |
 | `min`, `max` | `{x,y,z}` | required | Opposite corners of an axis-aligned zone. All six values must be finite and each `min` component must be less than or equal to its corresponding `max` component. |
 | `matchMode` | string | `intersects` | `intersects` returns overlapping item boxes, `contains` returns boxes wholly inside the zone, `center` returns boxes whose center is inside the zone. `overlaps`, `inside`, and `centre` are accepted aliases. |
-| `includeHidden` | bool | `true` | Include hidden model items. |
+| `includeHidden` | bool | `true` | Include hidden model items. Navisworks hides an item's descendants with it, so `false` skips the whole subtree of a hidden ancestor, not just the hidden item itself. |
 | `includeContainers` | bool | `false` | Include non-leaf hierarchy/container items. |
 | `sourceFileContains` | string | `""` | Optional case-insensitive source-file filter. |
 | `maxScannedItems` | int | `100000` | Traversal safety limit, clamped to `1..500000`. The host also has a ten-second runtime budget. |
@@ -607,7 +609,7 @@ cannot hold a match at all:
 | ruled out by | test |
 | --- | --- |
 | its own extents | the model's bounding box does not overlap the requested zone |
-| its source file | `sourceFileContains` is set and the model's file cannot contain it |
+| its source file | `sourceFileContains` is set and the model's file cannot contain it. A model loaded from an `.nwd`/`.nwf` file is never pruned this way: the container's own name is not the files its items came from, so only the per-item filter decides |
 
 `prunedModelCount` reports how many were skipped. Their items never reach
 `scannedItemCount`, which is the whole point — the two numbers together say how much of

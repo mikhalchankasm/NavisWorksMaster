@@ -104,8 +104,13 @@ namespace NavisHelper.Agent.Services
                             continue;
 
                         response.ScannedItemCount++;
+                        // Navisworks hides an item's descendants with the item, so a hidden
+                        // item's whole subtree is hidden: skip it, do not descend into it.
                         if (!includeHidden && item.IsHidden)
+                        {
+                            skipThisSubtree = true;
                             continue;
+                        }
 
                         // The box is read before the container check, and for containers
                         // too, because it is now the prune test: a parent box that misses

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Navisworks.Api;
+using NavisHelper.Agent.Contracts;
 
 namespace NavisHelper.Agent.Session
 {
@@ -12,6 +13,7 @@ namespace NavisHelper.Agent.Session
 
         private readonly object _sync = new object();
         private readonly Dictionary<string, Entry> _entries = new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase);
+        private readonly MatchHandleLedger _ledger = new MatchHandleLedger();
         private long _sequence;
 
         public string Add(IList<ModelItem> items)
@@ -33,6 +35,12 @@ namespace NavisHelper.Agent.Session
 
         public bool TryGet(string handle, out IList<ModelItem> items)
         {
+            string reason;
+            return TryGet(handle, out items, out reason);
+        }
+
+        public bool TryGet(string handle, out IList<ModelItem> items, out string reason)
+        {
             lock (_sync)
             {
                 EvictExpiredLocked();
@@ -41,11 +49,13 @@ namespace NavisHelper.Agent.Session
                 if (!_entries.TryGetValue(handle, out entry))
                 {
                     items = null;
+                    reason = _ledger.Explain(handle, _sequence);
                     return false;
                 }
 
                 entry.LastAccessUtc = DateTime.UtcNow;
                 items = entry.Items;
+                reason = string.Empty;
                 return true;
             }
         }
@@ -54,6 +64,8 @@ namespace NavisHelper.Agent.Session
         {
             lock (_sync)
             {
+                foreach (var handle in _entries.Keys)
+                    _ledger.RecordCleared(handle);
                 _entries.Clear();
             }
         }
@@ -68,6 +80,7 @@ namespace NavisHelper.Agent.Session
 
             foreach (var key in expired)
             {
+                _ledger.RecordExpired(key, _entries[key].LastAccessUtc);
                 _entries.Remove(key);
             }
         }
@@ -77,6 +90,7 @@ namespace NavisHelper.Agent.Session
             while (_entries.Count >= MaxEntries)
             {
                 var oldest = _entries.OrderBy(pair => pair.Value.LastAccessUtc).First();
+                _ledger.RecordEvicted(oldest.Key);
                 _entries.Remove(oldest.Key);
             }
         }

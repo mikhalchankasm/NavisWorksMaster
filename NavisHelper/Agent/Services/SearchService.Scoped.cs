@@ -44,7 +44,7 @@ namespace NavisHelper.Agent.Services
 
             List<ModelItem> nativeMatches;
             if (ShouldTryNativeScopedSearch(search, scope, matchDepth, countOnly) &&
-                TryExecuteNativeScopedSearch(document, search, roots, started, out nativeMatches))
+                TryExecuteNativeScopedSearch(document, search, roots, scope, started, out nativeMatches))
             {
                 return BuildNativeScopedResponse(response, search, nativeMatches, previewLimit, sessionStore);
             }
@@ -77,10 +77,10 @@ namespace NavisHelper.Agent.Services
                 previousItem = stack.Peek().Item;
                 if (started.ElapsedMilliseconds > MaxScopedTraversalMilliseconds)
                     throw AbandonScopedTraversal(response.ScannedItemCount, matchedItems, stack,
-                        "Scoped find_items exceeded the 45 second traversal budget. Narrow the scope or use matchDepth=first/countOnly.");
+                        "find_items (scope=" + scope + ") exceeded the 45 second traversal budget. Narrow the scope or use matchDepth=first/countOnly.");
                 if (response.ScannedItemCount >= MaxScopedScannedItems)
                     throw AbandonScopedTraversal(response.ScannedItemCount, matchedItems, stack,
-                        "Scoped find_items exceeded the 1,000,000 item traversal limit. Narrow the scope.");
+                        "find_items (scope=" + scope + ") exceeded the 1,000,000 item traversal limit. Narrow the scope.");
 
                 var node = stack.Pop();
                 var item = node.Item;
@@ -377,8 +377,14 @@ namespace NavisHelper.Agent.Services
                 if (string.IsNullOrWhiteSpace(handle))
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "scopeHandle is required for scope=under_handle.");
                 IList<ModelItem> items;
-                if (!sessionStore.TryGet(handle, out items) || items == null || items.Count == 0)
-                    throw new AgentCommandException(ErrorCodes.StaleMatchReference, "scopeHandle is stale or was not found. Re-run find_items/list_item_children.");
+                string reason;
+                if (!sessionStore.TryGet(handle, out items, out reason) || items == null || items.Count == 0)
+                {
+                    if (string.IsNullOrEmpty(reason))
+                        reason = "This match handle contains no items.";
+                    throw new AgentCommandException(ErrorCodes.StaleMatchReference,
+                        "scopeHandle is stale or was not found. " + reason + " Re-run find_items/list_item_children.");
+                }
                 roots.AddRange(items.Where(item => item != null));
                 return RemoveNestedScopeRoots(roots);
             }

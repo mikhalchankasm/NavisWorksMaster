@@ -87,6 +87,12 @@ namespace NavisHelper.Agent.Contracts
         /// same rig comparison covers it -- if a model can serve items from some other file,
         /// pruning on the model's name would lose them and the counts would differ.
         ///
+        /// A model loaded from an `.nwd` or `.nwf` file breaks that assumption by
+        /// construction: that file is a container, and the model's items report the files
+        /// they were appended from, not the container's own name. Such a model is never
+        /// pruned here whatever the filter -- the container's name is not evidence about
+        /// its items' source files, and the per-item filter decides alone.
+        ///
         /// An empty filter prunes nothing, and an unknown file name is never pruned, for the
         /// same reason unknown extents are not.
         /// </summary>
@@ -97,6 +103,10 @@ namespace NavisHelper.Agent.Contracts
                 return true;
 
             if (string.IsNullOrWhiteSpace(modelSourceFile))
+                return true;
+
+            if (modelSourceFile.EndsWith(".nwd", StringComparison.OrdinalIgnoreCase) ||
+                modelSourceFile.EndsWith(".nwf", StringComparison.OrdinalIgnoreCase))
                 return true;
 
             return modelSourceFile.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
