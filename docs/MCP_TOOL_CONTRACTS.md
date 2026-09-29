@@ -11,6 +11,8 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 
 `mcp_diagnostics` and `mcp_health_check` expose `protocolVersion`, `mcpServerVersion`, and host `pluginVersion`. `protocolVersion` is the additive MCP-server to in-process-host wire contract version. Host status/health/discovery surfaces expose `hostLogFilePath` when the host plugin can compute the NavisHelper log path. If `mcpServerVersion` and `pluginVersion` differ, reinstall/update the NavisHelper bundle and MCP server from the same distribution package before running write tools.
 
+`find_items_by_bbox` applies two of its filters hierarchically: Navisworks hides an item's descendants with the item, so `includeHidden=false` skips the whole subtree of a hidden ancestor rather than the hidden item alone, and a model loaded from an `.nwd` or `.nwf` container is never pruned by `sourceFileContains`, because its items report the files they were appended from, not the container's own name. See the `find_items_by_bbox` section for both rules.
+
 ## Tool capabilities
 
 <!-- BEGIN GENERATED TOOL CAPABILITIES -->
@@ -570,7 +572,7 @@ Inputs:
 | --- | --- | --- | --- |
 | `min`, `max` | `{x,y,z}` | required | Opposite corners of an axis-aligned zone. All six values must be finite and each `min` component must be less than or equal to its corresponding `max` component. |
 | `matchMode` | string | `intersects` | `intersects` returns overlapping item boxes, `contains` returns boxes wholly inside the zone, `center` returns boxes whose center is inside the zone. `overlaps`, `inside`, and `centre` are accepted aliases. |
-| `includeHidden` | bool | `true` | Include hidden model items. |
+| `includeHidden` | bool | `true` | Include hidden model items. Navisworks hides an item's descendants with it, so `false` skips the whole subtree of a hidden ancestor, not just the hidden item itself. |
 | `includeContainers` | bool | `false` | Include non-leaf hierarchy/container items. |
 | `sourceFileContains` | string | `""` | Optional case-insensitive source-file filter. |
 | `maxScannedItems` | int | `100000` | Traversal safety limit, clamped to `1..500000`. The host also has a ten-second runtime budget. |
@@ -607,7 +609,7 @@ cannot hold a match at all:
 | ruled out by | test |
 | --- | --- |
 | its own extents | the model's bounding box does not overlap the requested zone |
-| its source file | `sourceFileContains` is set and the model's file cannot contain it |
+| its source file | `sourceFileContains` is set and the model's file cannot contain it. A model loaded from an `.nwd`/`.nwf` file is never pruned this way: the container's own name is not the files its items came from, so only the per-item filter decides |
 
 `prunedModelCount` reports how many were skipped. Their items never reach
 `scannedItemCount`, which is the whole point — the two numbers together say how much of

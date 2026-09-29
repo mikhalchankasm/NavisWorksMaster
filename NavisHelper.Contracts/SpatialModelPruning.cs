@@ -81,26 +81,36 @@ namespace NavisHelper.Agent.Contracts
         /// <summary>
         /// False when this model's file cannot satisfy a `sourceFileContains` filter.
         ///
-        /// Separate from the extents test because it rests on a different and weaker
-        /// assumption: that the items inside a model report that model's source file. That
-        /// holds for an appended file, which is how `document.Models` is populated, and the
-        /// same rig comparison covers it -- if a model can serve items from some other file,
-        /// pruning on the model's name would lose them and the counts would differ.
-        ///
-        /// An empty filter prunes nothing, and an unknown file name is never pruned, for the
-        /// same reason unknown extents are not.
-        /// </summary>
-        public static bool ModelFileCanSatisfyFilter(string modelSourceFile, string sourceFileContains)
-        {
-            var filter = (sourceFileContains ?? string.Empty).Trim();
-            if (filter.Length == 0)
-                return true;
+    /// Separate from the extents test because it rests on a different and weaker
+    /// assumption: that the items inside a model report that model's source file. That
+    /// holds for an appended file, which is how `document.Models` is populated, and the
+    /// same rig comparison covers it -- if a model can serve items from some other file,
+    /// pruning on the model's name would lose them and the counts would differ.
+    ///
+    /// A model loaded from an `.nwd` or `.nwf` file breaks that assumption by
+    /// construction: that file is a container, and the model's items report the files
+    /// they were appended from, not the container's own name. Such a model is never
+    /// pruned here whatever the filter -- the container's name is not evidence about
+    /// its items' source files, and the per-item filter decides alone.
+    ///
+    /// An empty filter prunes nothing, and an unknown file name is never pruned, for the
+    /// same reason unknown extents are not.
+    /// </summary>
+    public static bool ModelFileCanSatisfyFilter(string modelSourceFile, string sourceFileContains)
+    {
+        var filter = (sourceFileContains ?? string.Empty).Trim();
+        if (filter.Length == 0)
+            return true;
 
-            if (string.IsNullOrWhiteSpace(modelSourceFile))
-                return true;
+        if (string.IsNullOrWhiteSpace(modelSourceFile))
+            return true;
 
-            return modelSourceFile.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
-        }
+        if (modelSourceFile.EndsWith(".nwd", StringComparison.OrdinalIgnoreCase) ||
+            modelSourceFile.EndsWith(".nwf", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return modelSourceFile.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
+    }
 
         private static bool IsFinite(SpatialPoint point) =>
             !double.IsNaN(point.X) && !double.IsInfinity(point.X) &&
