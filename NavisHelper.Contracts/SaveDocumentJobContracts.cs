@@ -16,6 +16,8 @@ namespace NavisHelper.Agent.Contracts
     public sealed class StartSaveDocumentResponse
     {
         public string OperationId { get; set; }
+        /// <summary>The host that owns the job; poll with it as <c>instanceId</c>.</summary>
+        public string InstanceId { get; set; }
         public string State { get; set; }
         public bool IsRunning { get; set; }
         public string Path { get; set; }
@@ -31,6 +33,8 @@ namespace NavisHelper.Agent.Contracts
     public sealed class SaveDocumentStatusResponse
     {
         public string OperationId { get; set; }
+        /// <summary>The host that owns the job; poll with it as <c>instanceId</c>.</summary>
+        public string InstanceId { get; set; }
         public string State { get; set; }
         public bool IsRunning { get; set; }
         public string Path { get; set; }
