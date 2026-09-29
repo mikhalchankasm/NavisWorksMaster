@@ -1824,7 +1824,8 @@ Creates saved viewpoints with persistent `rectangle`, `target`, `arrow`, or `hat
 Rules for `worldBoxes`:
 
 - Each world box becomes its own mark in the requested `markStyle`, with the same color, thickness, padding, and hatch settings as item marks. A world box is never merged with item groups or with other world boxes, regardless of `markSoloMinSizeMm` and `markMergeGapMm`.
-- World boxes require `clusterBy=none` (an empty `clusterBy` without a positive legacy `clusterMaxDistanceMm` also resolves to `none`); any other effective clustering mode is a `schema_violation`.
+- World boxes require `clusterBy=none` (an empty `clusterBy` without a positive legacy `clusterMaxDistanceMm` also resolves to `none`); any other effective clustering mode is a `schema_violation`. A plan with no selected items reports `clusterBy=none`.
+- World boxes require `autoTopView=true`: they are projected through the orthographic top-view snapshot, while a kept perspective camera projects through the live view, which can still show the previous framing right after the fit. `autoTopView=false` with `worldBoxes` is a `schema_violation`.
 - With `worldBoxes` present the selection may be empty: `selectedItemCount=0` is valid instead of `no_selection`. An empty selection produces exactly one viewpoint named `name`, marked only with the world boxes.
 - The camera fit (`autoTopView`/`fitToSelection` with `fitMarginFactor`) covers the union of the selection cluster bounds and all world boxes, so every mark stays inside the saved frame.
 - Box marks count in `markCount` and `soloMarkCount`; a box that cannot be projected into the active camera counts in `skippedItemCount`.

@@ -63,7 +63,12 @@ namespace NavisHelper.Agent.Services
             if (!hasWorldBoxes && (clusterPlan.Clusters.Count == 0 || clusterPlan.Clusters.Any(cluster => cluster.Bounds == null)))
                 throw new AgentCommandException(ErrorCodes.NoSelection, "Unable to determine the bounding box of the active selection.");
             if (hasWorldBoxes && clusterPlan.Clusters.Count == 0)
+            {
+                // A box-only plan: Build returned before assigning a mode, and validation
+                // already required none, so report the mode that actually ran.
                 clusterPlan.Clusters.Add(new SelectionViewpointCluster());
+                clusterPlan.ClusterBy = SelectionClusterModes.None;
+            }
             foreach (var cluster in clusterPlan.Clusters)
                 SelectionMarkupViewpointService.ValidateGroupingSafety(cluster.Items, style);
             var clusterCapApplied = clusterPlan.ClusterCapApplied;
@@ -653,6 +658,12 @@ namespace NavisHelper.Agent.Services
                 var clusterBy = SelectionViewpointClusterService.ValidateOptions(request);
                 if (!string.Equals(clusterBy, SelectionClusterModes.None, StringComparison.Ordinal))
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "worldBoxes are supported only with clusterBy=none.");
+
+                // Boxes are projected through the orthographic top-view snapshot. A kept
+                // perspective camera projects through the live view, which can still show
+                // the previous framing right after the fit, so boxes need autoTopView.
+                if (request.AutoTopView == false)
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, "worldBoxes require autoTopView=true.");
             }
 
             return worldBoxes;
