@@ -1,5 +1,7 @@
+using System.Reflection;
 using System.Text.Json;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.McpServer.Tools;
 using Xunit;
 
 namespace NavisHelper.McpServer.Tests;
@@ -66,6 +68,56 @@ public sealed class MarkupSelectionContractTests
         Assert.Equal(750, root.GetProperty("max_items_for_clustering").GetInt32());
         Assert.True(root.GetProperty("overwrite").GetBoolean());
         Assert.True(root.GetProperty("apply").GetBoolean());
+    }
+
+    [Fact]
+    public void Request_RoundTripsWorldBoxes()
+    {
+        var request = new MarkupSelectionRequest
+        {
+            Name = "Отсутствует труба",
+            MarkStyle = "hatch",
+            ClusterBy = SelectionClusterModes.None,
+            WorldBoxes = new List<MarkupWorldBox>
+            {
+                new MarkupWorldBox
+                {
+                    Min = new SpatialPoint { X = 12000.5, Y = -3400.25, Z = 0 },
+                    Max = new SpatialPoint { X = 15500, Y = -3000, Z = 400 },
+                },
+                new MarkupWorldBox
+                {
+                    Min = new SpatialPoint { X = -1, Y = -2, Z = -3 },
+                    Max = new SpatialPoint { X = 1, Y = 2, Z = 3 },
+                },
+            },
+        };
+
+        using var payload = JsonDocument.Parse(JsonSerializer.Serialize(request, JsonOptions));
+        var boxes = payload.RootElement.GetProperty("world_boxes");
+        Assert.Equal(2, boxes.GetArrayLength());
+        Assert.Equal(12000.5, boxes[0].GetProperty("min").GetProperty("x").GetDouble());
+        Assert.Equal(-3400.25, boxes[0].GetProperty("min").GetProperty("y").GetDouble());
+        Assert.Equal(400, boxes[0].GetProperty("max").GetProperty("z").GetDouble());
+        Assert.Equal(-3, boxes[1].GetProperty("min").GetProperty("z").GetDouble());
+
+        var roundTripped = JsonSerializer.Deserialize<MarkupSelectionRequest>(JsonSerializer.Serialize(request, JsonOptions), JsonOptions);
+        Assert.NotNull(roundTripped.WorldBoxes);
+        Assert.Equal(2, roundTripped.WorldBoxes.Count);
+        Assert.Equal(12000.5, roundTripped.WorldBoxes[0].Min.X);
+        Assert.Equal(-3000, roundTripped.WorldBoxes[0].Max.Y);
+        Assert.Equal(3, roundTripped.WorldBoxes[1].Max.Z);
+    }
+
+    [Fact]
+    public void MarkupSelectionTool_ExposesOptionalWorldBoxesParameter()
+    {
+        var method = typeof(NavisworksMarkupTools).GetMethod(nameof(NavisworksMarkupTools.MarkupSelection));
+
+        var parameter = method!.GetParameters().Single(item => item.Name == "worldBoxes");
+        Assert.Equal(typeof(List<MarkupWorldBox>), parameter.ParameterType);
+        Assert.True(parameter.IsOptional);
+        Assert.Null(parameter.DefaultValue);
     }
 
     [Fact]

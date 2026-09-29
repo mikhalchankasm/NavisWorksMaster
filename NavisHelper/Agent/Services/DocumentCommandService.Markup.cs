@@ -28,8 +28,13 @@ namespace NavisHelper.Agent.Services
             if (string.IsNullOrWhiteSpace(name))
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Viewpoint name is required.");
 
+            var worldBoxes = ValidateMarkupWorldBoxes(request);
+            var hasWorldBoxes = worldBoxes.Count > 0;
             var selectedItems = document.CurrentSelection.SelectedItems;
-            if (selectedItems == null || selectedItems.Count == 0)
+            var selectionItems = selectedItems == null || selectedItems.Count == 0
+                ? new List<ModelItem>()
+                : selectedItems.Cast<ModelItem>().ToList();
+            if (selectionItems.Count == 0 && !hasWorldBoxes)
                 throw new AgentCommandException(ErrorCodes.NoSelection, "There is no active selection to mark up.");
 
             var apply = request.Apply == true;
@@ -54,9 +59,11 @@ namespace NavisHelper.Agent.Services
                 request.HatchSpacingPx,
                 request.HatchSpacingMm,
                 request.HatchThickness);
-            var clusterPlan = SelectionViewpointClusterService.Build(selectedItems.Cast<ModelItem>().ToList(), request);
-            if (clusterPlan.Clusters.Count == 0 || clusterPlan.Clusters.Any(cluster => cluster.Bounds == null))
+            var clusterPlan = SelectionViewpointClusterService.Build(selectionItems, request);
+            if (!hasWorldBoxes && (clusterPlan.Clusters.Count == 0 || clusterPlan.Clusters.Any(cluster => cluster.Bounds == null)))
                 throw new AgentCommandException(ErrorCodes.NoSelection, "Unable to determine the bounding box of the active selection.");
+            if (hasWorldBoxes && clusterPlan.Clusters.Count == 0)
+                clusterPlan.Clusters.Add(new SelectionViewpointCluster());
             foreach (var cluster in clusterPlan.Clusters)
                 SelectionMarkupViewpointService.ValidateGroupingSafety(cluster.Items, style);
             var clusterCapApplied = clusterPlan.ClusterCapApplied;
@@ -103,7 +110,7 @@ namespace NavisHelper.Agent.Services
                 TargetCrosshair = style.TargetCrosshair,
                 MarkSoloMinSizeMm = style.MarkSoloMinSizeMm,
                 MarkMergeGapMm = style.MarkMergeGapMm,
-                SelectedItemCount = selectedItems.Count,
+                SelectedItemCount = selectionItems.Count,
                 NameConflict = nameConflict,
                 Overwrite = overwrite,
                 FolderExists = folderExists,
@@ -133,16 +140,24 @@ namespace NavisHelper.Agent.Services
             if (!TryResolveSavedViewpointFolder(document.SavedViewpoints, folderPath, true, out targetFolder, out folderExists, out createdFolderCount))
                 throw new AgentCommandException(ErrorCodes.CommandFailed, "Unable to resolve the target viewpoint folder.");
 
+            BoundingBox3D worldBoxesBounds = null;
+            if (hasWorldBoxes)
+            {
+                worldBoxesBounds = new BoundingBox3D(
+                    new Point3D(worldBoxes.Min(box => box.Min.X), worldBoxes.Min(box => box.Min.Y), worldBoxes.Min(box => box.Min.Z)),
+                    new Point3D(worldBoxes.Max(box => box.Max.X), worldBoxes.Max(box => box.Max.Y), worldBoxes.Max(box => box.Max.Z)));
+            }
+
             for (var index = 0; index < clusterPlan.Clusters.Count; index++)
             {
                 var cluster = clusterPlan.Clusters[index];
-                ApplyMarkupSelectionCamera(document, cluster.Bounds, autoTopView, fitToSelection, effectiveFitMarginFactor);
+                ApplyMarkupSelectionCamera(document, MergeBounds(cluster.Bounds, worldBoxesBounds), autoTopView, fitToSelection, effectiveFitMarginFactor);
                 if (autoTopView)
                     SectionBoxHelper.Disable();
 
                 // Build against the camera snapshot, not the live viewer. The latter
                 // can still represent the previous cluster until Navisworks redraws.
-                var geometry = SelectionMarkupViewpointService.BuildGeometry(cluster.Items, document.CurrentViewpoint.CreateCopy(), document.ActiveView, style);
+                var geometry = SelectionMarkupViewpointService.BuildGeometry(cluster.Items, document.CurrentViewpoint.CreateCopy(), document.ActiveView, style, worldBoxes);
                 if (geometry.MarkCount == 0)
                     throw new AgentCommandException(ErrorCodes.CommandFailed, "No selected items in cluster " + (index + 1).ToString() + " could be projected into the active camera for markup.");
 
@@ -289,7 +304,8 @@ namespace NavisHelper.Agent.Services
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Viewpoint name is required.");
 
             var selectedItems = document.CurrentSelection.SelectedItems;
-            if (selectedItems == null || selectedItems.Count == 0)
+            var hasSelectedItems = selectedItems != null && selectedItems.Count > 0;
+            if (!hasSelectedItems)
                 throw new AgentCommandException(ErrorCodes.NoSelection, "There is no active selection to section.");
 
             var apply = request.Apply == true;
@@ -612,6 +628,46 @@ namespace NavisHelper.Agent.Services
             return new BoundingBox3D(
                 new Point3D(bounds.Min.X - x, bounds.Min.Y - y, bounds.Min.Z - z),
                 new Point3D(bounds.Max.X + x, bounds.Max.Y + y, bounds.Max.Z + z));
+        }
+
+        private static List<MarkupWorldBox> ValidateMarkupWorldBoxes(MarkupSelectionRequest request)
+        {
+            var worldBoxes = request.WorldBoxes ?? new List<MarkupWorldBox>();
+            for (var index = 0; index < worldBoxes.Count; index++)
+            {
+                try
+                {
+                    SpatialSearchOptionsHelper.ValidateBounds(
+                        worldBoxes[index] == null ? null : worldBoxes[index].Min,
+                        worldBoxes[index] == null ? null : worldBoxes[index].Max);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, "worldBoxes[" + index.ToString() + "]: " + ex.Message);
+                }
+            }
+
+            if (worldBoxes.Count > 0)
+            {
+                // A world box is one mark by definition, so clustering cannot split
+                // or merge them; anything but none would change that contract.
+                var clusterBy = SelectionViewpointClusterService.ValidateOptions(request);
+                if (!string.Equals(clusterBy, SelectionClusterModes.None, StringComparison.Ordinal))
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, "worldBoxes are supported only with clusterBy=none.");
+            }
+
+            return worldBoxes;
+        }
+
+        private static BoundingBox3D MergeBounds(BoundingBox3D left, BoundingBox3D right)
+        {
+            if (left == null)
+                return right;
+            if (right == null)
+                return left;
+            return new BoundingBox3D(
+                new Point3D(Math.Min(left.Min.X, right.Min.X), Math.Min(left.Min.Y, right.Min.Y), Math.Min(left.Min.Z, right.Min.Z)),
+                new Point3D(Math.Max(left.Max.X, right.Max.X), Math.Max(left.Max.Y, right.Max.Y), Math.Max(left.Max.Z, right.Max.Z)));
         }
 
         private static string NormalizeMarkupSelectionSource(string source)

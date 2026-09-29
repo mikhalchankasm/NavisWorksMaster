@@ -1812,3 +1812,20 @@ All Autodesk `Document`/`ModelItem`/visibility access remains synchronous on the
 Timeout layers are coordinated as follows. `isolate_by_box` gives HostBridge an effective budget of `maxDurationSeconds + 100` seconds: 90 seconds are reserved after planning for the two synchronous visibility writes, selection restore, redraw, response creation, and rollback if a write throws; 5 seconds cover bridge discovery/setup; and the named-pipe response margin is 5 seconds. Thus the default bridge/nominal-host budgets are 160/155 seconds and the hard-maximum budgets are 580/575 seconds, below the shared 600-second agent dispatcher cap. A client should allow an additional 5-second response margin: at least 165 seconds for the default or `maxDurationSeconds + 105` seconds in general (585 seconds at the hard maximum). The MCP stdio server adds no separate fixed request deadline, but an external MCP client may cancel earlier. Client cancellation cannot safely abort an already-running Navisworks UI callback; use `last_operation_status` after a disconnect or client timeout. Visibility writes are not split by the classification timer: if a Navisworks visibility call throws, the service attempts to restore the captured per-item visibility state, but forced process termination or an external client disconnect cannot make that synchronous Autodesk transaction universally atomic.
 
 For Scenario Library exact replay: call `get_current_section_box` before authoring, preview/apply `isolate_by_box`, then save only `isolate_by_box` with the returned `box`, chosen `maxScannedItems`, and chosen `maxDurationSeconds` embedded as literals. The step safety envelope must repeat the same `maxDurationSeconds`; both the literal argument and safety value participate in the canonical fingerprint. Runtime references and argument/safety mismatches are rejected. Do not store capture, `$stepResult`, match handles, selection dependencies, or a fallback to the current Section Box. `get_current_section_box` is intentionally absent from the scenario allowlist; `isolate_by_box` is an allowlisted mutating tool with `apply`.
+
+## `markup_selection`
+
+Creates saved viewpoints with persistent `rectangle`, `target`, `arrow`, or `hatch` marks around hybrid groups of the current selection, as described in `docs/MTR_MARKUP_WORKFLOW.md`. One parameter extends that contract to places where nothing can be selected:
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `worldBoxes` | array of `{min, max}` | `[]` | Optional explicit world boxes to mark in addition to the selection, for example a place a drawing says a pipe should occupy while the model has nothing there. Each `min`/`max` is an `{x, y, z}` point in raw global coordinates of the active document's native units, exactly like `find_items_by_bbox`; no local-origin, grid, rotation, or unit transform is applied. All six values of every box must be finite and each `min` component must not exceed its `max` component, otherwise `schema_violation`. |
+
+Rules for `worldBoxes`:
+
+- Each world box becomes its own mark in the requested `markStyle`, with the same color, thickness, padding, and hatch settings as item marks. A world box is never merged with item groups or with other world boxes, regardless of `markSoloMinSizeMm` and `markMergeGapMm`.
+- World boxes require `clusterBy=none` (an empty `clusterBy` without a positive legacy `clusterMaxDistanceMm` also resolves to `none`); any other effective clustering mode is a `schema_violation`.
+- With `worldBoxes` present the selection may be empty: `selectedItemCount=0` is valid instead of `no_selection`. An empty selection produces exactly one viewpoint named `name`, marked only with the world boxes.
+- The camera fit (`autoTopView`/`fitToSelection` with `fitMarginFactor`) covers the union of the selection cluster bounds and all world boxes, so every mark stays inside the saved frame.
+- Box marks count in `markCount` and `soloMarkCount`; a box that cannot be projected into the active camera counts in `skippedItemCount`.
+

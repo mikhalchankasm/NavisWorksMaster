@@ -106,7 +106,12 @@ namespace NavisHelper.Agent.Services
             };
         }
 
-        public static SelectionMarkupGeometry BuildGeometry(IEnumerable<ModelItem> items, Viewpoint viewpoint, Autodesk.Navisworks.Api.View fallbackView, SelectionMarkupStyle style)
+        public static SelectionMarkupGeometry BuildGeometry(
+            IEnumerable<ModelItem> items,
+            Viewpoint viewpoint,
+            Autodesk.Navisworks.Api.View fallbackView,
+            SelectionMarkupStyle style,
+            IList<MarkupWorldBox> worldBoxes = null)
         {
             if (viewpoint == null)
                 throw new AgentCommandException(ErrorCodes.NoActiveView, "There is no viewpoint for markup projection.");
@@ -157,6 +162,34 @@ namespace NavisHelper.Agent.Services
                     soloMarkCount++;
                 else
                     mergedMarkCount++;
+            }
+
+            // A world box names a place, not a group of items, so it is always its
+            // own mark in the requested style and never enters the grouping above.
+            foreach (var worldBox in worldBoxes ?? new List<MarkupWorldBox>())
+            {
+                if (worldBox == null || worldBox.Min == null || worldBox.Max == null)
+                {
+                    skippedItemCount++;
+                    continue;
+                }
+
+                var rect = ProjectBounds(
+                    new BoundingBox3D(
+                        new Point3D(worldBox.Min.X, worldBox.Min.Y, worldBox.Min.Z),
+                        new Point3D(worldBox.Max.X, worldBox.Max.Y, worldBox.Max.Z)),
+                    viewpoint,
+                    fallbackView,
+                    style.PaddingFactor,
+                    minimumRadii);
+                if (rect == null)
+                {
+                    skippedItemCount++;
+                    continue;
+                }
+
+                markRects.Add(rect);
+                soloMarkCount++;
             }
 
             int arrowCount;
