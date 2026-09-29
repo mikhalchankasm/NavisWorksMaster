@@ -38,6 +38,9 @@ namespace NavisHelper.Agent.Contracts
             get { return Remaining <= 0; }
         }
 
+        /// <param name="budgetMs">The deadline on the <paramref name="elapsedMs"/> clock:
+        /// the handler has run out when that clock reaches it.</param>
+        /// <param name="elapsedMs">The clock, in milliseconds since its own origin.</param>
         public static IDisposable Begin(long budgetMs, Func<long> elapsedMs)
         {
             var previous = _current;

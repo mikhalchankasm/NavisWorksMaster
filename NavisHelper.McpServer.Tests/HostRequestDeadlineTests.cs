@@ -29,6 +29,17 @@ public sealed class HostRequestDeadlineTests
     }
 
     [Fact]
+    public void Remaining_CountsTimeSpentBeforeBeginOnlyOnce()
+    {
+        // A 60 s request with a 6 s reserve whose UI callback started 20 s late.
+        var clock = new FakeClock { ElapsedMs = 20000 };
+        using (HostRequestDeadline.Begin(60000 - 6000, clock.Read))
+        {
+            Assert.Equal(34000, HostRequestDeadline.Current.Remaining);
+        }
+    }
+
+    [Fact]
     public void Expired_WhenTheBudgetIsSpent()
     {
         var clock = new FakeClock { ElapsedMs = 1500 };

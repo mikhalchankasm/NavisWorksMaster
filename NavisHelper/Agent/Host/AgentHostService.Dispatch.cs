@@ -67,10 +67,11 @@ namespace NavisHelper.Agent.Host
                     "AgentHost");
 
                 // The client stops waiting at timeoutMs; serializing the reply and
-                // writing the frame need the reserve, so the handlers' budget is
-                // what is left of the request's own clock.
+                // writing the frame need the reserve. The deadline is measured on
+                // the request's own clock, which already counts the UI wait, so it
+                // is not reduced by the time elapsed so far.
                 var reserveMs = Math.Max(2000, timeoutMs / 10);
-                var budgetMs = timeoutMs - startedAt.ElapsedMilliseconds - reserveMs;
+                var budgetMs = timeoutMs - reserveMs;
                 using (HostRequestDeadline.Begin(budgetMs, () => startedAt.ElapsedMilliseconds))
                 {
                     if (string.Equals(command, HostCommandNames.FindItems, StringComparison.OrdinalIgnoreCase))
