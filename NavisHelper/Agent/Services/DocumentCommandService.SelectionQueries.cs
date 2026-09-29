@@ -265,6 +265,15 @@ namespace NavisHelper.Agent.Services
 
             foreach (ModelItem item in selectedItems.Take(maxItems))
             {
+                var deadline = HostRequestDeadline.Current;
+                if (deadline != null && deadline.Expired)
+                {
+                    response.Truncated = true;
+                    response.DeadlineTruncated = true;
+                    response.ReturnedItemCount = selectionIndex;
+                    break;
+                }
+
                 var chainItems = BuildItemChain(item);
                 if (chainItems.Count == 0)
                     continue;
