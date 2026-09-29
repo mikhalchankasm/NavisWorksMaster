@@ -30,8 +30,14 @@ namespace NavisHelper.Agent.Services
                 throw new ArgumentNullException(nameof(sessionStore));
 
             IList<ModelItem> items;
-            if (!sessionStore.TryGet(parentMatchHandle, out items) || items == null || items.Count == 0)
-                throw new AgentCommandException(ErrorCodes.StaleMatchReference, "parentMatchHandle is stale or was not found. Re-run find_items/list_item_children and retry.");
+            string reason;
+            if (!sessionStore.TryGet(parentMatchHandle, out items, out reason) || items == null || items.Count == 0)
+            {
+                if (string.IsNullOrEmpty(reason))
+                    reason = "This match handle contains no items.";
+                throw new AgentCommandException(ErrorCodes.StaleMatchReference,
+                    "parentMatchHandle is stale or was not found. " + reason + " Re-run find_items/list_item_children and retry.");
+            }
 
             // Group by item identity, not by the display-name path: a handle can
             // legitimately hold two distinct siblings that share a name, and that

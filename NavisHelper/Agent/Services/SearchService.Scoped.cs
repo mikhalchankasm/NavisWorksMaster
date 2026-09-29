@@ -320,8 +320,14 @@ namespace NavisHelper.Agent.Services
                 if (string.IsNullOrWhiteSpace(handle))
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "scopeHandle is required for scope=under_handle.");
                 IList<ModelItem> items;
-                if (!sessionStore.TryGet(handle, out items) || items == null || items.Count == 0)
-                    throw new AgentCommandException(ErrorCodes.StaleMatchReference, "scopeHandle is stale or was not found. Re-run find_items/list_item_children.");
+                string reason;
+                if (!sessionStore.TryGet(handle, out items, out reason) || items == null || items.Count == 0)
+                {
+                    if (string.IsNullOrEmpty(reason))
+                        reason = "This match handle contains no items.";
+                    throw new AgentCommandException(ErrorCodes.StaleMatchReference,
+                        "scopeHandle is stale or was not found. " + reason + " Re-run find_items/list_item_children.");
+                }
                 roots.AddRange(items.Where(item => item != null));
                 return RemoveNestedScopeRoots(roots);
             }
