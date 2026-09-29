@@ -37,6 +37,7 @@ builder.Services
     .WithTools<NavisworksDocumentTools>()
     .WithTools<NavisworksHostTools>()
     .WithTools<NavisworksMarkupTools>()
+    .WithTools<NavisworksMatchHandleTools>()
     .WithTools<NavisworksModelTools>()
     .WithTools<NavisworksSelectionSetTools>()
     .WithTools<NavisworksSelectionTools>()
