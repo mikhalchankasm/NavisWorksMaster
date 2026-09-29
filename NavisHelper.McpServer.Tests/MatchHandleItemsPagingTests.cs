@@ -163,4 +163,46 @@ public sealed class MatchHandleItemsPagingTests
 
         Assert.Equal(new[] { 0, 1, 2, 3 }, offsets);
     }
-}  
+
+    [Fact]
+    public void Shorten_CutsThePageAndTheNextOffsetFollowsTheCut()
+    {
+        var page = MatchHandleItemsPaging.Plan(1000, 500, 10000);
+
+        var cut = MatchHandleItemsPaging.Shorten(page, 120);
+
+        Assert.Equal(10000, cut.TotalItemCount);
+        Assert.Equal(1000, cut.Offset);
+        Assert.Equal(500, cut.Limit);
+        Assert.Equal(120, cut.ReturnedItemCount);
+        Assert.Equal(1120, cut.NextOffset);
+        Assert.True(cut.HasMore);
+    }
+
+    [Fact]
+    public void Shorten_OnTheLastPageStillReportsWhatIsLeft()
+    {
+        var page = MatchHandleItemsPaging.Plan(9800, 500, 10000);
+
+        var cut = MatchHandleItemsPaging.Shorten(page, 50);
+
+        Assert.Equal(9850, cut.NextOffset);
+        Assert.True(cut.HasMore);
+        Assert.False(MatchHandleItemsPaging.Shorten(page, 200).HasMore);
+    }
+
+    [Fact]
+    public void Shorten_RejectsMoreRowsThanThePageHas()
+    {
+        var page = MatchHandleItemsPaging.Plan(0, 10, 5);
+
+        Assert.Throws<System.ArgumentOutOfRangeException>(() => MatchHandleItemsPaging.Shorten(page, 6));
+        Assert.Throws<System.ArgumentOutOfRangeException>(() => MatchHandleItemsPaging.Shorten(page, -1));
+    }
+
+    [Fact]
+    public void ThePageByteBudgetStaysBelowThePipeFrame()
+    {
+        Assert.True(MatchHandleItemsPaging.MaxPageBytes < ProtocolConstants.MaxFrameLengthBytes);
+    }
+}

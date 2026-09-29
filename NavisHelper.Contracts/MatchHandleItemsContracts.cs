@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace NavisHelper.Agent.Contracts
@@ -20,6 +21,13 @@ namespace NavisHelper.Agent.Contracts
         public int ReturnedItemCount { get; set; }
         public int NextOffset { get; set; }
         public bool HasMore { get; set; }
+
+        /// <summary>
+        /// True when the page stopped before <see cref="Limit"/> rows because its
+        /// items reached <see cref="MatchHandleItemsPaging.MaxPageBytes"/>. The
+        /// counts and <see cref="NextOffset"/> describe the rows actually returned.
+        /// </summary>
+        public bool SizeLimited { get; set; }
         public List<MatchHandleItemInfo> Items { get; set; } = new List<MatchHandleItemInfo>();
     }
 
@@ -65,6 +73,14 @@ namespace NavisHelper.Agent.Contracts
         public const int MinLimit = 1;
         public const int MaxLimit = 5000;
 
+        /// <summary>
+        /// Byte budget for one page's items, below the 4 MiB named-pipe frame. Past
+        /// the frame the transport trims arrays after the handler returns, which
+        /// would leave <see cref="MatchHandleItemsPage.NextOffset"/> beyond rows the
+        /// caller never received.
+        /// </summary>
+        public const int MaxPageBytes = 3 * 1024 * 1024;
+
         public static int ClampOffset(int? offset)
         {
             var value = offset.GetValueOrDefault(DefaultOffset);
@@ -96,6 +112,30 @@ namespace NavisHelper.Agent.Contracts
                 ReturnedItemCount = returned,
                 NextOffset = next > int.MaxValue ? int.MaxValue : (int)next,
                 HasMore = next < totalItemCount,
+            };
+        }
+
+        /// <summary>
+        /// The same page cut to its first <paramref name="returned"/> rows, with
+        /// <see cref="MatchHandleItemsPage.NextOffset"/> and
+        /// <see cref="MatchHandleItemsPage.HasMore"/> following the cut.
+        /// </summary>
+        public static MatchHandleItemsPage Shorten(MatchHandleItemsPage page, int returned)
+        {
+            if (page == null)
+                throw new ArgumentNullException(nameof(page));
+            if (returned < 0 || returned > page.ReturnedItemCount)
+                throw new ArgumentOutOfRangeException(nameof(returned));
+
+            var next = (long)page.Offset + returned;
+            return new MatchHandleItemsPage
+            {
+                TotalItemCount = page.TotalItemCount,
+                Offset = page.Offset,
+                Limit = page.Limit,
+                ReturnedItemCount = returned,
+                NextOffset = next > int.MaxValue ? int.MaxValue : (int)next,
+                HasMore = next < page.TotalItemCount,
             };
         }
     }

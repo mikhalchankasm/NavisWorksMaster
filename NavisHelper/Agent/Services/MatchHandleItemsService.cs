@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Agent.Session;
@@ -62,28 +63,53 @@ namespace NavisHelper.Agent.Services
                 return response;
 
             // An item's source file is the nearest file node at or above it: under an
-            // .rvm appended to an .nwd that is the .rvm, not the document root. Each
-            // ancestor is looked up once per call, keyed by its printed path; that key
-            // decides only a reported string -- which item is on the page is decided
-            // by the handle's own list order, so no row can be dropped or merged.
-            var sourceFilesByPath = includeSourceFiles
-                ? new Dictionary<string, string>(StringComparer.Ordinal)
+            // .rvm appended to an .nwd that is the .rvm, not the document root. The
+            // answer is cached per ancestor by item identity (ModelItem.Equals compares
+            // the native object), because two appended files can share a display name
+            // and so a printed path. The cached ancestors are released with the page.
+            var sourceFilesByItem = includeSourceFiles
+                ? new Dictionary<ModelItem, string>()
                 : null;
+            var pageBytes = 0L;
             var index = 0;
-
-            foreach (var item in items)
+            try
             {
-                if (item == null)
-                    continue;
-
-                if (index >= page.Offset)
+                foreach (var item in items)
                 {
-                    response.Items.Add(BuildItem(index, item, includePaths, includeSourceFiles, sourceFilesByPath));
-                    if (response.Items.Count == page.ReturnedItemCount)
-                        break;
-                }
+                    if (item == null)
+                        continue;
 
-                index++;
+                    if (index >= page.Offset)
+                    {
+                        var info = BuildItem(index, item, includePaths, sourceFilesByItem);
+                        pageBytes += EstimateBytes(info);
+                        if (response.Items.Count > 0 && pageBytes > MatchHandleItemsPaging.MaxPageBytes)
+                        {
+                            // Past the pipe frame the transport would trim rows after
+                            // nextOffset is set; stop here so the counts stay true.
+                            var cut = MatchHandleItemsPaging.Shorten(page, response.Items.Count);
+                            response.ReturnedItemCount = cut.ReturnedItemCount;
+                            response.NextOffset = cut.NextOffset;
+                            response.HasMore = cut.HasMore;
+                            response.SizeLimited = true;
+                            break;
+                        }
+
+                        response.Items.Add(info);
+                        if (response.Items.Count == page.ReturnedItemCount)
+                            break;
+                    }
+
+                    index++;
+                }
+            }
+            finally
+            {
+                if (sourceFilesByItem != null)
+                {
+                    foreach (var ancestor in sourceFilesByItem.Keys)
+                        DisposeWrapper(ancestor);
+                }
             }
 
             return response;
@@ -105,8 +131,7 @@ namespace NavisHelper.Agent.Services
             int index,
             ModelItem item,
             bool includePaths,
-            bool includeSourceFiles,
-            IDictionary<string, string> sourceFilesByPath)
+            IDictionary<ModelItem, string> sourceFilesByItem)
         {
             var info = new MatchHandleItemInfo
             {
@@ -117,17 +142,42 @@ namespace NavisHelper.Agent.Services
                 SourceFile = string.Empty,
             };
 
-            if (!includePaths && !includeSourceFiles)
+            if (!includePaths && sourceFilesByItem == null)
                 return info;
 
             var chain = BuildItemChain(item);
-            var chainPaths = ItemChainPaths.Build(BuildChainNames(chain));
-            if (includePaths)
-                info.Path = chainPaths[chain.Count - 1];
-            if (includeSourceFiles)
-                info.SourceFile = GetSourceFileCached(sourceFilesByPath, chain, chainPaths);
+            var cached = new List<ModelItem>();
+            try
+            {
+                if (includePaths)
+                    info.Path = ItemChainPaths.Build(BuildChainNames(chain))[chain.Count - 1];
+                if (sourceFilesByItem != null)
+                    info.SourceFile = GetSourceFileCached(sourceFilesByItem, chain, cached);
+            }
+            finally
+            {
+                // The ancestors are fresh Parent wrappers this call owns (ARCHITECTURE.md,
+                // TECH-W13 disposal rules). The top one is left alone because it may be the
+                // cached model root, the last one is the handle's own item, and the ones the
+                // source-file cache keeps as keys are released with the cache.
+                for (var depth = 1; depth < chain.Count - 1; depth++)
+                {
+                    if (!cached.Exists(kept => ReferenceEquals(kept, chain[depth])))
+                        DisposeWrapper(chain[depth]);
+                }
+            }
 
             return info;
+        }
+
+        private static long EstimateBytes(MatchHandleItemInfo info)
+        {
+            // UTF-8 text of the four strings plus the field names and numbers around them.
+            return 128L
+                + Encoding.UTF8.GetByteCount(info.DisplayName ?? string.Empty)
+                + Encoding.UTF8.GetByteCount(info.ClassDisplayName ?? string.Empty)
+                + Encoding.UTF8.GetByteCount(info.Path ?? string.Empty)
+                + Encoding.UTF8.GetByteCount(info.SourceFile ?? string.Empty);
         }
 
         private static List<ModelItem> BuildItemChain(ModelItem item)
@@ -168,31 +218,47 @@ namespace NavisHelper.Agent.Services
         }
 
         private static string GetSourceFileCached(
-            IDictionary<string, string> sourceFilesByPath,
+            IDictionary<ModelItem, string> sourceFilesByItem,
             IList<ModelItem> chain,
-            IReadOnlyList<string> chainPaths)
+            ICollection<ModelItem> cached)
         {
-            // Climb from the item until a node has the property or a cached answer;
-            // every node passed on the way has no property of its own, so it shares
-            // the answer found above it.
-            var passed = new List<string>();
+            // Climb from the item until a node has the property or a cached answer.
+            // Every ancestor passed on the way has no property of its own, so it shares
+            // the answer found above it. Neither the handle's own item nor the top of
+            // the chain becomes a key: the cache's keys are disposed with it.
+            var passed = new List<ModelItem>();
             string sourceFile = null;
             for (var depth = chain.Count - 1; depth >= 0 && sourceFile == null; depth--)
             {
-                if (sourceFilesByPath.TryGetValue(chainPaths[depth], out sourceFile))
+                var node = chain[depth];
+                var isAncestor = depth > 0 && depth < chain.Count - 1;
+                if (isAncestor && sourceFilesByItem.TryGetValue(node, out sourceFile))
                     break;
 
-                passed.Add(chainPaths[depth]);
-                var property = NativePropertyLookup.FindSourceFileProperty(chain[depth]);
+                if (isAncestor)
+                    passed.Add(node);
+                var property = NativePropertyLookup.FindSourceFileProperty(node);
                 if (property != null)
                     sourceFile = GetPropertyDisplayValue(property);
             }
 
             sourceFile = sourceFile ?? string.Empty;
-            foreach (var path in passed)
-                sourceFilesByPath[path] = sourceFile;
+            foreach (var node in passed)
+            {
+                sourceFilesByItem[node] = sourceFile;
+                cached.Add(node);
+            }
 
             return sourceFile;
+        }
+
+        private static void DisposeWrapper(ModelItem item)
+        {
+            // An interop call that can throw on a torn-down document; cleanup must
+            // never become the failure the caller sees.
+            if (item == null)
+                return;
+            try { item.Dispose(); } catch (Exception) { }
         }
 
         private static string GetPropertyDisplayValue(DataProperty property)
