@@ -261,8 +261,9 @@ namespace NavisHelper.Agent.Services
                 return false;
             if (prepared.EqualsValues != null)
             {
-                var name = item == null ? string.Empty : item.DisplayName ?? string.Empty;
-                return !string.IsNullOrWhiteSpace(name) &&
+                // Same name source as the per-condition path, so the two can never disagree.
+                string name;
+                return TryGetDefaultItemNameValue(item, out name) &&
                        prepared.EqualsValues.Contains(NormalizeConditionString(name, prepared.EqualsReference));
             }
 
