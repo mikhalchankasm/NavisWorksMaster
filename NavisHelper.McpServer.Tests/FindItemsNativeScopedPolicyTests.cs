@@ -66,8 +66,8 @@ public sealed class FindItemsNativeScopedPolicyTests
     [InlineData(FindItemsScopes.UnderHandle, true)]
     [InlineData(FindItemsScopes.UnderNamedNode, true)]
     [InlineData(FindItemsScopes.CurrentSelection, true)]
-    // whole_model has its own native routing and must not be taken over here.
-    [InlineData(FindItemsScopes.WholeModel, false)]
+    // whole_model also resolves explicit model roots for the native search.
+    [InlineData(FindItemsScopes.WholeModel, true)]
     public void IsEligible_CoversEveryScopeThatResolvesExplicitRoots(string scope, bool expected)
     {
         Assert.Equal(

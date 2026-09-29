@@ -100,10 +100,8 @@ namespace NavisHelper.Agent.Contracts
             if (!string.Equals(matchDepth, FindItemsMatchDepths.First, StringComparison.Ordinal))
                 return false;
 
-            // whole_model keeps its own native routing; this path is for the
-            // scoped executor, which is the only one that resolves explicit roots.
-            if (string.Equals(scope, FindItemsScopes.WholeModel, StringComparison.Ordinal))
-                return false;
+            // whole_model resolves model roots explicitly, so it can use the
+            // same engine-pruned path as narrower scopes.
 
             // Native SearchConditions are ANDed. Anything with OR semantics,
             // whether at the search level or between conditions, stays manual.
