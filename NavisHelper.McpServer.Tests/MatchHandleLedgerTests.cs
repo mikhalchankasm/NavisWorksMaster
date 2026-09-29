@@ -45,6 +45,9 @@ namespace NavisHelper.McpServer.Tests
 
             Assert.Equal("This match handle was never issued by this host.", ledger.Explain("mh_000004", 3));
             Assert.Equal("This match handle was never issued by this host.", ledger.Explain("other_000001", 3));
+            // Only the store's own spelling (mh_ + six digits) can ever have been issued.
+            Assert.Equal("This match handle was never issued by this host.", ledger.Explain("mh_1", 3));
+            Assert.Equal("This match handle was never issued by this host.", ledger.Explain("mh_0000001", 3));
         }
 
         [Fact]

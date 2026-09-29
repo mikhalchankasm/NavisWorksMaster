@@ -38,7 +38,9 @@ namespace NavisHelper.Agent.Contracts
             if (string.IsNullOrEmpty(handle) ||
                 !handle.StartsWith("mh_", StringComparison.OrdinalIgnoreCase) ||
                 !long.TryParse(handle.Substring(3), NumberStyles.None, CultureInfo.InvariantCulture, out sequence) ||
-                sequence < 1 || sequence > lastIssuedSequence)
+                sequence < 1 || sequence > lastIssuedSequence ||
+                // The store issues exactly "mh_" + D6; mh_1 or mh_0000001 can never match it.
+                !string.Equals(handle, "mh_" + sequence.ToString("D6", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase))
                 return "This match handle was never issued by this host.";
 
             lock (_removals)
