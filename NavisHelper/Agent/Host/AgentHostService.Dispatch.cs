@@ -204,7 +204,7 @@ namespace NavisHelper.Agent.Host
                     payload = _clashBatchRunService.Cancel(DeserializePayload<CancelClashRunRequest>(payloadToken));
                     break;
                 case HostRequestGateBypassKind.SaveDocumentStatus:
-                    payload = _saveDocumentJobService.Status(DeserializePayload<SaveDocumentStatusRequest>(payloadToken));
+                    payload = AttachInstanceId(_saveDocumentJobService.Status(DeserializePayload<SaveDocumentStatusRequest>(payloadToken)));
                     break;
                 default:
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "Unsupported request gate bypass command: " + command);
@@ -336,6 +336,20 @@ namespace NavisHelper.Agent.Host
         }
 
         private DumpSubtreeNamesJobStatusResponse AttachInstanceId(DumpSubtreeNamesJobStatusResponse response)
+        {
+            if (response != null)
+                response.InstanceId = _instanceId ?? string.Empty;
+            return response;
+        }
+
+        private StartSaveDocumentResponse AttachInstanceId(StartSaveDocumentResponse response)
+        {
+            if (response != null)
+                response.InstanceId = _instanceId ?? string.Empty;
+            return response;
+        }
+
+        private SaveDocumentStatusResponse AttachInstanceId(SaveDocumentStatusResponse response)
         {
             if (response != null)
                 response.InstanceId = _instanceId ?? string.Empty;
