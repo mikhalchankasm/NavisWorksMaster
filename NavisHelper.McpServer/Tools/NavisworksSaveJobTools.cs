@@ -13,7 +13,7 @@ internal sealed class NavisworksSaveJobTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Starts an asynchronous save of the active Navisworks document to its current path and returns immediately with an operationId. The save itself keeps running on the Navisworks UI thread; poll save_document_status, which stays answerable while the save runs. Only one save job may run at a time. For a synchronous save use save_document.")]
+    [Description("Starts an asynchronous save of the active Navisworks document to its current path and returns immediately with an operationId and the instanceId of the host that owns the job. The save itself keeps running on the Navisworks UI thread; poll save_document_status with both, which stays answerable while the save runs. Only one save job may run at a time. For a synchronous save use save_document.")]
     [ToolCapabilities(ToolEffects.Document | ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<StartSaveDocumentResponse> StartSaveDocument(
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",

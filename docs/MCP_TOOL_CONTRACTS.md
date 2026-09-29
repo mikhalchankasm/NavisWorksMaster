@@ -1732,8 +1732,10 @@ Navisworks UI thread, and `save_document_status` stays answerable while it runs.
 | `instanceId` | string | `""` | Optional explicit Navisworks host. |
 | `navisworksVersion` | string | `""` | Optional version filter. |
 
-Key outputs: `operationId`, `state` (`running`), `isRunning`, `path` (the
-resolved current path), `elapsedMs`, `message`.
+Key outputs: `operationId`, `instanceId` (the host that owns the job; poll with
+it), `state` (`running`), `isRunning`, `path` (the resolved current path),
+`elapsedMs`, `message`. If the save cannot be scheduled on the UI thread, start
+fails with that error and the job is recorded as `failed`.
 
 One job at a time. A second `start_save_document` while the job is `running` is
 a `schema_violation`; poll `save_document_status` until it reports `completed`
@@ -1748,7 +1750,7 @@ the UI thread wait behind it; poll only `save_document_status` until it is done.
 Inputs are `operationId` (required), optional `instanceId`, and optional
 `navisworksVersion`.
 
-Key outputs: `operationId`, `state` (`running|completed|failed`), `isRunning`,
+Key outputs: `operationId`, `instanceId`, `state` (`running|completed|failed`), `isRunning`,
 `path`, `format`, `fileSizeBytes`, `elapsedMs`, `errorMessage`,
 `startedAtUtc`, `completedAtUtc`, `message`. `elapsedMs` tracks the current time
 while running and freezes at completion.
