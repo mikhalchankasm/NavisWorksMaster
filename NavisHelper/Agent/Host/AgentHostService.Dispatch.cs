@@ -203,6 +203,9 @@ namespace NavisHelper.Agent.Host
                 case HostRequestGateBypassKind.CancelClashRun:
                     payload = _clashBatchRunService.Cancel(DeserializePayload<CancelClashRunRequest>(payloadToken));
                     break;
+                case HostRequestGateBypassKind.SaveDocumentStatus:
+                    payload = _saveDocumentJobService.Status(DeserializePayload<SaveDocumentStatusRequest>(payloadToken));
+                    break;
                 default:
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "Unsupported request gate bypass command: " + command);
             }

@@ -14,6 +14,7 @@ public sealed class HostRequestPolicyTests
         { HostCommandNames.CancelSubtreeNamesDump, HostRequestGateBypassKind.CancelSubtreeNamesDump, false },
         { HostCommandNames.ClashRunStatus, HostRequestGateBypassKind.ClashRunStatus, true },
         { HostCommandNames.CancelClashRun, HostRequestGateBypassKind.CancelClashRun, false },
+        { HostCommandNames.SaveDocumentStatus, HostRequestGateBypassKind.SaveDocumentStatus, true },
     };
 
     [Theory]
@@ -57,7 +58,7 @@ public sealed class HostRequestPolicyTests
             .Select(field => (string)field.GetRawConstantValue()!)
             .ToArray();
 
-        Assert.Equal(91, commands.Length);
+        Assert.Equal(93, commands.Length);
         Assert.Equal(
             new[]
             {
@@ -67,6 +68,7 @@ public sealed class HostRequestPolicyTests
                 HostCommandNames.ClashReportStatus,
                 HostCommandNames.ClashRunStatus,
                 HostCommandNames.LastOperationStatus,
+                HostCommandNames.SaveDocumentStatus,
             },
             commands.Where(HostRequestPolicy.IsRequestGateBypassCommand).OrderBy(command => command));
         Assert.Equal(
@@ -75,6 +77,7 @@ public sealed class HostRequestPolicyTests
                 HostCommandNames.ClashReportStatus,
                 HostCommandNames.ClashRunStatus,
                 HostCommandNames.LastOperationStatus,
+                HostCommandNames.SaveDocumentStatus,
             },
             commands.Where(HostRequestPolicy.IsOperationStatusPollCommand).OrderBy(command => command));
     }
@@ -125,6 +128,7 @@ public sealed class HostRequestPolicyTests
     [Theory]
     [InlineData("clash_report_status")]
     [InlineData("clash_run_status")]
+    [InlineData("save_document_status")]
     public void TheOtherStatusPollsAreExcludedToo_BecauseTheyAreNeverRecorded(string command)
     {
         // An earlier version of CountsAsLastOperation excluded only
