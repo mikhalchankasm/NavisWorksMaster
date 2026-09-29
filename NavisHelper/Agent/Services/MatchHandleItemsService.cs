@@ -61,13 +61,12 @@ namespace NavisHelper.Agent.Services
             if (page.ReturnedItemCount == 0)
                 return response;
 
-            // One source-file read per root path rather than per item: the property
-            // lives on the model node, so a page of one appended file would otherwise
-            // climb to the same root for every item. The key is the printed root path,
-            // as in selected_items_tree, and it decides only a reported string -- which
-            // item is on the page is decided by the handle's own list order, so two
-            // roots sharing a display name cannot drop or merge a row here.
-            var sourceFilesByRootPath = includeSourceFiles
+            // An item's source file is the nearest file node at or above it: under an
+            // .rvm appended to an .nwd that is the .rvm, not the document root. Each
+            // ancestor is looked up once per call, keyed by its printed path; that key
+            // decides only a reported string -- which item is on the page is decided
+            // by the handle's own list order, so no row can be dropped or merged.
+            var sourceFilesByPath = includeSourceFiles
                 ? new Dictionary<string, string>(StringComparer.Ordinal)
                 : null;
             var index = 0;
@@ -79,7 +78,7 @@ namespace NavisHelper.Agent.Services
 
                 if (index >= page.Offset)
                 {
-                    response.Items.Add(BuildItem(index, item, includePaths, includeSourceFiles, sourceFilesByRootPath));
+                    response.Items.Add(BuildItem(index, item, includePaths, includeSourceFiles, sourceFilesByPath));
                     if (response.Items.Count == page.ReturnedItemCount)
                         break;
                 }
@@ -107,7 +106,7 @@ namespace NavisHelper.Agent.Services
             ModelItem item,
             bool includePaths,
             bool includeSourceFiles,
-            IDictionary<string, string> sourceFilesByRootPath)
+            IDictionary<string, string> sourceFilesByPath)
         {
             var info = new MatchHandleItemInfo
             {
@@ -126,7 +125,7 @@ namespace NavisHelper.Agent.Services
             if (includePaths)
                 info.Path = chainPaths[chain.Count - 1];
             if (includeSourceFiles)
-                info.SourceFile = GetSourceFileCached(sourceFilesByRootPath, chainPaths[0], chain[0]);
+                info.SourceFile = GetSourceFileCached(sourceFilesByPath, chain, chainPaths);
 
             return info;
         }
@@ -169,32 +168,31 @@ namespace NavisHelper.Agent.Services
         }
 
         private static string GetSourceFileCached(
-            IDictionary<string, string> sourceFilesByRootPath,
-            string rootPath,
-            ModelItem rootItem)
+            IDictionary<string, string> sourceFilesByPath,
+            IList<ModelItem> chain,
+            IList<string> chainPaths)
         {
-            string sourceFile;
-            if (sourceFilesByRootPath.TryGetValue(rootPath, out sourceFile))
-                return sourceFile;
-
-            sourceFile = TryGetSourceFile(rootItem);
-            sourceFilesByRootPath[rootPath] = sourceFile;
-            return sourceFile;
-        }
-
-        private static string TryGetSourceFile(ModelItem item)
-        {
-            var current = item;
-            while (current != null)
+            // Climb from the item until a node has the property or a cached answer;
+            // every node passed on the way has no property of its own, so it shares
+            // the answer found above it.
+            var passed = new List<string>();
+            string sourceFile = null;
+            for (var depth = chain.Count - 1; depth >= 0 && sourceFile == null; depth--)
             {
-                var sourceFileProperty = NativePropertyLookup.FindSourceFileProperty(current);
-                if (sourceFileProperty != null)
-                    return GetPropertyDisplayValue(sourceFileProperty);
+                if (sourceFilesByPath.TryGetValue(chainPaths[depth], out sourceFile))
+                    break;
 
-                current = current.Parent;
+                passed.Add(chainPaths[depth]);
+                var property = NativePropertyLookup.FindSourceFileProperty(chain[depth]);
+                if (property != null)
+                    sourceFile = GetPropertyDisplayValue(property);
             }
 
-            return string.Empty;
+            sourceFile = sourceFile ?? string.Empty;
+            foreach (var path in passed)
+                sourceFilesByPath[path] = sourceFile;
+
+            return sourceFile;
         }
 
         private static string GetPropertyDisplayValue(DataProperty property)
