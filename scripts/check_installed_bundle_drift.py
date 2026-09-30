@@ -51,9 +51,9 @@ the install just as it does when no plugin version was built.
 
 The inventory still cannot say which server a client runs: that is selected in the
 client's config, not by what is on disk. So the configs are read too. For each of the
-five clients `NavisHelper.McpConfigurator` writes -- Claude Desktop, Codex, Cursor,
-OpenCode and Kimi Code -- the guard names the server folder the config points at and
-whether that folder holds the checkout's build:
+six clients `NavisHelper.McpConfigurator` writes -- Claude Desktop, Codex, Cursor,
+OpenCode, Kimi Code and ZCode -- the guard names the server folder the config points at
+and whether that folder holds the checkout's build:
 
     matches         the folder's DLL hashes to the checkout build
     differs         it exists and hashes to something else
@@ -119,7 +119,7 @@ SERVER_DLL = "NavisHelper.McpServer.dll"
 SERVER_EXE = "NavisHelper.McpServer.exe"
 CONFIGURATOR_EXE = "NavisHelper.McpConfigurator.exe"
 
-# The five clients McpConfigurator writes, with the config file each one reads. The
+# The six clients McpConfigurator writes, with the config file each one reads. The
 # configurator's adapter list is the authority for both; Claude Code is deliberately
 # absent because its servers live in its own settings rather than in one of these files.
 CLIENT_CONFIG_LAYOUT = (
@@ -128,6 +128,7 @@ CLIENT_CONFIG_LAYOUT = (
     ("cursor", "USERPROFILE", ".cursor/mcp.json"),
     ("opencode", "APPDATA", "OpenCode/opencode.json"),
     ("kimi", "USERPROFILE", ".kimi-code/mcp.json"),
+    ("zcode", "USERPROFILE", ".zcode/cli/config.json"),
 )
 
 # Taken from the environment rather than resolved once, so the self-test can point the
@@ -786,6 +787,12 @@ def selftest() -> int:
         return '[mcp_servers.navishelper]\ncommand = "%s"\n' % str(
             folder / SERVER_EXE).replace("\\", "\\\\")
 
+    def zcode_config(folder: Path) -> str:
+        """The same entry as ZCode keeps it: nested under mcp.servers, beside plugins."""
+        return json.dumps({"mcp": {"servers": {"navishelper": {
+            "command": str(folder / SERVER_EXE)}}},
+            "plugins": {"marketplace": True}})
+
     client_cases = (
         ("a TOML config with doubled backslashes, pointing at the matching install",
          b"CHECKOUT", {"codex": lambda servers: toml_config(servers / FIXTURE_MATCHING)}, 0,
@@ -808,9 +815,19 @@ def selftest() -> int:
          {"opencode": lambda servers: json.dumps(
              {"mcpServers": {"other": {"command": "other-mcp.exe"}}})}, 0,
          ("opencode: not configured",), "MCP CLIENT DRIFT"),
+        ("a ZCode config pointing at the matching install", b"CHECKOUT",
+         {"zcode": lambda servers: zcode_config(servers / FIXTURE_MATCHING)}, 0,
+         ("zcode: matches",), "MCP CLIENT DRIFT"),
+        ("a ZCode config pointing at a stale install", b"CHECKOUT",
+         {"zcode": lambda servers: zcode_config(servers / FIXTURE_STALE)}, 1,
+         ("zcode: differs", "MCP CLIENT DRIFT: zcode"), None),
+        ("a ZCode config pointing at a folder that holds no server", b"CHECKOUT",
+         {"zcode": lambda servers: zcode_config(servers / "McpServer-removed")}, 1,
+         ("zcode: missing", "MCP CLIENT DRIFT: zcode"), None),
         ("no client config at all", b"CHECKOUT", {}, 0,
          ("claude-desktop: no config", "codex: no config", "cursor: no config",
-          "opencode: no config", "kimi: no config", "Claude Code"), "MCP CLIENT DRIFT"),
+          "opencode: no config", "kimi: no config", "zcode: no config", "Claude Code"),
+         "MCP CLIENT DRIFT"),
         ("another server's secret beside the NavisHelper path", b"CHECKOUT",
          {"claude-desktop": lambda servers: json_config(servers / FIXTURE_MATCHING,
                                                        with_other_server=True)}, 0,

@@ -88,6 +88,11 @@ internal static partial class Program
                 "Kimi Code",
                 Path.Combine(userProfile, ".kimi-code", "mcp.json"),
                 Path.Combine(userProfile, ".kimi-code")),
+            new ZCodeCliJsonAdapter(
+                "zcode",
+                "ZCode",
+                Path.Combine(userProfile, ".zcode", "cli", "config.json"),
+                Path.Combine(userProfile, ".zcode")),
         };
     }
 
@@ -249,7 +254,7 @@ internal static partial class Program
         Console.WriteLine("  NavisHelper.McpConfigurator.exe --remove --clients all");
         Console.WriteLine();
         Console.WriteLine("Client ids:");
-        Console.WriteLine("  claude-desktop, claude-code, codex, cursor, opencode, kimi");
+        Console.WriteLine("  claude-desktop, claude-code, codex, cursor, opencode, kimi, zcode");
     }
 
 

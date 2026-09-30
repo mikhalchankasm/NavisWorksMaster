@@ -10,4 +10,8 @@
     <AssemblyVersion>2.10.0.0</AssemblyVersion>
     <FileVersion>2.10.0.0</FileVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NavisHelper.McpServer.Tests" />
+  </ItemGroup>
 </Project>

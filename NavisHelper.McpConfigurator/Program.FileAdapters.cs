@@ -155,6 +155,31 @@ internal static partial class Program
         }
     }
 
+    private sealed class ZCodeCliJsonAdapter : FileAdapter
+    {
+        public ZCodeCliJsonAdapter(string id, string displayName, string configPath, string clientRootPath)
+            : base(id, displayName, configPath, clientRootPath)
+        {
+        }
+
+        protected override void ConfigureFile(string mcpServerPath)
+        {
+            var root = ReadJsonObject(ConfigPath);
+            ZCodeConfig.SetServer(root, mcpServerPath);
+            WriteJson(ConfigPath, root);
+        }
+
+        protected override bool RemoveFileEntry()
+        {
+            var root = ReadJsonObject(ConfigPath);
+            if (!ZCodeConfig.RemoveServer(root))
+                return false;
+
+            WriteJson(ConfigPath, root);
+            return true;
+        }
+    }
+
     private sealed class CodexTomlAdapter : FileAdapter
     {
         public CodexTomlAdapter(string configPath, string clientRootPath)
