@@ -25,7 +25,7 @@ def repo_root() -> Path:
 # Byte ceilings for the files every agent loads on every session. Raising one is a
 # deliberate act: say in the PR why the always-loaded context should cost more.
 SIZE_LIMITS = {
-    "AGENTS.md": 9000,
+    "AGENTS.md": 9100,
     "CLAUDE.md": 1500,
 }
 

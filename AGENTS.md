@@ -118,7 +118,9 @@ background:
 - Timebox: 2 hours or 10M tokens. Past that, stop and ask.
 - PR size, two numbers rather than one, because a modification and a new file do
   not cost the same to review:
-  - changes to existing code: at most 400 changed lines and 10 files;
+  - changes to existing code: at most 400 changed lines and 10 files; a new MCP
+    tool's guard-required edits (tool counts, catalog, baseline, capability
+    table, count asserts) do not count toward the 10;
   - new, self-contained code shipped with its tests: at most 800 lines and 5 files;
   - a move-only refactor whose equivalence is proven by a mechanical criterion
     stated in its brief, which must check that the goal was reached and not only
