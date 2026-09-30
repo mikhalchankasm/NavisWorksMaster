@@ -141,6 +141,7 @@ It supports:
 - `cursor`: `%USERPROFILE%\.cursor\mcp.json`, `mcpServers`.
 - `opencode`: `%APPDATA%\OpenCode\opencode.json`, `mcp`.
 - `kimi`: `%USERPROFILE%\.kimi-code\mcp.json`, `mcpServers`.
+- `zcode`: `%USERPROFILE%\.zcode\cli\config.json`, `mcp.servers`.
 
 Usage:
 

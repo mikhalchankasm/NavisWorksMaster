@@ -35,7 +35,7 @@ Navisworks Manage plugin and local MCP server for design engineers and BIM coord
 | Autodesk application | Autodesk Navisworks **Manage** 2024, 2025, 2026, or 2027. Navisworks Simulate is not declared by the bundle. |
 | Plugin runtime | .NET Framework 4.8.1, x64. |
 | MCP server and configurator runtime | .NET 9. Framework-dependent packages require the .NET 9 runtime; self-contained packages can be produced by the repository publish script. |
-| MCP client | An MCP client is required. The configurator has adapters for Claude Desktop, Claude Code, Codex, Cursor, OpenCode, and Kimi Code. Minimum client versions are not specified. <!-- TODO: уточнить --> |
+| MCP client | An MCP client is required. The configurator has adapters for Claude Desktop, Claude Code, Codex, Cursor, OpenCode, Kimi Code, and ZCode. Minimum client versions are not specified. <!-- TODO: уточнить --> |
 | Build dependencies | Building the plugin requires Visual Studio/MSBuild, the .NET Framework 4.8.1 targeting pack, the .NET 9 SDK, and Autodesk Navisworks Manage SDK assemblies in `C:\Program Files\Autodesk\Navisworks Manage 20XX\`. |
 | Declared package dependencies | MCP server: `Microsoft.Extensions.Hosting` 8.0.1 and `ModelContextProtocol` 1.2.0. Plugin: `Microsoft.Toolkit.Uwp.Notifications` 7.1.3, `Newtonsoft.Json` 13.0.3, Windows SDK Contracts 10.0.19041.1, `System.Runtime.WindowsRuntime` 4.6.0, `System.Runtime.WindowsRuntime.UI.Xaml` 4.6.0, `System.ValueTuple` 4.5.0, and reference-assembly packages. |
 | Optional script dependencies | Python is used only by some smoke/check scripts, not by the MCP runtime. The minimum Python and PowerShell versions are not specified. <!-- TODO: уточнить --> |
