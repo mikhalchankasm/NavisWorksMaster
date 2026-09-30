@@ -85,6 +85,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `list_selection_sets` | None | Yes | Yes | No |
 | `live_markers` | View, LocalState | Yes | Yes | Yes |
 | `markup_selection` | View, Document | Yes | Yes | Yes |
+| `match_handle_items` | None | Yes | Yes | No |
 | `mcp_diagnostics` | None | No | No | No |
 | `mcp_error_contract` | None | No | No | No |
 | `mcp_health_check` | None | No | No | No |
@@ -1878,4 +1879,52 @@ Rules for `worldBoxes`:
 - With `worldBoxes` present the selection may be empty: `selectedItemCount=0` is valid instead of `no_selection`. An empty selection produces exactly one viewpoint named `name`, marked only with the world boxes.
 - The camera fit (`autoTopView`/`fitToSelection` with `fitMarginFactor`) covers the union of the selection cluster bounds and all world boxes, so every mark stays inside the saved frame.
 - Box marks count in `markCount` and `soloMarkCount`; a box that cannot be projected into the active camera counts in `skippedItemCount`.
+
+## `match_handle_items`
+
+Pages through the items behind one `find_items`/`find_items_by_bbox` match
+handle without searching again and without changing the selection, visibility,
+or the camera. Use it when a match holds more items than the 20-row preview
+shows. It is read-only, has no `apply` parameter, and is available in
+read-only mode.
+
+| Input | Type | Default | Meaning |
+|---|---|---:|---|
+| `matchHandle` | string | required | Opaque match handle returned by `find_items` or `find_items_by_bbox`. Runtime-only; never persist it in a scenario. |
+| `offset` | int | `0` | Zero-based index of the first item to return. Negative values are treated as 0. |
+| `limit` | int | `500` | Maximum items to return, `1..5000`. Out-of-range values are clamped, and the applied limit is echoed back. |
+| `includePaths` | bool | `true` | Include each item's full root-to-item path joined with `' / '`. Set `false` for names only on a large page. |
+| `includeSourceFiles` | bool | `false` | Include each item's source file. Defaults off because reading it walks the item's ancestors. |
+
+The response reports `matchHandle`, `totalItemCount` (every item the handle
+holds, not just the preview), the applied `offset` and `limit`,
+`returnedItemCount`, `nextOffset`, and `hasMore`. Each item in `items[]`
+carries `index`, `displayName`, `classDisplayName`, `path`, and `sourceFile`;
+`path` and `sourceFile` are empty strings when their include flag is `false`,
+never null. `sourceFile` is the nearest file node at or above the item: under
+an `.rvm` appended to an `.nwd` it is the `.rvm`.
+
+`totalItemCount` is what the handle holds, which is what the search returned,
+not what it matched. `find_items_by_bbox` keeps at most `maxResults` (up to
+10000) and says so with `resultsTruncated`, while its `matchedItemCount` counts
+every match; on the NVK5 model a zone matched 69,277 items and its handle held
+10,000. Narrow the zone or the conditions to reach the rest.
+
+Paging follows one rule: keep passing `nextOffset` back as `offset` until
+`hasMore` is `false`. `items[i].index == offset + i`, so pages splice in the
+handle's own order and cannot be reassembled wrongly. An `offset` at or past
+`totalItemCount` is an empty page (`returnedItemCount=0`, `hasMore=false`),
+not an error. A page also stops early, with `sizeLimited=true`, once its items
+reach 3 MiB, below the 4 MiB pipe frame; `returnedItemCount`, `nextOffset` and
+`hasMore` then describe the rows actually returned, so the rule above still
+holds. A whole match is covered exactly once by walking
+`nextOffset` pages; `limit=1` walks one item at a time.
+
+The handle is resolved against the same session store the search tools wrote:
+no second search runs, and no new handle is issued. A blank `matchHandle` is
+a `schema_violation`. A stale or unknown handle fails with
+`stale_match_reference` and the reason — expired after idle, evicted from the
+100 most recently used handles, cleared on a document change, or never issued
+by this host — instead of an empty list. Re-run `find_items` or
+`find_items_by_bbox` and retry with the fresh handle.
 
