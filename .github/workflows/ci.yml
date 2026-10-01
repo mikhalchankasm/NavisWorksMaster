@@ -75,7 +75,14 @@ jobs:
         run: python scripts/navishelper_scenario_library_smoke.py
 
       - name: Run MCP helper tests
-        run: dotnet test NavisHelper.McpServer.Tests/NavisHelper.McpServer.Tests.csproj -c Release --no-restore
+        shell: pwsh
+        run: |
+          dotnet test NavisHelper.McpServer.Tests/NavisHelper.McpServer.Tests.csproj -c Release --logger "trx;LogFileName=mcp-tests.trx" --results-directory TestResults
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          [xml]$testResults = Get-Content -LiteralPath TestResults/mcp-tests.trx -Raw -ErrorAction Stop
+          $executed = [int]$testResults.TestRun.ResultSummary.Counters.executed
+          if ($executed -le 0) { throw 'The MCP helper test run executed no tests.' }
+          Write-Host "Verified MCP helper test execution: $executed tests."
 
       # The machine check itself cannot run here -- a runner has no installed bundle --
       # but its logic can: --selftest drives every branch against temp directories.
