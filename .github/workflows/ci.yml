@@ -77,9 +77,10 @@ jobs:
       - name: Run MCP helper tests
         shell: pwsh
         run: |
-          dotnet test NavisHelper.McpServer.Tests/NavisHelper.McpServer.Tests.csproj -c Release --logger "trx;LogFileName=mcp-tests.trx" --results-directory TestResults
+          $testResultsRoot = Join-Path $env:RUNNER_TEMP 'navishelper-test-results'
+          dotnet test NavisHelper.McpServer.Tests/NavisHelper.McpServer.Tests.csproj -c Release --logger "trx;LogFileName=mcp-tests.trx" --results-directory $testResultsRoot
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          [xml]$testResults = Get-Content -LiteralPath TestResults/mcp-tests.trx -Raw -ErrorAction Stop
+          [xml]$testResults = Get-Content -LiteralPath (Join-Path $testResultsRoot 'mcp-tests.trx') -Raw -ErrorAction Stop
           $executed = [int]$testResults.TestRun.ResultSummary.Counters.executed
           if ($executed -le 0) { throw 'The MCP helper test run executed no tests.' }
           Write-Host "Verified MCP helper test execution: $executed tests."
