@@ -35,7 +35,7 @@
 | Приложение Autodesk | Autodesk Navisworks **Manage** 2024, 2025, 2026 или 2027. Bundle не объявляет поддержку Navisworks Simulate. |
 | Среда выполнения плагина | .NET Framework 4.8.1, x64. |
 | Среда выполнения MCP-сервера и конфигуратора | .NET 9. Для framework-dependent пакетов требуется .NET 9 runtime; скрипт публикации репозитория может создавать self-contained пакеты. |
-| MCP-клиент | Требуется MCP-клиент. Конфигуратор содержит адаптеры для Claude Desktop, Claude Code, Codex, Cursor, OpenCode и Kimi Code. Минимальные версии клиентов не указаны. <!-- TODO: уточнить --> |
+| MCP-клиент | Требуется MCP-клиент. Конфигуратор содержит адаптеры для Claude Desktop, Claude Code, Codex, Cursor, OpenCode, Kimi Code и ZCode. Минимальные версии клиентов не указаны. <!-- TODO: уточнить --> |
 | Зависимости для сборки | Для сборки плагина требуются Visual Studio/MSBuild, targeting pack .NET Framework 4.8.1, .NET 9 SDK и сборки Autodesk Navisworks Manage SDK в `C:\Program Files\Autodesk\Navisworks Manage 20XX\`. |
 | Объявленные зависимости пакетов | MCP-сервер: `Microsoft.Extensions.Hosting` 8.0.1 и `ModelContextProtocol` 1.2.0. Плагин: `Microsoft.Toolkit.Uwp.Notifications` 7.1.3, `Newtonsoft.Json` 13.0.3, Windows SDK Contracts 10.0.19041.1, `System.Runtime.WindowsRuntime` 4.6.0, `System.Runtime.WindowsRuntime.UI.Xaml` 4.6.0, `System.ValueTuple` 4.5.0 и пакеты reference assemblies. |
 | Необязательные зависимости скриптов | Python используется только некоторыми smoke/check-скриптами, а не MCP runtime. Минимальные версии Python и PowerShell не указаны. <!-- TODO: уточнить --> |
