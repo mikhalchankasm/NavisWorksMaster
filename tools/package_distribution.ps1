@@ -588,7 +588,7 @@ Or run the configurator:
 & "$env:LOCALAPPDATA\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe" --configure --clients all
 ```
 
-Supported client ids: `claude-desktop`, `claude-code`, `codex`, `cursor`, `opencode`, `kimi`.
+Supported client ids: `claude-desktop`, `claude-code`, `codex`, `cursor`, `opencode`, `kimi`, `zcode`.
 
 ## Optional smoke test
 
@@ -675,7 +675,7 @@ $manifest = [ordered]@{
     mcp_configurator = [ordered]@{
         path = "McpConfigurator\NavisHelper.McpConfigurator.exe"
         self_contained = $true
-        supported_clients = @("claude-desktop", "claude-code", "codex", "cursor", "opencode", "kimi")
+        supported_clients = @("claude-desktop", "claude-code", "codex", "cursor", "opencode", "kimi", "zcode")
     }
 }
 

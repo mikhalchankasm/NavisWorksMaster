@@ -88,10 +88,10 @@ public sealed class ClashTransferArchitectureTests
     {
         var files = new[]
         {
-            Path.Combine(Root(), "NavisHelper.Contracts", "ClashBatchtestXmlParser.cs"),
-            Path.Combine(Root(), "NavisHelper", "Agent", "Services", "ClashTestTransferExporterService.cs"),
-            Path.Combine(Root(), "NavisHelper", "Agent", "Services", "ClashBatchtestImportService.cs"),
-            Path.Combine(Root(), "NavisHelper.McpServer", "Tools", "NavisworksClashTransferTools.cs"),
+            Path.Combine(RepositoryPaths.Root, "NavisHelper.Contracts", "ClashBatchtestXmlParser.cs"),
+            Path.Combine(RepositoryPaths.Root, "NavisHelper", "Agent", "Services", "ClashTestTransferExporterService.cs"),
+            Path.Combine(RepositoryPaths.Root, "NavisHelper", "Agent", "Services", "ClashBatchtestImportService.cs"),
+            Path.Combine(RepositoryPaths.Root, "NavisHelper.McpServer", "Tools", "NavisworksClashTransferTools.cs"),
         };
         foreach (var file in files)
         {
@@ -126,17 +126,5 @@ public sealed class ClashTransferArchitectureTests
         Assert.DoesNotContain("TryResolvePersistedPropertyBinding", internalBlock);
     }
 
-    private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));
-
-    private static string Root()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-        throw new DirectoryNotFoundException("Could not locate NavisHelper.sln.");
-    }
+    private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { RepositoryPaths.Root }.Concat(parts).ToArray()));
 }

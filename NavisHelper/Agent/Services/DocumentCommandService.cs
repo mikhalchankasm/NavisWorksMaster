@@ -30,15 +30,6 @@ namespace NavisHelper.Agent.Services
         private const int DefaultVisibilityPreviewLimit = 10;
         private const int MaxVisibilityPreviewLimit = 50;
         private const int VisibilityRootSummaryLimit = 20;
-        private const string ItemInternalCategory = "LcOaNode";
-        private const string SourceFileInternalProperty = "LcOaNodeSourceFile";
-        private static readonly Tuple<string, string>[] SourceFileDisplayProperties =
-        {
-            Tuple.Create("Item", "Source File"),
-            Tuple.Create("Элемент", "Файл источника"),
-            Tuple.Create(string.Empty, "Source File"),
-            Tuple.Create(string.Empty, "Файл источника"),
-        };
 
 
         /// <summary>
@@ -777,6 +768,17 @@ namespace NavisHelper.Agent.Services
             }
         }
 
+        private static BoundingBoxInfo TryGetBoundingBoxCached(IDictionary<string, BoundingBoxInfo> boxesByPath, string path, ModelItem item)
+        {
+            BoundingBoxInfo box;
+            if (boxesByPath.TryGetValue(path, out box))
+                return box;
+
+            box = TryBuildBoundingBoxInfo(item);
+            boxesByPath[path] = box;
+            return box;
+        }
+
         private static int ClampSelectedItemsTreeMaxItems(int? value)
         {
             var requested = value.GetValueOrDefault(DefaultSelectedItemsTreeMaxItems);
@@ -860,24 +862,30 @@ namespace NavisHelper.Agent.Services
             int selectionIndex,
             ModelItem selectedItem,
             IList<ModelItem> chainItems,
+            IReadOnlyList<string> chainPaths,
             string rootName,
             string sourceFile,
             int selectedDepth,
             int? maxDepth,
             bool includeBoundingBoxes,
+            IDictionary<string, BoundingBoxInfo> boxesByPath,
             SelectedItemsTreeResponse response)
         {
+            var selectedPath = chainPaths[selectedDepth];
+            // The selected leaf is read from its own item, never from the path cache:
+            // distinct same-named siblings share a path, and flat format lists each one.
+            var leafBox = includeBoundingBoxes ? TryBuildBoundingBoxInfo(selectedItem) : null;
             var item = new SelectedItemsTreeFlatItem
             {
                 SelectionIndex = selectionIndex,
                 Name = GetItemDisplayName(selectedItem),
                 DisplayName = selectedItem.DisplayName ?? string.Empty,
-                Path = BuildItemPath(selectedItem),
+                Path = selectedPath,
                 Depth = selectedDepth,
                 RootName = rootName ?? string.Empty,
                 SourceFile = sourceFile ?? string.Empty,
                 IsSelectedLeaf = true,
-                BoundingBox = includeBoundingBoxes ? TryBuildBoundingBoxInfo(selectedItem) : null,
+                BoundingBox = leafBox,
             };
 
             for (var depth = 0; depth < chainItems.Count; depth++)
@@ -889,13 +897,19 @@ namespace NavisHelper.Agent.Services
                 }
 
                 var chainItem = chainItems[depth];
-                item.Chain.Add(BuildSelectedItemsTreePathNode(
+                var isLeaf = depth == selectedDepth;
+                var node = BuildSelectedItemsTreePathNode(
                     chainItem,
                     depth,
+                    chainPaths[depth],
                     rootName,
                     sourceFile,
-                    depth == selectedDepth,
-                    includeBoundingBoxes));
+                    isLeaf,
+                    includeBoundingBoxes && !isLeaf,
+                    boxesByPath);
+                if (isLeaf)
+                    node.BoundingBox = leafBox;
+                item.Chain.Add(node);
             }
 
             return item;
@@ -904,11 +918,13 @@ namespace NavisHelper.Agent.Services
         private static void AddSelectedItemTreePath(
             IDictionary<string, SelectedItemsTreeBuildNode> rootBuilders,
             IList<ModelItem> chainItems,
+            IReadOnlyList<string> chainPaths,
             string rootName,
             string sourceFile,
             string selectedPath,
             int? maxDepth,
             bool includeBoundingBoxes,
+            IDictionary<string, BoundingBoxInfo> boxesByPath,
             SelectedItemsTreeResponse response)
         {
             IDictionary<string, SelectedItemsTreeBuildNode> siblings = rootBuilders;
@@ -923,17 +939,19 @@ namespace NavisHelper.Agent.Services
                 }
 
                 var item = chainItems[depth];
-                var path = BuildItemPath(item);
+                var path = chainPaths[depth];
                 SelectedItemsTreeBuildNode nextBuilder;
                 if (!siblings.TryGetValue(path, out nextBuilder))
                 {
                     var node = BuildSelectedItemsTreeNode(
                         item,
                         depth,
+                        path,
                         rootName,
                         sourceFile,
                         false,
-                        includeBoundingBoxes);
+                        includeBoundingBoxes,
+                        boxesByPath);
                     nextBuilder = new SelectedItemsTreeBuildNode
                     {
                         Node = node,
@@ -955,44 +973,48 @@ namespace NavisHelper.Agent.Services
         private static SelectedItemsTreeNode BuildSelectedItemsTreeNode(
             ModelItem item,
             int depth,
+            string path,
             string rootName,
             string sourceFile,
             bool isSelectedLeaf,
-            bool includeBoundingBoxes)
+            bool includeBoundingBoxes,
+            IDictionary<string, BoundingBoxInfo> boxesByPath)
         {
             var name = GetItemDisplayName(item);
             return new SelectedItemsTreeNode
             {
                 Name = name,
                 DisplayName = item == null ? string.Empty : item.DisplayName ?? string.Empty,
-                Path = BuildItemPath(item),
+                Path = path,
                 Depth = depth,
                 RootName = rootName ?? string.Empty,
                 SourceFile = sourceFile ?? string.Empty,
                 IsSelectedLeaf = isSelectedLeaf,
-                BoundingBox = includeBoundingBoxes ? TryBuildBoundingBoxInfo(item) : null,
+                BoundingBox = includeBoundingBoxes ? TryGetBoundingBoxCached(boxesByPath, path, item) : null,
             };
         }
 
         private static SelectedItemsTreePathNode BuildSelectedItemsTreePathNode(
             ModelItem item,
             int depth,
+            string path,
             string rootName,
             string sourceFile,
             bool isSelectedLeaf,
-            bool includeBoundingBoxes)
+            bool includeBoundingBoxes,
+            IDictionary<string, BoundingBoxInfo> boxesByPath)
         {
             var name = GetItemDisplayName(item);
             return new SelectedItemsTreePathNode
             {
                 Name = name,
                 DisplayName = item == null ? string.Empty : item.DisplayName ?? string.Empty,
-                Path = BuildItemPath(item),
+                Path = path,
                 Depth = depth,
                 RootName = rootName ?? string.Empty,
                 SourceFile = sourceFile ?? string.Empty,
                 IsSelectedLeaf = isSelectedLeaf,
-                BoundingBox = includeBoundingBoxes ? TryBuildBoundingBoxInfo(item) : null,
+                BoundingBox = includeBoundingBoxes ? TryGetBoundingBoxCached(boxesByPath, path, item) : null,
             };
         }
 
@@ -1087,56 +1109,38 @@ namespace NavisHelper.Agent.Services
             return string.Empty;
         }
 
+        private static string TryGetSourceFileCached(IDictionary<string, string> sourceFilesByRootPath, string rootPath, ModelItem rootItem)
+        {
+            string sourceFile;
+            if (sourceFilesByRootPath.TryGetValue(rootPath, out sourceFile))
+                return sourceFile;
+
+            sourceFile = TryGetSourceFile(rootItem) ?? string.Empty;
+            sourceFilesByRootPath[rootPath] = sourceFile;
+            return sourceFile;
+        }
+
         private static DataProperty TryFindSourceFileProperty(ModelItem item)
         {
-            if (item == null || item.PropertyCategories == null)
-                return null;
-
-            foreach (PropertyCategory category in item.PropertyCategories)
-            {
-                if (category == null || category.Properties == null)
-                    continue;
-
-                if (string.Equals(category.Name, ItemInternalCategory, StringComparison.OrdinalIgnoreCase))
-                {
-                    foreach (DataProperty property in category.Properties)
-                    {
-                        if (property != null && string.Equals(property.Name, SourceFileInternalProperty, StringComparison.OrdinalIgnoreCase))
-                            return property;
-                    }
-                }
-
-                foreach (var alias in SourceFileDisplayProperties)
-                {
-                    if (!string.IsNullOrWhiteSpace(alias.Item1) &&
-                        !string.Equals(category.DisplayName, alias.Item1, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    foreach (DataProperty property in category.Properties)
-                    {
-                        if (property != null && string.Equals(property.DisplayName, alias.Item2, StringComparison.OrdinalIgnoreCase))
-                            return property;
-                    }
-                }
-            }
-
-            return null;
+            return NativePropertyLookup.FindSourceFileProperty(item);
         }
 
         private static string GetPropertyDisplayValue(DataProperty property)
         {
-            if (property == null || property.Value == null)
+            if (property == null)
+                return string.Empty;
+
+            var value = property.Value;
+            if (value == null)
                 return string.Empty;
 
             try
             {
-                return property.Value.ToDisplayString();
+                return value.ToDisplayString();
             }
             catch
             {
-                return property.Value.ToString();
+                return value.ToString();
             }
         }
 
@@ -1297,6 +1301,19 @@ namespace NavisHelper.Agent.Services
             }
 
             return string.Join(" / ", stack.ToArray());
+        }
+
+        private static List<string> BuildChainNames(IList<ModelItem> chainItems)
+        {
+            var names = new List<string>(chainItems.Count);
+            foreach (var chainItem in chainItems)
+            {
+                names.Add(string.IsNullOrWhiteSpace(chainItem.DisplayName)
+                    ? chainItem.ClassDisplayName
+                    : chainItem.DisplayName);
+            }
+
+            return names;
         }
 
         private sealed class SelectedItemsTreeBuildNode

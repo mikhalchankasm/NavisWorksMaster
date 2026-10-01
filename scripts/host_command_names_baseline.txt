@@ -53,6 +53,7 @@ selected_items_preview
 selected_items_ancestry
 selected_items_tree
 item_properties_by_handle
+match_handle_items
 current_viewpoint_info
 list_saved_viewpoints
 saved_viewpoints_export
@@ -79,6 +80,8 @@ create_viewpoint
 viewpoint_set_camera
 save_document
 save_document_as
+start_save_document
+save_document_status
 close_navisworks
 build_mtr_viewpoints
 selection_sets_build_viewpoints

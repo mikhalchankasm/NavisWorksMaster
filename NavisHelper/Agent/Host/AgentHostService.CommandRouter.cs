@@ -276,6 +276,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<ItemPropertiesByHandleRequest>,
             (document, request) => _commandService.ItemPropertiesByHandle(document, request, _matchSessionStore));
 
+        router.Register<MatchHandleItemsRequest>(
+            HostCommandNames.MatchHandleItems,
+            true,
+            DeserializePayload<MatchHandleItemsRequest>,
+            (document, request) => _matchHandleItemsService.GetItems(request));
+
         router.Register<CurrentViewpointInfoRequest>(
             HostCommandNames.CurrentViewpointInfo,
             true,
@@ -449,6 +455,12 @@ namespace NavisHelper.Agent.Host
             true,
             DeserializePayload<SaveDocumentAsRequest>,
             (document, request) => _commandService.SaveDocumentAs(document, request));
+
+        router.Register<StartSaveDocumentRequest>(
+            HostCommandNames.StartSaveDocument,
+            true,
+            DeserializePayload<StartSaveDocumentRequest>,
+            (document, request) => AttachInstanceId(_saveDocumentJobService.Start(document, request)));
 
         router.Register<CloseNavisworksRequest>(
             HostCommandNames.CloseNavisworks,

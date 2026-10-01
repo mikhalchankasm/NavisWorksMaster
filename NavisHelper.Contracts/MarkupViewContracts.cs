@@ -15,6 +15,13 @@ namespace NavisHelper.Agent.Contracts
         public int? MaxItemsForDistanceClustering { get; set; }
     }
 
+    public sealed class MarkupWorldBox
+    {
+        // Coordinates are global document coordinates in the active Navisworks model units.
+        public SpatialPoint Min { get; set; }
+        public SpatialPoint Max { get; set; }
+    }
+
     public sealed class MarkupSelectionRequest : SelectionClusteringOptions
     {
         public string Name { get; set; }
@@ -38,6 +45,7 @@ namespace NavisHelper.Agent.Contracts
         public int? HatchThickness { get; set; }
         public double? MarkSoloMinSizeMm { get; set; }
         public double? MarkMergeGapMm { get; set; }
+        public List<MarkupWorldBox> WorldBoxes { get; set; }
         public bool? Overwrite { get; set; }
         public bool? Apply { get; set; }
     }

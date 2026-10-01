@@ -119,6 +119,27 @@ public sealed class SpatialModelPruningTests
         Assert.True(SpatialModelPruning.ModelFileCanSatisfyFilter("   ", "piping"));
     }
 
+    [Theory]
+    [InlineData("D:\\aggregates\\6513.nwd")]
+    [InlineData("D:\\aggregates\\SITE.NWF")]
+    public void AContainerFileModelIsNeverPrunedByAFileFilter(string modelFile)
+    {
+        // A model loaded from an .nwd/.nwf is a container: its items report the files
+        // they were appended from, not the container's own name, so that name cannot
+        // stand in for the per-item filter whatever it says -- pruning on it would
+        // drop every item inside the container.
+        Assert.True(SpatialModelPruning.ModelFileCanSatisfyFilter(modelFile, "piping"));
+    }
+
+    [Fact]
+    public void AnAppendedFileModelIsStillPrunedByAFileFilterItCannotSatisfy()
+    {
+        // The container exception is an exception: a model whose file is its own
+        // items' file, like an appended .rvm, is ruled out exactly as before.
+        Assert.False(SpatialModelPruning.ModelFileCanSatisfyFilter(
+            "D:\\models\\structure.rvm", "piping"));
+    }
+
     private static SpatialPoint Point(double x, double y, double z) =>
         new SpatialPoint { X = x, Y = y, Z = z };
 }

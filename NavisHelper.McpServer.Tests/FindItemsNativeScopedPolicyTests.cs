@@ -66,8 +66,8 @@ public sealed class FindItemsNativeScopedPolicyTests
     [InlineData(FindItemsScopes.UnderHandle, true)]
     [InlineData(FindItemsScopes.UnderNamedNode, true)]
     [InlineData(FindItemsScopes.CurrentSelection, true)]
-    // whole_model has its own native routing and must not be taken over here.
-    [InlineData(FindItemsScopes.WholeModel, false)]
+    // whole_model also resolves explicit model roots for the native search.
+    [InlineData(FindItemsScopes.WholeModel, true)]
     public void IsEligible_CoversEveryScopeThatResolvesExplicitRoots(string scope, bool expected)
     {
         Assert.Equal(
@@ -169,7 +169,7 @@ public sealed class FindItemsNativeScopedPolicyTests
     [Fact]
     public void ScopedExecutor_PrunesInTheEngine_AndRestoresFirstAcrossVariants()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var nativeScoped = File.ReadAllText(
             Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.NativeScoped.cs"));
         var scoped = File.ReadAllText(
@@ -192,7 +192,7 @@ public sealed class FindItemsNativeScopedPolicyTests
     [Fact]
     public void GroupedConditions_HonourTheComparisonField()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var rules = File.ReadAllText(
             Path.Combine(root, "NavisHelper", "Agent", "Services", "SearchService.Rules.cs"));
 
@@ -225,9 +225,11 @@ public sealed class FindItemsNativeScopedPolicyTests
     [Fact]
     public void BuildTraversalBudgetMessage_names_the_progress_and_the_remedy()
     {
-        var message = FindItemsNativeScopedPolicy.BuildTraversalBudgetMessage(2, 5);
+        var message = FindItemsNativeScopedPolicy.BuildTraversalBudgetMessage(FindItemsScopes.WholeModel, 2, 5);
 
         Assert.Contains("2 of 5 native searches", message, StringComparison.Ordinal);
+        // whole_model reaches this path too, so the text names the scope instead of saying "Scoped".
+        Assert.Contains("scope=whole_model", message, StringComparison.Ordinal);
         Assert.Contains("Narrow the scope", message, StringComparison.Ordinal);
         // matchDepth is already first on this path, so suggesting it would be
         // advice the caller has already taken.
@@ -320,18 +322,8 @@ public sealed class FindItemsNativeScopedPolicyTests
 
     private static string ReadRepositoryFile(string relativePath)
     {
-        var path = Path.Combine(FindRepositoryRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var path = Path.Combine(RepositoryPaths.Root, relativePath.Replace('/', Path.DirectorySeparatorChar));
         Assert.True(File.Exists(path), path + " is missing; re-point this guard.");
         return File.ReadAllText(path);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-            directory = directory.Parent;
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
     }
 }

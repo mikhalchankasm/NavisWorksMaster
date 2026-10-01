@@ -14,7 +14,7 @@ had precise numbers for four tools and none for the rest.
 | plugin | host-reported `pluginAssemblyLength` 1586688, `pluginAssemblyLastWriteUtc` 2026-09-20T09:09:49Z, sha256 `af60b1b9…` |
 | server | built from `main` at the same commit |
 | scope of this row | the read-only pass only — the two clash windows ran a **different** plugin (`20bb4356…`) and a separately launched server, and the `rootName` message was checked later still on the branch build (`pluginAssemblyLength` 1588736). Latency is comparable only within one window, so each section states its own build instead of inheriting this one. |
-| tools covered | **104 of 108** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across six windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, 15 cases covering 7 tools in a fourth, the synchronous `dump_subtree_names` in a fifth, `viewpoint_set_camera` at its acceptance on 2026-09-26, the three world-marker tools at NW-03's acceptance the same day, and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 104 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **4** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
+| tools covered | **107 of 111** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across six windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, 15 cases covering 7 tools in a fourth, the synchronous `dump_subtree_names` in a fifth, `viewpoint_set_camera` at its acceptance on 2026-09-26, the three world-marker tools at NW-03's acceptance the same day, `match_handle_items` and the save job pair at their acceptance on 2026-09-29, and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 107 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **4** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
 
 The date and plugin rows above describe the 2026-09-20 read-only pass. The read-only
 table was re-run on 2026-09-26 and states its own build and conditions below.
@@ -825,9 +825,10 @@ build has no visible effect there either. Even a first call in a fresh process r
 3.1 to 8.6 s, which is noise on this machine on top of the cost of building a large
 response.
 
-Still untested: the `ModelItem` wrappers themselves, which the walk also creates and never
-disposes. Disposing those is not safe without knowing whether Navisworks hands the same
-wrapper to other holders, and it needs in-process evidence first.
+The earlier "Still untested: the `ModelItem` wrappers themselves" question is answered by
+the TECH-W13 probe: repeated `Children` and `Parent` reads returned fresh managed wrappers
+for the same native items. The walks changed in #122–#124 now dispose wrappers they own;
+see the [ownership and disposal rules](ARCHITECTURE.md).
 
 **What the host's own counters show.** `host_status` reports the process's GC collections
 per generation, managed heap, private memory, CPU time and handle count. They were read
@@ -891,23 +892,25 @@ build against 0.03 s in the base, which bounds what the forced collection costs.
   releases. The test did both at once and does not separate them. The base's natural full
   collection, around call 5, which does not wait for finalizers, gave only partial relief:
   2.4 s on call 6, against 1.2 s with the forced one.
-- It does not name the objects. The prime suspects are the `ModelItem` wrappers the walk
-  creates and never disposes: about 41 000 per call, each a `NativeHandle` with a finalizer.
-  The bounding boxes are ruled out by the test above.
+- It does not name the objects. The prime suspects were the `ModelItem` wrappers the walk
+  created and, at the time of this test, never disposed: about 41 000 per call, each a
+  `NativeHandle` with a finalizer. The bounding boxes are ruled out by the test above.
 
-Two fixes follow, each to be measured the same way against this base. Disposing the
-wrappers the walk owns is precise, but first needs proof that Navisworks does not hand the
-same wrapper to other holders. A full collection after a large walk, off the call's own
-path, is blunt, and costs about 0.1 s of host time each time.
+Two fixes followed, each measured the same way against this base. Disposing the wrappers
+the walk owns is precise, but needed proof first that Navisworks does not hand the same
+wrapper to other holders; the TECH-W13 probe gave it, and #122–#124 dispose them (see
+above). A full collection after a large walk, off the call's own path, is blunt, and costs
+about 0.1 s of host time each time.
 
 ### The fix: collect after heavy work
 
 The host now does by itself what the test build did in `host_status`
-(`HeavyWorkCollectionPolicy`; see `docs/ARCHITECTURE.md`). After a gated request, once four
-or more generation-0 collections have passed since the last forced one, it collects, drains
-finalizers and collects again on a pool thread. The next gated request waits for that
-before it starts. It was measured against `main` (`942f3d8`) like the test build, but back
-to back: `host_status` and then the call, with no idle pad. Rows are in run order:
+(`HeavyWorkCollectionPolicy`; its trigger rule, including which generation-0 collections
+count since #120, is kept in `docs/ARCHITECTURE.md`). Once the rule fires after a gated
+request, the host collects, drains finalizers and collects again on a pool thread. The next
+gated request waits for that before it starts. It was measured against `main` (`942f3d8`)
+like the test build, but back to back: `host_status` and then the call, with no idle pad.
+Rows are in run order:
 
 | round | build | ms, calls 1 to 8 |
 | --- | --- | --- |
@@ -1182,24 +1185,108 @@ box, and each case was called twice in a row.
 The tools touch only the plugin's in-memory overlay store and never the model, so every call is a
 round trip plus planning. Drawing happens in the next redraw (`OverlayRender`), outside these numbers.
 
+## The 2026-09-27 speed window
+
+On Navisworks Manage 2027, each window ran builds in palindrome order (base, A, B, …,
+B, A, base), with each arm in a fresh process using its build's plugin and MCP server
+verified by host-reported plugin identity; calls were read-only or dry runs, documents
+were discarded, and the live bundle was restored byte for byte (46 of 46 files).
+Figures are host ms (`navishelper_timing.elapsed_ms`), medians of repeated calls
+excluding each process's first call unless stated otherwise; answers were compared
+across builds except for per-process identifiers.
+
+| PR | change | model | case | before (ms) | after (ms) |
+| --- | --- | --- | --- | ---: | ---: |
+| #113 | One native source-file lookup (`NativePropertyLookup`) | `6513.nwd`, 41 016 items | `clash_create_matrix_from_selection` walk, filter matching nothing | 1817 | 1568 (−14%) |
+| #113 | Same | Same | `dump_subtree_names` async, whole model, `includeSourceFile` | 4031 | 3573 (−11%) |
+| #115 | Three host log lines per request instead of eight | `6501.5.nwd` | `list_saved_viewpoints` | 11 | 5 |
+| #115 | Same | Same | `host_status` | 20 | 13 |
+| #115 | Same | Same | `selection_property_report`, STORE selected | 12 | 5 |
+| #115 | Same | Same | `mcp_health_check` | 86 | 52 |
+| #116 | Read each `DataProperty.Value` once | Same | `model_color_scheme` analyze, STORE selected | ≈2547 (the two other builds in the window) | 2426 (−5%) |
+| #119 | One `host_status` per health check; call-log clean-up once a day | Same | `mcp_health_check` | 92 | 61 |
+| #120 | Only request-time generation-0 collections count toward a forced collection | Same | `list_saved_viewpoints` right after 20 s idle + `host_status` | 73–115 | 9–11 |
+
+#113 returned identical answers in every arm, including the 11.6 MB dump CSV byte for byte.
+#116's `main` arms ran first and last and measured 2684 ms; part of that gap was position,
+so the fair comparison is against the two other builds in the same window.
+
+Two findings were refuted and not merged:
+
+1. **Native memory counters for `host_status` (branch `glm/cheap-host-status`, no PR).**
+   On a ~900 MB Roamer, reading working set, private bytes and handle count with psapi
+   `GetProcessMemoryInfo` and `GetProcessHandleCount` instead of `Process.WorkingSet64`,
+   `PrivateMemorySize64` and `HandleCount` was slower: `host_status` 19 → 26 ms,
+   `mcp_health_check` 81 → 95 ms, and `active_model_context` 52 → 58 ms. The three
+   `Process` properties share one snapshot per `Process` object.
+2. **Resolving scoped `find_items` conditions once per call (#114, closed).** Removing
+   only per-item managed allocations (`ResolveProperty`, `NormalizeComparison`, LINQ
+   closures) doubled scoped `countOnly` on `6501.5.nwd` from 1685 to 3538 ms in all
+   16 calls over two processes, with identical answers. The likely explanation is that
+   fewer generation-0 collections during the walk leave more per-item `NativeHandle`
+   wrappers waiting for finalization, so native references stay alive longer; [the
+   call-after-call slowdown](#throughput-falls-call-after-call-inside-one-navisworks-process)
+   shows the same effect across calls. Fewer wrappers per item helped (#113, #116), but
+   fewer managed allocations alone hurt; #122–#124 later measured the effect of disposal.
+
+**TECH-W13: wrappers owned by completed walks.** A probe build on `6501.5.nwd` visited
+371 027 items in a scoped `find_items` under the root. For the first 2000 items with
+children, two reads of `item.Children` returned different managed wrappers for the first
+child in 2000 of 2000 cases (`ReferenceEquals` false), while `Equals` was true in 2000
+of 2000. Two reads of `item.Parent` returned different wrappers in 1999 of 1999 cases.
+The [ownership and disposal rules](ARCHITECTURE.md) follow from that probe and the live runs.
+
+| PR | walk | model | case | before (ms) | after (ms) |
+| --- | --- | --- | --- | ---: | ---: |
+| #122 | scoped `find_items` | `6501.5.nwd` | `countOnly` under the root, median of 16 calls | 1676 | 738 |
+| #123 | `find_items_by_bbox` | `6501.5.nwd` | 200-unit zone, intersects, median of 12 calls | 3154 | 1752 |
+| #123 | Same | Same | centre mode, median of 6 calls | 4364 | 2338 |
+| #124 | `dump_subtree_names` (async job) | `6513.nwd`, 41 016 items | whole model with `includeSourceFile`, mean of 2 runs | 3508 | 2927 |
+
+Answers were identical in every call, including the 11.6 MB dump CSV byte for byte.
+Calls on the same build within one process still grow somewhat: `find_items_by_bbox`
+went from 1.1 to 2.0 s over six calls because other walks still leave wrappers behind.
+
+## The match-handle and save-job tools at their acceptance
+
+Measured on 2026-09-29 at the L3 of #129 and #130. Each arm ran in a fresh Navisworks 2027 process
+on the federated port model's 428.5 MB NWD, and the live bundle was restored byte for byte
+afterwards. The save ran on a scratch copy of that NWD with the owner's go-ahead; the original was
+never opened for writing, and the copy was deleted.
+
+| case | ms |
+| --- | --- |
+| `match_handle_items`, a 10 000-item `find_items_by_bbox` handle in two 5000-row pages, paths on | 1998 |
+| `match_handle_items`, one 500-row page with paths and source files | 62 |
+| `match_handle_items`, every page of the same handle with source files | 858 |
+| `start_save_document`, call to response | 692 |
+| `save_document_status`, slowest of 137 polls while the save wrote | 22 |
+
+The save itself took 137.5 s. `start_save_document` answered before it began, and every poll
+answered while it ran; the last reported `completed`. The first `match_handle_items` build returned
+an empty `sourceFile` on every row because it read only the document root. The numbers above are
+from the fixed build (plugin 1627136 bytes, written 2026-09-29T15:29:19Z); disposing each row's
+`Parent` wrappers took the two-page walk from 3.3 to 2.0 s.
+
 ## What still has no number
 
 Four tools, and the reason for each, so the gap is a decision rather than an oversight:
 
 | tool | why |
 | --- | --- |
-| `save_document`, `save_document_as` | never run on purpose. Every window depends on the document not being saved. |
+| `save_document`, `save_document_as` | never run on purpose. Every window depends on the document not being saved. The job pair that wraps the same save was measured on a scratch copy; see [the match-handle and save-job tools](#the-match-handle-and-save-job-tools-at-their-acceptance). |
 | `clash_batchtest_import` | needs a Navisworks-authored `nw-exchange-12.0` XML; no tool in the product writes one. |
 | `saved_viewpoints_import` | needs Navisworks-authored Saved Viewpoints XML, for the same reason. Its refusal path was measured; the import path was not. |
 
 **4** of those are not reachable in a window at all, and saying which is which matters
 more than the count:
 
-- **out of reach** — `save_document` and `save_document_as`, because every window depends on
-  the document not being saved; `clash_batchtest_import` and `saved_viewpoints_import`,
+- **out of reach** — `save_document` and `save_document_as`, because every window depends
+  on the document not being saved; `clash_batchtest_import` and `saved_viewpoints_import`,
   because each needs a Navisworks-authored XML that no tool in the product writes.
-- **one short window away** — the remaining **0**: none. The eight that were one window away
-  were measured on 2026-09-22; see [The fourth window](#the-fourth-window-the-eight-that-were-one-window-away).
+- **one short window away** — the remaining **0**. The three that were here landed with #129
+  and #130 and were measured on 2026-09-29; see
+  [the match-handle and save-job tools](#the-match-handle-and-save-job-tools-at-their-acceptance).
 
 Listed by name rather than by position in the table above, because a count of rows is
 wrong as soon as a row moves.

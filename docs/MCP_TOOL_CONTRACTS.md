@@ -85,6 +85,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `list_selection_sets` | None | Yes | Yes | No |
 | `live_markers` | View, LocalState | Yes | Yes | Yes |
 | `markup_selection` | View, Document | Yes | Yes | Yes |
+| `match_handle_items` | None | Yes | Yes | No |
 | `mcp_diagnostics` | None | No | No | No |
 | `mcp_error_contract` | None | No | No | No |
 | `mcp_health_check` | None | No | No | No |
@@ -97,6 +98,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `reveal_selected` | View | Yes | Yes | Yes |
 | `save_document` | Document, Files | Yes | Yes | No |
 | `save_document_as` | Document, Files | Yes | Yes | No |
+| `save_document_status` | None | Yes | No | No |
 | `save_scenario` | Files, LocalState | No | No | Yes |
 | `saved_viewpoints_export` | Files | Yes | Yes | No |
 | `saved_viewpoints_import` | Document | Yes | Yes | Yes |
@@ -121,6 +123,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `selection_status` | None | Yes | Yes | No |
 | `show_all` | View | Yes | Yes | Yes |
 | `start_navisworks` | Host | No | No | No |
+| `start_save_document` | Document, Files | Yes | Yes | No |
 | `start_subtree_names_dump` | Files, LocalState | Yes | Yes | No |
 | `unhide_selected` | View | Yes | Yes | Yes |
 | `viewpoint_set_camera` | View, Document | Yes | Yes | Yes |
@@ -201,6 +204,7 @@ a new truncation flag appears on a contract without being documented.
 | `propertiesTruncated` | `item_properties_by_handle`, `selection_property_report`, `selection_export_properties`, `model_color_scheme` item facts | fewer properties per item than the item has |
 | `valuesTruncated` | `selection_distinct_property_values` | fewer distinct values than exist, so the set is not the full domain |
 | `depthTruncated` | `selected_items_tree` | the tree was cut at `maxDepth`; deeper nodes exist and are absent |
+| `deadlineTruncated` | `selected_items_tree` | the walk over the selection stopped at the request deadline; more selected items exist and are absent, and what was built so far is returned |
 | `traversalTruncated` | `find_items_by_bbox`, `isolate_by_box`, clash matrix traversal | the walk stopped at a scan or time limit, so items were never examined. See *find_items_by_bbox* for what narrowing the zone now skips |
 | `responseTruncated` | `last_operation_status` | the command completed but its response had to be reduced to fit the named-pipe frame |
 | `groupsTruncated`, `pairsTruncated`, `candidatePairsTruncated`, `plannedTestsTruncated`, `analysisTruncated`, `classificationTruncated`, `rootItemsTruncated` | clash planning, grouping and root listings | fewer groups, pairs, planned tests or roots than the operation found |
@@ -233,6 +237,7 @@ contract cannot skip that description.
 | `AnalysisTruncated` | `ModelColorSchemeResponse` |
 | `CandidatePairsTruncated` | `ClashBboxPairPlanResponse` |
 | `ClassificationTruncated` | `ModelColorSchemeResponse` |
+| `DeadlineTruncated` | `SelectedItemsTreeResponse` |
 | `DepthTruncated` | `SelectedItemsTreeResponse` |
 | `GroupsTruncated` | `ClashGroupResultsResponse`, `SelectionColorByPropertyResponse` |
 | `ItemsTruncated` | `ItemPropertiesHandleResult`, `ModelColorSchemeResponse`, `SelectionColorByPropertyResponse`, `SelectionDistinctPropertyValuesResponse`, `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
@@ -338,11 +343,10 @@ under both readings; a `0` is truthful under only one.
 `scope=whole_model` with `matchDepth=all` (and no `starts_with`/`ends_with`
 condition) is answered by the native Navisworks
 `Search`, which runs with `PruneBelowMatch = true`: the engine **does not return
-descendants of a matching item**. Every other routing — any non-`whole_model`
-scope, `matchDepth=first`, or a `starts_with`/`ends_with`
-condition — is answered by the manual traversal, and `matchDepth=all` there
-returns nested matches as well. The one exception is an eligible scoped
-`matchDepth=first` request, which the engine answers with pruning on because
+descendants of a matching item**. Scoped `matchDepth=all` requests and
+`starts_with`/`ends_with` conditions use the manual traversal, which returns
+nested matches for `matchDepth=all`. Eligible `matchDepth=first` requests,
+including `scope=whole_model`, use the native search with pruning on because
 pruning and `first` mean the same thing there; see the next section for what
 makes a request eligible and what that costs in `scannedItemCount`.
 
@@ -411,9 +415,10 @@ non-`countOnly` form.
 
 ### Scoped `matchDepth=first` is answered by the engine
 
-A scoped search (`current_selection`, `under_handle`, `under_named_node`) with
-`matchDepth=first` is handed to the native Navisworks search rooted at the scope,
-with `PruneBelowMatch = true`. Engine pruning *is* `matchDepth=first` — stop at
+An eligible search with `matchDepth=first` is handed to the native Navisworks search
+rooted at its scope. This includes `scope=whole_model` alongside
+`current_selection`, `under_handle`, and `under_named_node`. The search uses
+`PruneBelowMatch = true`. Engine pruning *is* `matchDepth=first` — stop at
 the shallowest match on each branch — so the two paths return the same set, and
 the engine does the walking.
 
@@ -470,8 +475,10 @@ resolution time substantially.
 
 Match handles (`mh_*`) are session traversal references, not stable model
 identities. They can expire or be invalidated by intervening document/search
-changes; on `stale_match_reference`, repeat the originating search. For durable
-scope, prefer `scopeNodePath` or a Selection Set `itemId` freshly obtained from
+changes; `stale_match_reference` now states whether a handle expired after idle
+time, was evicted from the 100 most recently used handles, was cleared on a
+document change, or was never issued by this host. Repeat the originating search.
+For durable scope, prefer `scopeNodePath` or a Selection Set `itemId` freshly obtained from
 `list_selection_sets`.
 
 ## `clash_tests_from_sets`
@@ -570,7 +577,7 @@ Inputs:
 | --- | --- | --- | --- |
 | `min`, `max` | `{x,y,z}` | required | Opposite corners of an axis-aligned zone. All six values must be finite and each `min` component must be less than or equal to its corresponding `max` component. |
 | `matchMode` | string | `intersects` | `intersects` returns overlapping item boxes, `contains` returns boxes wholly inside the zone, `center` returns boxes whose center is inside the zone. `overlaps`, `inside`, and `centre` are accepted aliases. |
-| `includeHidden` | bool | `true` | Include hidden model items. |
+| `includeHidden` | bool | `true` | Include hidden model items. Navisworks hides an item's descendants with it, so `false` skips the whole subtree of a hidden ancestor, not just the hidden item itself. |
 | `includeContainers` | bool | `false` | Include non-leaf hierarchy/container items. |
 | `sourceFileContains` | string | `""` | Optional case-insensitive source-file filter. |
 | `maxScannedItems` | int | `100000` | Traversal safety limit, clamped to `1..500000`. The host also has a ten-second runtime budget. |
@@ -607,7 +614,7 @@ cannot hold a match at all:
 | ruled out by | test |
 | --- | --- |
 | its own extents | the model's bounding box does not overlap the requested zone |
-| its source file | `sourceFileContains` is set and the model's file cannot contain it |
+| its source file | `sourceFileContains` is set and the model's file cannot contain it. A model loaded from an `.nwd`/`.nwf` file is never pruned this way: the container's own name is not the files its items came from, so only the per-item filter decides |
 
 `prunedModelCount` reports how many were skipped. Their items never reach
 `scannedItemCount`, which is the whole point — the two numbers together say how much of
@@ -1714,6 +1721,49 @@ camera's place on its line of sight itself, so `effectivePosition` may differ
 from the requested `position`; when it differs, a warning says so and confirms
 that the view direction, up vector, and `heightField` are as requested.
 
+## `start_save_document`
+
+Starts the same save as `save_document` — the active document to its current
+path, `.nwd`/`.nwf` validation and all — but returns at once with an
+`operationId` instead of waiting for the write. Built for documents whose save
+outlasts the client's call timeout: the save itself keeps running on the
+Navisworks UI thread, and `save_document_status` stays answerable while it runs.
+`save_document` is unchanged.
+
+| Input | Type | Default | Meaning |
+|---|---|---:|---|
+| `instanceId` | string | `""` | Optional explicit Navisworks host. |
+| `navisworksVersion` | string | `""` | Optional version filter. |
+
+Key outputs: `operationId`, `instanceId` (the host that owns the job; poll with
+it), `state` (`running`), `isRunning`, `path` (the resolved current path),
+`elapsedMs`, `message`. If the save cannot be scheduled on the UI thread, start
+fails with that error and the job is recorded as `failed`.
+
+One job at a time. A second `start_save_document` while the job is `running` is
+a `schema_violation`; poll `save_document_status` until it reports `completed`
+or `failed`. A job whose document has no current path fails the same way
+`save_document` does — start resolves and validates the path before returning.
+If the active document changes between start and the posted save, the job fails
+without touching the new document. While the save writes, other calls that need
+the UI thread wait behind it; poll only `save_document_status` until it is done.
+
+## `save_document_status`
+
+Inputs are `operationId` (required), optional `instanceId`, and optional
+`navisworksVersion`.
+
+Key outputs: `operationId`, `instanceId`, `state` (`running|completed|failed`), `isRunning`,
+`path`, `format`, `fileSizeBytes`, `elapsedMs`, `errorMessage`,
+`startedAtUtc`, `completedAtUtc`, `message`. `elapsedMs` tracks the current time
+while running and freezes at completion.
+
+The poll is read-only, bypasses `host_busy`, and is answered without the
+Navisworks UI thread, so it replies while the save is still writing. An unknown
+or superseded `operationId` returns `command_failed`. Like the other status
+polls it is never recorded in the operation history, so it cannot evict the
+call you actually care about from `last_operation_status`.
+
 ## Overlay world markers
 
 `world_markers_set`, `world_markers_manage`, and `world_markers_list` drive the
@@ -1812,3 +1862,69 @@ All Autodesk `Document`/`ModelItem`/visibility access remains synchronous on the
 Timeout layers are coordinated as follows. `isolate_by_box` gives HostBridge an effective budget of `maxDurationSeconds + 100` seconds: 90 seconds are reserved after planning for the two synchronous visibility writes, selection restore, redraw, response creation, and rollback if a write throws; 5 seconds cover bridge discovery/setup; and the named-pipe response margin is 5 seconds. Thus the default bridge/nominal-host budgets are 160/155 seconds and the hard-maximum budgets are 580/575 seconds, below the shared 600-second agent dispatcher cap. A client should allow an additional 5-second response margin: at least 165 seconds for the default or `maxDurationSeconds + 105` seconds in general (585 seconds at the hard maximum). The MCP stdio server adds no separate fixed request deadline, but an external MCP client may cancel earlier. Client cancellation cannot safely abort an already-running Navisworks UI callback; use `last_operation_status` after a disconnect or client timeout. Visibility writes are not split by the classification timer: if a Navisworks visibility call throws, the service attempts to restore the captured per-item visibility state, but forced process termination or an external client disconnect cannot make that synchronous Autodesk transaction universally atomic.
 
 For Scenario Library exact replay: call `get_current_section_box` before authoring, preview/apply `isolate_by_box`, then save only `isolate_by_box` with the returned `box`, chosen `maxScannedItems`, and chosen `maxDurationSeconds` embedded as literals. The step safety envelope must repeat the same `maxDurationSeconds`; both the literal argument and safety value participate in the canonical fingerprint. Runtime references and argument/safety mismatches are rejected. Do not store capture, `$stepResult`, match handles, selection dependencies, or a fallback to the current Section Box. `get_current_section_box` is intentionally absent from the scenario allowlist; `isolate_by_box` is an allowlisted mutating tool with `apply`.
+
+## `markup_selection`
+
+Creates saved viewpoints with persistent `rectangle`, `target`, `arrow`, or `hatch` marks around hybrid groups of the current selection, as described in `docs/MTR_MARKUP_WORKFLOW.md`. One parameter extends that contract to places where nothing can be selected:
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `worldBoxes` | array of `{min, max}` | `[]` | Optional explicit world boxes to mark in addition to the selection, for example a place a drawing says a pipe should occupy while the model has nothing there. Each `min`/`max` is an `{x, y, z}` point in raw global coordinates of the active document's native units, exactly like `find_items_by_bbox`; no local-origin, grid, rotation, or unit transform is applied. All six values of every box must be finite and each `min` component must not exceed its `max` component, otherwise `schema_violation`. |
+
+Rules for `worldBoxes`:
+
+- Each world box becomes its own mark in the requested `markStyle`, with the same color, thickness, padding, and hatch settings as item marks. A world box is never merged with item groups or with other world boxes, regardless of `markSoloMinSizeMm` and `markMergeGapMm`.
+- World boxes require `clusterBy=none` (an empty `clusterBy` without a positive legacy `clusterMaxDistanceMm` also resolves to `none`); any other effective clustering mode is a `schema_violation`. A plan with no selected items reports `clusterBy=none`.
+- World boxes require `autoTopView=true`: they are projected through the orthographic top-view snapshot, while a kept perspective camera projects through the live view, which can still show the previous framing right after the fit. `autoTopView=false` with `worldBoxes` is a `schema_violation`.
+- With `worldBoxes` present the selection may be empty: `selectedItemCount=0` is valid instead of `no_selection`. An empty selection produces exactly one viewpoint named `name`, marked only with the world boxes.
+- The camera fit (`autoTopView`/`fitToSelection` with `fitMarginFactor`) covers the union of the selection cluster bounds and all world boxes, so every mark stays inside the saved frame.
+- Box marks count in `markCount` and `soloMarkCount`; a box that cannot be projected into the active camera counts in `skippedItemCount`.
+
+## `match_handle_items`
+
+Pages through the items behind one `find_items`/`find_items_by_bbox` match
+handle without searching again and without changing the selection, visibility,
+or the camera. Use it when a match holds more items than the 20-row preview
+shows. It is read-only, has no `apply` parameter, and is available in
+read-only mode.
+
+| Input | Type | Default | Meaning |
+|---|---|---:|---|
+| `matchHandle` | string | required | Opaque match handle returned by `find_items` or `find_items_by_bbox`. Runtime-only; never persist it in a scenario. |
+| `offset` | int | `0` | Zero-based index of the first item to return. Negative values are treated as 0. |
+| `limit` | int | `500` | Maximum items to return, `1..5000`. Out-of-range values are clamped, and the applied limit is echoed back. |
+| `includePaths` | bool | `true` | Include each item's full root-to-item path joined with `' / '`. Set `false` for names only on a large page. |
+| `includeSourceFiles` | bool | `false` | Include each item's source file. Defaults off because reading it walks the item's ancestors. |
+
+The response reports `matchHandle`, `totalItemCount` (every item the handle
+holds, not just the preview), the applied `offset` and `limit`,
+`returnedItemCount`, `nextOffset`, and `hasMore`. Each item in `items[]`
+carries `index`, `displayName`, `classDisplayName`, `path`, and `sourceFile`;
+`path` and `sourceFile` are empty strings when their include flag is `false`,
+never null. `sourceFile` is the nearest file node at or above the item: under
+an `.rvm` appended to an `.nwd` it is the `.rvm`.
+
+`totalItemCount` is what the handle holds, which is what the search returned,
+not what it matched. `find_items_by_bbox` keeps at most `maxResults` (up to
+10000) and says so with `resultsTruncated`, while its `matchedItemCount` counts
+every match; on the NVK5 model a zone matched 69,277 items and its handle held
+10,000. Narrow the zone or the conditions to reach the rest.
+
+Paging follows one rule: keep passing `nextOffset` back as `offset` until
+`hasMore` is `false`. `items[i].index == offset + i`, so pages splice in the
+handle's own order and cannot be reassembled wrongly. An `offset` at or past
+`totalItemCount` is an empty page (`returnedItemCount=0`, `hasMore=false`),
+not an error. A page also stops early, with `sizeLimited=true`, once its items
+reach 3 MiB, below the 4 MiB pipe frame; `returnedItemCount`, `nextOffset` and
+`hasMore` then describe the rows actually returned, so the rule above still
+holds. A whole match is covered exactly once by walking
+`nextOffset` pages; `limit=1` walks one item at a time.
+
+The handle is resolved against the same session store the search tools wrote:
+no second search runs, and no new handle is issued. A blank `matchHandle` is
+a `schema_violation`. A stale or unknown handle fails with
+`stale_match_reference` and the reason — expired after idle, evicted from the
+100 most recently used handles, cleared on a document change, or never issued
+by this host — instead of an empty list. Re-run `find_items` or
+`find_items_by_bbox` and retry with the fresh handle.
+

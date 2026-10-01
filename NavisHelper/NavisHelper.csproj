@@ -600,6 +600,7 @@
     <Compile Include="Agent\Services\DocumentCommandService.SelectionSetQueries.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.ViewportCommands.cs" />
     <Compile Include="Agent\Services\ViewpointCameraCommandService.cs" />
+    <Compile Include="Agent\Services\SaveDocumentJobService.cs" />
     <Compile Include="Agent\Services\WorldMarkerOverlayService.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.Visibility.cs" />
     <Compile Include="Agent\Services\SectionBoxClippingParser.cs" />
@@ -611,6 +612,7 @@
     <Compile Include="Agent\Services\DocumentCommandService.Viewpoints.Import.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.Viewpoints.Management.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.cs" />
+    <Compile Include="Agent\Services\NativePropertyLookup.cs" />
     <Compile Include="Agent\Services\FindItemsMatchSet.cs" />
     <Compile Include="Agent\Services\SearchService.cs" />
     <Compile Include="Agent\Services\SearchService.Commands.cs" />
@@ -622,6 +624,7 @@
     <Compile Include="Agent\Services\SearchService.Scoped.cs" />
     <Compile Include="Agent\Services\SelectionSetSearchBuilder.cs" />
     <Compile Include="Agent\Session\MatchSessionStore.cs" />
+    <Compile Include="Agent\Services\MatchHandleItemsService.cs" />
     <Compile Include="AboutDialog.cs" />
     <Compile Include="AIColorObjects.cs" />
     <Compile Include="AIColorSchemeSelector.cs" />
@@ -648,7 +651,6 @@
     <Compile Include="AI\OpenRouterModelSelection.cs" />
     <Compile Include="AI\OpenRouterKeyStore.cs" />
     <Compile Include="ColorSchemes.cs" />
-    <Compile Include="ColorsByNameHandler.cs" />
     <Compile Include="Core\ColorParser.cs" />
     <Compile Include="Core\ClashOperationProtocolReason.cs" />
     <Compile Include="Core\PersistedModelNames.cs" />
@@ -679,7 +681,6 @@
     <Compile Include="SelectionHatchBoundsMarker.cs" />
     <Compile Include="ImportPslists.cs" />
     <Compile Include="Core\Logger.cs" />
-    <Compile Include="NavisSaveUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>

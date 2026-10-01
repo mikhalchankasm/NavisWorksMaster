@@ -1381,9 +1381,12 @@ namespace NavisHelper.Agent.Services
         {
             try
             {
-                if (property == null || property.Value == null)
+                if (property == null)
                     return string.Empty;
-                return property.Value.ToDisplayString() ?? string.Empty;
+                var value = property.Value;
+                if (value == null)
+                    return string.Empty;
+                return value.ToDisplayString() ?? string.Empty;
             }
             catch
             {

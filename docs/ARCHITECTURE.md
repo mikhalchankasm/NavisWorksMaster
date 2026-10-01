@@ -15,15 +15,17 @@ NavisHelper is a C# plugin suite for Autodesk Navisworks Manage (2024/2025/2026/
 
 ### Plugin System
 
-Entry point is `RibbonLoader.cs` — a `CommandHandlerPlugin` decorated with `[Plugin]`, `[RibbonLayout]`, `[RibbonTab]`, and `[Command]` attributes. It routes ribbon button clicks to the corresponding `AddInPlugin` implementations via `Application.Plugins.ExecuteAddInPlugin()`.
+`RibbonLoader.cs` is an `EventWatcherPlugin` with a `[Plugin]` attribute. After loading, it polls `ComponentManager.Ribbon` until available, then creates or reuses the NavisHelper tab, panel, and button through AdWindows ribbon objects. The button's `ShowPanelCommandHandler` finds and loads `NavisHelperDockPane.CBC`, then toggles the dock pane's visibility.
 
-The ribbon UI is defined in `CustomRibbon.xaml` (embedded resource) using Autodesk's AdWindows ribbon framework.
+`CustomRibbon.xaml` is embedded but is not loaded by `RibbonLoader`; the loader's only `GetManifestResourceStream` call loads button images.
 
-### Key Plugins (each is an `AddInPlugin` with its own `.addin` manifest)
+### Key Plugins
+
+The bundle's `PackageContents.xml` registers `NavisHelper.dll` for each supported Navisworks version. The build copies the DLL and dependencies into the bundle; it does not deploy a separate `.addin` manifest for each plugin.
 
 - **ColorsByName** (`ColorsByName.cs`) — Core plugin. Reads a text file with `name;R,G,B;transparency` lines and applies colors to matching model items. Uses a 3-tier search fallback: internal property name → display name property → recursive display name matching.
 - **AIColorObjects** (`AIColorObjects.cs`) — Thin plugin entry point for OpenRouter-powered coloring. It delegates to `AIColorWorkflow`, which uses the separate .NET 9 `NavisHelper.AiWorker` process for OpenRouter HTTPS; failed API calls never return local fallback colors as AI results.
-- **AIColorSchemeSelector** (`AIColorSchemeSelector.cs`) — UI for selecting from 10 predefined color schemes defined in `ColorSchemes.cs`.
+- **AIColorSchemeSelector** (`AIColorSchemeSelector.cs`) — UI for selecting from 14 predefined color schemes defined in `ColorSchemes.cs`.
 - **CsvAttributeLoader** (`CsvAttributeLoader.cs`) — Bulk loads attributes from semicolon-delimited CSV files. Builds an indexed lookup via `SearchCondition`-based queries.
 - **MarkupViewpoint** (`MarkupViewpoint.cs`) — Creates a saved viewpoint with red ellipse markups around each selected element from the current orthographic or perspective camera. It reuses the MCP `MarkupSelection` workflow and `View.ProjectPoint()` projection. Prompts for viewpoint name via WinForms dialog (with clipboard auto-fill).
 - **ShortestDistanceMarker** (`ShortestDistanceMarker.cs`) — Compatibility command that opens the `Высоты Z` tab. The active workflow reads every selected item's bounding-box `Max Z`, then creates persistent vector labels or dimension lines from the top-face center to a configurable global Z level.
@@ -65,7 +67,16 @@ Plugins access models via `Application.ActiveDocument`. Key API operations:
 - **One known path-keyed aggregation, reporting only:** `VisibilityRootSummaryAccumulator` groups affected items by `BuildItemPath(rootItem)`, so two appended files sharing a display name merge into a single `affectedRootSummaries` row with a combined count. No item is lost: the hide and reveal decisions themselves are identity-keyed, and only the per-root summary is affected. Left as is because it has never been demonstrated on a model with duplicate root names, and an invariant that lists its exceptions is worth more than one that overstates. Resolving a caller-supplied path *string* back to an item, as `TryResolveClashPairRoot` does, is a different problem — there is no item to key by, and the ambiguity it creates is handled where printed paths are parsed.
 - **Two of those sets are not plain dedup**, and were converted on their own reasoning rather than by the rule above. `AddHiddenAncestors` uses its set as an already-processed marker: its `Contains` break is a short-circuit, not a correctness requirement, because `Add` already refuses the repeats higher up — deleting the break would produce identical output. That is what makes identity right rather than a judgement call, and keyed by path it did worse than dedup wrongly, leaving an ancestor hidden *and* skipping everything above it on that chain. `hide_unselected` tests membership across two traversals rather than within one: the set is built from the selection and tested against every node the hide walk reaches (it stops at selected items since #72), so a path key spared an unselected same-named twin from hiding and then descended into it.
 - **An abandoned traversal poisons the session:** a scoped traversal that hits its 45 s budget or 1,000,000 item limit has materialized hundreds of thousands of `ModelItem` wrappers — 268 949 measured live on `6501.5.nwd`. While they stay reachable, every later search slows down sharply, and the cost lands in path building rather than in the engine: the same whole-model search returning 3616 matches took 554 ms in a fresh process and 7428 ms right after one such failure. `SearchService.AbandonScopedTraversal` drops the collections and collects before reporting the error, and `AbandonNativeScopedSearch` does the same for the native scoped path, which costs 96 ms on a call that already spent 45 000 and restores the next search to 519 ms. Raise the budget errors through that helper, never with a bare `throw`. Phase timings are in the `find_items search_phases` log line (`accumulate_ms`, `sort_ms`).
-- **Completed walks leave wrappers behind too, more slowly:** every `ModelItem`, `ModelItemCollection` and `BoundingBox3D` is a `NativeHandle` holding a native weak reference that only `Dispose` or its finalizer releases (read from `Autodesk.Navisworks.Api.dll` by reflection), and walks dispose none. Identical whole-model `find_items_by_bbox` calls on `6513.nwd` grew from 1.0 to 5.5 s in one process, until the runtime happened to run a full collection. `HeavyWorkCollectionPolicy` fires once four generation-0 collections have passed since the last forced one: a 41 000-item walk causes about six, `host_status` none. It also fires after any command of 500 ms or more, regardless of its generation-0 count, because wrapper-heavy commands such as `hide_unselected` can slow later calls even without a generation-0 collection. The host then collects, drains finalizers and collects again on a pool thread, never under the request gate, which rejects rather than queues. The next gated request waits for that collection, capped at 10 s, before it starts. The wait matters: a collection that overlaps a walk slows both, and the first one after a file load took 5.2 s overlapping a walk against 70 ms alone. With this, the same calls stay at 1.0–1.3 s. Each collection costs about 0.1 s, of which the next request waits 50–75 ms. Numbers in `docs/MCP_TOOL_BASELINE.md`.
+- **Completed walks leave wrappers behind too, more slowly:** every `ModelItem`, `ModelItemCollection` and `BoundingBox3D` is a `NativeHandle` holding a native weak reference that only `Dispose` or its finalizer releases (read from `Autodesk.Navisworks.Api.dll` by reflection), and the scoped `find_items` (#122), `find_items_by_bbox` (#123), and `dump_subtree_names` (#124) walks now dispose the wrappers they own. Identical whole-model `find_items_by_bbox` calls on `6513.nwd` grew from 1.0 to 5.5 s in one process, until the runtime happened to run a full collection. `HeavyWorkCollectionPolicy` fires once four generation-0 collections have counted since the last forced one (#120): only collections while a request runs count, so those Navisworks makes between requests do not. A 41 000-item walk causes about six, `host_status` none. It also fires after any command of 500 ms or more, regardless of its generation-0 count, because wrapper-heavy commands such as `hide_unselected` can slow later calls even without a generation-0 collection. The refuted scoped `find_items` change (#114) is evidence that allocation-driven generation-0 collections had accidentally kept walks fast; the TECH-W13 probe established which wrappers a walk owns. The host then collects, drains finalizers and collects again on a pool thread, never under the request gate, which rejects rather than queues. The next gated request waits for that collection, capped at 10 s, before it starts. The wait matters: a collection that overlaps a walk slows both, and the first one after a file load took 5.2 s overlapping a walk against 70 ms alone. With this, the same calls stay at 1.0–1.3 s. Each collection costs about 0.1 s, of which the next request waits 50–75 ms. Numbers in `docs/MCP_TOOL_BASELINE.md`.
+
+  TECH-W13 disposal rules, measured live:
+
+  1. Only `Children` and `Parent` wrappers are proven fresh. Do not dispose `model.RootItem` (possibly cached), scope roots, items kept in results, or `BoundingBox3D.Min` / `Max` / `Center` points from a stored box. Disposing an unkept `BoundingBox3D` is safe.
+  2. Copy a level's children to a list and dispose the collection object when disposable, before walking or disposing any child. The first live run of #123 failed every call with "Object has been Disposed": a lazily enumerated collection cannot survive release of its last yielded child. `ModelItemEnumerableCollection` itself is not `IDisposable`.
+  3. Wrap each `Dispose` in try/catch so cleanup cannot become the caller's error.
+  4. Removing allocations without disposal slows walks: #114 went from 1685 to 3538 ms; reading box corners once without disposal went from 3080 to 4097 ms. Fewer generation-0 collections delay wrapper finalizers. Disposal is the lever.
+
+  Still undisposed: the clash matrix walk, `model_color_scheme`, `isolate_by_box`, and the visibility collectors.
 - **Bound a `ModelItem` set that is the only reference to its wrappers:** when a walk needs identity dedup, bound the set by what the call returns, or drop it when the walk cannot produce a duplicate. A set whose wrappers another collection already holds costs nothing measurable and is not worth changing. The measurements are in `docs/MCP_TOOL_BASELINE.md`, "What a `ModelItem` set actually costs".
 
 ### Redline (Markup) JSON Format
@@ -106,7 +117,13 @@ Type FindType(string fullName) {
     }
     return null;
 }
-// Usage: FindType("Autodesk.Navisworks.Internal.ApiImplementation.LcRmFrameworkInterface")
+// For each type, try Api.Interop first, then Internal.ApiImplementation.
+var frameworkType =
+    FindType("Autodesk.Navisworks.Api.Interop.LcRmFrameworkInterface") ??
+    FindType("Autodesk.Navisworks.Internal.ApiImplementation.LcRmFrameworkInterface");
+var contextType =
+    FindType("Autodesk.Navisworks.Api.Interop.LcUCIPExecutionContext") ??
+    FindType("Autodesk.Navisworks.Internal.ApiImplementation.LcUCIPExecutionContext");
 ```
 Section enable command: `LcRmFrameworkInterface.ExecuteCommand("RoamerGUI_OM_SECTION_MASTER_ENABLE", LcUCIPExecutionContext.eTOOLBAR)`
 
@@ -127,6 +144,16 @@ Section enable command: `LcRmFrameworkInterface.ExecuteCommand("RoamerGUI_OM_SEC
 ### Navisworks ProjectPoint API
 
 `View.ProjectPoint(Point3D, bool, bool)` returns a `ProjectionResult` with `X`, `Y`, `Depth` properties. This is the official Navisworks .NET API for 3D-to-2D projection; the local distilled note is `docs/research/navisworks-api-notes.md`. Prefer this over manual quaternion-based projection for perspective views.
+
+### Overlay drawing and document identity
+
+Live findings on Navisworks 2027 (2026-09-26, NW-03): `RenderPlugin.Render` is called, but its model-space primitives reach neither the screen nor a capture. Its 2D `OverlayRender` draws under any active tool and appears in `capture_current_view` (COM exporter) and `View.GenerateImage(ScenePlusOverlay, ...)`, but not `View.GenerateImage(Scene, ...)`. Therefore `WorldMarkerOverlayRenderer` draws in 2D; a `ToolPlugin` overlay such as `ClashMarkerTool` draws only while that tool is active.
+
+For `ProjectPoint(point, sectionClip, frustumClip)`, `sectionClip = true` drops points outside a section box. World markers pass `false` by the owner's decision. `ProjectionResult` is plain managed, while `Point2D`, `Point3D`, `Color`, and `BoundingBox3D` are `NativeHandle`s; dispose per-frame `Point2D` instances.
+
+File > Open usually retains the same `Application.MainDocument` object, so `ActiveDocumentChanged` does not fire. Per-document state must also handle the tracked document's `FileNameChanged`. Save As keeps state when `ModelColorSchemeDocumentIdentity.HasSameModelContent` holds; opening another file clears it, as in clash isolation, the colour scheme, and world markers.
+
+Navisworks 2027 does not load a minimal DXF that declares `AC1027` and contains only HEADER and ENTITIES, with no tables or handles. It either opens empty or a modal import error blocks the process. This is why DXF world markers were dropped.
 
 ### Conditional Compilation
 

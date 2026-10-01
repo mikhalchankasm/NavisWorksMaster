@@ -44,26 +44,43 @@ namespace NavisHelper.Agent.Services
 
             List<ModelItem> nativeMatches;
             if (ShouldTryNativeScopedSearch(search, scope, matchDepth, countOnly) &&
-                TryExecuteNativeScopedSearch(document, search, roots, started, out nativeMatches))
+                TryExecuteNativeScopedSearch(document, search, roots, scope, started, out nativeMatches))
             {
                 return BuildNativeScopedResponse(response, search, nativeMatches, previewLimit, sessionStore);
             }
 
+            var preparedSearch = PrepareManualSearch(search);
             var matchedItems = countOnly ? null : new List<ModelItem>();
             var sampleValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var stack = new Stack<ScopedSearchNode>();
+            var scopeRoots = new HashSet<ModelItem>(roots);
             // Scope roots are disjoint, and each child is pushed once by its unique parent.
             for (var index = roots.Count - 1; index >= 0; index--)
                 stack.Push(new ScopedSearchNode(roots[index], GetModelItemDepth(roots[index])));
 
+            // TECH-W13 live probe: Navisworks hands out a fresh managed ModelItem
+            // wrapper on every access, so every wrapper this walk pops is solely
+            // its own and can be released as soon as its iteration is fully
+            // processed (children pushed, or the matchDepth=first continue)
+            // instead of waiting for its finalizer. The previous iteration's
+            // wrapper is released at the top of the next iteration and after the
+            // loop; scope roots and items kept in matchedItems outlive the walk
+            // and are never disposed here.
+            ModelItem previousItem = null;
             while (stack.Count > 0)
             {
+                if (previousItem != null && IsWalkOwnedWrapper(previousItem, scopeRoots, matchedItems))
+                {
+                    try { previousItem.Dispose(); }
+                    catch { }
+                }
+                previousItem = stack.Peek().Item;
                 if (started.ElapsedMilliseconds > MaxScopedTraversalMilliseconds)
                     throw AbandonScopedTraversal(response.ScannedItemCount, matchedItems, stack,
-                        "Scoped find_items exceeded the 45 second traversal budget. Narrow the scope or use matchDepth=first/countOnly.");
+                        "find_items (scope=" + scope + ") exceeded the 45 second traversal budget. Narrow the scope or use matchDepth=first/countOnly.");
                 if (response.ScannedItemCount >= MaxScopedScannedItems)
                     throw AbandonScopedTraversal(response.ScannedItemCount, matchedItems, stack,
-                        "Scoped find_items exceeded the 1,000,000 item traversal limit. Narrow the scope.");
+                        "find_items (scope=" + scope + ") exceeded the 1,000,000 item traversal limit. Narrow the scope.");
 
                 var node = stack.Pop();
                 var item = node.Item;
@@ -71,7 +88,7 @@ namespace NavisHelper.Agent.Services
                     continue;
                 response.ScannedItemCount++;
 
-                var matched = MatchesSearchManually(item, search);
+                var matched = MatchesSearchManually(item, preparedSearch);
                 if (matched)
                 {
                     response.MatchedItemCount++;
@@ -92,13 +109,24 @@ namespace NavisHelper.Agent.Services
                         continue;
                 }
 
-                var children = item.Children == null
+                var itemChildren = item.Children;
+                var children = itemChildren == null
                     ? new List<ModelItem>()
-                    : item.Children.Cast<ModelItem>().Where(child => child != null).ToList();
+                    : itemChildren.Cast<ModelItem>().Where(child => child != null).ToList();
+                if (itemChildren is IDisposable disposableChildren)
+                {
+                    try { disposableChildren.Dispose(); }
+                    catch { }
+                }
                 for (var childIndex = children.Count - 1; childIndex >= 0; childIndex--)
                     stack.Push(new ScopedSearchNode(children[childIndex], node.Depth + 1));
             }
 
+            if (previousItem != null && IsWalkOwnedWrapper(previousItem, scopeRoots, matchedItems))
+            {
+                try { previousItem.Dispose(); }
+                catch { }
+            }
             response.SampleValuesFromModel = sampleValues.ToList();
             var result = new FindItemsResult
             {
@@ -126,6 +154,19 @@ namespace NavisHelper.Agent.Services
             }
             response.Results.Add(result);
             return response;
+        }
+
+        private static bool IsWalkOwnedWrapper(
+            ModelItem item,
+            HashSet<ModelItem> scopeRoots,
+            List<ModelItem> matchedItems)
+        {
+            if (item == null || scopeRoots.Contains(item))
+                return false;
+            // A kept item was added to matchedItems in its own iteration, so at
+            // release time it is always the list's last entry.
+            return matchedItems == null || matchedItems.Count == 0 ||
+                !ReferenceEquals(matchedItems[matchedItems.Count - 1], item);
         }
 
         private static FindItemsResponse BuildFindItemsPreflight(
@@ -211,38 +252,94 @@ namespace NavisHelper.Agent.Services
 
         private static bool MatchesSearchManually(ModelItem item, FindItemsSearch search)
         {
-            if (search == null || search.Conditions == null || search.Conditions.Count == 0)
+            return MatchesSearchManually(item, PrepareManualSearch(search));
+        }
+
+        private static bool MatchesSearchManually(ModelItem item, PreparedManualSearch prepared)
+        {
+            if (prepared == null)
                 return false;
-
-            var hasConditionLogic = search.Conditions.Skip(1).Any(condition =>
-                condition != null && string.Equals(
-                    condition.LogicalOperator,
-                    FindItemsConditionOptionsHelper.Or,
-                    StringComparison.OrdinalIgnoreCase));
-            if (!hasConditionLogic)
+            if (prepared.EqualsValues != null)
             {
-                var matchAll = string.Equals(search.CombineOperator, FindItemsCombineOperators.All, StringComparison.OrdinalIgnoreCase);
-                return matchAll
-                    ? search.Conditions.All(condition => MatchesManualCondition(item, condition))
-                    : search.Conditions.Any(condition => MatchesManualCondition(item, condition));
+                // Same name source as the per-condition path, so the two can never disagree.
+                string name;
+                return TryGetDefaultItemNameValue(item, out name) &&
+                       prepared.EqualsValues.Contains(NormalizeConditionString(name, prepared.EqualsReference));
             }
 
-            var anyGroupMatched = false;
-            var currentGroupMatched = MatchesManualCondition(item, search.Conditions[0]);
-            for (var index = 1; index < search.Conditions.Count; index++)
+            return prepared.Groups.Any(group => group.All(entry =>
+                MatchesManualCondition(item, entry.Condition, entry.Resolved, entry.Comparison)));
+        }
+
+        private static PreparedManualSearch PrepareManualSearch(FindItemsSearch search)
+        {
+            if (search == null || search.Conditions == null || search.Conditions.Count == 0)
+                return null;
+
+            var groups = FindItemsConditionGroups.Split(search.Conditions);
+            if (groups.Count == 1 &&
+                !string.Equals(search.CombineOperator, FindItemsCombineOperators.All, StringComparison.OrdinalIgnoreCase))
+                groups = search.Conditions.Select((condition, index) => new List<int> { index }).ToList();
+
+            var preparedGroups = groups
+                .Select(group => group.Select(index => PrepareManualCondition(search.Conditions[index])).ToList())
+                .ToList();
+            var equalsValues = TryBuildEqualsFastPath(preparedGroups);
+            return new PreparedManualSearch(
+                preparedGroups,
+                equalsValues,
+                equalsValues == null ? null : preparedGroups[0][0].Condition);
+        }
+
+        private static (FindItemsCondition Condition, ResolvedProperty Resolved, string Comparison) PrepareManualCondition(FindItemsCondition condition)
+        {
+            return (condition, ResolveProperty(condition), NormalizeComparison(condition.Operator));
+        }
+
+        private static HashSet<string> TryBuildEqualsFastPath(
+            List<List<(FindItemsCondition Condition, ResolvedProperty Resolved, string Comparison)>> groups)
+        {
+            var first = groups[0][0].Condition;
+            var ignoreCase = first.IgnoreCase.GetValueOrDefault(true);
+            var ignoreCharWidth = first.IgnoreCharWidth.GetValueOrDefault(false);
+            var ignoreDiacritics = first.IgnoreDiacritics.GetValueOrDefault(false);
+            var values = new HashSet<string>(ignoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            foreach (var group in groups)
             {
-                var condition = search.Conditions[index];
-                if (string.Equals(condition.LogicalOperator, FindItemsConditionOptionsHelper.Or, StringComparison.OrdinalIgnoreCase))
-                {
-                    anyGroupMatched |= currentGroupMatched;
-                    currentGroupMatched = MatchesManualCondition(item, condition);
-                }
-                else
-                {
-                    currentGroupMatched &= MatchesManualCondition(item, condition);
-                }
+                if (group.Count != 1)
+                    return null;
+
+                var entry = group[0];
+                if (!string.Equals(entry.Comparison, FindItemsComparisons.Equal, StringComparison.OrdinalIgnoreCase) ||
+                    entry.Condition.Negate.GetValueOrDefault(false) ||
+                    entry.Condition.IgnoreCase.GetValueOrDefault(true) != ignoreCase ||
+                    entry.Condition.IgnoreCharWidth.GetValueOrDefault(false) != ignoreCharWidth ||
+                    entry.Condition.IgnoreDiacritics.GetValueOrDefault(false) != ignoreDiacritics ||
+                    entry.Resolved == null ||
+                    !entry.Resolved.IsDefaultItemNameTarget)
+                    return null;
+
+                values.Add(NormalizeConditionString(entry.Condition.Value, entry.Condition));
             }
-            return anyGroupMatched || currentGroupMatched;
+
+            return values;
+        }
+
+        private sealed class PreparedManualSearch
+        {
+            public PreparedManualSearch(
+                List<List<(FindItemsCondition Condition, ResolvedProperty Resolved, string Comparison)>> groups,
+                HashSet<string> equalsValues,
+                FindItemsCondition equalsReference)
+            {
+                Groups = groups;
+                EqualsValues = equalsValues;
+                EqualsReference = equalsReference;
+            }
+
+            public List<List<(FindItemsCondition Condition, ResolvedProperty Resolved, string Comparison)>> Groups { get; private set; }
+            public HashSet<string> EqualsValues { get; private set; }
+            public FindItemsCondition EqualsReference { get; private set; }
         }
 
         private static List<ModelItem> ResolveFindItemsScopeRoots(
@@ -280,8 +377,14 @@ namespace NavisHelper.Agent.Services
                 if (string.IsNullOrWhiteSpace(handle))
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "scopeHandle is required for scope=under_handle.");
                 IList<ModelItem> items;
-                if (!sessionStore.TryGet(handle, out items) || items == null || items.Count == 0)
-                    throw new AgentCommandException(ErrorCodes.StaleMatchReference, "scopeHandle is stale or was not found. Re-run find_items/list_item_children.");
+                string reason;
+                if (!sessionStore.TryGet(handle, out items, out reason) || items == null || items.Count == 0)
+                {
+                    if (string.IsNullOrEmpty(reason))
+                        reason = "This match handle contains no items.";
+                    throw new AgentCommandException(ErrorCodes.StaleMatchReference,
+                        "scopeHandle is stale or was not found. " + reason + " Re-run find_items/list_item_children.");
+                }
                 roots.AddRange(items.Where(item => item != null));
                 return RemoveNestedScopeRoots(roots);
             }

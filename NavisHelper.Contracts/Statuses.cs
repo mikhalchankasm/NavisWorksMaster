@@ -71,6 +71,7 @@ namespace NavisHelper.Agent.Contracts
         public const string SelectedItemsAncestry = "selected_items_ancestry";
         public const string SelectedItemsTree = "selected_items_tree";
         public const string ItemPropertiesByHandle = "item_properties_by_handle";
+        public const string MatchHandleItems = "match_handle_items";
         public const string CurrentViewpointInfo = "current_viewpoint_info";
         public const string ListSavedViewpoints = "list_saved_viewpoints";
         public const string SavedViewpointsExport = "saved_viewpoints_export";
@@ -97,6 +98,8 @@ namespace NavisHelper.Agent.Contracts
         public const string ViewpointSetCamera = "viewpoint_set_camera";
         public const string SaveDocument = "save_document";
         public const string SaveDocumentAs = "save_document_as";
+        public const string StartSaveDocument = "start_save_document";
+        public const string SaveDocumentStatus = "save_document_status";
         public const string CloseNavisworks = "close_navisworks";
         public const string BuildMtrViewpoints = "build_mtr_viewpoints";
         public const string SelectionSetsBuildViewpoints = "selection_sets_build_viewpoints";

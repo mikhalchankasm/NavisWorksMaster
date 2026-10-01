@@ -42,7 +42,7 @@ public sealed class WorldMarkerToolsArchitectureTests
     [Fact]
     public void Registrations_ExposeTheFamilyThroughDedicatedBoundaries()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var program = Read(root, "NavisHelper.McpServer", "Program.cs");
         var router = Read(root, "NavisHelper", "Agent", "Host", "AgentHostService.CommandRouter.cs");
         var bridge = Read(root, "NavisHelper.McpServer", "Services", "HostBridgeClient.WorldMarkers.cs");
@@ -66,7 +66,7 @@ public sealed class WorldMarkerToolsArchitectureTests
     [Fact]
     public void MarkerFamily_DoesNotGrowLegacyGodPartials()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var tool = Read(root, "NavisHelper.McpServer", "Tools", "NavisworksWorldMarkerTools.cs");
         var service = Read(root, "NavisHelper", "Agent", "Services", "WorldMarkerOverlayService.cs");
 
@@ -84,17 +84,5 @@ public sealed class WorldMarkerToolsArchitectureTests
     private static string Read(string root, params string[] parts)
     {
         return File.ReadAllText(Path.Combine(new[] { root }.Concat(parts).ToArray()));
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "NavisHelper.sln")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-        throw new DirectoryNotFoundException("Repository root was not found.");
     }
 }

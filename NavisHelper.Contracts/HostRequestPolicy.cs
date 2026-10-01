@@ -11,6 +11,7 @@ namespace NavisHelper.Agent.Contracts
         CancelSubtreeNamesDump = 4,
         ClashRunStatus = 5,
         CancelClashRun = 6,
+        SaveDocumentStatus = 7,
     }
 
     public static class HostRequestPolicy
@@ -29,6 +30,8 @@ namespace NavisHelper.Agent.Contracts
                 return HostRequestGateBypassKind.ClashRunStatus;
             if (string.Equals(command, HostCommandNames.CancelClashRun, StringComparison.OrdinalIgnoreCase))
                 return HostRequestGateBypassKind.CancelClashRun;
+            if (string.Equals(command, HostCommandNames.SaveDocumentStatus, StringComparison.OrdinalIgnoreCase))
+                return HostRequestGateBypassKind.SaveDocumentStatus;
 
             return HostRequestGateBypassKind.None;
         }
@@ -43,6 +46,7 @@ namespace NavisHelper.Agent.Contracts
             var kind = GetRequestGateBypassKind(command);
             return kind == HostRequestGateBypassKind.ClashReportStatus ||
                    kind == HostRequestGateBypassKind.ClashRunStatus ||
+                   kind == HostRequestGateBypassKind.SaveDocumentStatus ||
                    kind == HostRequestGateBypassKind.LastOperationStatus;
         }
     }

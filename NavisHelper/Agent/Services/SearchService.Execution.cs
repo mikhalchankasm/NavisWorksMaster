@@ -701,65 +701,19 @@ namespace NavisHelper.Agent.Services
 
             foreach (var candidate in resolved.DisplayCandidates)
             {
-                var displayProperty = TryFindDisplayPropertyCore(item, candidate.Category, candidate.Property);
+                var displayProperty = NativePropertyLookup.FindDisplayProperty(item, candidate.Category, candidate.Property);
                 if (displayProperty != null)
                     return displayProperty;
             }
 
             if (!string.IsNullOrWhiteSpace(resolved.InternalProperty))
             {
-                var internalProperty = TryFindInternalPropertyCore(item, resolved.InternalCategory, resolved.InternalProperty);
+                var internalProperty = NativePropertyLookup.FindInternalProperty(item, resolved.InternalCategory, resolved.InternalProperty);
                 if (internalProperty != null)
                     return internalProperty;
             }
 
             return null;
-        }
-
-        private static DataProperty TryFindDisplayPropertyCore(ModelItem item, string category, string property)
-        {
-            if (item == null || item.PropertyCategories == null || string.IsNullOrWhiteSpace(property))
-                return null;
-
-            if (string.IsNullOrWhiteSpace(category))
-            {
-                foreach (PropertyCategory propertyCategory in item.PropertyCategories)
-                {
-                    if (propertyCategory == null || propertyCategory.Properties == null)
-                        continue;
-
-                    var propertyInAnyCategory = propertyCategory.Properties.FindPropertyByDisplayName(property);
-                    if (propertyInAnyCategory != null)
-                        return propertyInAnyCategory;
-                }
-
-                return null;
-            }
-
-            return item.PropertyCategories.FindPropertyByDisplayName(category, property);
-        }
-
-        private static DataProperty TryFindInternalPropertyCore(ModelItem item, string category, string property)
-        {
-            if (item == null || item.PropertyCategories == null || string.IsNullOrWhiteSpace(property))
-                return null;
-
-            if (string.IsNullOrWhiteSpace(category))
-            {
-                foreach (PropertyCategory propertyCategory in item.PropertyCategories)
-                {
-                    if (propertyCategory == null || propertyCategory.Properties == null)
-                        continue;
-
-                    var propertyInAnyCategory = propertyCategory.Properties.FindPropertyByName(property);
-                    if (propertyInAnyCategory != null)
-                        return propertyInAnyCategory;
-                }
-
-                return null;
-            }
-
-            return item.PropertyCategories.FindPropertyByName(category, property);
         }
 
         private static string GetPropertyDisplayValue(DataProperty property)
@@ -769,7 +723,8 @@ namespace NavisHelper.Agent.Services
 
             try
             {
-                return property.Value == null ? string.Empty : property.Value.ToDisplayString() ?? string.Empty;
+                var variant = property.Value;
+                return variant == null ? string.Empty : variant.ToDisplayString() ?? string.Empty;
             }
             catch
             {
