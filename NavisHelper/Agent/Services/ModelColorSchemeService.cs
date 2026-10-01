@@ -1185,20 +1185,36 @@ namespace NavisHelper.Agent.Services
                 {
                     continue;
                 }
-                var reading = new ModelColorSchemeColorSample { Requested = ToRgb(sample.Item2) };
+                ModelColorSchemeColorSample reading = null;
+                var readStage = "RequestedColor";
                 try
                 {
+                    reading = new ModelColorSchemeColorSample { Requested = ToRgb(sample.Item2) };
+                    readStage = "Geometry";
                     var geometry = sample.Item1.Geometry;
+                    readStage = "PermanentColor";
                     reading.Permanent = ToRgbOrNull(geometry.PermanentColor);
+                    readStage = "ActiveColor";
                     reading.Active = ToRgbOrNull(geometry.ActiveColor);
                 }
                 catch (Exception ex)
                 {
-                    reading.ReadError = ex.Message;
+                    var error = (readStage + ": " + ex.GetType().Name + ": " + ex.Message)
+                        .Replace('\r', ' ').Replace('\n', ' ');
+                    if (error.Length > 200)
+                        error = error.Substring(0, 200);
+                    if (reading == null)
+                    {
+                        response.Warnings.Add("Could not verify a requested model color: " + error);
+                        continue;
+                    }
+                    reading.ReadError = error;
                 }
                 readings.Add(reading);
             }
             ModelColorSchemeColorVerifier.Tally(readings, response);
+            if (samples != null && samples.Count > 0 && response.ColorVerificationSampleCount == 0)
+                response.Warnings.Add("No model color verification samples could be read.");
         }
 
         private static ModelColorSchemeRgb? ToRgbOrNull(Autodesk.Navisworks.Api.Color color)

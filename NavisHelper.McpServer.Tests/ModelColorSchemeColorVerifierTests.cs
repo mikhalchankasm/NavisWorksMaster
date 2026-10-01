@@ -30,18 +30,29 @@ public sealed class ModelColorSchemeColorVerifierTests
             FromBytes(0x20, 0x21, 0x20)));
     }
 
-    [Fact]
-    public void ChannelsMatch_RejectsNonFiniteChannels()
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void ChannelsMatch_RejectsNonFiniteChannels(double invalid)
     {
         var requested = FromBytes(0x20, 0x92, 0xC8);
 
         Assert.False(ModelColorSchemeColorVerifier.ChannelsMatch(
             requested,
-            new ModelColorSchemeRgb(double.NaN, requested.G, requested.B)));
+            new ModelColorSchemeRgb(invalid, requested.G, requested.B)));
         Assert.False(ModelColorSchemeColorVerifier.ChannelsMatch(
-            new ModelColorSchemeRgb(double.NaN, 0, 0),
-            new ModelColorSchemeRgb(double.NaN, 0, 0)));
+            new ModelColorSchemeRgb(invalid, 0, 0),
+            new ModelColorSchemeRgb(invalid, 0, 0)));
     }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1, 255)]
+    [InlineData(-0.3, 0)]
+    [InlineData(1.2, 255)]
+    public void ToByteChannel_ClampsToByteBoundaries(double channel, int expected) =>
+        Assert.Equal(expected, ModelColorSchemeColorVerifier.ToByteChannel(channel));
 
     [Fact]
     public void Tally_SuccessfulApplyMatchesEverySampleWithoutWarning()
@@ -141,8 +152,36 @@ public sealed class ModelColorSchemeColorVerifierTests
 
         Assert.Equal(1, response.ColorVerificationSampleCount);
         Assert.Equal(0, response.PermanentColorMatchCount);
+        Assert.Equal(0, response.ActiveColorMatchCount);
         var warning = Assert.Single(response.Warnings);
+        Assert.StartsWith(ModelColorSchemeColorVerifier.PermanentMismatchWarning, warning);
         Assert.Contains("read unreadable (Object has been disposed.)", warning);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Tally_PartialReadCountsTheReadableLayer(bool permanentReadable)
+    {
+        var response = new ModelColorSchemeResponse();
+        var requested = FromBytes(0x20, 0x92, 0xC8);
+        ModelColorSchemeColorVerifier.Tally(new[]
+        {
+            new ModelColorSchemeColorSample
+            {
+                Requested = requested,
+                Permanent = permanentReadable ? requested : null,
+                Active = permanentReadable ? null : requested,
+                ReadError = "Test read error.",
+            },
+        }, response);
+        Assert.Equal(1, response.ColorVerificationSampleCount);
+        Assert.Equal(permanentReadable ? 1 : 0, response.PermanentColorMatchCount);
+        Assert.Equal(permanentReadable ? 0 : 1, response.ActiveColorMatchCount);
+        var warning = Assert.Single(response.Warnings);
+        Assert.StartsWith(permanentReadable ? ModelColorSchemeColorVerifier.ActiveMismatchWarning
+            : ModelColorSchemeColorVerifier.PermanentMismatchWarning, warning);
+        Assert.Contains("read unreadable (Test read error.)", warning);
     }
 
     private static ModelColorSchemeRgb FromBytes(int r, int g, int b)

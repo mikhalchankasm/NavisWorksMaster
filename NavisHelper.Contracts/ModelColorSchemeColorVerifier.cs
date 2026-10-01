@@ -36,10 +36,9 @@ namespace NavisHelper.Agent.Contracts
         public const string ActiveMismatchWarning =
             "Permanent colors were stored, but another Navisworks display layer still masks some active colors.";
 
-        // Navisworks does not hand a written channel back bit for bit: 32/255.0 from
-        // Color.FromByteRGB returns rounded through single precision, so an exact double
-        // comparison fails for every channel other than 0 and 255. Rule colors are 8-bit
-        // hex values, so colors are compared at that precision.
+        // Rule colors are 8-bit hex values, so verification compares at that precision.
+        // Navisworks may not return channels bit for bit; single-precision storage is
+        // a suspected cause of the incident, pending live confirmation in #147.
         public static bool ChannelsMatch(ModelColorSchemeRgb left, ModelColorSchemeRgb right)
         {
             var leftR = ToByteChannel(left.R);
