@@ -452,7 +452,7 @@ function Report-ManagedLegacyMcpServer([string]$InstallRoot) {
     $runningProcesses = Get-ProcessesFromDirectory $legacyServer
     if ($runningProcesses.Count -gt 0) {
         $ids = ($runningProcesses | Select-Object -ExpandProperty Id) -join ", "
-        Write-Warning "Found a managed legacy MCP server at '$legacyServer', but it is running (PID: $ids). It was not removed; restart the client and remove the directory manually."
+        Write-Warning "MCP server '$legacyServer' is running (PID: $ids). It was preserved and may belong to an EXE installation; keep it while that installation uses it."
         return
     }
 
