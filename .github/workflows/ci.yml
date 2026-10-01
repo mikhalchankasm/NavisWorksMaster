@@ -122,5 +122,9 @@ jobs:
           }
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\package_distribution.ps1 -SkipBuild -Runtime win-x64 -OutputRoot "$env:RUNNER_TEMP\navishelper-package-smoke" -PackageName ci-package-smoke
 
+      - name: Check distribution deletion boundaries
+        shell: powershell
+        run: ./scripts/test_distribution_safety.ps1
+
       # The Navisworks plugin build matrix is intentionally not run in GitHub Actions:
       # it requires the Autodesk Navisworks Manage SDK installed under Program Files.

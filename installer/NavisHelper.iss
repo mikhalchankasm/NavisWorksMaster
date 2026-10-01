@@ -6,6 +6,9 @@
 #define SourceDir "..\artifacts\distribution\NavisHelper-full-win-x64-framework-dependent-installer-source"
 #endif
 #ifndef BundleInstallDir
+#ifdef InstallerSmokeTest
+#error InstallerSmokeTest requires an explicit isolated BundleInstallDir
+#endif
 #define BundleInstallDir "{userappdata}\Autodesk\ApplicationPlugins\NavisHelper.bundle"
 #endif
 
@@ -24,11 +27,15 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 DisableProgramGroupPage=yes
-CloseApplications=yes
 RestartApplications=no
 #ifdef InstallerSmokeTest
+CloseApplications=no
+UsePreviousAppDir=no
+UsePreviousGroup=no
 Uninstallable=no
 CreateUninstallRegKey=no
+#else
+CloseApplications=yes
 #endif
 
 [Languages]
@@ -37,11 +44,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [InstallDelete]
 Type: filesandordirs; Name: "{#BundleInstallDir}"
+#ifndef InstallerSmokeTest
 Type: files; Name: "{group}\Configure MCP clients.lnk"
 Type: files; Name: "{group}\Configure detected MCP clients.lnk"
 Type: files; Name: "{group}\Настроить обнаруженные MCP-клиенты.lnk"
 Type: files; Name: "{group}\Detect MCP clients.lnk"
 Type: files; Name: "{group}\Обнаружить MCP-клиенты.lnk"
+#endif
 
 [Files]
 Source: "{#SourceDir}\McpServer\*"; DestDir: "{app}\McpServer"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -59,8 +68,10 @@ Source: "{#SourceDir}\mcp-client-config.example.json"; DestDir: "{app}"; Flags: 
 Source: "{#SourceDir}\NavisHelper.bundle\*"; DestDir: "{#BundleInstallDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
+#ifndef InstallerSmokeTest
 Name: "{group}\{cm:ConfigureMcpShortcut}"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients all --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
 Name: "{group}\{cm:DetectMcpShortcut}"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--detect --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
+#endif
 
 [Run]
 #ifndef InstallerSmokeTest

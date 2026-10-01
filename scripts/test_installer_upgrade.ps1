@@ -43,6 +43,22 @@ $appRoot = Join-Path $testRoot "app"
 $outputRoot = Join-Path $testRoot "output"
 $logPath = Join-Path $testRoot "installer.log"
 
+function Get-OwnerInstallSnapshot {
+    $roots = @(
+        (Join-Path ([Environment]::GetFolderPath('Programs')) 'NavisHelper'),
+        (Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins\NavisHelper.bundle')
+    )
+    foreach ($root in $roots) {
+        $root + ':' + (Test-Path -LiteralPath $root)
+        if (Test-Path -LiteralPath $root) {
+            Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName | ForEach-Object {
+                $_.FullName + ':' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+            }
+        }
+    }
+}
+$ownerInstallBefore = @(Get-OwnerInstallSnapshot)
+
 try {
     $staleNestedDirectory = Join-Path $bundleRoot "obsolete\nested"
     $staleInteropDirectory = Join-Path $bundleRoot "Contents\2026"
@@ -92,6 +108,9 @@ try {
         -PassThru
     if ($installerProcess.ExitCode -ne 0) {
         throw "Isolated installer upgrade smoke failed with exit code $($installerProcess.ExitCode). Log: $logPath"
+    }
+    if (Compare-Object $ownerInstallBefore @(Get-OwnerInstallSnapshot)) {
+        throw 'Isolated installer smoke changed the owner bundle or Start Menu shortcuts.'
     }
 
     foreach ($marker in $staleMarkers) {

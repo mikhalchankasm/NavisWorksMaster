@@ -48,6 +48,12 @@ if ([string]::IsNullOrWhiteSpace($TestRoot)) {
 }
 
 $TestRoot = [System.IO.Path]::GetFullPath($TestRoot)
+$tempPrefix = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+if (-not $TestRoot.StartsWith($tempPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+    -not ([System.IO.Path]::GetFileName($TestRoot)).StartsWith('NavisHelper-package-smoke-', [System.StringComparison]::Ordinal) -or
+    (Test-Path -LiteralPath $TestRoot)) {
+    throw "TestRoot must be a new NavisHelper-package-smoke-* directory under TEMP: $TestRoot"
+}
 $unpackedRoot = Join-Path $TestRoot "unpacked"
 $originalEnvironment = @{}
 foreach ($name in @("APPDATA", "LOCALAPPDATA", "ProgramData", "ProgramFiles")) {
@@ -102,18 +108,17 @@ try {
     }
     Assert-DirectoryMissing $unversionedServer "Unexpected unversioned MCP server directory"
 
-    # Simulate the stale folder left by v2.6.3.0 and verify that only a managed
-    # NavisHelper runtime is removed during an upgrade.
+    # EXE installs and older ZIPs use this path; clients may still reference it.
     Copy-Item -LiteralPath (Join-Path $unpackedRoot "McpServer") -Destination $unversionedServer -Recurse -Force
     & $installScript
-    Assert-DirectoryMissing $unversionedServer "Managed legacy MCP server directory"
+    Assert-File (Join-Path $unversionedServer 'NavisHelper.McpServer.exe') "Preserved legacy MCP server"
 
     & $configurator --detect --mcp-server $server
     if ($LASTEXITCODE -ne 0) {
         throw "Packaged MCP configurator detection failed with exit code $LASTEXITCODE."
     }
 
-    Write-Host "Package install smoke test passed: fresh install, same-version reinstall, and v2.6.3.0 legacy upgrade."
+    Write-Host "Package install smoke test passed: fresh install, same-version reinstall, and legacy server preservation."
 }
 finally {
     foreach ($name in $originalEnvironment.Keys) {
