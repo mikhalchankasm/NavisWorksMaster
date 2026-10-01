@@ -106,8 +106,8 @@ $sourceCommit = & git -C $repoRoot rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the package source commit.' }
 $sourceTree = & git -C $repoRoot rev-parse 'HEAD^{tree}'
 if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the package source tree.' }
-$sourceChanges = & git -C $repoRoot status --porcelain --untracked-files=no
-if ($LASTEXITCODE -ne 0 -or $sourceChanges) { throw 'Commit tracked changes before packaging a release candidate.' }
+$sourceChanges = & git -C $repoRoot status --porcelain --untracked-files=normal
+if ($LASTEXITCODE -ne 0 -or $sourceChanges) { throw 'Commit source changes, including untracked files, before packaging a release candidate.' }
 
 New-Item -ItemType Directory -Force -Path $OutputRoot | Out-Null
 Remove-DirectorySafely $packageDir $OutputRoot
@@ -456,7 +456,7 @@ function Report-ManagedLegacyMcpServer([string]$InstallRoot) {
         return
     }
 
-    Write-Warning "Preserved managed legacy MCP server '$legacyServer': existing client configs may still reference it. Reconfigure clients to the new version before removing the old directory manually."
+    Write-Warning "Preserved MCP server '$legacyServer': existing clients or an EXE installation may still use it. Reconfigure clients explicitly; keep this directory while an EXE installation uses it."
 }
 
 $InstallRoot = Join-Path $env:LOCALAPPDATA "NavisHelper"
@@ -623,7 +623,7 @@ $manifest = [ordered]@{
     source = [ordered]@{
         commit = $sourceCommit
         tree = $sourceTree
-        tracked_worktree_clean = $true
+        worktree_clean = $true
         plugin_matrix_reused = [bool]$SkipBuild
     }
     created_utc = (Get-Date).ToUniversalTime().ToString("o")

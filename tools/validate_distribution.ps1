@@ -137,7 +137,7 @@ if ($bundleVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') {
 $manifest = Get-Content -LiteralPath (Join-Path $packageRoot "manifest.json") -Raw | ConvertFrom-Json
 if ($manifest.source.commit -notmatch '^[0-9a-f]{40}$' -or
     $manifest.source.tree -notmatch '^[0-9a-f]{40}$' -or
-    $manifest.source.tracked_worktree_clean -ne $true) {
+    $manifest.source.worktree_clean -ne $true) {
     throw 'Distribution manifest must identify a committed source tree.'
 }
 if ([string]::IsNullOrWhiteSpace([string]$manifest.package_name) -or [string]::IsNullOrWhiteSpace([string]$manifest.runtime)) {

@@ -34,15 +34,6 @@ if (-not (Test-Path -LiteralPath $ZipPath -PathType Leaf)) {
     throw "Package ZIP was not found: $ZipPath"
 }
 
-$navisworksProcesses = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
-    $_.ProcessName -in @("Roamer", "Navisworks")
-})
-if ($navisworksProcesses.Count -gt 0) {
-    $details = ($navisworksProcesses | ForEach-Object { "$($_.ProcessName)($($_.Id))" }) -join ", "
-    Write-Warning "Package install smoke test skipped because Navisworks is running: $details. Close Navisworks and rerun this script to exercise installation."
-    return
-}
-
 if ([string]::IsNullOrWhiteSpace($TestRoot)) {
     $TestRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("NavisHelper-package-smoke-" + [Guid]::NewGuid().ToString("N"))
 }
@@ -54,6 +45,15 @@ if (-not $TestRoot.StartsWith($tempPrefix, [System.StringComparison]::OrdinalIgn
     (Test-Path -LiteralPath $TestRoot)) {
     throw "TestRoot must be a new NavisHelper-package-smoke-* directory under TEMP: $TestRoot"
 }
+$navisworksProcesses = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+    $_.ProcessName -in @("Roamer", "Navisworks")
+})
+if ($navisworksProcesses.Count -gt 0) {
+    $details = ($navisworksProcesses | ForEach-Object { "$($_.ProcessName)($($_.Id))" }) -join ", "
+    Write-Warning "Package install smoke test skipped because Navisworks is running: $details. Close Navisworks and rerun this script to exercise installation."
+    return
+}
+
 $unpackedRoot = Join-Path $TestRoot "unpacked"
 $originalEnvironment = @{}
 foreach ($name in @("APPDATA", "LOCALAPPDATA", "ProgramData", "ProgramFiles")) {

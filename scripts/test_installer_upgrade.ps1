@@ -46,7 +46,8 @@ $logPath = Join-Path $testRoot "installer.log"
 function Get-OwnerInstallSnapshot {
     $roots = @(
         (Join-Path ([Environment]::GetFolderPath('Programs')) 'NavisHelper'),
-        (Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins\NavisHelper.bundle')
+        (Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins\NavisHelper.bundle'),
+        (Join-Path $env:LOCALAPPDATA 'NavisHelper')
     )
     foreach ($root in $roots) {
         $root + ':' + (Test-Path -LiteralPath $root)
@@ -106,11 +107,11 @@ try {
         -WindowStyle Hidden `
         -Wait `
         -PassThru
+    if (Compare-Object $ownerInstallBefore @(Get-OwnerInstallSnapshot)) {
+        throw 'Isolated installer smoke changed the owner installation or Start Menu shortcuts.'
+    }
     if ($installerProcess.ExitCode -ne 0) {
         throw "Isolated installer upgrade smoke failed with exit code $($installerProcess.ExitCode). Log: $logPath"
-    }
-    if (Compare-Object $ownerInstallBefore @(Get-OwnerInstallSnapshot)) {
-        throw 'Isolated installer smoke changed the owner bundle or Start Menu shortcuts.'
     }
 
     foreach ($marker in $staleMarkers) {
