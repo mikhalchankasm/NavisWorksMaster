@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
+using NavisHelper.McpServer.Resources;
 using NavisHelper.McpServer.Services;
 using NavisHelper.McpServer.Tools;
 
@@ -34,6 +35,7 @@ builder.Services
         filters.AddCallToolFilter(McpToolTimingFilter.Create);
     })
     .WithStdioServerTransport()
+    .WithResources<McpToolCatalogResources>()
     .WithTools<NavisworksDocumentTools>()
     .WithTools<NavisworksSaveJobTools>()
     .WithTools<NavisworksHostTools>()

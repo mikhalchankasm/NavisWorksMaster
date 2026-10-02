@@ -84,6 +84,19 @@ A tool outside the active spec is not advertised at all. Its contract is
 unchanged — narrowing never alters a tool's schema or behavior. If a workflow
 needs a tool that is not advertised, widen the spec rather than working around it.
 
+## On-demand Tool Catalog
+
+Clients with MCP resource support can read `navishelper://catalog/tools` for a
+compact index of the running server's tools, descriptions, profile groups, and
+individual schema URIs. The index omits input schemas. Read
+`navishelper://catalog/tools/{name}` for one tool's exact protocol definition,
+including its input schema; for example, `navishelper://catalog/tools/host_status`.
+
+Both resources reflect the active tool profile and read-only filter. A hidden or
+unknown tool returns a resource-not-found error. Reading metadata does not connect
+to Navisworks or inspect model data. Resources complement `tools/list`; they do
+not reduce its payload automatically or enable tools outside the configured profile.
+
 ## Task Timing
 
 Every MCP tool result includes automatic `navishelper_timing` in the primary JSON result with `elapsed_ms`, `elapsed_human`, `should_report_to_user`, `user_message`, and `agent_instruction`. If `should_report_to_user=true`, include `user_message` in the user-facing answer.
