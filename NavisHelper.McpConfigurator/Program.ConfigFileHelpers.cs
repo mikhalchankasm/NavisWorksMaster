@@ -7,7 +7,7 @@ namespace NavisHelper.McpConfigurator;
 
 internal static partial class Program
 {
-    private static JsonObject ReadJsonObject(string path)
+    internal static JsonObject ReadJsonObject(string path)
     {
         if (!File.Exists(path))
             return new JsonObject();
@@ -17,13 +17,16 @@ internal static partial class Program
             return new JsonObject();
 
         var node = JsonNode.Parse(text);
-        return node as JsonObject ?? new JsonObject();
+        return node as JsonObject ?? throw new InvalidDataException("Client configuration root must be a JSON object.");
     }
 
-    private static JsonObject EnsureObject(JsonObject root, string propertyName)
+    internal static JsonObject EnsureObject(JsonObject root, string propertyName)
     {
         if (root[propertyName] is JsonObject existing)
             return existing;
+
+        if (root[propertyName] != null)
+            throw new InvalidDataException("Client configuration property '" + propertyName + "' must be a JSON object.");
 
         var created = new JsonObject();
         root[propertyName] = created;
@@ -35,15 +38,35 @@ internal static partial class Program
         WriteTextAtomic(path, root.ToJsonString(JsonOptions) + Environment.NewLine);
     }
 
-    private static void WriteTextAtomic(string path, string content)
+    internal static void WriteTextAtomic(string path, string content)
     {
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrWhiteSpace(directory))
             Directory.CreateDirectory(directory);
 
         var tempPath = path + ".tmp_navishelper_" + Guid.NewGuid().ToString("N");
-        File.WriteAllText(tempPath, content, new UTF8Encoding(false));
-        File.Move(tempPath, path, overwrite: true);
+        var ownsTemporary = false;
+        try
+        {
+            var bytes = new UTF8Encoding(false).GetBytes(content);
+            using (var stream = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                ownsTemporary = true;
+                stream.Write(bytes);
+                stream.Flush(true);
+            }
+            File.Move(tempPath, path, overwrite: true);
+            ownsTemporary = false;
+        }
+        finally
+        {
+            if (ownsTemporary)
+            {
+                try { File.Delete(tempPath); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        }
     }
 
     private static string RemoveTomlTableTree(string text, string tableName)
