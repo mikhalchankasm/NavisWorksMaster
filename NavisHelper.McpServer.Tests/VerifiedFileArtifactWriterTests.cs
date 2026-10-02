@@ -5,6 +5,43 @@ namespace NavisHelper.McpServer.Tests;
 
 public sealed class VerifiedFileArtifactWriterTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WriteUtf8_PreservesExistingPartialFile(bool failCommit)
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "plan.json");
+            var sibling = path + ".partial";
+            var original = new byte[] { 0, 1, 2, 255 };
+            File.WriteAllBytes(sibling, original);
+            if (failCommit)
+            {
+                Directory.CreateDirectory(path);
+                Assert.ThrowsAny<IOException>(() =>
+                    VerifiedFileArtifactWriter.WriteUtf8(path, "replacement", false));
+            }
+            else
+            {
+                var result = VerifiedFileArtifactWriter.WriteUtf8(path, "replacement", false);
+                Assert.Equal("replacement", File.ReadAllText(path));
+                Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes("replacement"))), result.Sha256,
+                    ignoreCase: true);
+            }
+
+            Assert.True(File.Exists(sibling));
+            Assert.Equal(original, File.ReadAllBytes(sibling));
+            Assert.Equal(failCommit ? 1 : 2, Directory.GetFiles(directory).Length);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
     [Fact]
     public void WriteUtf8_AtomicallyCompletesAndVerifiesSizeAndHash()
     {
@@ -14,7 +51,7 @@ public sealed class VerifiedFileArtifactWriterTests
             var path = Path.Combine(directory, "plan.json");
             var result = VerifiedFileArtifactWriter.WriteUtf8(path, "{\"schema\":\"synthetic\"}", false);
             Assert.True(File.Exists(path));
-            Assert.False(File.Exists(path + ".partial"));
+            Assert.Single(Directory.GetFiles(directory));
             Assert.Equal(new FileInfo(path).Length, result.BytesWritten);
             Assert.Equal(64, result.Sha256.Length);
         }
@@ -34,7 +71,7 @@ public sealed class VerifiedFileArtifactWriterTests
             File.WriteAllText(path, "existing");
             Assert.Throws<IOException>(() => VerifiedFileArtifactWriter.WriteUtf8(path, "replacement", false));
             Assert.Equal("existing", File.ReadAllText(path));
-            Assert.False(File.Exists(path + ".partial"));
+            Assert.Single(Directory.GetFiles(directory));
         }
         finally
         {
@@ -53,8 +90,7 @@ public sealed class VerifiedFileArtifactWriterTests
             var result = VerifiedFileArtifactWriter.WriteUtf8(path, "replacement", true);
             Assert.Equal("replacement", File.ReadAllText(path));
             Assert.Equal(new FileInfo(path).Length, result.BytesWritten);
-            Assert.Empty(Directory.GetFiles(directory, "*.partial"));
-            Assert.Empty(Directory.GetFiles(directory, "*.backup.*.tmp"));
+            Assert.Single(Directory.GetFiles(directory));
         }
         finally
         {

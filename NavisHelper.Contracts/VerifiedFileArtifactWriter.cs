@@ -22,7 +22,8 @@ namespace NavisHelper.Agent.Contracts
                 throw new ArgumentException("outputPath must be absolute.", nameof(absolutePath));
 
             var path = Path.GetFullPath(absolutePath);
-            var partialPath = path + ".partial";
+            var partialPath = path + ".partial." + Guid.NewGuid().ToString("N") + ".tmp";
+            var ownsPartial = false;
             string backupPath = null;
             var replacedExisting = false;
             var directory = Path.GetDirectoryName(path);
@@ -31,12 +32,12 @@ namespace NavisHelper.Agent.Contracts
             if (File.Exists(path) && !overwriteExisting)
                 throw new IOException("Output file already exists: " + path);
 
-            TryDelete(partialPath);
             try
             {
                 var bytes = new UTF8Encoding(false).GetBytes(content ?? string.Empty);
                 using (var stream = new FileStream(partialPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 {
+                    ownsPartial = true;
                     stream.Write(bytes, 0, bytes.Length);
                     stream.Flush(true);
                 }
@@ -53,6 +54,7 @@ namespace NavisHelper.Agent.Contracts
                 {
                     File.Move(partialPath, path);
                 }
+                ownsPartial = false;
 
                 var info = new FileInfo(path);
                 if (!info.Exists || info.Length != bytes.LongLength)
@@ -74,7 +76,8 @@ namespace NavisHelper.Agent.Contracts
             }
             catch (Exception writeError)
             {
-                TryDelete(partialPath);
+                if (ownsPartial)
+                    TryDelete(partialPath);
                 if (replacedExisting && !string.IsNullOrWhiteSpace(backupPath) && File.Exists(backupPath))
                 {
                     try
