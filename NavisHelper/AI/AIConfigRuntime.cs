@@ -43,8 +43,8 @@ namespace NavisHelper.AI
         private string _modelName;
         private double _temperature;
         private int _colorScheme;
-        private Task _persistenceTail = Task.CompletedTask;
-        private long _latestPersistenceRequest;
+        private TaskCompletionSource<bool> _pendingPersistence;
+        private bool _persistenceRunning;
 
         internal AIConfigRuntime(
             AIConfigSnapshot initialState,
@@ -99,33 +99,45 @@ namespace NavisHelper.AI
         {
             lock (_persistenceLock)
             {
-                var request = ++_latestPersistenceRequest;
-                var predecessor = _persistenceTail;
-                _persistenceTail = PersistAfterAsync(predecessor, request);
-                return _persistenceTail;
+                if (_pendingPersistence == null)
+                    _pendingPersistence = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                if (!_persistenceRunning)
+                {
+                    _persistenceRunning = true;
+                    _ = Task.Run(DrainPersistenceAsync);
+                }
+                return _pendingPersistence.Task;
             }
         }
 
-        private async Task PersistAfterAsync(Task predecessor, long request)
+        private async Task DrainPersistenceAsync()
         {
-            try
+            while (true)
             {
-                await predecessor.ConfigureAwait(false);
+                TaskCompletionSource<bool> completion;
+                lock (_persistenceLock)
+                {
+                    completion = _pendingPersistence;
+                    _pendingPersistence = null;
+                    if (completion == null)
+                    {
+                        _persistenceRunning = false;
+                        return;
+                    }
+                }
+                try
+                {
+                    await Task.Run(() => _persistence.Save(Capture())).ConfigureAwait(false);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    // All coalesced callers observe the write that covers their
+                    // request; a failed batch does not block the next one.
+                    completion.TrySetException(ex);
+                }
             }
-            catch
-            {
-                // A failed write must not poison later persistence requests.
-            }
-
-            lock (_persistenceLock)
-            {
-                if (request != _latestPersistenceRequest)
-                    return;
-            }
-
-            var latestState = Capture();
-            await Task.Run(() => _persistence.Save(latestState))
-                .ConfigureAwait(false);
         }
 
         private static double NormalizeTemperature(double temperature)
