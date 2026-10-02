@@ -19,6 +19,29 @@ namespace NavisHelper
                           throw new ArgumentNullException(nameof(configPath));
         }
 
+        internal AIConfigSnapshot Load(AIConfigSnapshot defaults)
+        {
+            try
+            {
+                if (File.Exists(_configPath))
+                {
+                    var data = AIConfigJsonSerializer.Parse(
+                        File.ReadAllText(_configPath), defaults.ToData());
+                    return new AIConfigSnapshot(
+                        OpenRouterModelSelection.MigrationCandidate(data.ModelName),
+                        data.Temperature, data.ColorScheme);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(
+                    $"Ошибка загрузки конфигурации: {ex.Message}",
+                    "AIConfig");
+            }
+            // A transient read failure must never schedule a defaults overwrite.
+            return defaults;
+        }
+
         public void Save(AIConfigSnapshot snapshot)
         {
             try
@@ -138,31 +161,7 @@ namespace NavisHelper
         private static AIConfig LoadConfig()
         {
             var defaults = new AIConfigSnapshot(string.Empty, 0.3, 8);
-            try
-            {
-                if (File.Exists(ConfigPath))
-                {
-                    var json = File.ReadAllText(ConfigPath);
-                    var data = AIConfigJsonSerializer.Parse(
-                        json,
-                        defaults.ToData());
-                    return new AIConfig(new AIConfigSnapshot(
-                        OpenRouterModelSelection.MigrationCandidate(
-                            data.ModelName),
-                        data.Temperature,
-                        data.ColorScheme));
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(
-                    $"Ошибка загрузки конфигурации: {ex.Message}",
-                    "AIConfig");
-            }
-
-            var defaultConfig = new AIConfig(defaults);
-            defaultConfig.SaveConfig();
-            return defaultConfig;
+            return new AIConfig(new AIConfigFilePersistence(ConfigPath).Load(defaults));
         }
     }
 }

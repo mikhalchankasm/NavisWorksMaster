@@ -10,6 +10,24 @@ public sealed class AIConfigPersistenceTests : IDisposable
     public AIConfigPersistenceTests() => Directory.CreateDirectory(_directory);
 
     [Fact]
+    public async Task CoalescedAwaiters_ReceiveTheActualBatchFailure()
+    {
+        using var persistence = new FailingQueuedPersistence();
+        var runtime = new AIConfigRuntime(new AIConfigSnapshot("provider/first", 0.7, 9), persistence);
+        var first = runtime.PersistLatestAsync();
+        await persistence.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = runtime.PersistLatestAsync();
+        var third = runtime.PersistLatestAsync();
+        persistence.Release.Set();
+        await first;
+
+        var failures = await Task.WhenAll(
+            Record.ExceptionAsync(() => second), Record.ExceptionAsync(() => third));
+
+        Assert.All(failures, failure => Assert.IsType<IOException>(failure));
+    }
+
+    [Fact]
     public void Save_PreservesPreviousBytesWhenAtomicReplaceIsDenied()
     {
         var path = Path.Combine(_directory, "ai_config.json");
@@ -62,5 +80,53 @@ public sealed class AIConfigPersistenceTests : IDisposable
         Assert.Single(Directory.GetFiles(_directory, "*", SearchOption.AllDirectories));
     }
 
+    [Fact]
+    public void Load_LockedSettingsReturnDefaultsWithoutModifyingTheOriginal()
+    {
+        var path = Path.Combine(_directory, "ai_config.json");
+        const string original = "{\"ModelName\":\"provider/original\",\"Temperature\":0.7,\"ColorScheme\":9}";
+        File.WriteAllText(path, original);
+        var persistence = new AIConfigFilePersistence(path);
+        var defaults = new AIConfigSnapshot("", 0.3, 8);
+        using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.Same(defaults, persistence.Load(defaults));
+
+        Assert.Equal(original, File.ReadAllText(path));
+        Assert.Equal("provider/original", persistence.Load(defaults).ModelName);
+        Assert.Single(Directory.GetFiles(_directory));
+    }
+
+    [Fact]
+    public void Load_MissingSettingsIsReadOnly()
+    {
+        var path = Path.Combine(_directory, "missing", "ai_config.json");
+        var defaults = new AIConfigSnapshot("", 0.3, 8);
+
+        Assert.Same(defaults, new AIConfigFilePersistence(path).Load(defaults));
+        Assert.Empty(Directory.GetFileSystemEntries(_directory));
+    }
+
     public void Dispose() => Directory.Delete(_directory, true);
+
+    private sealed class FailingQueuedPersistence : IAIConfigSnapshotPersistence, IDisposable
+    {
+        private int _calls;
+        public TaskCompletionSource<bool> Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public ManualResetEventSlim Release { get; } = new();
+
+        public void Save(AIConfigSnapshot snapshot)
+        {
+            if (Interlocked.Increment(ref _calls) != 1)
+                throw new IOException("Synthetic queued persistence failure.");
+            Entered.TrySetResult(true);
+            if (!Release.Wait(TimeSpan.FromSeconds(10)))
+                throw new TimeoutException("The test did not release the first write.");
+        }
+
+        public void Dispose()
+        {
+            Release.Set();
+            Release.Dispose();
+        }
+    }
 }
