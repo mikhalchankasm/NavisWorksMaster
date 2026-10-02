@@ -97,6 +97,21 @@ unknown tool returns a resource-not-found error. Reading metadata does not conne
 to Navisworks or inspect model data. Resources complement `tools/list`; they do
 not reduce its payload automatically or enable tools outside the configured profile.
 
+## Workflow Prompts
+
+Clients with MCP prompt support can discover `review_clashes` and
+`audit_selection_properties` through `prompts/list` and retrieve them through
+`prompts/get`, without arguments. Both return read-only workflow guidance;
+retrieving a prompt does not execute tools or analyze the model.
+
+Use `core,clash` for clash review and `core,reports` for selection property audit.
+Read-only mode is compatible with both. If the running profile lacks a required
+tool, the prompt returns configuration guidance instead of an execution plan.
+The workflows specify host/document checks, bounded sampling, exact tool names,
+and disclosure of incomplete results. They do not change selection, views,
+documents or files. Clients without prompt support can follow the workflows in
+this guide using the ordinary tools.
+
 ## Task Timing
 
 Every MCP tool result includes automatic `navishelper_timing` in the primary JSON result with `elapsed_ms`, `elapsed_human`, `should_report_to_user`, `user_message`, and `agent_instruction`. If `should_report_to_user=true`, include `user_message` in the user-facing answer.
