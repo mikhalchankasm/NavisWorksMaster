@@ -1033,6 +1033,9 @@ namespace NavisHelper.Agent.Services
             }
         }
 
+        // Exact on purpose: both colors come from Navisworks, and a sub-byte permanent
+        // override must still count as an override so reset restores it. Requested
+        // versus read-back colors are compared by ModelColorSchemeColorVerifier instead.
         private static bool ColorsEqual(
             Autodesk.Navisworks.Api.Color left,
             Autodesk.Navisworks.Api.Color right)
@@ -1042,6 +1045,11 @@ namespace NavisHelper.Agent.Services
             if (left == null || right == null)
                 return false;
             return left.R == right.R && left.G == right.G && left.B == right.B;
+        }
+
+        private static ModelColorSchemeRgb ToRgb(Autodesk.Navisworks.Api.Color color)
+        {
+            return new ModelColorSchemeRgb(color.R, color.G, color.B);
         }
 
         private static string ColorKey(Autodesk.Navisworks.Api.Color color)
@@ -1167,46 +1175,51 @@ namespace NavisHelper.Agent.Services
             List<Tuple<ModelItem, Autodesk.Navisworks.Api.Color>> samples,
             ModelColorSchemeResponse response)
         {
+            var readings = new List<ModelColorSchemeColorSample>();
             foreach (var sample in samples ??
                 new List<Tuple<ModelItem, Autodesk.Navisworks.Api.Color>>())
             {
+                if (sample.Item1 == null ||
+                    sample.Item2 == null ||
+                    !SafeBool(() => sample.Item1.HasGeometry))
+                {
+                    continue;
+                }
+                ModelColorSchemeColorSample reading = null;
+                var readStage = "RequestedColor";
                 try
                 {
-                    if (sample.Item1 == null || !sample.Item1.HasGeometry)
-                        continue;
-                    response.ColorVerificationSampleCount++;
-                    if (ColorsEqual(
-                        sample.Item1.Geometry.PermanentColor,
-                        sample.Item2))
-                    {
-                        response.PermanentColorMatchCount++;
-                    }
-                    if (ColorsEqual(
-                        sample.Item1.Geometry.ActiveColor,
-                        sample.Item2))
-                    {
-                        response.ActiveColorMatchCount++;
-                    }
+                    reading = new ModelColorSchemeColorSample { Requested = ToRgb(sample.Item2) };
+                    readStage = "Geometry";
+                    var geometry = sample.Item1.Geometry;
+                    readStage = "PermanentColor";
+                    reading.Permanent = ToRgbOrNull(geometry.PermanentColor);
+                    readStage = "ActiveColor";
+                    reading.Active = ToRgbOrNull(geometry.ActiveColor);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    var error = (readStage + ": " + ex.GetType().Name + ": " + ex.Message)
+                        .Replace('\r', ' ').Replace('\n', ' ');
+                    if (error.Length > 200)
+                        error = error.Substring(0, 200);
+                    if (reading == null)
+                    {
+                        response.Warnings.Add("Could not verify a requested model color: " + error);
+                        continue;
+                    }
+                    reading.ReadError = error;
                 }
+                readings.Add(reading);
             }
+            ModelColorSchemeColorVerifier.Tally(readings, response);
+            if (samples != null && samples.Count > 0 && response.ColorVerificationSampleCount == 0)
+                response.Warnings.Add("No model color verification samples could be read.");
+        }
 
-            if (response.ColorVerificationSampleCount > 0 &&
-                response.PermanentColorMatchCount <
-                response.ColorVerificationSampleCount)
-            {
-                response.Warnings.Add(
-                    "Navisworks did not retain the requested permanent color on every verification sample.");
-            }
-            else if (response.ColorVerificationSampleCount > 0 &&
-                     response.ActiveColorMatchCount <
-                     response.ColorVerificationSampleCount)
-            {
-                response.Warnings.Add(
-                    "Permanent colors were stored, but another Navisworks display layer still masks some active colors.");
-            }
+        private static ModelColorSchemeRgb? ToRgbOrNull(Autodesk.Navisworks.Api.Color color)
+        {
+            return color == null ? (ModelColorSchemeRgb?)null : ToRgb(color);
         }
 
         private static string NormalizeOperation(string value)
