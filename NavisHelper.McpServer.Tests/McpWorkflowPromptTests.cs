@@ -28,8 +28,8 @@ public sealed class McpWorkflowPromptTests
         Assert.Contains("instanceId", text);
         Assert.Contains("document changed", text);
         Assert.DoesNotContain("Workflow unavailable", text);
-        var tools = (await client.ListToolsAsync(cancellationToken: timeout.Token))
-            .Select(tool => tool.Name).ToHashSet(StringComparer.Ordinal);
+        var protocolTools = await client.ListToolsAsync(cancellationToken: timeout.Token);
+        var tools = protocolTools.Select(tool => tool.Name).ToHashSet(StringComparer.Ordinal);
         var readOnly = new McpReadOnlyMode(true, McpReadOnlyMode.RegisteredToolMethods());
         var referenced = Regex.Matches(text, "`([a-z][a-z0-9_]*)`").Select(match => match.Groups[1].Value).Distinct().ToArray();
         Assert.True(referenced.Length >= 6);
@@ -38,6 +38,11 @@ public sealed class McpWorkflowPromptTests
             Assert.Contains(tool, tools);
             Assert.True(readOnly.IsAllowed(tool), "Workflow references a state-changing tool: " + tool);
         });
+        var parameters = protocolTools.Where(tool => referenced.Contains(tool.Name))
+            .SelectMany(tool => tool.ProtocolTool.InputSchema.GetProperty("properties").EnumerateObject())
+            .Select(property => property.Name).ToHashSet(StringComparer.Ordinal);
+        Assert.All(Regex.Matches(text, @"(?<![-\w])([a-zA-Z][a-zA-Z0-9]*)=")
+            .Select(match => match.Groups[1].Value), parameter => Assert.Contains(parameter, parameters));
     }
 
     [Theory]
@@ -51,7 +56,8 @@ public sealed class McpWorkflowPromptTests
         var text = Assert.IsType<TextContentBlock>(Assert.Single(result.Messages).Content).Text;
         Assert.Contains("Workflow unavailable", text);
         Assert.Contains("preserving the current read-only setting", text);
-        Assert.DoesNotContain("1.", text);
+        Assert.Contains(McpToolProfile.CommandLinePrefix, text);
+        Assert.Empty(Regex.Matches(text, "`([a-z][a-z0-9_]*)`"));
     }
 
     [Fact]
