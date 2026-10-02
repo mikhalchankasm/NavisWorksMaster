@@ -41,7 +41,9 @@ powershell -ExecutionPolicy Bypass -File .\Install-NavisHelperBundle.ps1 -Config
 
 That script installs the Autodesk bundle to `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle`, copies the MCP runtime to `%LOCALAPPDATA%\NavisHelper\McpServer-<version>`, and optionally runs `McpConfigurator` against that new per-user server path. Existing stdio processes remain on their previous version until their MCP client restarts or reloads.
 
-`package_distribution.ps1` runs `scripts\test_package_install.ps1` against the final ZIP. The smoke test expands the archive into an isolated test root and covers fresh install, same-version reinstall, and cleanup of the managed unversioned runtime left by the affected `v2.6.3.0` package. It deliberately skips while Navisworks is running, because the packaged installer must refuse bundle replacement in that state; CI runs the complete smoke test on a clean worker.
+`package_distribution.ps1` runs `scripts\test_package_install.ps1` against the final ZIP. The smoke covers fresh install, same-version reinstall, and preservation of the unversioned MCP server used by older ZIPs or an EXE installation. The installer warns about this retained directory; reconfigure clients explicitly and keep it while the EXE installation needs it. The smoke skips while Navisworks is running; CI exercises it on a clean worker.
+
+`-SkipBuild` requires `artifacts/plugin-matrix.json` from a successful full package build at the same commit, with all 12 plugin DLL hashes unchanged. Otherwise run without `-SkipBuild`. The receipt is included in the manifest; CI's marked placeholder receipt is accepted only for `ci-package-smoke` on GitHub Actions.
 
 When a legacy NavisHelper bundle or installation root is present under `ProgramData` or `Program Files`, the ZIP script and EXE installer stop before copying files. NavisHelper supports per-user installation only. Remove the legacy paths from elevated PowerShell with `tools\remove_machinewide_bundle.ps1 -Force`, then run the installer again.
 
