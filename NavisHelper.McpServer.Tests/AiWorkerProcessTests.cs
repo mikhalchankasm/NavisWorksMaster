@@ -4,6 +4,7 @@ using Xunit;
 
 namespace NavisHelper.McpServer.Tests;
 
+[Collection("Blocking infrastructure")]
 public sealed class AiWorkerProcessTests
 {
     private static string PowerShell => Path.Combine(Environment.SystemDirectory,
