@@ -18,8 +18,8 @@ function Get-FullPath([string]$Path) {
 }
 
 function Remove-DirectorySafely([string]$TargetPath, [string]$AllowedRoot) {
-    $targetFull = Get-FullPath $TargetPath
-    $rootFull = Get-FullPath $AllowedRoot
+    $targetFull = (Get-FullPath $TargetPath).TrimEnd('\')
+    $rootFull = (Get-FullPath $AllowedRoot).TrimEnd('\') + '\'
     if (-not $targetFull.StartsWith($rootFull, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Refusing to delete outside output root: $targetFull"
     }
@@ -49,6 +49,24 @@ function Resolve-MSBuild {
         return $fromPath.Source
     }
     throw "MSBuild.exe not found."
+}
+
+function Get-PluginMatrixHashes([string]$Root) {
+    $hashes = [ordered]@{}
+    foreach ($year in 2024,2025,2026,2027) {
+        foreach ($file in @('NavisHelper.dll','NavisHelper.Contracts.dll','ru/NavisHelper.resources.dll')) {
+            $relative = "NavisHelper.bundle/Contents/$year/$file"
+            $hashes[$relative] = (Get-FileHash -LiteralPath (Join-Path $Root $relative) -Algorithm SHA256).Hash
+        }
+    }
+    return $hashes
+}
+
+function Assert-PluginMatrixReceipt($Receipt, [string]$Commit, $Hashes) {
+    if ($Receipt.source_commit -ne $Commit) { throw 'Plugin matrix receipt belongs to another source commit. Run a full package build first.' }
+    foreach ($path in $Hashes.Keys) {
+        if ($Receipt.files.$path -ne $Hashes[$path]) { throw "Plugin matrix hash mismatch: $path" }
+    }
 }
 
 function Copy-Directory([string]$Source, [string]$Destination) {
@@ -102,6 +120,13 @@ $licensesDest = Join-Path $packageDir "licenses"
 $projectLicense = Join-Path $repoRoot "LICENSE"
 $thirdPartyNotices = Join-Path $repoRoot "THIRD-PARTY-NOTICES.md"
 
+$sourceCommit = & git -C $repoRoot rev-parse HEAD
+if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the package source commit.' }
+$sourceTree = & git -C $repoRoot rev-parse 'HEAD^{tree}'
+if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the package source tree.' }
+$sourceChanges = & git -C $repoRoot status --porcelain --untracked-files=normal
+if ($LASTEXITCODE -ne 0 -or $sourceChanges) { throw 'Commit source changes, including untracked files, before packaging a release candidate.' }
+
 New-Item -ItemType Directory -Force -Path $OutputRoot | Out-Null
 Remove-DirectorySafely $packageDir $OutputRoot
 Remove-DirectorySafely $mcpOutputRoot $OutputRoot
@@ -119,19 +144,32 @@ if (-not $SkipBuild) {
     Invoke-NativeCommand $msbuild @($solution, "/p:Configuration=Release2026", "/p:Platform=x64", "/m", "/v:m")
     Invoke-NativeCommand $msbuild @($solution, "/p:Configuration=Release2027", "/p:Platform=x64", "/m", "/v:m")
 
-    Remove-DirectorySafely $aiWorkerBundleDir (Join-Path $bundleSource "Contents")
-    $workerPublishArguments = @(
-        "publish",
-        $aiWorkerProject,
-        "--configuration", "Release",
-        "--runtime", $Runtime,
-        "--self-contained", ([bool]$SelfContained).ToString().ToLowerInvariant(),
-        "--output", $aiWorkerBundleDir,
-        "/p:DebugType=None",
-        "/p:DebugSymbols=false"
-    )
-    Invoke-NativeCommand "dotnet" $workerPublishArguments
 }
+
+# SkipBuild reuses only the plugin matrix; every standalone process is republished.
+$matrixReceiptPath = Join-Path $repoRoot 'artifacts/plugin-matrix.json'
+$matrixHashes = Get-PluginMatrixHashes $repoRoot
+if ($SkipBuild) {
+    $matrixReceipt = Get-Content -LiteralPath $matrixReceiptPath -Raw -ErrorAction Stop | ConvertFrom-Json
+    Assert-PluginMatrixReceipt $matrixReceipt $sourceCommit $matrixHashes
+    if ($matrixReceipt.fixture -and ($env:GITHUB_ACTIONS -ne 'true' -or $PackageName -ne 'ci-package-smoke')) {
+        throw 'Fixture plugin binaries cannot be used in a release package.'
+    }
+} else {
+    $matrixReceipt = [ordered]@{ source_commit = $sourceCommit; files = $matrixHashes; fixture = $false }
+    New-Item -ItemType Directory -Force -Path (Split-Path $matrixReceiptPath -Parent) | Out-Null
+    $matrixReceipt | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $matrixReceiptPath -Encoding UTF8
+}
+Remove-DirectorySafely $aiWorkerBundleDir (Join-Path $bundleSource "Contents")
+$workerPublishArguments = @(
+    "publish", $aiWorkerProject,
+    "--configuration", "Release",
+    "--runtime", $Runtime,
+    "--self-contained", ([bool]$SelfContained).ToString().ToLowerInvariant(),
+    "--output", $aiWorkerBundleDir,
+    "/p:DebugType=None", "/p:DebugSymbols=false"
+)
+Invoke-NativeCommand "dotnet" $workerPublishArguments
 
 $bundle2024 = Join-Path $bundleSource "Contents\2024\NavisHelper.dll"
 $bundle2025 = Join-Path $bundleSource "Contents\2025\NavisHelper.dll"
@@ -431,7 +469,7 @@ function Test-ManagedLegacyMcpServer([string]$Directory) {
     }
 }
 
-function Remove-ManagedLegacyMcpServer([string]$InstallRoot) {
+function Report-ManagedLegacyMcpServer([string]$InstallRoot) {
     $legacyServer = Join-Path $InstallRoot "McpServer"
     if (-not (Test-Path -LiteralPath $legacyServer -PathType Container)) {
         return
@@ -445,16 +483,11 @@ function Remove-ManagedLegacyMcpServer([string]$InstallRoot) {
     $runningProcesses = Get-ProcessesFromDirectory $legacyServer
     if ($runningProcesses.Count -gt 0) {
         $ids = ($runningProcesses | Select-Object -ExpandProperty Id) -join ", "
-        Write-Warning "Found a managed legacy MCP server at '$legacyServer', but it is running (PID: $ids). It was not removed; restart the client and remove the directory manually."
+        Write-Warning "MCP server '$legacyServer' is running (PID: $ids). It was preserved and may belong to an EXE installation; keep it while that installation uses it."
         return
     }
 
-    try {
-        Remove-Item -LiteralPath $legacyServer -Recurse -Force
-        Write-Host "Removed managed legacy MCP server from $legacyServer"
-    } catch {
-        Write-Warning "Could not remove managed legacy MCP server '$legacyServer': $($_.Exception.Message)"
-    }
+    Write-Warning "Preserved MCP server '$legacyServer': existing clients or an EXE installation may still use it. Reconfigure clients explicitly; keep this directory while an EXE installation uses it."
 }
 
 $InstallRoot = Join-Path $env:LOCALAPPDATA "NavisHelper"
@@ -496,7 +529,7 @@ if (-not $SkipMcp) {
     $configurator = Join-Path $destinationMcpConfigurator "NavisHelper.McpConfigurator.exe"
     Assert-InstalledFile $server "MCP server executable"
     Assert-InstalledFile $configurator "MCP configurator executable"
-    Remove-ManagedLegacyMcpServer $InstallRoot
+    Report-ManagedLegacyMcpServer $InstallRoot
     Write-Host "Installed MCP server to $destinationMcpServer"
     Write-Host "Installed MCP configurator to $destinationMcpConfigurator"
 
@@ -618,6 +651,13 @@ Set-Content -LiteralPath (Join-Path $packageDir "README.md") -Value $readme -Enc
 
 $manifest = [ordered]@{
     package_name = $PackageName
+    source = [ordered]@{
+        commit = $sourceCommit
+        tree = $sourceTree
+        worktree_clean = $true
+        plugin_matrix_reused = [bool]$SkipBuild
+    }
+    plugin_matrix = $matrixReceipt
     created_utc = (Get-Date).ToUniversalTime().ToString("o")
     runtime = $Runtime
     self_contained = [bool]$SelfContained

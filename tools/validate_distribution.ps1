@@ -135,6 +135,20 @@ if ($bundleVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') {
 }
 
 $manifest = Get-Content -LiteralPath (Join-Path $packageRoot "manifest.json") -Raw | ConvertFrom-Json
+if ($manifest.source.commit -notmatch '^[0-9a-f]{40}$' -or
+    $manifest.source.tree -notmatch '^[0-9a-f]{40}$' -or
+    $manifest.source.worktree_clean -ne $true) {
+    throw 'Distribution manifest must identify a committed source tree.'
+}
+if ($manifest.plugin_matrix.source_commit -ne $manifest.source.commit) { throw 'Plugin matrix source commit mismatch.' }
+foreach ($year in 2024,2025,2026,2027) {
+    foreach ($file in @('NavisHelper.dll','NavisHelper.Contracts.dll','ru/NavisHelper.resources.dll')) {
+        $path = "NavisHelper.bundle/Contents/$year/$file"
+        if ($manifest.plugin_matrix.files.$path -ne (Get-FileHash -LiteralPath (Join-Path $packageRoot $path) -Algorithm SHA256).Hash) {
+            throw "Plugin matrix receipt hash mismatch: $path"
+        }
+    }
+}
 if ([string]::IsNullOrWhiteSpace([string]$manifest.package_name) -or [string]::IsNullOrWhiteSpace([string]$manifest.runtime)) {
     throw "Distribution manifest must include package_name and runtime."
 }
