@@ -14,7 +14,7 @@ had precise numbers for four tools and none for the rest.
 | plugin | host-reported `pluginAssemblyLength` 1586688, `pluginAssemblyLastWriteUtc` 2026-09-20T09:09:49Z, sha256 `af60b1b9…` |
 | server | built from `main` at the same commit |
 | scope of this row | the read-only pass only — the two clash windows ran a **different** plugin (`20bb4356…`) and a separately launched server, and the `rootName` message was checked later still on the branch build (`pluginAssemblyLength` 1588736). Latency is comparable only within one window, so each section states its own build instead of inheriting this one. |
-| tools covered | **107 of 111** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across six windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, 15 cases covering 7 tools in a fourth, the synchronous `dump_subtree_names` in a fifth, `viewpoint_set_camera` at its acceptance on 2026-09-26, the three world-marker tools at NW-03's acceptance the same day, `match_handle_items` and the save job pair at their acceptance on 2026-09-29, and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 107 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **4** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
+| tools covered | **107 of 113** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across six windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, 15 cases covering 7 tools in a fourth, the synchronous `dump_subtree_names` in a fifth, `viewpoint_set_camera` at its acceptance on 2026-09-26, the three world-marker tools at NW-03's acceptance the same day, `match_handle_items` and the save job pair at their acceptance on 2026-09-29, and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 107 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **6** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
 
 The date and plugin rows above describe the 2026-09-20 read-only pass. The read-only
 table was re-run on 2026-09-26 and states its own build and conditions below.
@@ -1270,10 +1270,11 @@ from the fixed build (plugin 1627136 bytes, written 2026-09-29T15:29:19Z); dispo
 
 ## What still has no number
 
-Four tools, and the reason for each, so the gap is a decision rather than an oversight:
+Six tools, and the reason for each, so the gap is a decision rather than an oversight:
 
 | tool | why |
 | --- | --- |
+| `get_view_display_settings`, `set_view_display_settings` | New in #182; SDK and protocol tests precede the agreed live display/appearance window. |
 | `save_document`, `save_document_as` | never run on purpose. Every window depends on the document not being saved. The job pair that wraps the same save was measured on a scratch copy; see [the match-handle and save-job tools](#the-match-handle-and-save-job-tools-at-their-acceptance). |
 | `clash_batchtest_import` | needs a Navisworks-authored `nw-exchange-12.0` XML; no tool in the product writes one. |
 | `saved_viewpoints_import` | needs Navisworks-authored Saved Viewpoints XML, for the same reason. Its refusal path was measured; the import path was not. |
@@ -1284,7 +1285,8 @@ more than the count:
 - **out of reach** — `save_document` and `save_document_as`, because every window depends
   on the document not being saved; `clash_batchtest_import` and `saved_viewpoints_import`,
   because each needs a Navisworks-authored XML that no tool in the product writes.
-- **one short window away** — the remaining **0**. The three that were here landed with #129
+- **one short window away** — the remaining **2**: `get_view_display_settings` and
+  `set_view_display_settings`. The three previously here landed with #129
   and #130 and were measured on 2026-09-29; see
   [the match-handle and save-job tools](#the-match-handle-and-save-job-tools-at-their-acceptance).
 

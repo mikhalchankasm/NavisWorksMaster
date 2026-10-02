@@ -78,6 +78,8 @@ show_all
 create_selection_set
 create_viewpoint
 viewpoint_set_camera
+get_view_display_settings
+set_view_display_settings
 save_document
 save_document_as
 start_save_document

@@ -49,6 +49,7 @@ builder.Services
     .WithTools<NavisworksSubtreeDumpTools>()
     .WithTools<NavisworksViewNavigationTools>()
     .WithTools<NavisworksViewpointCameraTools>()
+    .WithTools<NavisworksViewDisplaySettingsTools>()
     .WithTools<NavisworksViewpointTools>()
     .WithTools<NavisworksVisibilityTools>()
     .WithTools<NavisworksWorldMarkerTools>()
