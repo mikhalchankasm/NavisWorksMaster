@@ -121,9 +121,12 @@ namespace NavisHelper.AI
                 {
                     try
                     {
-                        await process.StandardInput.WriteAsync(
-                                requestJson ?? string.Empty)
-                            .ConfigureAwait(false);
+                        var write = process.StandardInput.WriteAsync(requestJson ?? string.Empty);
+                        // Observe cancellation even when the worker stops consuming stdin.
+                        if (await Task.WhenAny(write, cancelled.Task).ConfigureAwait(false) != write)
+                            return await FinishCancellationAsync(process, exit.Task,
+                                standardOutputTask, standardErrorTask, write).ConfigureAwait(false);
+                        await write.ConfigureAwait(false);
                         process.StandardInput.Close();
                     }
                     catch (Exception ex) when (
@@ -132,8 +135,8 @@ namespace NavisHelper.AI
                         ex is ObjectDisposedException)
                     {
                         if (cancellationToken.IsCancellationRequested)
-                            return AiWorkerRunResult.Failure(
-                                AiWorkerRunFailureKind.Cancelled);
+                            return await FinishCancellationAsync(process, exit.Task,
+                                standardOutputTask, standardErrorTask).ConfigureAwait(false);
                         var earlyExit = await Task.WhenAny(
                                 exit.Task,
                                 Task.Delay(TimeSpan.FromSeconds(2)))
@@ -156,19 +159,8 @@ namespace NavisHelper.AI
                     if (completed == cancelled.Task ||
                         cancellationToken.IsCancellationRequested)
                     {
-                        TryKill(process);
-                        await Task.WhenAny(
-                                exit.Task,
-                                Task.Delay(TimeSpan.FromSeconds(2)))
-                            .ConfigureAwait(false);
-                        await Task.WhenAny(
-                                Task.WhenAll(
-                                    standardOutputTask,
-                                    standardErrorTask),
-                                Task.Delay(TimeSpan.FromSeconds(2)))
-                            .ConfigureAwait(false);
-                        return AiWorkerRunResult.Failure(
-                            AiWorkerRunFailureKind.Cancelled);
+                        return await FinishCancellationAsync(process, exit.Task,
+                            standardOutputTask, standardErrorTask).ConfigureAwait(false);
                     }
 
                     return await CreateExitedResultAsync(
@@ -213,6 +205,27 @@ namespace NavisHelper.AI
                    value.IndexOf(
                        "Microsoft.NETCore.App",
                        StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static async Task<AiWorkerRunResult> FinishCancellationAsync(
+            Process process, Task<int> exit, Task<string> standardOutput, Task<string> standardError,
+            Task pendingInput = null)
+        {
+            // Token callbacks may run on the UI thread; termination always runs off-thread.
+            await Task.Run(() => TryKill(process)).ConfigureAwait(false);
+            await Task.WhenAny(exit, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+            await Task.WhenAny(
+                Task.WhenAll(ObserveClosedPipeAsync(standardOutput), ObserveClosedPipeAsync(standardError),
+                    ObserveClosedPipeAsync(pendingInput ?? Task.CompletedTask)),
+                Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+            return AiWorkerRunResult.Failure(AiWorkerRunFailureKind.Cancelled);
+        }
+
+        private static async Task ObserveClosedPipeAsync(Task read)
+        {
+            try { await read.ConfigureAwait(false); }
+            catch (IOException) { }
+            catch (InvalidOperationException) { }
         }
 
         private static async Task<AiWorkerRunResult> CreateExitedResultAsync(
