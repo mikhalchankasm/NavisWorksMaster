@@ -117,6 +117,8 @@ namespace NavisHelper.AI
                 using (cancellationToken.Register(() =>
                        {
                            cancelled.TrySetResult(true);
+                           // A full stdin pipe can block before the exit/cancel wait below.
+                           TryKill(process);
                        }))
                 {
                     try
@@ -132,8 +134,8 @@ namespace NavisHelper.AI
                         ex is ObjectDisposedException)
                     {
                         if (cancellationToken.IsCancellationRequested)
-                            return AiWorkerRunResult.Failure(
-                                AiWorkerRunFailureKind.Cancelled);
+                            return await FinishCancellationAsync(process, exit.Task,
+                                standardOutputTask, standardErrorTask).ConfigureAwait(false);
                         var earlyExit = await Task.WhenAny(
                                 exit.Task,
                                 Task.Delay(TimeSpan.FromSeconds(2)))
@@ -156,19 +158,8 @@ namespace NavisHelper.AI
                     if (completed == cancelled.Task ||
                         cancellationToken.IsCancellationRequested)
                     {
-                        TryKill(process);
-                        await Task.WhenAny(
-                                exit.Task,
-                                Task.Delay(TimeSpan.FromSeconds(2)))
-                            .ConfigureAwait(false);
-                        await Task.WhenAny(
-                                Task.WhenAll(
-                                    standardOutputTask,
-                                    standardErrorTask),
-                                Task.Delay(TimeSpan.FromSeconds(2)))
-                            .ConfigureAwait(false);
-                        return AiWorkerRunResult.Failure(
-                            AiWorkerRunFailureKind.Cancelled);
+                        return await FinishCancellationAsync(process, exit.Task,
+                            standardOutputTask, standardErrorTask).ConfigureAwait(false);
                     }
 
                     return await CreateExitedResultAsync(
@@ -213,6 +204,24 @@ namespace NavisHelper.AI
                    value.IndexOf(
                        "Microsoft.NETCore.App",
                        StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static async Task<AiWorkerRunResult> FinishCancellationAsync(
+            Process process, Task<int> exit, Task<string> standardOutput, Task<string> standardError)
+        {
+            TryKill(process);
+            await Task.WhenAny(exit, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+            await Task.WhenAny(
+                Task.WhenAll(ObserveClosedPipeAsync(standardOutput), ObserveClosedPipeAsync(standardError)),
+                Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+            return AiWorkerRunResult.Failure(AiWorkerRunFailureKind.Cancelled);
+        }
+
+        private static async Task ObserveClosedPipeAsync(Task<string> read)
+        {
+            try { await read.ConfigureAwait(false); }
+            catch (IOException) { }
+            catch (InvalidOperationException) { }
         }
 
         private static async Task<AiWorkerRunResult> CreateExitedResultAsync(
