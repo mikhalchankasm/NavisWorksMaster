@@ -420,6 +420,18 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<CreateViewpointRequest>,
             (document, request) => _commandService.CreateViewpoint(document, request));
 
+        router.Register<HostStatusRequest>(
+            HostCommandNames.GetViewDisplaySettings,
+            true,
+            payloadToken => new HostStatusRequest(),
+            (document, request) => new ViewDisplaySettingsService().Read(document));
+
+        router.Register<ViewDisplaySettingsRequest>(
+            HostCommandNames.SetViewDisplaySettings,
+            true,
+            DeserializePayload<ViewDisplaySettingsRequest>,
+            (document, request) => new ViewDisplaySettingsService().Set(document, request));
+
         router.Register<ViewpointSetCameraRequest>(
             HostCommandNames.ViewpointSetCamera,
             true,

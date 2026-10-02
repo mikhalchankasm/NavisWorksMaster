@@ -16,9 +16,9 @@ public sealed class McpStdioCollection { }
 public sealed class McpCatalogResourceTests
 {
     [Theory]
-    [InlineData("all", false, 111)]
-    [InlineData("core", false, 46)]
-    [InlineData("all", true, 39)]
+    [InlineData("all", false, 113)]
+    [InlineData("core", false, 48)]
+    [InlineData("all", true, 40)]
     [InlineData("core", true, -1)]
     public async Task CatalogMatchesAdvertisedToolsAndReturnsExactSchema(string profile, bool readOnly, int count)
     {

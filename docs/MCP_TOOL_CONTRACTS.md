@@ -69,6 +69,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `focus_on_selection` | View | Yes | Yes | No |
 | `get_current_section_box` | None | Yes | Yes | No |
 | `get_scenario` | None | No | No | No |
+| `get_view_display_settings` | None | Yes | Yes | No |
 | `hide_selected` | View | Yes | Yes | Yes |
 | `hide_unselected` | View | Yes | Yes | Yes |
 | `host_status` | None | Yes | No | No |
@@ -121,6 +122,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `selection_sets_manage` | Document | Yes | Yes | Yes |
 | `selection_sets_reorder` | Document | Yes | Yes | Yes |
 | `selection_status` | None | Yes | Yes | No |
+| `set_view_display_settings` | View, Document | Yes | Yes | Yes |
 | `show_all` | View | Yes | Yes | Yes |
 | `start_navisworks` | Host | No | No | No |
 | `start_save_document` | Document, Files | Yes | Yes | No |
@@ -1681,6 +1683,43 @@ Inputs: `scenarioId`, `expectedSha256`, `apply`, and `confirmDelete`. It preview
 Inputs: `scenarioId`, optional template `parameterValues`, `executionIntent=preview|exact_replay`, and optional context hints. It returns ordered existing-tool preview arguments, apply overrides, per-step plan hashes, planned write categories, and an `agentInstruction`; it never calls Navisworks itself.
 
 `exact_replay` is valid only after a direct current user request. It rejects parameter overrides and requires a strong strict-context match. A normal preview of an exact scenario returns no apply override and explicitly forbids execution. The initial operation allowlist is `selection_export_properties`, `selection_sets_build_viewpoints`, `clash_generate_report`, and `clash_save_viewpoints`.
+
+## `get_view_display_settings` / `set_view_display_settings`
+
+Both tools belong to `view` (also `core`). The getter reads actual `lighting`,
+`renderStyle`, `supportsHorizon` and `documentModified` without mutation.
+`backgroundReadbackAvailable=false` is explicit: the public SDK has setters but
+does not expose the full background mode/colors. No previous values are inferred
+from the plain-color COM property or a last-request cache.
+
+The setter accepts independent optional fields:
+
+| Input | Values |
+|---|---|
+| `background` | Object with `mode` and `colors`: `plain` needs one color; `graduated` needs `[top,bottom]`; `horizon` needs `[skyTop,skyBottom,groundTop,groundBottom]`. Colors are exact `#RRGGBB`; no alpha. Horizon requires a perspective 3D view. |
+| `lighting` | `none`, `scene_lights`, `headlight`, `full_lights` |
+| `renderStyle` | `full_render`, `preview`, `shaded`, `wireframe`, `hidden_line` |
+| `apply` | Defaults to `false`. Validate/preview first; `true` applies supplied fields. |
+| `instanceId`, `navisworksVersion` | Standard host targeting. |
+
+At least one setting is required; omitted settings are preserved. The host validates
+all fields before mutation. Responses contain normalized `requested`, `before`,
+`apply` and `applied`; `after` exists only after successful post-apply readback. Lighting/render style are
+read back; `backgroundSetterCompleted` means the SDK setter returned, not that the
+background was read back or visually verified. A screenshot/UI check is needed.
+If mutation completes but redraw/readback fails, `applied=true` and a warning
+report that outcome without undoing only part of the completed settings.
+
+The command does not move the camera, change selection/geometry, create a saved
+viewpoint or save a file. Changes may mark the document modified. On native failure
+the original viewpoint is restored if possible; if a background setter was attempted,
+background state is unknown and cannot be rolled back through this public API. The
+`command_failed` message states recovery status. Inspect the view before retrying;
+this combined operation does not promise atomic rollback. Read-only mode exposes
+the getter and rejects the setter, including its dry-run form.
+
+Example: `set_view_display_settings` with
+`{"background":{"mode":"plain","colors":["#FFFFFF"]},"lighting":"headlight","renderStyle":"shaded","apply":false}`.
 
 ## `viewpoint_set_camera`
 
