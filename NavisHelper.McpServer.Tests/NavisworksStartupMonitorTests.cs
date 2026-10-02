@@ -166,15 +166,16 @@ public sealed class NavisworksStartupMonitorTests
     {
         using var process = new FakeProcess { HasExitedValue = true, ExitCodeValue = 0 };
         var monitor = new NavisworksStartupMonitor(TimeSpan.FromMilliseconds(5));
-        var probes = 0;
+        var timeout = TimeSpan.FromMilliseconds(35);
+        var stopwatch = Stopwatch.StartNew();
 
         var result = await monitor.WaitForHostAsync(
             process,
-            (_, _, _) => { probes++; return Task.FromResult<NavisworksHostInfo>(null); },
-            TimeSpan.FromMilliseconds(35),
+            (_, _, _) => Task.FromResult<NavisworksHostInfo>(null),
+            timeout,
             CancellationToken.None);
 
-        Assert.True(probes >= 2);
+        Assert.True(stopwatch.Elapsed >= timeout, "A clean exit must still wait for a possible handoff.");
         Assert.Equal(StartNavisworksOutcomes.HostTimeout, result.Outcome);
         Assert.True(result.ProcessExited);
         Assert.Equal(0, result.ExitCode);
