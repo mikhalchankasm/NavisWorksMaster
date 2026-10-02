@@ -46,9 +46,10 @@ internal sealed class McpToolCatalogResources
         var tool = AvailableTools().FirstOrDefault(candidate => candidate.ProtocolTool.Name == name);
         if (tool == null)
             throw new McpProtocolException("The tool is not available in this server profile.", McpErrorCode.ResourceNotFound);
-        return JsonSerializer.Serialize(tool.ProtocolTool, JsonOptions);
+        return JsonSerializer.Serialize(tool.ProtocolTool, McpJsonUtilities.DefaultOptions);
     }
 
+    // Startup applies the profile directly to ToolCollection; read-only is a list filter.
     private IEnumerable<McpServerTool> AvailableTools() =>
         (_options.Value.ToolCollection ?? throw new InvalidOperationException("MCP tools are not initialized."))
             .Where(tool => _readOnly.IsAllowed(tool.ProtocolTool.Name))

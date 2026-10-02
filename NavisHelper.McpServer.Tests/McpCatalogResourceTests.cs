@@ -19,6 +19,7 @@ public sealed class McpCatalogResourceTests
     [InlineData("all", false, 111)]
     [InlineData("core", false, 46)]
     [InlineData("all", true, 39)]
+    [InlineData("core", true, -1)]
     public async Task CatalogMatchesAdvertisedToolsAndReturnsExactSchema(string profile, bool readOnly, int count)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -34,7 +35,9 @@ public sealed class McpCatalogResourceTests
         Assert.Equal("application/json", content.MimeType);
         using var catalog = JsonDocument.Parse(content.Text);
         Assert.Equal(readOnly, catalog.RootElement.GetProperty("readOnly").GetBoolean());
-        Assert.Equal(count, catalog.RootElement.GetProperty("toolCount").GetInt32());
+        Assert.Equal(tools.Count, catalog.RootElement.GetProperty("toolCount").GetInt32());
+        if (count >= 0)
+            Assert.Equal(count, tools.Count);
         var entries = catalog.RootElement.GetProperty("tools").EnumerateArray().ToArray();
         Assert.Equal(tools.Select(tool => tool.Name).OrderBy(name => name, StringComparer.Ordinal),
             entries.Select(entry => entry.GetProperty("name").GetString()));
@@ -49,7 +52,8 @@ public sealed class McpCatalogResourceTests
             cancellationToken: timeout.Token);
         var schema = JsonNode.Parse(Assert.Single(schemaResult.Contents.OfType<TextResourceContents>()).Text);
         Assert.Equal("host_status", schema["name"].GetValue<string>());
-        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(host.ProtocolTool.InputSchema.GetRawText()), schema["inputSchema"]));
+        Assert.True(JsonNode.DeepEquals(
+            JsonSerializer.SerializeToNode(host.ProtocolTool, McpJsonUtilities.DefaultOptions), schema));
     }
 
     [Theory]
@@ -74,6 +78,7 @@ public sealed class McpCatalogResourceTests
             EnvironmentVariables = new Dictionary<string, string>
             {
                 ["NAVISHELPER_MCP_READ_ONLY"] = readOnly ? "1" : "0",
+                ["NAVISHELPER_MCP_TOOLS"] = profile,
             },
             ShutdownTimeout = TimeSpan.FromSeconds(5),
         }), cancellationToken: cancellationToken);
