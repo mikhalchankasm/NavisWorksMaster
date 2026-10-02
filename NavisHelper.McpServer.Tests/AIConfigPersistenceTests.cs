@@ -3,6 +3,7 @@ using Xunit;
 
 namespace NavisHelper.McpServer.Tests;
 
+[Collection("Blocking infrastructure")]
 public sealed class AIConfigPersistenceTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "NavisHelperTests", Guid.NewGuid().ToString("N"));
@@ -126,7 +127,7 @@ public sealed class AIConfigPersistenceTests : IDisposable
         public void Dispose()
         {
             Release.Set();
-            Release.Dispose();
+            // A failed assertion may leave Save still inside Wait; do not dispose its gate.
         }
     }
 }

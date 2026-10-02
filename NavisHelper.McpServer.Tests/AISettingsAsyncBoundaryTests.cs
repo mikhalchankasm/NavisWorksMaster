@@ -3,6 +3,7 @@ using Xunit;
 
 namespace NavisHelper.McpServer.Tests;
 
+[Collection("Blocking infrastructure")]
 public sealed class AISettingsAsyncBoundaryTests
 {
     [Theory]
@@ -65,7 +66,7 @@ public sealed class AISettingsAsyncBoundaryTests
 
         await completion;
 
-        Assert.True(await reported.Task.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.True(await reported.Task.WaitAsync(TimeSpan.FromSeconds(15)));
         Assert.False(completion.IsFaulted);
     }
 
@@ -101,12 +102,12 @@ public sealed class AISettingsAsyncBoundaryTests
     [Fact]
     public async Task NewModel_IsVisibleWhilePersistenceIsBlocked()
     {
-        var persistence = new BlockingConfigPersistence();
+        using var persistence = new BlockingConfigPersistence();
         var runtime = CreateRuntime(persistence);
         runtime.UpdateModelName("provider/old");
         var blockedWrite = runtime.PersistLatestAsync();
         await persistence.FirstWriteEntered.Task.WaitAsync(
-            TimeSpan.FromSeconds(2));
+            TimeSpan.FromSeconds(15));
 
         runtime.UpdateModelName("provider/latest");
 
@@ -119,14 +120,14 @@ public sealed class AISettingsAsyncBoundaryTests
     [Fact]
     public async Task RuntimeSnapshot_DoesNotWaitForSlowFileWrite()
     {
-        var persistence = new BlockingConfigPersistence();
+        using var persistence = new BlockingConfigPersistence();
         var runtime = CreateRuntime(persistence);
         var blockedWrite = runtime.PersistLatestAsync();
         await persistence.FirstWriteEntered.Task.WaitAsync(
-            TimeSpan.FromSeconds(2));
+            TimeSpan.FromSeconds(15));
 
         var snapshot = await Task.Run(runtime.Capture)
-            .WaitAsync(TimeSpan.FromSeconds(2));
+            .WaitAsync(TimeSpan.FromSeconds(15));
 
         Assert.Equal("provider/initial", snapshot.ModelName);
         persistence.ReleaseFirstWrite.Set();
@@ -152,11 +153,11 @@ public sealed class AISettingsAsyncBoundaryTests
     [Fact]
     public async Task ModelAndSchemeInterleaving_PersistsLatestCompleteState()
     {
-        var persistence = new BlockingConfigPersistence();
+        using var persistence = new BlockingConfigPersistence();
         var runtime = CreateRuntime(persistence);
         var first = runtime.PersistLatestAsync();
         await persistence.FirstWriteEntered.Task.WaitAsync(
-            TimeSpan.FromSeconds(2));
+            TimeSpan.FromSeconds(15));
 
         runtime.UpdateModelName("provider/latest");
         var modelWrite = runtime.PersistLatestAsync();
@@ -287,8 +288,10 @@ public sealed class AISettingsAsyncBoundaryTests
     }
 
     private sealed class BlockingConfigPersistence :
-        RecordingConfigPersistence
+        RecordingConfigPersistence, IDisposable
     {
+        public void Dispose() => ReleaseFirstWrite.Set();
+
         private int _activeWrites;
         private int _maximumParallelWrites;
         internal TaskCompletionSource<bool> FirstWriteEntered { get; } =

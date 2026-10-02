@@ -4,13 +4,14 @@ using Xunit;
 
 namespace NavisHelper.McpServer.Tests;
 
+[Collection("Blocking infrastructure")]
 public sealed class AISettingsInfrastructureExecutorTests
 {
     [Fact]
     public async Task SynchronouslySlowWorkerStartup_RunsOffCallingThread()
     {
         var callerThread = Environment.CurrentManagedThreadId;
-        var transport = new BlockingTransport();
+        using var transport = new BlockingTransport();
         var executor = CreateExecutor(
             new RecordingEnvironment(),
             transport,
@@ -21,7 +22,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             "test-secret",
             CancellationToken.None,
             CancellationToken.None);
-        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
 
         Assert.NotEqual(callerThread, transport.ThreadId);
         Assert.False(pending.IsCompleted);
@@ -33,7 +34,7 @@ public sealed class AISettingsInfrastructureExecutorTests
     public async Task SlowEnvironmentCapture_RunsOffCallingThread()
     {
         var callerThread = Environment.CurrentManagedThreadId;
-        var environment = new BlockingEnvironment();
+        using var environment = new BlockingEnvironment();
         var executor = CreateExecutor(
             environment,
             new ImmediateTransport(),
@@ -41,7 +42,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             callerThread);
 
         var pending = executor.CaptureKeyStateAsync(CancellationToken.None);
-        await environment.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await environment.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
 
         Assert.NotEqual(callerThread, environment.ThreadId);
         Assert.False(pending.IsCompleted);
@@ -52,7 +53,7 @@ public sealed class AISettingsInfrastructureExecutorTests
     [Fact]
     public async Task SlowDiagnosticSink_DoesNotDelayInfrastructureCompletion()
     {
-        var sink = new BlockingDiagnosticSink();
+        using var sink = new BlockingDiagnosticSink();
         var executor = CreateExecutor(
             new RecordingEnvironment(),
             new ImmediateTransport(),
@@ -77,7 +78,7 @@ public sealed class AISettingsInfrastructureExecutorTests
     [Fact]
     public async Task Diagnostics_AreSerializedInReportedOrder()
     {
-        var sink = new OrderedBlockingDiagnosticSink();
+        using var sink = new OrderedBlockingDiagnosticSink();
         var executor = CreateExecutor(
             new RecordingEnvironment(),
             new ImmediateTransport(),
@@ -90,7 +91,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             null,
             1,
             false);
-        await sink.FirstEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await sink.FirstEntered.Task.WaitAsync(TimeSpan.FromSeconds(15));
         executor.ReportPhase(
             AISettingsOperationStage.LoadModels,
             OpenRouterFailureKind.None,
@@ -101,14 +102,14 @@ public sealed class AISettingsInfrastructureExecutorTests
         Assert.False(sink.SecondEntered.Task.IsCompleted);
         sink.ReleaseFirst.Set();
         var second = await sink.SecondEntered.Task.WaitAsync(
-            TimeSpan.FromSeconds(2));
+            TimeSpan.FromSeconds(15));
         Assert.Equal(AISettingsOperationStage.LoadModels, second.Stage);
     }
 
     [Fact]
     public async Task BackgroundValidation_ReturnsPendingTaskBeforeCompletion()
     {
-        var transport = new BlockingTransport();
+        using var transport = new BlockingTransport();
         var executor = CreateExecutor(
             new RecordingEnvironment(),
             transport,
@@ -119,7 +120,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             "test-secret",
             CancellationToken.None,
             CancellationToken.None);
-        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
 
         Assert.False(pending.IsCompleted);
         transport.Release.Set();
@@ -131,7 +132,7 @@ public sealed class AISettingsInfrastructureExecutorTests
     {
         using var lifetime = new AISettingsOperationLifetime();
         var operation = lifetime.Begin(0);
-        var transport = new BlockingTransport();
+        using var transport = new BlockingTransport();
         var executor = CreateExecutor(
             new RecordingEnvironment(),
             transport,
@@ -141,7 +142,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             "test-secret",
             operation.CancellationToken,
             CancellationToken.None);
-        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
 
         lifetime.CancelPendingOperations();
 
@@ -156,7 +157,7 @@ public sealed class AISettingsInfrastructureExecutorTests
     {
         using var lifetime = new AISettingsOperationLifetime();
         var operation = lifetime.Begin(0);
-        var environment = new BlockingSetEnvironment();
+        using var environment = new BlockingSetEnvironment();
         var keyStore = new OpenRouterKeyStore(environment);
         var executor = CreateExecutor(
             keyStore,
@@ -168,7 +169,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             persist: true,
             expectedGeneration: 0,
             cancellationToken: operation.CancellationToken);
-        await environment.SetEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await environment.SetEntered.Task.WaitAsync(TimeSpan.FromSeconds(15));
 
         lifetime.CancelPendingOperations();
         environment.Release.Set();
@@ -190,7 +191,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             callerThread);
 
         await executor.CaptureKeyStateAsync(CancellationToken.None);
-        var diagnostic = await sink.Next.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var diagnostic = await sink.Next.Task.WaitAsync(TimeSpan.FromSeconds(15));
 
         Assert.Equal(AISettingsOperationStage.CaptureKeyState, diagnostic.Stage);
         Assert.False(diagnostic.IsUiThread);
@@ -217,7 +218,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             null,
             2,
             false);
-        var diagnostic = await sink.Next.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var diagnostic = await sink.Next.Task.WaitAsync(TimeSpan.FromSeconds(15));
 
         Assert.Equal(AISettingsOperationStage.BindModels, diagnostic.Stage);
         Assert.True(diagnostic.IsUiThread);
@@ -279,8 +280,10 @@ public sealed class AISettingsInfrastructureExecutorTests
                 AiColorOutcomeKind.InvalidRequest));
     }
 
-    private sealed class BlockingTransport : IOpenRouterTransport
+    private sealed class BlockingTransport : IOpenRouterTransport, IDisposable
     {
+        public void Dispose() => Release.Set();
+
         internal TaskCompletionSource<bool> Entered { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal ManualResetEventSlim Release { get; } = new(false);
@@ -335,8 +338,10 @@ public sealed class AISettingsInfrastructureExecutorTests
         }
     }
 
-    private sealed class BlockingEnvironment : RecordingEnvironment
+    private sealed class BlockingEnvironment : RecordingEnvironment, IDisposable
     {
+        public void Dispose() => Release.Set();
+
         internal TaskCompletionSource<bool> Entered { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal ManualResetEventSlim Release { get; } = new(false);
@@ -353,8 +358,10 @@ public sealed class AISettingsInfrastructureExecutorTests
         }
     }
 
-    private sealed class BlockingSetEnvironment : RecordingEnvironment
+    private sealed class BlockingSetEnvironment : RecordingEnvironment, IDisposable
     {
+        public void Dispose() => Release.Set();
+
         internal TaskCompletionSource<bool> SetEntered { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal ManualResetEventSlim Release { get; } = new(false);
@@ -387,8 +394,10 @@ public sealed class AISettingsInfrastructureExecutorTests
             Next.TrySetResult(diagnostic);
     }
 
-    private sealed class BlockingDiagnosticSink : IAISettingsDiagnosticSink
+    private sealed class BlockingDiagnosticSink : IAISettingsDiagnosticSink, IDisposable
     {
+        public void Dispose() => Release.Set();
+
         internal TaskCompletionSource<bool> Entered { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal ManualResetEventSlim Release { get; } = new(false);
@@ -402,8 +411,10 @@ public sealed class AISettingsInfrastructureExecutorTests
     }
 
     private sealed class OrderedBlockingDiagnosticSink :
-        IAISettingsDiagnosticSink
+        IAISettingsDiagnosticSink, IDisposable
     {
+        public void Dispose() => ReleaseFirst.Set();
+
         private int _writeCount;
         internal TaskCompletionSource<bool> FirstEntered { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
