@@ -1,0 +1,51 @@
+name: Recover validated release ZIP
+on:
+  push:
+    branches: [codex/release-zip-recovery]
+permissions:
+  contents: write
+concurrency:
+  group: release-zip-recovery-2-10
+  cancel-in-progress: false
+jobs:
+  recover:
+    if: github.repository == 'mikhalchankasm/NavisWorksMaster'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Recover exact ZIP from the verified installer
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Disposable hosted runner required' }
+          $work = Join-Path $env:RUNNER_TEMP 'release-zip-recovery'
+          $app = Join-Path $work 'app'
+          $bundle = Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins\NavisHelper.bundle'
+          if (Test-Path -LiteralPath $bundle) { throw 'Expected an empty hosted runner profile' }
+          New-Item -ItemType Directory -Path $work | Out-Null
+          gh release download v2.10.0.0 --repo mikhalchankasm/NavisWorksMaster --pattern NavisHelperSetup-2.10.0.0.exe --dir $work
+          if ($LASTEXITCODE -ne 0) { throw 'Installer download failed' }
+          $exe = Join-Path $work 'NavisHelperSetup-2.10.0.0.exe'
+          if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash -ne '9C429AACAADA7361906158AE8810F61977C5FCDD9523326E49D3848C37E87957') { throw 'Installer hash mismatch' }
+          $args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/NOICONS',('/DIR="' + $app + '"'),('/LOG="' + (Join-Path $work 'installer.log') + '"'))
+          $process = Start-Process -FilePath $exe -ArgumentList $args -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Disposable installer execution failed' }
+          $zip = Join-Path $work 'NavisHelper-full-win-x64-framework-dependent-2.10.0.0.zip'
+          & scripts/release-recovery/rebuild-zip.ps1 -InstalledRoot $app -BundleRoot $bundle -OutputPath $zip
+          if ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash -ne '6C67485D8070F9A7442259F5BA3AA01B72E2BEE1DBD26C64B29D406E14038048') { throw 'ZIP differs from the originally approved asset' }
+          $release = gh api repos/mikhalchankasm/NavisWorksMaster/releases/401581540 | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $release.tag_name -ne 'v2.10.0.0' -or -not $release.draft) { throw 'Expected release draft is unavailable' }
+          $existing = @($release.assets | Where-Object name -eq ([IO.Path]::GetFileName($zip)))
+          if ($existing.Count -gt 0) {
+            if ($existing.Count -ne 1 -or $existing[0].digest -ine 'sha256:6C67485D8070F9A7442259F5BA3AA01B72E2BEE1DBD26C64B29D406E14038048') { throw 'Existing ZIP differs; refusing overwrite' }
+          } else {
+            gh release upload v2.10.0.0 $zip --repo mikhalchankasm/NavisWorksMaster
+            if ($LASTEXITCODE -ne 0) { throw 'Verified ZIP upload failed' }
+          }
+          'Recovered ZIP matches the original SHA256 and was uploaded to the draft.' | Add-Content $env:GITHUB_STEP_SUMMARY
