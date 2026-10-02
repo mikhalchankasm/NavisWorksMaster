@@ -383,6 +383,31 @@ internal sealed class NavisworksLaunchService
             remainingWait).ConfigureAwait(false);
     }
 
+    internal static TimeSpan GetHandoffProbeTimeout(int eligibleCandidates,
+        TimeSpan? remainingWait = null, TimeSpan? perProbeTimeout = null,
+        TimeSpan? minimumPerProbeTimeout = null)
+    {
+        var probeTimeout = perProbeTimeout ?? DefaultPerProbeTimeout;
+        if (remainingWait.HasValue && remainingWait.Value > TimeSpan.Zero && eligibleCandidates > 0)
+        {
+            var fairShare = remainingWait.Value.Ticks / eligibleCandidates;
+            var floor = (minimumPerProbeTimeout ?? MinimumPerProbeTimeout).Ticks;
+
+            // The floor keeps a share from being too short for a healthy host to answer,
+            // but it must never be the reason a candidate goes unexamined: raising each
+            // deadline above its fair share means the last candidates are cut off by the
+            // outer deadline instead. Where the floor does not fit, the fair share wins.
+            var share = floor * eligibleCandidates <= remainingWait.Value.Ticks
+                ? Math.Max(fairShare, floor)
+                : fairShare;
+
+            if (share > 0 && share < probeTimeout.Ticks)
+                probeTimeout = TimeSpan.FromTicks(share);
+        }
+
+        return probeTimeout;
+    }
+
     /// <summary>
     /// The hand-off candidate proven to hold the requested file, or null to keep polling.
     ///
@@ -418,32 +443,9 @@ internal sealed class NavisworksLaunchService
         // the default. The cap on its own is not enough: with a short waitTimeoutSeconds a
         // five-second probe outlives the entire wait, so the first candidate that blocks
         // is still the only one ever asked and a ready host behind it is missed.
-        var probeTimeout = perProbeTimeout ?? DefaultPerProbeTimeout;
-
-        // Divided among the candidates this poll will actually ask, not among all of them.
-        // A candidate already proven, or still inside its refusal interval, costs nothing
-        // this time round; counting it anyway shrinks the deadline of the one host that does
-        // get asked, and with enough throttled look-alikes a perfectly healthy instance is
-        // handed a slice too short to answer in, recorded as refused, and the launch ends in
-        // host_timeout.
         var eligibleCandidates = CountCandidatesToProbe(candidates, ledger, utcNow());
-        if (remainingWait.HasValue && remainingWait.Value > TimeSpan.Zero && eligibleCandidates > 0)
-        {
-            var fairShare = remainingWait.Value.Ticks / eligibleCandidates;
-            var floor = (minimumPerProbeTimeout ?? MinimumPerProbeTimeout).Ticks;
-
-            // The floor keeps a share from being too short for a healthy host to answer,
-            // but it must never be the reason a candidate goes unexamined: raising each
-            // deadline above its fair share means the last candidates are cut off by the
-            // outer deadline instead. Where the floor does not fit, the fair share wins.
-            var share = floor * eligibleCandidates <= remainingWait.Value.Ticks
-                ? Math.Max(fairShare, floor)
-                : fairShare;
-
-            if (share > 0 && share < probeTimeout.Ticks)
-                probeTimeout = TimeSpan.FromTicks(share);
-        }
-
+        var probeTimeout = GetHandoffProbeTimeout(eligibleCandidates, remainingWait,
+            perProbeTimeout, minimumPerProbeTimeout);
         foreach (var candidate in candidates)
         {
             var key = candidate.InstanceId ?? string.Empty;

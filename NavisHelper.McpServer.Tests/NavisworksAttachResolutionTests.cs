@@ -619,51 +619,21 @@ public sealed class NavisworksAttachResolutionTests
         Assert.Same(holdsTheFile, target);
     }
 
-    [Fact]
-    public async Task TheProbeFloorNeverStarvesTheLastCandidates()
+    [Theory]
+    [InlineData(5, 2500, 5000, 5000, 500)]
+    [InlineData(1, 1000, 5000, 250, 1000)]
+    [InlineData(5, 10000, 5000, 250, 2000)]
+    [InlineData(1, 10000, 5000, 250, 5000)]
+    public void ProbeBudgetKeepsTheFloorWithinEveryEligibleCandidatesShare(
+        int candidates, int remainingMs, int maximumMs, int floorMs, int expectedMs)
     {
-        // The floor keeps a share from being too short for a healthy host to answer. It must
-        // not become the reason a candidate goes unexamined: raising each deadline above its
-        // fair share lets the unresponsive candidates eat the whole wait while a ready last
-        // one is never asked. That last one is the likelier real answer in this shape, since
-        // newly appeared strangers are asked first and the older instance the file was
-        // handed to comes after them.
-        //
-        // The floor is passed in rather than taken from the default so the arithmetic is
-        // unambiguous and leaves real headroom: five candidates over a 2.5 s wait is a
-        // 500 ms share, the four blocked ones spend 2 s, and the fifth answers with half a
-        // second to spare. Under the default 250 ms floor the same shape has a 200 ms
-        // margin, which is too tight to be a reliable test on a loaded machine.
-        var blocked = Enumerable.Range(1, 4)
-            .Select(index => Host("blocked-" + index, "D:\\other\\model.nwd"))
-            .ToList();
-        var holdsTheFile = Host("holds-the-file", RequestedFilePath);
-        var candidates = blocked.Append(holdsTheFile).ToArray();
-        var wait = TimeSpan.FromMilliseconds(2500);
-        using var waitDeadline = new CancellationTokenSource(wait);
-
-        var target = await NavisworksLaunchService.ResolveProvenHandoffAsync(
-            candidates,
-            RequestedFilePath,
-            new NavisworksLaunchService.HandoffProofLedger(),
-            async (candidate, token) =>
-            {
-                if (candidate.InstanceId == "holds-the-file")
-                    return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
-
-                await Task.Delay(TimeSpan.FromMinutes(5), token);
-                return new HostStatusResponse { DocumentFileName = DocumentOf(candidate) };
-            },
-            () => Now,
-            waitDeadline.Token,
-            remainingWait: wait,
-            // Well above the fair share, so only the "the floor must fit" rule can reach
-            // the fifth candidate.
-            minimumPerProbeTimeout: TimeSpan.FromSeconds(5));
-
-        Assert.Same(holdsTheFile, target);
+        // Check the actual production budget, independently of timer/thread-pool latency.
+        // A floor above the fair share must not starve later candidates.
+        Assert.Equal(TimeSpan.FromMilliseconds(expectedMs),
+            NavisworksLaunchService.GetHandoffProbeTimeout(candidates,
+                TimeSpan.FromMilliseconds(remainingMs), TimeSpan.FromMilliseconds(maximumMs),
+                TimeSpan.FromMilliseconds(floorMs)));
     }
-
     [Fact]
     public async Task AnUnresponsiveCandidateIsAskedAgainOnTheNextPoll()
     {

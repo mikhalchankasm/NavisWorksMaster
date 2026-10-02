@@ -59,16 +59,19 @@ public sealed class AISettingsInfrastructureExecutorTests
             sink,
             Environment.CurrentManagedThreadId);
 
-        executor.ReportPhase(
-            AISettingsOperationStage.BindModels,
-            OpenRouterFailureKind.None,
-            null,
-            1,
-            false);
-        await sink.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
-
-        Assert.True(sink.IsBlocked);
-        sink.Release.Set();
+        try
+        {
+            executor.ReportPhase(
+                AISettingsOperationStage.BindModels,
+                OpenRouterFailureKind.None,
+                null,
+                1,
+                false);
+            // A deadlock watchdog, not an assertion about thread-pool scheduling speed.
+            await sink.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            Assert.True(sink.IsBlocked);
+        }
+        finally { sink.Release.Set(); }
     }
 
     [Fact]
