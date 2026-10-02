@@ -189,24 +189,15 @@ internal static partial class Program
 
         protected override void ConfigureFile(string mcpServerPath)
         {
-            var text = File.Exists(ConfigPath) ? File.ReadAllText(ConfigPath, Encoding.UTF8) : string.Empty;
-            text = RemoveTomlTableTree(text, "mcp_servers." + ServerName);
-
-            if (!string.IsNullOrWhiteSpace(text) && !text.EndsWith(Environment.NewLine, StringComparison.Ordinal))
-                text += Environment.NewLine;
-
-            text += Environment.NewLine;
-            text += "[mcp_servers." + ServerName + "]" + Environment.NewLine;
-            text += "command = " + ToTomlString(mcpServerPath) + Environment.NewLine;
-            text += "args = []" + Environment.NewLine;
-
-            WriteTextAtomic(ConfigPath, text);
+            var original = CodexTomlConfig.ReadFile(ConfigPath);
+            var updated = CodexTomlConfig.Configure(original, mcpServerPath);
+            if (!string.Equals(original, updated, StringComparison.Ordinal))
+                WriteTextAtomic(ConfigPath, updated);
         }
-
         protected override bool RemoveFileEntry()
         {
-            var original = File.Exists(ConfigPath) ? File.ReadAllText(ConfigPath, Encoding.UTF8) : string.Empty;
-            var updated = RemoveTomlTableTree(original, "mcp_servers." + ServerName);
+            var original = CodexTomlConfig.ReadFile(ConfigPath);
+            var updated = CodexTomlConfig.Remove(original);
             if (string.Equals(original, updated, StringComparison.Ordinal))
                 return false;
 

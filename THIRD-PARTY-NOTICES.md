@@ -7,6 +7,7 @@ and notice texts are shipped in the `licenses/` directory.
 |---|---|---|---|
 | Microsoft.Toolkit.Uwp.Notifications 7.1.3 | MIT | `licenses/WindowsCommunityToolkit-7.1.3-LICENSE.md` | https://github.com/CommunityToolkit/WindowsCommunityToolkit/tree/v7.1.3 |
 | Newtonsoft.Json 13.0.3 | MIT | `licenses/Newtonsoft.Json-13.0.3-LICENSE.md` | https://github.com/JamesNK/Newtonsoft.Json/tree/13.0.3 |
+| Tomlyn 2.10.1 | BSD-2-Clause | `licenses/Tomlyn-2.10.1-LICENSE.txt` | https://github.com/xoofx/Tomlyn/tree/2.10.1 |
 | System.ValueTuple 4.5.0 | MIT | `licenses/System.ValueTuple-4.5.0-LICENSE.TXT`; `licenses/System.ValueTuple-4.5.0-THIRD-PARTY-NOTICES.TXT` | https://www.nuget.org/packages/System.ValueTuple/4.5.0 |
 | ModelContextProtocol 1.2.0; ModelContextProtocol.Core 1.2.0 | Apache-2.0 | `licenses/ModelContextProtocol-1.2.0-LICENSE`; `licenses/ModelContextProtocol-1.2.0-THIRD-PARTY-NOTICES.txt` | https://github.com/modelcontextprotocol/csharp-sdk/tree/v1.2.0 |
 | Microsoft.Extensions.AI.Abstractions 10.4.1 | MIT | `licenses/dotnet-extensions-10.4.1-LICENSE`; `licenses/dotnet-extensions-10.4.1-THIRD-PARTY-NOTICES.TXT` | https://github.com/dotnet/extensions/tree/v10.4.1 |

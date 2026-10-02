@@ -67,6 +67,7 @@ $requiredFiles = @(
     "THIRD-PARTY-NOTICES.md",
     "licenses/WindowsCommunityToolkit-7.1.3-LICENSE.md",
     "licenses/Newtonsoft.Json-13.0.3-LICENSE.md",
+    "licenses/Tomlyn-2.10.1-LICENSE.txt",
     "licenses/System.ValueTuple-4.5.0-LICENSE.TXT",
     "licenses/System.ValueTuple-4.5.0-THIRD-PARTY-NOTICES.TXT",
     "licenses/ModelContextProtocol-1.2.0-LICENSE",

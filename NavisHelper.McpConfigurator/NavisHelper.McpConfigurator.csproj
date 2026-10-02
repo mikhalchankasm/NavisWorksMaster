@@ -14,4 +14,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="NavisHelper.McpServer.Tests" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
+  </ItemGroup>
 </Project>
