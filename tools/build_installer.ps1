@@ -1,7 +1,6 @@
 param(
     [string]$Runtime = "win-x64",
     [switch]$SelfContained,
-    [switch]$SkipBuild,
     [string]$AppVersion = "2.10.0.0",
     [string]$PackageName = "",
     [string]$OutputRoot = ""
@@ -65,7 +64,6 @@ $packageArgs = @{
     Runtime = $Runtime
     PackageName = $PackageName
     OutputRoot = $distributionRoot
-    SkipBuild = $SkipBuild
 }
 if ($SelfContained) {
     $packageArgs.SelfContained = $true

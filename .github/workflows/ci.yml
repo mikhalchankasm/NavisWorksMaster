@@ -121,6 +121,15 @@ jobs:
             New-Item -ItemType Directory -Force -Path $russianDestination | Out-Null
             New-Item -ItemType File -Force -Path (Join-Path $russianDestination "NavisHelper.resources.dll") | Out-Null
           }
+          $matrixFiles = @{}
+          foreach ($year in 2024,2025,2026,2027) {
+            foreach ($file in @('NavisHelper.dll','NavisHelper.Contracts.dll','ru/NavisHelper.resources.dll')) {
+              $path = "NavisHelper.bundle/Contents/$year/$file"
+              $matrixFiles[$path] = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+            }
+          }
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          @{source_commit=(git rev-parse HEAD);files=$matrixFiles;fixture=$true} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath artifacts/plugin-matrix.json -Encoding UTF8
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\package_distribution.ps1 -SkipBuild -Runtime win-x64 -OutputRoot "$env:RUNNER_TEMP\navishelper-package-smoke" -PackageName ci-package-smoke
 
       - name: Check distribution deletion boundaries

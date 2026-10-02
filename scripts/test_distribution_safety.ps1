@@ -3,7 +3,7 @@ $repoRoot = Split-Path $PSScriptRoot -Parent
 $tokens = $null; $parseErrors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $repoRoot 'tools/package_distribution.ps1'), [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors) { throw $parseErrors[0] }
-foreach ($name in @('Get-FullPath', 'Remove-DirectorySafely')) {
+foreach ($name in @('Get-FullPath', 'Remove-DirectorySafely', 'Get-PluginMatrixHashes', 'Assert-PluginMatrixReceipt')) {
     $function = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
     Invoke-Expression $function.Extent.Text
 }
@@ -12,6 +12,23 @@ $allowed = Join-Path $fixture 'output'
 $sibling = Join-Path $fixture 'output-old'
 try {
     New-Item -ItemType Directory -Path $allowed, $sibling | Out-Null
+    foreach ($year in 2024,2025,2026,2027) {
+        foreach ($file in @('NavisHelper.dll','NavisHelper.Contracts.dll','ru/NavisHelper.resources.dll')) {
+            $path = Join-Path $fixture "NavisHelper.bundle/Contents/$year/$file"
+            New-Item -ItemType Directory -Force -Path (Split-Path $path -Parent) | Out-Null
+            [IO.File]::WriteAllText($path, 'build A')
+        }
+    }
+    $hashes = Get-PluginMatrixHashes $fixture
+    $receipt = @{source_commit='commit-A';files=$hashes} | ConvertTo-Json -Depth 4 | ConvertFrom-Json
+    Assert-PluginMatrixReceipt $receipt 'commit-A' $hashes
+    foreach ($commit in @('commit-B','commit-A')) {
+        if ($commit -eq 'commit-A') { [IO.File]::WriteAllText($path, 'replaced DLL') }
+        $rejected = $false
+        try { Assert-PluginMatrixReceipt $receipt $commit (Get-PluginMatrixHashes $fixture) }
+        catch { $rejected = $_.Exception.Message -like 'Plugin matrix *' }
+        if (-not $rejected) { throw 'Stale plugin matrix accepted.' }
+    }
     foreach ($unsafe in @($allowed, ($allowed + '\'), $sibling, $fixture)) {
         $rejected = $false
         try { Remove-DirectorySafely $unsafe $allowed } catch { $rejected = $_.Exception.Message -like 'Refusing to delete outside output root:*' }

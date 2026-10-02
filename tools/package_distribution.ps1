@@ -51,6 +51,24 @@ function Resolve-MSBuild {
     throw "MSBuild.exe not found."
 }
 
+function Get-PluginMatrixHashes([string]$Root) {
+    $hashes = [ordered]@{}
+    foreach ($year in 2024,2025,2026,2027) {
+        foreach ($file in @('NavisHelper.dll','NavisHelper.Contracts.dll','ru/NavisHelper.resources.dll')) {
+            $relative = "NavisHelper.bundle/Contents/$year/$file"
+            $hashes[$relative] = (Get-FileHash -LiteralPath (Join-Path $Root $relative) -Algorithm SHA256).Hash
+        }
+    }
+    return $hashes
+}
+
+function Assert-PluginMatrixReceipt($Receipt, [string]$Commit, $Hashes) {
+    if ($Receipt.source_commit -ne $Commit) { throw 'Plugin matrix receipt belongs to another source commit. Run a full package build first.' }
+    foreach ($path in $Hashes.Keys) {
+        if ($Receipt.files.$path -ne $Hashes[$path]) { throw "Plugin matrix hash mismatch: $path" }
+    }
+}
+
 function Copy-Directory([string]$Source, [string]$Destination) {
     if (-not (Test-Path -LiteralPath $Source)) {
         throw "Source directory not found: $Source"
@@ -129,6 +147,19 @@ if (-not $SkipBuild) {
 }
 
 # SkipBuild reuses only the plugin matrix; every standalone process is republished.
+$matrixReceiptPath = Join-Path $repoRoot 'artifacts/plugin-matrix.json'
+$matrixHashes = Get-PluginMatrixHashes $repoRoot
+if ($SkipBuild) {
+    $matrixReceipt = Get-Content -LiteralPath $matrixReceiptPath -Raw -ErrorAction Stop | ConvertFrom-Json
+    Assert-PluginMatrixReceipt $matrixReceipt $sourceCommit $matrixHashes
+    if ($matrixReceipt.fixture -and ($env:GITHUB_ACTIONS -ne 'true' -or $PackageName -ne 'ci-package-smoke')) {
+        throw 'Fixture plugin binaries cannot be used in a release package.'
+    }
+} else {
+    $matrixReceipt = [ordered]@{ source_commit = $sourceCommit; files = $matrixHashes; fixture = $false }
+    New-Item -ItemType Directory -Force -Path (Split-Path $matrixReceiptPath -Parent) | Out-Null
+    $matrixReceipt | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $matrixReceiptPath -Encoding UTF8
+}
 Remove-DirectorySafely $aiWorkerBundleDir (Join-Path $bundleSource "Contents")
 $workerPublishArguments = @(
     "publish", $aiWorkerProject,
@@ -626,6 +657,7 @@ $manifest = [ordered]@{
         worktree_clean = $true
         plugin_matrix_reused = [bool]$SkipBuild
     }
+    plugin_matrix = $matrixReceipt
     created_utc = (Get-Date).ToUniversalTime().ToString("o")
     runtime = $Runtime
     self_contained = [bool]$SelfContained
