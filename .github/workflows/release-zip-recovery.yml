@@ -40,7 +40,11 @@ jobs:
           Invoke-WebRequest -UseBasicParsing -Uri ('https://api.github.com/repos/mikhalchankasm/NavisWorksMaster/releases/assets/' + [long]$installer[0].id) -Headers $downloadHeaders -OutFile $exe -TimeoutSec 120
           if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash -ne '9C429AACAADA7361906158AE8810F61977C5FCDD9523326E49D3848C37E87957') { throw 'Installer hash mismatch' }
           $installerArgs = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/NOICONS',('/DIR="' + $app + '"'),('/LOG="' + (Join-Path $work 'installer.log') + '"'))
-          $process = Start-Process -FilePath $exe -ArgumentList $installerArgs -WindowStyle Hidden -Wait -PassThru
+          $githubSessionToken = $env:GH_TOKEN
+          try {
+            $env:GH_TOKEN = $null
+            $process = Start-Process -FilePath $exe -ArgumentList $installerArgs -WindowStyle Hidden -Wait -PassThru
+          } finally { $env:GH_TOKEN = $githubSessionToken; $githubSessionToken = $null }
           if ($process.ExitCode -ne 0) { throw 'Disposable installer execution failed' }
           $zip = Join-Path $work 'NavisHelper-full-win-x64-framework-dependent-2.10.0.0.zip'
           & scripts/release-recovery/rebuild-zip.ps1 -InstalledRoot $app -BundleRoot $bundle -OutputPath $zip
@@ -53,7 +57,7 @@ jobs:
             if ($existing.Count -ne 1 -or $existing[0].digest -ine 'sha256:6C67485D8070F9A7442259F5BA3AA01B72E2BEE1DBD26C64B29D406E14038048') { throw 'Existing ZIP differs; refusing overwrite' }
           } else {
             $uploadHeaders = @{Authorization=('Bearer ' + $env:GH_TOKEN); Accept='application/vnd.github+json'}
-            Invoke-RestMethod -Uri 'https://uploads.github.com/repos/mikhalchankasm/NavisWorksMaster/releases/401581540/assets?name=NavisHelper-full-win-x64-framework-dependent-2.10.0.0.zip' -Method Post -Headers $uploadHeaders -ContentType 'application/zip' -InFile $zip -TimeoutSec 120 | Out-Null
+            Invoke-RestMethod -Uri 'https://uploads.github.com/repos/mikhalchankasm/NavisWorksMaster/releases/401581540/assets?name=NavisHelper-full-win-x64-framework-dependent-2.10.0.0.zip' -Method Post -Headers $uploadHeaders -ContentType 'application/zip' -InFile $zip -TimeoutSec 600 | Out-Null
           }
           $confirmed = gh api repos/mikhalchankasm/NavisWorksMaster/releases/401581540 | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Server verification request failed' }
