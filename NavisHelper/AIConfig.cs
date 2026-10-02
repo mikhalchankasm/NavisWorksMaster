@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 
 using NavisHelper.AI;
+using NavisHelper.Agent.Contracts;
 using NavisHelper.Core;
 
 namespace NavisHelper
@@ -22,12 +23,8 @@ namespace NavisHelper
         {
             try
             {
-                var directory = Path.GetDirectoryName(_configPath);
-                if (!Directory.Exists(directory))
-                    Directory.CreateDirectory(directory);
-
                 var json = AIConfigJsonSerializer.Serialize(snapshot.ToData());
-                File.WriteAllText(_configPath, json);
+                VerifiedFileArtifactWriter.WriteUtf8(_configPath, json, true);
                 Logger.Info(
                     "Конфигурация ИИ-сервиса сохранена",
                     "AIConfig");
@@ -37,6 +34,7 @@ namespace NavisHelper
                 Logger.Error(
                     $"Ошибка сохранения конфигурации: {ex.Message}",
                     "AIConfig");
+                throw;
             }
         }
     }
@@ -96,13 +94,13 @@ namespace NavisHelper
 
         public void SaveConfig()
         {
-            _runtime.PersistLatestAsync();
+            _ = PersistInBackgroundAsync();
         }
 
         public void ResetToDefaults()
         {
             _runtime.Reset();
-            _runtime.PersistLatestAsync();
+            _ = PersistInBackgroundAsync();
             Logger.Info(
                 "Конфигурация сброшена к значениям по умолчанию",
                 "AIConfig");
@@ -111,7 +109,7 @@ namespace NavisHelper
         public void SetColorScheme(int scheme)
         {
             var selectedScheme = _runtime.UpdateColorScheme(scheme);
-            _runtime.PersistLatestAsync();
+            _ = PersistInBackgroundAsync();
             Logger.Info(
                 $"Цветовая схема изменена на {selectedScheme}: " +
                 ColorSchemes.GetSchemeNameRu(
@@ -122,6 +120,19 @@ namespace NavisHelper
         public ColorSchemeType GetColorSchemeType()
         {
             return (ColorSchemeType)CaptureSnapshot().ColorScheme;
+        }
+
+        private async Task PersistInBackgroundAsync()
+        {
+            try
+            {
+                await _runtime.PersistLatestAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                // File persistence logged the error. Observe failures for legacy
+                // void callers; PersistLatestAsync still reports them to awaiters.
+            }
         }
 
         private static AIConfig LoadConfig()
