@@ -20,6 +20,7 @@ if (-not $PackageRoot) {
     if (Test-Path -LiteralPath $PackageRoot) { throw 'Recovery staging directory already exists' }
     New-Item -ItemType Directory -Path $PackageRoot | Out-Null
     $supplement = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'supplement.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (@($supplement).Count -ne 2) { throw 'Expected exactly two supplemental files' }
     foreach ($file in $supplement) {
         if ($file.name -notin @('Install-NavisHelperBundle.ps1','checksums.sha256')) { throw 'Unexpected supplemental file' }
         [IO.File]::WriteAllBytes((Safe-Path $PackageRoot $file.name), [Convert]::FromBase64String($file.base64))
@@ -53,9 +54,9 @@ try {
         $entry.LastWriteTime = [DateTimeOffset]::ParseExact($record.time, 'yyyy-MM-ddTHH:mm:ss', [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal)
         if ($record.attributes -ne 0) { throw 'Unsupported nonzero archive attributes' }
         if ($record.name.EndsWith('/')) { continue }
-        $input = [IO.File]::OpenRead((Safe-Path $PackageRoot $record.name))
+        $reader = [IO.File]::OpenRead((Safe-Path $PackageRoot $record.name))
         $output = $entry.Open()
-        try { $input.CopyTo($output) } finally { $output.Dispose(); $input.Dispose() }
+        try { $reader.CopyTo($output) } finally { $output.Dispose(); $reader.Dispose() }
     }
 } finally { $archive.Dispose(); $stream.Dispose() }
 $hash = (Get-FileHash -LiteralPath $OutputPath -Algorithm SHA256).Hash
