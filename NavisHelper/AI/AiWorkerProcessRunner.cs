@@ -117,15 +117,16 @@ namespace NavisHelper.AI
                 using (cancellationToken.Register(() =>
                        {
                            cancelled.TrySetResult(true);
-                           // A full stdin pipe can block before the exit/cancel wait below.
-                           TryKill(process);
                        }))
                 {
                     try
                     {
-                        await process.StandardInput.WriteAsync(
-                                requestJson ?? string.Empty)
-                            .ConfigureAwait(false);
+                        var write = process.StandardInput.WriteAsync(requestJson ?? string.Empty);
+                        // Observe cancellation even when the worker stops consuming stdin.
+                        if (await Task.WhenAny(write, cancelled.Task).ConfigureAwait(false) != write)
+                            return await FinishCancellationAsync(process, exit.Task,
+                                standardOutputTask, standardErrorTask, write).ConfigureAwait(false);
+                        await write.ConfigureAwait(false);
                         process.StandardInput.Close();
                     }
                     catch (Exception ex) when (
@@ -207,17 +208,20 @@ namespace NavisHelper.AI
         }
 
         private static async Task<AiWorkerRunResult> FinishCancellationAsync(
-            Process process, Task<int> exit, Task<string> standardOutput, Task<string> standardError)
+            Process process, Task<int> exit, Task<string> standardOutput, Task<string> standardError,
+            Task pendingInput = null)
         {
-            TryKill(process);
+            // Token callbacks may run on the UI thread; termination always runs off-thread.
+            await Task.Run(() => TryKill(process)).ConfigureAwait(false);
             await Task.WhenAny(exit, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
             await Task.WhenAny(
-                Task.WhenAll(ObserveClosedPipeAsync(standardOutput), ObserveClosedPipeAsync(standardError)),
+                Task.WhenAll(ObserveClosedPipeAsync(standardOutput), ObserveClosedPipeAsync(standardError),
+                    ObserveClosedPipeAsync(pendingInput ?? Task.CompletedTask)),
                 Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
             return AiWorkerRunResult.Failure(AiWorkerRunFailureKind.Cancelled);
         }
 
-        private static async Task ObserveClosedPipeAsync(Task<string> read)
+        private static async Task ObserveClosedPipeAsync(Task read)
         {
             try { await read.ConfigureAwait(false); }
             catch (IOException) { }
