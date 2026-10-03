@@ -669,6 +669,7 @@
     <Compile Include="Core\Localization\UiStatusResourceException.cs" />
     <Compile Include="Core\RalColors.cs" />
     <Compile Include="CsvAttributeLoader.cs" />
+    <Compile Include="Core\Import\CsvAttributeReader.cs" />
     <Compile Include="FilterNavisModels.cs" />
     <Compile Include="HideItems.cs" />
     <Compile Include="ColorsByName.cs" />
