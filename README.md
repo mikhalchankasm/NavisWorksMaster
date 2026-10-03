@@ -103,6 +103,14 @@ See [three complete workflows (Russian)](docs/USER_WORKFLOWS.md) for prerequisit
 - “Create a saved section-box viewpoint around the current selection.”
 - “Show the planned color scheme before applying any permanent overrides.”
 
+### Codex operator skill
+
+Copy the whole [navishelper-operator folder](skills/navishelper-operator) into
+`$CODEX_HOME/skills`, or `%USERPROFILE%\.codex\skills` when `CODEX_HOME` is unset;
+create the parent directory if needed. Back up an existing same-name folder
+before replacing it. Restart Codex to discover `$navishelper-operator`.
+The skill uses your existing MCP connection and works outside this checkout.
+
 ## Safety model
 
 See [security and compatibility boundaries](docs/SECURITY_AND_COMPATIBILITY.md)
