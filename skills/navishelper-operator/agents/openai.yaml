@@ -1,0 +1,4 @@
+interface:
+  display_name: "NavisHelper Operator"
+  short_description: "Управление Navisworks через NavisHelper MCP"
+  default_prompt: "Используй $navishelper-operator для работы с открытой моделью Navisworks и проверки результата."

@@ -103,6 +103,15 @@ MCP-клиент запускает `NavisHelper.McpServer.exe` по stdio. Се
 - «Создай saved section-box viewpoint вокруг текущего выделения».
 - «Покажи план цветовой схемы до применения permanent overrides».
 
+### Навык оператора для Codex
+
+Скопируйте папку [navishelper-operator](skills/navishelper-operator) целиком в
+`$CODEX_HOME/skills` или `%USERPROFILE%\.codex\skills`, если `CODEX_HOME` не задан;
+при необходимости создайте родительскую папку. Перед заменой существующего
+одноимённого навыка сохраните его копию. Перезапустите Codex для обнаружения
+`$navishelper-operator`. Навык использует настроенное подключение MCP и работает
+без локальной копии репозитория.
+
 ## Модель безопасности
 
 Подробнее: [безопасность и совместимость](docs/SECURITY_AND_COMPATIBILITY.md) —
