@@ -95,6 +95,8 @@ Start with the [MCP quickstart](docs/NAVISWORKS_MCP_QUICKSTART.md). The [client 
 
 ### Example requests
 
+See [three complete workflows (Russian)](docs/USER_WORKFLOWS.md) for prerequisites, tool sequences, result checks, and limits.
+
 - “Find items whose name contains `pump`, select the matches, and frame them.”
 - “Preview an export of the current selection properties to an XLSX file.”
 - “List active clashes in `HVAC vs Structure`, then preview isolation of the first result.”
