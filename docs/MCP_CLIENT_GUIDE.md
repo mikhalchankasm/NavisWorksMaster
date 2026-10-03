@@ -37,11 +37,13 @@ If `NAVISHELPER_INSTANCE_ID` is set, the MCP server treats it as a strict target
 ## Narrowing the Advertised Tool Surface
 
 The full surface is 113 tools and 200 KB of JSON in `tools/list`, roughly 59,000
-tokens that the client carries in context on every request. A session that only
+tokens by the estimate below. How much of this reaches the model, and how often,
+depends on the client's caching and tool discovery. A session that only
 queries and navigates the model does not need the Clash Detective surface, and a
 clash session does not need scenario or markup tools. Narrowing the surface cuts
-that fixed cost and also improves tool-selection accuracy, because the model
-chooses between fewer near-identical names.
+the advertised payload. Tool-selection accuracy has not been measured in a
+comparative model evaluation; the payload measurements below do not prove an
+accuracy improvement.
 
 Set `NAVISHELPER_MCP_TOOLS` in the MCP client configuration, or pass
 `--tools=<sets>` on the server command line. The command line wins when both are
@@ -72,10 +74,11 @@ Combine sets with commas and subtract with a leading `-`:
 "env": { "NAVISHELPER_MCP_TOOLS": "core,clash" }
 ```
 
-The `meta` set is always advertised regardless of the spec, including when it is
-explicitly subtracted, so `mcp_health_check`, `mcp_diagnostics`,
-`mcp_error_contract`, `mcp_recent_calls`, `list_navisworks_hosts`, `host_status`,
-`last_operation_status` and the task timers are never missing. An unknown set
+Profile selection always retains the `meta` set, even when explicitly subtracted.
+The separate read-only filter still applies: `mcp_health_check`, `mcp_diagnostics`,
+`mcp_error_contract`, `mcp_recent_calls`, `list_navisworks_hosts`, `host_status` and
+`last_operation_status` remain available, but both task timers are hidden and
+refused because they change local state. An unknown set
 name fails at startup rather than silently narrowing the surface: a server that
 refuses to start is far easier to diagnose than a tool that quietly disappeared.
 The active profile is logged to stderr on startup.
@@ -83,6 +86,50 @@ The active profile is logged to stderr on startup.
 A tool outside the active spec is not advertised at all. Its contract is
 unchanged — narrowing never alters a tool's schema or behavior. If a workflow
 needs a tool that is not advertised, widen the spec rather than working around it.
+
+### Configure and Verify a Profile
+
+For clients using a JSON `mcpServers` map, merge one of these entries into the
+existing configuration. Replace `command` with the actual installed server path;
+preserve unrelated servers, arguments and environment settings.
+
+Read, select and navigate with `core`:
+
+```json
+{
+  "mcpServers": {
+    "navishelper": {
+      "command": "C:\\NavisHelper\\NavisHelper.McpServer.exe",
+      "env": { "NAVISHELPER_MCP_TOOLS": "core" }
+    }
+  }
+}
+```
+
+Inspect model and clash data without state-changing tools:
+
+```json
+{
+  "mcpServers": {
+    "navishelper": {
+      "command": "C:\\NavisHelper\\NavisHelper.McpServer.exe",
+      "args": ["--tools=core,clash", "--read-only"]
+    }
+  }
+}
+```
+
+Remove `--read-only` only when the workflow needs state-changing tools. The
+`core` alias itself is not read-only. Check for an existing `--tools=...` argument
+before changing the environment variable: the argument takes precedence.
+
+Profiles are resolved once at server startup. After editing configuration,
+restart the client's NavisHelper MCP server connection (restart the client if it
+has no server-restart control). Merely editing the file does not change a running
+server. Refresh its tool discovery and inspect `tools/list`, or read
+`navishelper://catalog/tools` when resources are supported, to confirm the active
+surface. The startup stderr log also records the profile. Widen the configuration
+and restart when a required tool is absent; there is no live profile switch.
 
 ## On-demand Tool Catalog
 
@@ -116,7 +163,7 @@ this guide using the ordinary tools.
 
 Every MCP tool result includes automatic `navishelper_timing` in the primary JSON result with `elapsed_ms`, `elapsed_human`, `should_report_to_user`, `user_message`, and `agent_instruction`. If `should_report_to_user=true`, include `user_message` in the user-facing answer.
 
-For larger user-visible workflows that span several MCP tool calls, call `mcp_task_timer_start` before the workflow and `mcp_task_timer_finish` before the final answer to get one elapsed time for the whole workflow. If the finish result has `shouldReportToUser=true`, include `userMessage` in the final answer.
+For larger user-visible workflows that span several MCP tool calls, when the task timer tools are advertised, call `mcp_task_timer_start` before the workflow and `mcp_task_timer_finish` before the final answer to get one elapsed time for the whole workflow. If the finish result has `shouldReportToUser=true`, include `userMessage` in the final answer. In read-only mode these tools are unavailable; use the automatic per-call timing instead.
 
 Every host call is also written to `mcp_recent_calls` with `requestId`, `elapsedMs`, `elapsedHuman`, and `reportElapsedToUser`; use those fields for diagnostics after failures or long runs.
 
