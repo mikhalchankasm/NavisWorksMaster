@@ -103,6 +103,10 @@ Start with the [MCP quickstart](docs/NAVISWORKS_MCP_QUICKSTART.md). The [client 
 
 ## Safety model
 
+See [security and compatibility boundaries](docs/SECURITY_AND_COMPATIBILITY.md)
+for local access, read-only limits, AI data flow, timeout recovery and what each
+verification level proves.
+
 - MCP traffic stays on local stdio and named pipes; the server opens no network listener.
 - Navisworks API work is marshalled to the host UI thread and guarded against busy host state.
 - Most mutating tools default to preview and require an explicit apply flag; close/discard paths require stronger confirmation.
