@@ -16,14 +16,14 @@ public sealed class AIConfigPersistenceTests : IDisposable
         using var persistence = new FailingQueuedPersistence();
         var runtime = new AIConfigRuntime(new AIConfigSnapshot("provider/first", 0.7, 9), persistence);
         var first = runtime.PersistLatestAsync();
-        await persistence.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await persistence.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         var second = runtime.PersistLatestAsync();
         var third = runtime.PersistLatestAsync();
         persistence.Release.Set();
         await first;
 
         var failures = await Task.WhenAll(
-            Record.ExceptionAsync(() => second), Record.ExceptionAsync(() => third));
+            Record.ExceptionAsync(() => second).AsTask(), Record.ExceptionAsync(() => third).AsTask());
 
         Assert.All(failures, failure => Assert.IsType<IOException>(failure));
     }

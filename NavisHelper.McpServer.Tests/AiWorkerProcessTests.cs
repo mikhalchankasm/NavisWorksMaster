@@ -27,16 +27,17 @@ public sealed class AiWorkerProcessTests
             run = new AiWorkerProcessRunner().RunAsync(PowerShell, script, "", cancellation.Token);
             var deadline = Stopwatch.StartNew();
             while (!File.Exists(pidPath) && deadline.Elapsed < TimeSpan.FromSeconds(10))
-                await Task.Delay(25);
+                await Task.Delay(25, TestContext.Current.CancellationToken);
             Assert.True(File.Exists(pidPath), "Owned worker did not start within 10 seconds.");
-            child = Process.GetProcessById(int.Parse(await File.ReadAllTextAsync(pidPath)));
+            child = Process.GetProcessById(int.Parse(await File.ReadAllTextAsync(pidPath, TestContext.Current.CancellationToken)));
             Assert.False(run.IsCompleted);
 
             cancellation.Cancel();
-            var result = await run.WaitAsync(TimeSpan.FromSeconds(6));
+            var result = await run.WaitAsync(TimeSpan.FromSeconds(6), TestContext.Current.CancellationToken);
 
             Assert.Equal(AiWorkerRunFailureKind.Cancelled, result.FailureKind);
-            await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3));
+            await child.WaitForExitAsync(TestContext.Current.CancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
             Assert.True(child.HasExited);
         }
         finally
@@ -51,11 +52,13 @@ public sealed class AiWorkerProcessTests
             {
                 if (!child.HasExited)
                     child.Kill();
-                await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                // Cleanup must finish even when the test runner has cancelled this test.
+                await child.WaitForExitAsync(CancellationToken.None)
+                    .WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
                 child.Dispose();
             }
             if (run != null)
-                await run.WaitAsync(TimeSpan.FromSeconds(5));
+                await run.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
             File.Delete(pidPath);
             File.Delete(pidPath + ".writing");
         }
@@ -66,7 +69,7 @@ public sealed class AiWorkerProcessTests
     {
         var result = await new AiWorkerProcessRunner().RunAsync(PowerShell,
             "[Console]::Out.WriteLine('worker-response'); exit 0\r\n", "", CancellationToken.None)
-            .WaitAsync(TimeSpan.FromSeconds(10));
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Contains("worker-response", result.StandardOutput);
     }

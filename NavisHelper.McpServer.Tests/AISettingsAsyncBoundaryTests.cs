@@ -66,7 +66,7 @@ public sealed class AISettingsAsyncBoundaryTests
 
         await completion;
 
-        Assert.True(await reported.Task.WaitAsync(TimeSpan.FromSeconds(15)));
+        Assert.True(await reported.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
         Assert.False(completion.IsFaulted);
     }
 
@@ -78,7 +78,7 @@ public sealed class AISettingsAsyncBoundaryTests
         var mutated = false;
 
         await Task.Run(async () =>
-            await gate.RunAsync(() => true, () => mutated = true));
+            await gate.RunAsync(() => true, () => mutated = true), TestContext.Current.CancellationToken);
 
         Assert.True(mutated);
         Assert.Equal(1, boundary.CallCount);
@@ -93,7 +93,7 @@ public sealed class AISettingsAsyncBoundaryTests
         var mutated = false;
 
         await Task.Run(async () =>
-            await gate.RunAsync(() => false, () => mutated = true));
+            await gate.RunAsync(() => false, () => mutated = true), TestContext.Current.CancellationToken);
 
         Assert.False(mutated);
         Assert.Equal(1, boundary.CallCount);
@@ -107,7 +107,7 @@ public sealed class AISettingsAsyncBoundaryTests
         runtime.UpdateModelName("provider/old");
         var blockedWrite = runtime.PersistLatestAsync();
         await persistence.FirstWriteEntered.Task.WaitAsync(
-            TimeSpan.FromSeconds(15));
+            TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         runtime.UpdateModelName("provider/latest");
 
@@ -124,10 +124,10 @@ public sealed class AISettingsAsyncBoundaryTests
         var runtime = CreateRuntime(persistence);
         var blockedWrite = runtime.PersistLatestAsync();
         await persistence.FirstWriteEntered.Task.WaitAsync(
-            TimeSpan.FromSeconds(15));
+            TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
-        var snapshot = await Task.Run(runtime.Capture)
-            .WaitAsync(TimeSpan.FromSeconds(15));
+        var snapshot = await Task.Run(runtime.Capture, TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         Assert.Equal("provider/initial", snapshot.ModelName);
         persistence.ReleaseFirstWrite.Set();
@@ -157,7 +157,7 @@ public sealed class AISettingsAsyncBoundaryTests
         var runtime = CreateRuntime(persistence);
         var first = runtime.PersistLatestAsync();
         await persistence.FirstWriteEntered.Task.WaitAsync(
-            TimeSpan.FromSeconds(15));
+            TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         runtime.UpdateModelName("provider/latest");
         var modelWrite = runtime.PersistLatestAsync();
