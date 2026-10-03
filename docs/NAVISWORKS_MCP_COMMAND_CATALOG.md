@@ -1,5 +1,11 @@
 # Navisworks MCP Command Catalog
 
+Полный текущий состав инструментов находится в [генерируемом индексе](#generated-implemented-mcp-tool-index).
+Ручная подборка ниже не исчерпывает API: статусы `validated` отражают отдельные прошлые проверки,
+а `planned` обозначает предложенные имена, которые нельзя вызывать как существующие инструменты.
+Результаты живых проверок и их ограничения — в [baseline](MCP_TOOL_BASELINE.md);
+актуальные задачи и порядок работы — на [доске проекта](https://github.com/users/mikhalchankasm/projects/3).
+
 ## Легенда статусов
 
 - `validated` — реализовано и проверено на живой модели
@@ -21,7 +27,7 @@ LLM должен:
 
 - русский текст не обязан совпадать с именем tool
 - но tool должен существовать в typed command catalog
-- точные входные параметры, дефолты и ключевые поля ответов для Clash Detective MCP tools зафиксированы в [docs/MCP_TOOL_CONTRACTS.md](docs/MCP_TOOL_CONTRACTS.md)
+- точные входные параметры, дефолты и ключевые поля ответов для Clash Detective MCP tools зафиксированы в [MCP_TOOL_CONTRACTS.md](MCP_TOOL_CONTRACTS.md)
 
 ## Версия 2.4.3.0: заметки для MCP-клиентов
 
@@ -323,27 +329,9 @@ It prevents the curated Russian command catalog from drifting behind the actual 
 
 ## Что уже реально подтверждено
 
-На текущий момент на живой модели подтверждено:
-
-1. `find_items`
-2. `select_items`
-3. `hide_unselected`
-4. `show_all`
-5. `create_selection_set`
-6. `fit_all`
-7. `zoom_to_selection`
-8. `hide_selected`
-9. `isolate_selected`
-10. `unhide_selected`
-11. `focus_on_selection`
-12. search-v2 grouped `AND / OR`
-13. `create_search_set`
-14. `selection_sets_manage`
-15. `selection_sets_reorder`
-
-`selected_items_tree` реализован и покрыт smoke-проверкой, включая сценарий выбора больше 100 элементов; живой статус фиксируется после очередного regression-прогона.
-
-`reveal_selected` реализован, но ещё требует отдельной проверки на сценарии, где выбранный элемент остаётся невидимым из-за скрытого предка.
+Результаты приёмки, версии хоста, измерения и оставшиеся пробелы ведутся в
+[MCP_TOOL_BASELINE.md](MCP_TOOL_BASELINE.md) и PR соответствующих изменений.
+Проверка одной команды на одной модели не означает проверку всего API на всех версиях Navisworks.
 
 Это уже позволяет делать рабочий сценарий:
 
@@ -357,15 +345,8 @@ It prevents the curated Russian command catalog from drifting behind the actual 
 
 ## Что делать дальше
 
-Рекомендуемый ближайший порядок проверки и расширения с учётом текущих продуктовых приоритетов:
-
-1. довести live-regression сценарии `find_items/find_root_items_by_name -> create_selection_set(matchHandles)` и `create_search_set -> selection_sets_manage/selection_sets_reorder` на тестовой модели
-2. расширить `create_search_set`, если понадобится сохранение OR-групп; текущий native persisted режим намеренно ограничен `combineOperator=all`
-3. после live-валидации `find_items_by_bbox` спроектировать именованные зоны и локальные/сеточные СК; не смешивать это с неготовой семантикой "по списку кодов"
-4. развить property workflow: показать свойства выбранного, экспортировать свойства выбранного в CSV/XLSX, добавить минимальные regression/smoke проверки на экспорт
-5. спроектировать Clash photo/zoom report: открыть result, изолировать/приблизить стороны, сделать изображение, приложить описание
-6. довести installer/configurator до понятного поддерживаемого release-потока
-7. после этого вернуться к `section_box_selection` / `clear_section_box`, если они нужны для clash/photo или пользовательских сценариев
+Очередь, критерии и приоритеты находятся на [доске проекта](https://github.com/users/mikhalchankasm/projects/3).
+Этот каталог описывает интерфейс и примеры запросов; отдельный план разработки здесь не ведётся.
 
 ## Практические ограничения
 
