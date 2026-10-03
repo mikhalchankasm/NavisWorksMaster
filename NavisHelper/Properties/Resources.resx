@@ -1009,6 +1009,36 @@ Provides variety while retaining a soft appearance.</value>
   <data name="CsvAttributeDialogTitle" xml:space="preserve">
     <value>Select a CSV attribute file</value>
   </data>
+  <data name="CsvAttributeDocumentRequired" xml:space="preserve">
+    <value>Open a model before importing CSV attributes.</value>
+  </data>
+  <data name="CsvAttributeEncodingInvalid" xml:space="preserve">
+    <value>The CSV contains invalid text or an unsupported encoding. Save it as UTF-8 (with or without BOM), or UTF-16/UTF-32 with BOM. Legacy code pages are not guessed. No attributes were changed.</value>
+  </data>
+  <data name="CsvAttributeEmpty" xml:space="preserve">
+    <value>The CSV must contain a header and at least one data record. No attributes were changed.</value>
+  </data>
+  <data name="CsvAttributeColumnsRequired" xml:space="preserve">
+    <value>The CSV needs at least two semicolon-separated columns: item name and an attribute. No attributes were changed.</value>
+  </data>
+  <data name="CsvAttributeHeaderInvalid" xml:space="preserve">
+    <value>CSV column {0} has an empty or duplicate header (case-insensitive). Give every column a unique name. No attributes were changed.</value>
+  </data>
+  <data name="CsvAttributeRowWidth" xml:space="preserve">
+    <value>CSV record {0} has {1} fields; the header defines {2}. The header is record 1; blank lines are ignored. Check delimiters and quotes. No attributes were changed.</value>
+  </data>
+  <data name="CsvAttributeItemNameRequired" xml:space="preserve">
+    <value>CSV record {0} has no item name in its first field. The header is record 1; blank lines are ignored. No attributes were changed.</value>
+  </data>
+  <data name="CsvAttributeMalformedLine" xml:space="preserve">
+    <value>CSV quoting is malformed at line {0}. Enclose fields containing semicolons or line breaks in double quotes; escape a quote as two quotes. No attributes were changed.</value>
+  </data>
+  <data name="CsvAttributeInputFailed" xml:space="preserve">
+    <value>Cannot read the CSV: {0}. No attributes were changed.</value>
+  </data>
+  <data name="CsvAttributeImportSummary" xml:space="preserve">
+    <value>CSV import processed {0} of {1} records; items not found: {2}.</value>
+  </data>
   <data name="FilterSearchPrompt" xml:space="preserve">
     <value>Use exact matching? Select No to use partial matching.</value>
   </data>

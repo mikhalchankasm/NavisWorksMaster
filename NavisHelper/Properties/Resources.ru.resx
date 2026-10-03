@@ -1009,6 +1009,36 @@
   <data name="CsvAttributeDialogTitle" xml:space="preserve">
     <value>Выберите CSV-файл с атрибутами</value>
   </data>
+  <data name="CsvAttributeDocumentRequired" xml:space="preserve">
+    <value>Перед загрузкой атрибутов из CSV откройте модель.</value>
+  </data>
+  <data name="CsvAttributeEncodingInvalid" xml:space="preserve">
+    <value>CSV содержит повреждённый текст или неподдерживаемую кодировку. Сохраните файл в UTF-8 (с BOM или без него) либо в UTF-16/UTF-32 с BOM. Старые кодировки не определяются автоматически. Атрибуты не изменены.</value>
+  </data>
+  <data name="CsvAttributeEmpty" xml:space="preserve">
+    <value>CSV должен содержать заголовок и хотя бы одну запись данных. Атрибуты не изменены.</value>
+  </data>
+  <data name="CsvAttributeColumnsRequired" xml:space="preserve">
+    <value>В CSV нужны минимум два столбца с разделителем «точка с запятой»: имя элемента и атрибут. Атрибуты не изменены.</value>
+  </data>
+  <data name="CsvAttributeHeaderInvalid" xml:space="preserve">
+    <value>Столбец CSV {0} имеет пустой или повторяющийся заголовок (без учёта регистра). Укажите уникальное имя каждого столбца. Атрибуты не изменены.</value>
+  </data>
+  <data name="CsvAttributeRowWidth" xml:space="preserve">
+    <value>В записи CSV {0} полей: {1}, в заголовке: {2}. Заголовок считается записью 1, пустые строки пропускаются. Проверьте разделители и кавычки. Атрибуты не изменены.</value>
+  </data>
+  <data name="CsvAttributeItemNameRequired" xml:space="preserve">
+    <value>В первом поле записи CSV {0} отсутствует имя элемента. Заголовок считается записью 1, пустые строки пропускаются. Атрибуты не изменены.</value>
+  </data>
+  <data name="CsvAttributeMalformedLine" xml:space="preserve">
+    <value>В строке CSV {0} нарушено оформление кавычек. Поля с точкой с запятой или переносом строки заключите в двойные кавычки; кавычку внутри поля удвойте. Атрибуты не изменены.</value>
+  </data>
+  <data name="CsvAttributeInputFailed" xml:space="preserve">
+    <value>Не удалось прочитать CSV: {0}. Атрибуты не изменены.</value>
+  </data>
+  <data name="CsvAttributeImportSummary" xml:space="preserve">
+    <value>При импорте CSV обработано записей: {0} из {1}; не найдено элементов: {2}.</value>
+  </data>
   <data name="FilterSearchPrompt" xml:space="preserve">
     <value>Использовать точное совпадение? Другой вариант включает частичное совпадение.</value>
   </data>

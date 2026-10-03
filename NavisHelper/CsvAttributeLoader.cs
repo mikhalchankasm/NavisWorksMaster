@@ -4,11 +4,11 @@ using Autodesk.Navisworks.Api.Interop.ComApi;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using Application = Autodesk.Navisworks.Api.Application;
 using NavisHelper.Core;
+using NavisHelper.Core.Import;
 using NavisHelper.Core.Localization;
 
 namespace NavisHelper
@@ -24,24 +24,35 @@ namespace NavisHelper
                 return 0;
 
             Document doc = Application.ActiveDocument;
+            var ui = UiLocalizationService.Current;
+            if (doc == null || doc.IsClear)
+            {
+                ShowInputError(ui.GetString("CsvAttributeDocumentRequired"), csvFilePath);
+                return 0;
+            }
+
+            CsvAttributeTable table;
+            try
+            {
+                table = CsvAttributeReader.Read(csvFilePath);
+            }
+            catch (CsvAttributeReadException ex)
+            {
+                ShowInputError(ui.Format(ex.ResourceKey, ex.Arguments), csvFilePath);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                ShowInputError(ui.Format("CsvAttributeInputFailed", ex.Message), csvFilePath);
+                return 0;
+            }
+
             var progress = Application.BeginProgress(
-                UiLocalizationService.Current.GetString("CsvAttributeProgressCaption"));
+                ui.GetString("CsvAttributeProgressCaption"));
 
             try
             {
-                var lines = File.ReadAllLines(csvFilePath, Encoding.UTF8);
-                if (lines.Length < 2)
-                {
-                    Logger.Error("CSV файл пуст или содержит только заголовок", "CsvAttributeLoader", csvFilePath);
-                    return 0;
-                }
-
-                var headers = lines[0].Split(';').Select(h => h.Trim()).ToArray();
-                if (headers.Length < 2)
-                {
-                    Logger.Error("CSV файл должен содержать минимум два столбца", "CsvAttributeLoader", csvFilePath);
-                    return 0;
-                }
+                var headers = table.Headers;
 
                 // Строим индекс элементов один раз (оптимизация вместо множественных Search)
                 var itemIndex = BuildItemIndex(doc);
@@ -49,35 +60,33 @@ namespace NavisHelper
                 var notFoundNames = new List<string>();
                 var state = Autodesk.Navisworks.Api.ComApi.ComApiBridge.State;
                 var startTime = DateTime.Now;
+                int processedCount = 0;
 
-                for (int i = 1; i < lines.Length; i++)
+                for (int i = 0; i < table.Rows.Count; i++)
                 {
                     if (progress.IsCanceled)
                         break;
 
-                    var values = lines[i].Split(';').Select(v => v.Trim()).ToArray();
-                    if (values.Length != headers.Length)
-                        continue;
-
+                    var values = table.Rows[i];
                     string itemName = values[0];
 
                     if (!itemIndex.TryGetValue(itemName, out var foundItem))
                     {
                         notFoundNames.Add(itemName);
-                        continue;
                     }
-
-                    var attributes = new Dictionary<string, string>();
-                    for (int j = 1; j < headers.Length; j++)
-                        attributes[headers[j]] = values[j];
-
-                    ApplyAttributes(foundItem, attributes, state);
-
-                    progress.Update((double)i / (lines.Length - 1));
+                    else
+                    {
+                        var attributes = new Dictionary<string, string>();
+                        for (int j = 1; j < headers.Length; j++)
+                            attributes[headers[j]] = values[j];
+                        ApplyAttributes(foundItem, attributes, state);
+                    }
+                    processedCount++;
+                    progress.Update((double)processedCount / table.Rows.Count);
                 }
 
-                WriteLog(doc, notFoundNames, startTime, lines.Length - 1);
-                Logger.Info($"Загрузка завершена. Обработано: {lines.Length - 1}, не найдено: {notFoundNames.Count}");
+                WriteLog(doc, notFoundNames, startTime, processedCount);
+                Logger.Info(ui.Format("CsvAttributeImportSummary", processedCount, table.Rows.Count, notFoundNames.Count));
             }
             catch (Exception ex)
             {
@@ -89,6 +98,13 @@ namespace NavisHelper
             }
 
             return 0;
+        }
+
+        private static void ShowInputError(string message, string path)
+        {
+            Logger.Error(message, "CsvAttributeLoader", path);
+            MessageBox.Show(message, UiLocalizationService.Current.GetString("CsvAttributeProgressCaption"),
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         private string GetCsvFilePath(string[] parameters)
