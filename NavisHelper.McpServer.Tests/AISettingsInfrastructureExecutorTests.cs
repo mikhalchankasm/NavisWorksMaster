@@ -22,7 +22,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             "test-secret",
             CancellationToken.None,
             CancellationToken.None);
-        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         Assert.NotEqual(callerThread, transport.ThreadId);
         Assert.False(pending.IsCompleted);
@@ -42,7 +42,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             callerThread);
 
         var pending = executor.CaptureKeyStateAsync(CancellationToken.None);
-        await environment.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        await environment.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         Assert.NotEqual(callerThread, environment.ThreadId);
         Assert.False(pending.IsCompleted);
@@ -69,7 +69,7 @@ public sealed class AISettingsInfrastructureExecutorTests
                 1,
                 false);
             // A deadlock watchdog, not an assertion about thread-pool scheduling speed.
-            await sink.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            await sink.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
             Assert.True(sink.IsBlocked);
         }
         finally { sink.Release.Set(); }
@@ -91,7 +91,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             null,
             1,
             false);
-        await sink.FirstEntered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        await sink.FirstEntered.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
         executor.ReportPhase(
             AISettingsOperationStage.LoadModels,
             OpenRouterFailureKind.None,
@@ -102,7 +102,7 @@ public sealed class AISettingsInfrastructureExecutorTests
         Assert.False(sink.SecondEntered.Task.IsCompleted);
         sink.ReleaseFirst.Set();
         var second = await sink.SecondEntered.Task.WaitAsync(
-            TimeSpan.FromSeconds(15));
+            TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
         Assert.Equal(AISettingsOperationStage.LoadModels, second.Stage);
     }
 
@@ -120,7 +120,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             "test-secret",
             CancellationToken.None,
             CancellationToken.None);
-        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         Assert.False(pending.IsCompleted);
         transport.Release.Set();
@@ -142,7 +142,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             "test-secret",
             operation.CancellationToken,
             CancellationToken.None);
-        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         lifetime.CancelPendingOperations();
 
@@ -169,7 +169,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             persist: true,
             expectedGeneration: 0,
             cancellationToken: operation.CancellationToken);
-        await environment.SetEntered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        await environment.SetEntered.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         lifetime.CancelPendingOperations();
         environment.Release.Set();
@@ -191,7 +191,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             callerThread);
 
         await executor.CaptureKeyStateAsync(CancellationToken.None);
-        var diagnostic = await sink.Next.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        var diagnostic = await sink.Next.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         Assert.Equal(AISettingsOperationStage.CaptureKeyState, diagnostic.Stage);
         Assert.False(diagnostic.IsUiThread);
@@ -218,7 +218,7 @@ public sealed class AISettingsInfrastructureExecutorTests
             null,
             2,
             false);
-        var diagnostic = await sink.Next.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        var diagnostic = await sink.Next.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         Assert.Equal(AISettingsOperationStage.BindModels, diagnostic.Stage);
         Assert.True(diagnostic.IsUiThread);

@@ -993,7 +993,8 @@ public sealed class OpenRouterIntegrationTests
         store.Disconnect();
         var staleMutation = store.TryActivateExistingKey(
             "stale-secret",
-            validationSnapshot.Generation);
+            validationSnapshot.Generation,
+            TestContext.Current.CancellationToken);
 
         Assert.False(staleMutation.GenerationMatched);
         Assert.False(staleMutation.IsSuccess);
@@ -1009,10 +1010,12 @@ public sealed class OpenRouterIntegrationTests
 
         var newer = store.TrySaveValidatedKey(
             "new-secret",
-            oldValidationSnapshot.Generation);
+            oldValidationSnapshot.Generation,
+            TestContext.Current.CancellationToken);
         var stale = store.TrySaveValidatedKey(
             "old-secret",
-            oldValidationSnapshot.Generation);
+            oldValidationSnapshot.Generation,
+            TestContext.Current.CancellationToken);
 
         Assert.True(newer.GenerationMatched);
         Assert.True(newer.IsSuccess);
