@@ -10,21 +10,17 @@ public sealed class AISettingsInfrastructureExecutorTests
     [Fact]
     public async Task SynchronouslySlowWorkerStartup_RunsOffCallingThread()
     {
-        var callerThread = Environment.CurrentManagedThreadId;
         using var transport = new BlockingTransport();
-        var executor = CreateExecutor(
-            new RecordingEnvironment(),
-            transport,
-            new RecordingDiagnosticSink(),
-            callerThread);
-
-        var pending = executor.ValidateKeyAsync(
-            "test-secret",
-            CancellationToken.None,
-            CancellationToken.None);
+        using var caller = new DedicatedCaller<Task<OpenRouterValidationResult>>(
+            threadId => CreateExecutor(
+                new RecordingEnvironment(), transport, new RecordingDiagnosticSink(), threadId)
+                .ValidateKeyAsync("test-secret", CancellationToken.None, CancellationToken.None),
+            () => transport.Release.Set());
         await transport.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
-        Assert.NotEqual(callerThread, transport.ThreadId);
+        Assert.NotEqual(caller.ThreadId, transport.ThreadId);
+        var pending = await caller.Returned.Task.WaitAsync(
+            TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
         Assert.False(pending.IsCompleted);
         transport.Release.Set();
         Assert.True((await pending).IsSuccess);
@@ -33,18 +29,17 @@ public sealed class AISettingsInfrastructureExecutorTests
     [Fact]
     public async Task SlowEnvironmentCapture_RunsOffCallingThread()
     {
-        var callerThread = Environment.CurrentManagedThreadId;
         using var environment = new BlockingEnvironment();
-        var executor = CreateExecutor(
-            environment,
-            new ImmediateTransport(),
-            new RecordingDiagnosticSink(),
-            callerThread);
-
-        var pending = executor.CaptureKeyStateAsync(CancellationToken.None);
+        using var caller = new DedicatedCaller<Task<OpenRouterKeySnapshot>>(
+            threadId => CreateExecutor(
+                environment, new ImmediateTransport(), new RecordingDiagnosticSink(), threadId)
+                .CaptureKeyStateAsync(CancellationToken.None),
+            () => environment.Release.Set());
         await environment.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
-        Assert.NotEqual(callerThread, environment.ThreadId);
+        Assert.NotEqual(caller.ThreadId, environment.ThreadId);
+        var pending = await caller.Returned.Task.WaitAsync(
+            TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
         Assert.False(pending.IsCompleted);
         environment.Release.Set();
         await pending;
@@ -183,19 +178,19 @@ public sealed class AISettingsInfrastructureExecutorTests
     public async Task InfrastructureDiagnostics_ReportBackgroundThread()
     {
         var sink = new RecordingDiagnosticSink();
-        var callerThread = Environment.CurrentManagedThreadId;
-        var executor = CreateExecutor(
-            new RecordingEnvironment(),
-            new ImmediateTransport(),
-            sink,
-            callerThread);
-
-        await executor.CaptureKeyStateAsync(CancellationToken.None);
+        using var caller = new DedicatedCaller<Task<OpenRouterKeySnapshot>>(
+            threadId => CreateExecutor(
+                new RecordingEnvironment(), new ImmediateTransport(), sink, threadId)
+                .CaptureKeyStateAsync(CancellationToken.None),
+            () => { });
+        var pending = await caller.Returned.Task.WaitAsync(
+            TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+        await pending;
         var diagnostic = await sink.Next.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
 
         Assert.Equal(AISettingsOperationStage.CaptureKeyState, diagnostic.Stage);
         Assert.False(diagnostic.IsUiThread);
-        Assert.NotEqual(callerThread, diagnostic.ManagedThreadId);
+        Assert.NotEqual(caller.ThreadId, diagnostic.ManagedThreadId);
         var formatted = AISettingsOperationDiagnostic.FormatPhase(diagnostic);
         Assert.Contains("managed_thread_id=", formatted);
         Assert.Contains("ui_thread=false", formatted);
@@ -226,6 +221,42 @@ public sealed class AISettingsInfrastructureExecutorTests
         Assert.Contains(
             "ui_thread=true",
             AISettingsOperationDiagnostic.FormatPhase(diagnostic));
+    }
+
+    // An awaited xUnit caller returns its pool thread; Task.Run can legitimately
+    // reuse that ID. A live dedicated caller models the actual UI-thread boundary.
+    private sealed class DedicatedCaller<T> : IDisposable
+    {
+        private readonly Thread _thread;
+        private readonly ManualResetEventSlim _release = new(false);
+        private readonly Action _unblockOperation;
+        internal TaskCompletionSource<T> Returned { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal int ThreadId => _thread.ManagedThreadId;
+
+        internal DedicatedCaller(Func<int, T> operation, Action unblockOperation)
+        {
+            _unblockOperation = unblockOperation;
+            _thread = new Thread(() =>
+            {
+                try
+                {
+                    Returned.TrySetResult(operation(Environment.CurrentManagedThreadId));
+                    _release.Wait();
+                }
+                catch (Exception error) { Returned.TrySetException(error); }
+            }) { IsBackground = true };
+            _thread.Start();
+        }
+
+        public void Dispose()
+        {
+            // Also releases an incorrectly inline implementation during a failed assertion.
+            _unblockOperation();
+            _release.Set();
+            Assert.True(_thread.Join(TimeSpan.FromSeconds(15)), "Dedicated test caller did not exit.");
+            _release.Dispose();
+        }
     }
 
     private static AISettingsInfrastructureExecutor CreateExecutor(
