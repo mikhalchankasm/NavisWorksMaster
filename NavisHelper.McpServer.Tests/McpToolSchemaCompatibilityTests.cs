@@ -7,6 +7,99 @@ namespace NavisHelper.McpServer.Tests;
 
 public sealed class McpToolSchemaCompatibilityTests
 {
+    [Theory]
+    [InlineData("https://example.invalid/schema")]
+    [InlineData("#/missing")]
+    public void Normalize_RejectsInvalidContentSchemaReferences(string reference)
+    {
+        var schema = new JsonObject
+        {
+            ["type"] = "string",
+            ["contentMediaType"] = "application/json",
+            ["contentSchema"] = new JsonObject { ["$ref"] = reference },
+        };
+        Assert.Throws<InvalidOperationException>(() => McpToolSchemaCompatibility.Normalize(JsonSerializer.SerializeToElement(schema)));
+    }
+
+    [Fact]
+    public void Normalize_NormalizesContentSchemaAndPreservesIdenticallyNamedData()
+    {
+        var schema = JsonNode.Parse("""
+            { "type": "string", "contentMediaType": "application/json",
+              "default": { "contentSchema": { "$ref": "https://example.invalid/data" } },
+              "definitions": { "target": { "type": "string" } },
+              "contentSchema": { "properties": {
+                "any": true, "none": false, "reference": { "$ref": "#/definitions/target" }
+              } } }
+            """)!;
+        var normalized = McpToolSchemaCompatibility.Normalize(JsonSerializer.SerializeToElement(schema));
+        var properties = normalized.GetProperty("contentSchema").GetProperty("properties");
+        Assert.Empty(properties.GetProperty("any").EnumerateObject());
+        Assert.False(properties.GetProperty("none").GetBoolean());
+        Assert.Equal("#/$defs/moonshotCompat1", properties.GetProperty("reference").GetProperty("$ref").GetString());
+        Assert.True(JsonNode.DeepEquals(schema["default"], JsonNode.Parse(normalized.GetProperty("default").GetRawText())));
+        Assert.Equal(normalized.GetRawText(), McpToolSchemaCompatibility.Normalize(normalized).GetRawText());
+    }
+
+    [Theory]
+    [InlineData("#/$defs/missing")]
+    [InlineData("#/$defs/missing~1name")]
+    public void Normalize_RejectsMissingDirectDefinitions(string reference)
+    {
+        var schema = new JsonObject { ["$defs"] = new JsonObject(), ["$ref"] = reference };
+        Assert.Throws<InvalidOperationException>(() => McpToolSchemaCompatibility.Normalize(JsonSerializer.SerializeToElement(schema)));
+    }
+
+    [Fact]
+    public void Normalize_TerminatesForMutuallyRecursiveDirectDefinitions()
+    {
+        using var schema = JsonDocument.Parse("""
+            { "$ref": "#/$defs/a~1b", "$defs": {
+              "a/b": { "properties": { "child": { "$ref": "#/$defs/c" } } },
+              "c": { "$ref": "#/$defs/a~1b" }
+            } }
+            """);
+        var normalized = McpToolSchemaCompatibility.Normalize(schema.RootElement);
+        Assert.Equal("#/$defs/a~1b", normalized.GetProperty("$ref").GetString());
+        Assert.Equal(2, normalized.GetProperty("$defs").EnumerateObject().Count());
+        Assert.Equal(normalized.GetRawText(), McpToolSchemaCompatibility.Normalize(normalized).GetRawText());
+    }
+
+    [Fact]
+    public void Normalize_NormalizesReferencedSchemaCopyWithoutChangingOriginalData()
+    {
+        var schema = JsonNode.Parse("""
+            { "default": { "properties": { "any": true, "none": false },
+                           "items": [true, false], "contentSchema": true },
+              "properties": { "actual": { "$ref": "#/default" } } }
+            """)!;
+        var normalized = McpToolSchemaCompatibility.Normalize(JsonSerializer.SerializeToElement(schema));
+        var copy = normalized.GetProperty("$defs").GetProperty("moonshotCompat1");
+        Assert.Empty(copy.GetProperty("properties").GetProperty("any").EnumerateObject());
+        Assert.False(copy.GetProperty("properties").GetProperty("none").GetBoolean());
+        Assert.Empty(copy.GetProperty("items")[0].EnumerateObject());
+        Assert.False(copy.GetProperty("items")[1].GetBoolean());
+        Assert.Empty(copy.GetProperty("contentSchema").EnumerateObject());
+        Assert.True(JsonNode.DeepEquals(schema["default"], JsonNode.Parse(normalized.GetProperty("default").GetRawText())));
+        Assert.Equal(normalized.GetRawText(), McpToolSchemaCompatibility.Normalize(normalized).GetRawText());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Normalize_NormalizesReferencedBooleanCopyWithoutChangingData(bool value)
+    {
+        var schema = new JsonObject { ["default"] = value, ["$ref"] = "#/default" };
+        var normalized = McpToolSchemaCompatibility.Normalize(JsonSerializer.SerializeToElement(schema));
+        Assert.Equal(value, normalized.GetProperty("default").GetBoolean());
+        var copy = normalized.GetProperty("$defs").GetProperty("moonshotCompat1");
+        if (value)
+            Assert.Empty(copy.EnumerateObject());
+        else
+            Assert.False(copy.GetBoolean());
+        Assert.Equal(normalized.GetRawText(), McpToolSchemaCompatibility.Normalize(normalized).GetRawText());
+    }
+
     public static TheoryData<string, string> LiteralReferenceCases
     {
         get
