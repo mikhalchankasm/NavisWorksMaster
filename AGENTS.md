@@ -114,7 +114,6 @@ background:
   Work-in-progress lives in the PR description and is overwritten, not appended.
 - Two attempts: implementation plus one correction pass. No result after that —
   stop, return the card, record the blocker. Do not open a third PR.
-- Timebox: 2 hours or 10M tokens. Past that, stop and ask.
 - PR size, two numbers rather than one, because a modification and a new file do
   not cost the same to review:
   - changes to existing code: at most 400 changed lines and 10 files; a new MCP
