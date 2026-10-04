@@ -11,6 +11,7 @@ internal static class McpToolSchemaCompatibility
         "additionalItems",
         "additionalProperties",
         "contains",
+        "contentSchema",
         "else",
         "if",
         "items",
@@ -85,13 +86,14 @@ internal static class McpToolSchemaCompatibility
     private static int NormalizeReferences(JsonObject schema)
     {
         var references = new HashSet<string>(StringComparer.Ordinal);
-        CollectIncompatibleReferences(schema, schema, references);
+        CollectIncompatibleReferences(schema, schema, references, new HashSet<string>(StringComparer.Ordinal));
         if (references.Count == 0)
             return 0;
 
         var replacements = new Dictionary<string, string>(StringComparer.Ordinal);
         var definitions = schema["$defs"] as JsonObject ?? new JsonObject();
         var index = 1;
+        var rewriteCount = 0;
 
         foreach (var reference in references.OrderBy(value => value, StringComparer.Ordinal))
         {
@@ -100,28 +102,39 @@ internal static class McpToolSchemaCompatibility
                 definitionName = "moonshotCompat" + index++;
 
             var target = ResolveLocalReference(schema, reference);
-            definitions[definitionName] = target.DeepClone();
+            var copy = target.DeepClone();
+            if (IsTrueSchema(copy))
+            {
+                copy = new JsonObject();
+                rewriteCount++;
+            }
+            else if (copy is JsonObject copiedSchema)
+                rewriteCount += NormalizeSchemaObject(copiedSchema);
+            definitions[definitionName] = copy;
             replacements[reference] = "#/$defs/" + definitionName;
         }
 
         schema["$defs"] = definitions;
-        return ReplaceReferences(schema, replacements);
+        return rewriteCount + ReplaceReferences(schema, replacements);
     }
 
-    private static void CollectIncompatibleReferences(JsonObject schema, JsonObject root, ISet<string> references)
+    private static void CollectIncompatibleReferences(
+        JsonObject schema, JsonObject root, ISet<string> references, ISet<string> visited)
     {
         foreach (var jsonObject in EnumerateSchemaObjects(schema))
         {
             if (jsonObject["$ref"] is JsonValue referenceValue &&
                 referenceValue.TryGetValue<string>(out var reference) &&
-                (!reference.StartsWith("#/$defs/", StringComparison.Ordinal) ||
-                 reference.IndexOf('/', "#/$defs/".Length) >= 0) &&
-                references.Add(reference))
+                visited.Add(reference))
             {
+                var target = ResolveLocalReference(root, reference);
+                if (!reference.StartsWith("#/$defs/", StringComparison.Ordinal) ||
+                    reference.IndexOf('/', "#/$defs/".Length) >= 0)
+                    references.Add(reference);
                 // An explicit reference can select a schema outside a keyword slot.
                 // Inspect its target without rewriting the original instance data.
-                if (ResolveLocalReference(root, reference) is JsonObject target)
-                    CollectIncompatibleReferences(target, root, references);
+                if (target is JsonObject targetSchema)
+                    CollectIncompatibleReferences(targetSchema, root, references, visited);
             }
         }
     }
