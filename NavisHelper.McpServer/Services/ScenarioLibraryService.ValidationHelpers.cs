@@ -360,18 +360,25 @@ internal sealed partial class ScenarioLibraryService
     private static void ValidateFixedPath(JsonElement value, string parameterName, ScenarioValidationResult result)
     {
         var path = value.GetString() ?? string.Empty;
+        // Windows treats both separators alike; compare one spelling without
+        // changing the reviewed value used by persistence and fingerprints.
+        var policyPath = path.Replace('/', '\\');
         if (string.IsNullOrWhiteSpace(path) || (!Path.IsPathFullyQualified(path) && !path.StartsWith("\\\\", StringComparison.Ordinal)))
             result.Errors.Add("exactReplay path must be absolute: " + parameterName);
-        if (path.StartsWith("\\\\?\\", StringComparison.Ordinal) || path.StartsWith("\\\\.\\", StringComparison.Ordinal))
+        if (policyPath.StartsWith("\\\\?\\", StringComparison.Ordinal) ||
+            policyPath.StartsWith("\\\\.\\", StringComparison.Ordinal) ||
+            policyPath.StartsWith("\\??\\", StringComparison.Ordinal))
             result.Errors.Add("device paths are forbidden: " + parameterName);
         if (path.Contains("%", StringComparison.Ordinal) || path.Contains("$", StringComparison.Ordinal))
             result.Errors.Add("environment-variable paths are forbidden: " + parameterName);
         if (path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(segment => segment == ".."))
             result.Errors.Add("path traversal is forbidden: " + parameterName);
-        if (path.StartsWith("\\\\", StringComparison.Ordinal))
+        if (policyPath.StartsWith("\\\\", StringComparison.Ordinal))
         {
-            var authorityEnd = path.IndexOf('\\', 2);
-            var authority = authorityEnd > 2 ? path.Substring(2, authorityEnd - 2) : string.Empty;
+            var authorityEnd = policyPath.IndexOf('\\', 2);
+            var authority = authorityEnd >= 2 ? policyPath.Substring(2, authorityEnd - 2) : policyPath.Substring(2);
+            if (authority.Length == 0)
+                result.Errors.Add("UNC authority must not be empty: " + parameterName);
             if (authority.Contains('@'))
                 result.Errors.Add("credentials in UNC paths are forbidden: " + parameterName);
         }

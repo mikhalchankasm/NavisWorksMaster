@@ -1658,7 +1658,7 @@ Output is a `clash_report_status` response. Cancellation is cooperative: the cur
 
 ## Persistent scenario library
 
-Scenario files use schema version 1 and live under `%APPDATA%\NavisHelper\Scenarios`. The library is implemented only in the .NET 9 MCP server; it does not add or change a Navisworks host command.
+Scenario files accept schema versions 1 and 2 and live under `%APPDATA%\NavisHelper\Scenarios`. The library is implemented only in the .NET 9 MCP server; it does not add or change a Navisworks host command.
 
 ### `list_scenarios`
 
@@ -1670,9 +1670,11 @@ Input: `scenarioId`. Returns the validated persisted schema, SHA-256 concurrency
 
 ### `save_scenario`
 
-Inputs: a schema-version-1 `scenario` draft, optional `scenarioId` plus `expectedSha256` for updates, `apply`, `confirmSave`, and `confirmExactReplay`. It defaults to preview. Apply writes one UTF-8 JSON file atomically and never stores `apply/confirm` fields, host/document/item identities, credentials, or transcripts.
+Inputs: a schema-version-1 or schema-version-2 `scenario` draft, optional `scenarioId` plus `expectedSha256` for updates, `apply`, `confirmSave`, and `confirmExactReplay`. It defaults to preview. Apply writes one UTF-8 JSON file atomically and never stores `apply/confirm` fields, host/document/item identities, credentials, or transcripts.
 
 `executionMode=template` declares runtime parameters. `executionMode=exactReplay` additionally requires unique name, fixed values, strict context, `repeatReviewedWrites`, a reviewed safety envelope, and the dedicated confirmation. The server replaces `safetyEnvelope.previewFingerprint` with the SHA-256 of the canonical resolved exact plan before writing; a later mismatch makes the file invalid.
+
+Fixed exact-replay paths must be absolute. Device prefixes and empty or credential-bearing UNC authorities are rejected before persistence, including forward-slash and mixed-separator spellings. Environment-variable markers and parent-directory traversal are also rejected. Separator normalization is used only for policy comparison; accepted path strings remain unchanged in the stored scenario and its fingerprint. Stored scenarios are revalidated on read and resolution, so older files containing these unsafe paths are also rejected.
 
 ### `delete_scenario`
 
