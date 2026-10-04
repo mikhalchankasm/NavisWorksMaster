@@ -85,7 +85,7 @@ internal static class McpToolSchemaCompatibility
     private static int NormalizeReferences(JsonObject schema)
     {
         var references = new HashSet<string>(StringComparer.Ordinal);
-        CollectIncompatibleReferences(schema, references);
+        CollectIncompatibleReferences(schema, schema, references);
         if (references.Count == 0)
             return 0;
 
@@ -108,32 +108,20 @@ internal static class McpToolSchemaCompatibility
         return ReplaceReferences(schema, replacements);
     }
 
-    private static void CollectIncompatibleReferences(JsonNode node, ISet<string> references)
+    private static void CollectIncompatibleReferences(JsonObject schema, JsonObject root, ISet<string> references)
     {
-        if (node is JsonObject jsonObject)
+        foreach (var jsonObject in EnumerateSchemaObjects(schema))
         {
             if (jsonObject["$ref"] is JsonValue referenceValue &&
                 referenceValue.TryGetValue<string>(out var reference) &&
-                !reference.StartsWith("#/$defs/", StringComparison.Ordinal))
+                (!reference.StartsWith("#/$defs/", StringComparison.Ordinal) ||
+                 reference.IndexOf('/', "#/$defs/".Length) >= 0) &&
+                references.Add(reference))
             {
-                references.Add(reference);
-            }
-
-            foreach (var property in jsonObject)
-            {
-                if (property.Value is not null)
-                    CollectIncompatibleReferences(property.Value, references);
-            }
-
-            return;
-        }
-
-        if (node is JsonArray jsonArray)
-        {
-            foreach (var item in jsonArray)
-            {
-                if (item is not null)
-                    CollectIncompatibleReferences(item, references);
+                // An explicit reference can select a schema outside a keyword slot.
+                // Inspect its target without rewriting the original instance data.
+                if (ResolveLocalReference(root, reference) is JsonObject target)
+                    CollectIncompatibleReferences(target, root, references);
             }
         }
     }
@@ -163,10 +151,10 @@ internal static class McpToolSchemaCompatibility
         return current;
     }
 
-    private static int ReplaceReferences(JsonNode node, IReadOnlyDictionary<string, string> replacements)
+    private static int ReplaceReferences(JsonObject schema, IReadOnlyDictionary<string, string> replacements)
     {
         var rewriteCount = 0;
-        if (node is JsonObject jsonObject)
+        foreach (var jsonObject in EnumerateSchemaObjects(schema))
         {
             if (jsonObject["$ref"] is JsonValue referenceValue &&
                 referenceValue.TryGetValue<string>(out var reference) &&
@@ -175,26 +163,32 @@ internal static class McpToolSchemaCompatibility
                 jsonObject["$ref"] = replacement;
                 rewriteCount++;
             }
-
-            foreach (var property in jsonObject.ToList())
-            {
-                if (property.Value is not null)
-                    rewriteCount += ReplaceReferences(property.Value, replacements);
-            }
-
-            return rewriteCount;
         }
-
-        if (node is JsonArray jsonArray)
-        {
-            foreach (var item in jsonArray)
-            {
-                if (item is not null)
-                    rewriteCount += ReplaceReferences(item, replacements);
-            }
-        }
-
         return rewriteCount;
+    }
+
+    private static IEnumerable<JsonObject> EnumerateSchemaObjects(JsonObject schema)
+    {
+        yield return schema;
+        foreach (var property in schema.ToList())
+        {
+            IEnumerable<JsonObject> children;
+            if (SchemaValueKeywords.Contains(property.Key) && property.Value is JsonObject nested)
+                children = new[] { nested };
+            else if ((SchemaArrayKeywords.Contains(property.Key) || property.Key == "items") &&
+                     property.Value is JsonArray array)
+                children = array.OfType<JsonObject>();
+            else if (SchemaMapKeywords.Contains(property.Key) && property.Value is JsonObject map)
+                children = map.Select(entry => entry.Value).OfType<JsonObject>();
+            else
+                continue;
+
+            foreach (var child in children)
+            {
+                foreach (var descendant in EnumerateSchemaObjects(child))
+                    yield return descendant;
+            }
+        }
     }
 
     private static int NormalizeSchemaObject(JsonObject schema)
