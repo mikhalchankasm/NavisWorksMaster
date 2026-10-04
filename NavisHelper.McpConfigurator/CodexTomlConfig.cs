@@ -14,6 +14,8 @@ internal static class CodexTomlConfig
     internal static string ReadFile(string path) => File.Exists(path)
         ? StrictUtf8.GetString(File.ReadAllBytes(path)) : string.Empty;
 
+    internal static TomlTable? ReadServer(string text) => Server(Parse(Body(text)));
+
     internal static string Remove(string text)
     {
         var body = Body(text);

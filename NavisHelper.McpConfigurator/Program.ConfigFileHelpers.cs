@@ -12,7 +12,11 @@ internal static partial class Program
         if (!File.Exists(path))
             return new JsonObject();
 
-        var text = File.ReadAllText(path, Encoding.UTF8);
+        return ParseJsonObject(File.ReadAllText(path, Encoding.UTF8));
+    }
+
+    internal static JsonObject ParseJsonObject(string text)
+    {
         if (string.IsNullOrWhiteSpace(text))
             return new JsonObject();
 
