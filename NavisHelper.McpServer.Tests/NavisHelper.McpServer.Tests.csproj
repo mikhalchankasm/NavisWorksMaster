@@ -58,6 +58,8 @@
              Link="Localization\UiStatusResourceException.cs" />
     <Compile Include="..\NavisHelper\Core\Logger.cs"
              Link="Core\Logger.cs" />
+    <Compile Include="..\NavisHelper\Core\ExceptionObservation.cs"
+             Link="Core\ExceptionObservation.cs" />
     <Compile Include="..\NavisHelper\Core\Localization\RibbonIds.cs"
              Link="Localization\RibbonIds.cs" />
     <Compile Include="..\NavisHelper\Core\Localization\ColorSchemeUiText.cs"
