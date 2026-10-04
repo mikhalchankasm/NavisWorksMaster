@@ -121,7 +121,7 @@ internal static class ClientConfigurationReader
     }
 
     // No environment expansion, shell parsing, UNC/network access, or command execution.
-    private static bool IsLocalPath(string path, string fileName) =>
+    internal static bool IsLocalPath(string path, string fileName) =>
         path.Length >= 4 && char.IsAsciiLetter(path[0]) && path[1] == ':' &&
         (path[2] is '\\' or '/') && path[3..].All(c =>
             !char.IsControl(c) && char.GetUnicodeCategory(c) != UnicodeCategory.Format &&

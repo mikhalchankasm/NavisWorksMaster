@@ -1,7 +1,7 @@
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.Diagnostics;
 
 namespace NavisHelper.McpServer.Services;
 
@@ -61,35 +61,6 @@ internal static class InstanceDiscoveryStore
         }
     }
 
-    private static bool IsProcessAlive(InstanceDiscoveryRecord record)
-    {
-        if (record == null || record.Pid <= 0)
-            return false;
-
-        try
-        {
-            using var process = Process.GetProcessById(record.Pid);
-            if (process.HasExited)
-                return false;
-
-            var processName = process.ProcessName ?? string.Empty;
-            if (!string.Equals(processName, "Roamer", StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(processName, "Navisworks", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            if (record.ProcessStartedAtUtc.HasValue)
-            {
-                var actualStartUtc = process.StartTime.ToUniversalTime();
-                var delta = (actualStartUtc - record.ProcessStartedAtUtc.Value).Duration();
-                if (delta > TimeSpan.FromSeconds(2))
-                    return false;
-            }
-
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    private static bool IsProcessAlive(InstanceDiscoveryRecord record) =>
+        HostProcessProbe.Inspect(record, requireStartTime: false).Status == "alive";
 }

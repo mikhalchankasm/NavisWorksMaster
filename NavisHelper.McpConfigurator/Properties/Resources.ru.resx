@@ -37,4 +37,17 @@
   <data name="HealthCheck" xml:space="preserve"><value>В выбранном клиенте вызовите mcp_health_check при открытом нужном хосте и модели Navisworks. При сбое проверьте mcp_recent_calls; после тайм-аута операции — last_operation_status. Doctor сам эти вызовы не выполняет.</value></data>
   <data name="Usage" xml:space="preserve"><value>Используйте --doctor --clients &lt;один-id&gt; [--json]. Явно выберите один клиент; не совмещайте doctor с --detect, --configure, --remove, --dry-run, --create-missing или --mcp-server.</value></data>
   <data name="VerifyLauncher" xml:space="preserve"><value>Проверьте, что настроенная команда dotnet указывает на нужную среду .NET. Doctor читает DLL сервера, не выполняя эту команду.</value></data>
+  <data name="RuntimeScope" xml:space="preserve"><value>Наблюдения за процессами относятся к окружению doctor, а не к сеансу выбранного клиента. Версии discovery взяты из записей, а не из свежего ответа хоста. Учитываются только отдельные exe сервера; серверы через dotnet не перечисляются. Связь с клиентом и загруженные сборки не подтверждены.</value></data>
+  <data name="HostObservations" xml:space="preserve"><value>Наблюдения discovery хостов</value></data>
+  <data name="ServerObservations" xml:space="preserve"><value>Процессы MCP-сервера без привязки к клиенту</value></data>
+  <data name="alive" xml:space="preserve"><value>Процесс соответствует записи</value></data>
+  <data name="stale" xml:space="preserve"><value>Устаревшая запись; процесс ей не соответствует</value></data>
+  <data name="invalid_record" xml:space="preserve"><value>Некорректная запись discovery</value></data>
+  <data name="record_too_large" xml:space="preserve"><value>Запись discovery превышает 32 КиБ</value></data>
+  <data name="observed" xml:space="preserve"><value>Наблюдение выполнено</value></data>
+  <data name="no_records" xml:space="preserve"><value>Каталог discovery отсутствует</value></data>
+  <data name="truncated" xml:space="preserve"><value>Неполный список: достигнут лимит 64 записи; порядок перечисления не гарантирован</value></data>
+  <data name="same_path_unverified_build" xml:space="preserve"><value>Путь совпадает с конфигурацией; загруженная сборка не проверена</value></data>
+  <data name="different_path" xml:space="preserve"><value>Путь exe отличается от выбранной конфигурации</value></data>
+  <data name="not_comparable" xml:space="preserve"><value>Нет настроенного exe для сравнения; связь с клиентом не проверена</value></data>
 </root>

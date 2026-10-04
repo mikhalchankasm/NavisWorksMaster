@@ -9,6 +9,7 @@ internal sealed record DoctorReport(int SchemaVersion, string Client, string Con
     Dictionary<string, AssemblyEvidence> Plugins, string VersionAgreement, string Readiness, string[] NextActions)
 {
     public string ConfigurationScope => "user_file_only";
+    public RuntimeEvidence? Runtime { get; init; }
 }
 
 internal static class DoctorCommand
@@ -29,6 +30,7 @@ internal static class DoctorCommand
         var binding = configPath == null ? new ClientBinding("unsupported_client") :
             ClientConfigurationReader.Read(client, configPath);
         var report = Inspect(client, binding, bundleRoot, AssemblyMetadata.Read, File.Exists);
+        report = report with { Runtime = DoctorRuntimeInspector.Inspect(report.ServerPath, report.ServerAssembly.Version) };
         Write(report, json, output);
         return ExitCode(report);
     }
@@ -85,6 +87,25 @@ internal static class DoctorCommand
             WriteAssembly("Navisworks " + year, plugin, output);
         output.WriteLine(Text("VersionAgreement") + ": " + Text(report.VersionAgreement));
         output.WriteLine(Text("Readiness") + ": " + Text(report.Readiness));
+        if (report.Runtime is { } runtime)
+        {
+            output.WriteLine(Text("RuntimeScope"));
+            output.WriteLine(Text("HostObservations") + ": " + Text(runtime.HostScan));
+            foreach (var host in runtime.Hosts)
+            {
+                if (!host.Pid.HasValue)
+                {
+                    output.WriteLine("  " + Text(host.ProcessIdentity));
+                    continue;
+                }
+                output.WriteLine($"  PID={host.Pid} / {Text(host.ProcessIdentity)} / " +
+                    $"Navisworks {host.NavisworksVersion ?? Text("unverified")} / {host.DiscoveryPluginVersion ?? Text("unverified")} / " +
+                    $"{Text(host.VersionAgreement)} / UTC={host.StartedAtUtc:O}");
+            }
+            output.WriteLine(Text("ServerObservations") + ": " + Text(runtime.ServerScan));
+            foreach (var process in runtime.Servers)
+                output.WriteLine($"  PID={process.Pid} / {Text(process.Observation)} / {process.ExecutablePath}");
+        }
         foreach (var action in report.NextActions)
             output.WriteLine("- " + string.Format(CultureInfo.CurrentUICulture, Text(action), report.Client));
     }

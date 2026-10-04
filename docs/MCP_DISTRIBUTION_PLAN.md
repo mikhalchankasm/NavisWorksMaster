@@ -185,6 +185,25 @@ Use exactly one explicit client, and do not combine doctor with other operations
 The report supplies repair, client reload, build verification and existing MCP
 diagnostic next actions without performing them.
 
+The `runtime` section adds bounded observations from doctor's own environment:
+up to 64 discovery records (32 KiB each) and 64 named MCP server executables.
+It reads `NAVISHELPER_INSTANCES_DIR` from that environment or the default per-user
+discovery directory; the selected client's environment overrides are not resolved.
+The optional `runtime` field is an additive schema-version-1 extension. Relative,
+UNC and detected reparse-point discovery paths remain unverified; filesystem
+enumeration and process metadata access have no hard time guarantee.
+Records are never deleted and missing directories are never created. PID, process
+name and start time are checked using the same identity logic as server discovery;
+doctor requires start-time evidence, while the server retains legacy compatibility.
+Stale, malformed, oversized, inaccessible and truncated evidence remains explicit.
+Discovery versions are metadata from records, not fresh host replies. Multiple
+hosts remain separate. Document names, logs, raw errors and configuration secrets
+are omitted. Server processes are not attributed to the selected client; a matching
+executable path does not prove the loaded image is current. Servers hosted through
+`dotnet` are outside this process inventory. Runtime observations do not change
+the disk-only meaning of exit code `0` or establish readiness. No pipes are opened
+and no processes are started, closed or retargeted.
+
 ## Verification
 
 With Navisworks running and a model open:
