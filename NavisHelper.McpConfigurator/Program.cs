@@ -17,14 +17,37 @@ internal static partial class Program
     public static int Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
+        var doctorRequested = args.Contains("--doctor", StringComparer.OrdinalIgnoreCase);
+        var jsonRequested = args.Contains("--json", StringComparer.OrdinalIgnoreCase);
 
         try
         {
-            var options = Options.Parse(args);
+            Options options;
+            try { options = Options.Parse(args); }
+            catch when (doctorRequested || jsonRequested)
+            {
+                return DoctorCommand.Usage(jsonRequested, Console.Out);
+            }
+            if ((doctorRequested || jsonRequested) &&
+                (doctorRequested != options.Doctor || jsonRequested != options.Json || options.ShowHelp))
+                return DoctorCommand.Usage(jsonRequested, Console.Out);
             if (options.ShowHelp)
             {
                 PrintHelp();
                 return 0;
+            }
+
+            if (options.Doctor || options.Json)
+            {
+                if (!options.IsDoctorOnly)
+                    return DoctorCommand.Usage(options.Json, Console.Out);
+                var target = ResolveDoctorTarget(options.Clients);
+                if (target == null)
+                    return DoctorCommand.Usage(options.Json, Console.Out);
+                return DoctorCommand.Run(target.Value.Id, target.Value.ConfigPath,
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "Autodesk", "ApplicationPlugins", "NavisHelper.bundle"),
+                    options.Json, Console.Out);
             }
 
             if (options.Configure && options.Remove)
@@ -58,9 +81,18 @@ internal static partial class Program
         }
         catch (Exception ex)
         {
+            if (doctorRequested || jsonRequested)
+                return DoctorCommand.Failed(jsonRequested, Console.Out);
             Console.Error.WriteLine("ERROR: " + ex.Message);
             return 1;
         }
+    }
+
+    internal static (string Id, string? ConfigPath)? ResolveDoctorTarget(string client)
+    {
+        var adapter = BuildAdapters().SingleOrDefault(candidate =>
+            candidate.Id.Equals(client.Trim(), StringComparison.OrdinalIgnoreCase));
+        return adapter == null ? null : (adapter.Id, (adapter as FileAdapter)?.ReadOnlyConfigPath);
     }
 
     private static IReadOnlyList<IMcpClientAdapter> BuildAdapters()
@@ -248,6 +280,7 @@ internal static partial class Program
         Console.WriteLine();
         Console.WriteLine("Usage:");
         Console.WriteLine("  NavisHelper.McpConfigurator.exe --detect");
+        Console.WriteLine(DoctorCommand.Text("Help"));
         Console.WriteLine("  NavisHelper.McpConfigurator.exe --configure --clients all --mcp-server \"%LOCALAPPDATA%\\NavisHelper\\McpServer-<version>\\NavisHelper.McpServer.exe\"");
         Console.WriteLine("  NavisHelper.McpConfigurator.exe --configure --clients all --create-missing --mcp-server \"%LOCALAPPDATA%\\NavisHelper\\McpServer-<version>\\NavisHelper.McpServer.exe\"");
         Console.WriteLine("  NavisHelper.McpConfigurator.exe --configure --clients claude-desktop,cursor,opencode --dry-run");

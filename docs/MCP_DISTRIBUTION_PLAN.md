@@ -158,6 +158,33 @@ File-based adapters skip missing client config roots by default. Pass `--create-
 
 Most MCP clients load server definitions at process or session startup. After `McpConfigurator` changes a client config, restart the client or use its MCP reload command before expecting the `navishelper` tools to appear in a chat.
 
+### Read-only installation diagnostics
+
+Run `NavisHelper.McpConfigurator.exe --doctor --clients codex` (or another single
+client ID). Add `--json` for a machine-readable report with `schemaVersion: 1`.
+Doctor reads the selected user configuration file, its actual server binding,
+and the per-user bundle's four plugin assemblies. It does not resolve project,
+managed or session overrides, execute configured commands, change files, or
+choose a newer installation folder. Claude Code's CLI-owned configuration is
+explicitly unsupported. Text follows the current UI culture (English/Russian);
+JSON fields, statuses and action IDs stay invariant.
+
+The report includes assembly versions and SHA256 values, file failures and
+version disagreement. Equal versions establish only agreement of the inspected
+disk metadata, not identical code or an updated running process. Compare hashes
+with a validated package; developers can use the
+[installed-bundle drift check](../BUILD_BUNDLE_RULES.md#mcp-сервер-mcp-server-drift).
+Direct executable presence is checked; a `dotnet <server.dll>` binding leaves
+the launcher unverified. `readiness` remains `unverified` until a separate
+`mcp_health_check` is performed in the intended client/host session.
+
+Exit codes: `0` means a recognized binding, present executable and matching
+readable disk versions; `1` means a problem or incomplete evidence; `2` means
+invalid usage. Neither code `0` nor an inventory row proves live connectivity.
+Use exactly one explicit client, and do not combine doctor with other operations.
+The report supplies repair, client reload, build verification and existing MCP
+diagnostic next actions without performing them.
+
 ## Verification
 
 With Navisworks running and a model open:

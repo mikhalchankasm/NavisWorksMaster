@@ -32,6 +32,7 @@ internal static partial class Program
         public string Id { get; }
         protected string DisplayName { get; }
         protected string ConfigPath { get; }
+        internal string ReadOnlyConfigPath => ConfigPath;
         protected string ClientRootPath { get; }
 
         public virtual DetectionResult Detect()
