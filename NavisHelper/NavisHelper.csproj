@@ -697,10 +697,6 @@
     <Compile Include="SaveHierarhy.cs" />
     <Compile Include="SaveViewpiontList.cs" />
     <Compile Include="SortViewpoints.cs" />
-    <!-- <Compile Include="WPF\FilterModelsPanel.xaml.cs">
-      <DependentUpon>FilterModelsPanel.xaml</DependentUpon>
-    </Compile> -->
-    <!-- <Compile Include="WPF\FilterModelsPanelPlugin.cs" /> -->
     <Compile Include="NavisHelperDockPanePlugin.cs" />
     <Compile Include="PluginCommandExecutor.cs" />
     <Compile Include="ShowNavisHelperPanel.cs" />
@@ -765,10 +761,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <!-- <Page Include="WPF\FilterModelsPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page> -->
     <Folder Include="Ribbon\" />
   </ItemGroup>
   <ItemGroup>

@@ -62,7 +62,7 @@ Installer всегда размещает плагин и MCP binaries в про
 
 ## Часть первая: набор плагинов
 
-Compile inventory находит **30 скомпилированных регистраций `[Plugin]`**. Они работают внутри Navisworks Manage и добавляют ribbon и панель NavisHelper. Основные сценарии:
+Скомпилированные регистрации `[Plugin]` работают внутри Navisworks Manage и добавляют ribbon и панель NavisHelper. Их актуальный состав проверяет [source inventory guard](scripts/check_navishelper_compile.py). Основные сценарии:
 
 - поиск по модели, выделение, видимость, цветовые overrides и загрузка атрибутов из CSV;
 - selection/search sets, saved viewpoints, section-box виды и постоянная разметка;
