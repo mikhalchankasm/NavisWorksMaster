@@ -62,7 +62,7 @@ The installer always places the plugin and MCP binaries in the current user's pr
 
 ## Product part one: plugin suite
 
-The compile inventory finds **30 compiled `[Plugin]` registrations**. They run inside Navisworks Manage and add a NavisHelper ribbon and panel. Main workflows include:
+The compiled `[Plugin]` registrations run inside Navisworks Manage and add a NavisHelper ribbon and panel. The [source inventory guard](scripts/check_navishelper_compile.py) checks their current surface. Main workflows include:
 
 - model search, selection, visibility, color overrides, and CSV attribute loading;
 - selection and search sets, saved viewpoints, section-box views, and persistent markups;

@@ -6,11 +6,8 @@ using System.Windows.Forms;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
 using Autodesk.Navisworks.Api.ComApi;
-// using NavisHelper.WPF; // Временно отключено
-// using System.Windows; // Временно отключено
 using NavisHelper.Core;
 using NavisHelper.Core.Localization;
-// using Microsoft.Toolkit.Uwp.Notifications; // Временно отключено из-за проблем с совместимостью
 
 namespace NavisHelper
 {
@@ -18,8 +15,6 @@ namespace NavisHelper
     [AddInPlugin(AddInLocation.None)]
     public class FilterModelsPlugin : AddInPlugin
     {
-        // private FilterModelsPanel _window; // Временно отключено
-
         public override int Execute(params string[] parameters)
         {
             try
@@ -32,17 +27,7 @@ namespace NavisHelper
                     return 0;
                 }
 
-                // Создаем и показываем окно
-                // if (_window == null)
-                // {
-                //     _window = new FilterModelsPanel();
-                //     _window.Initialize(doc);
-                // }
-
-                // Показываем окно
-                // _window.Show();
-                
-                // Временно отключено - используем простое логирование
+                // Retained compatibility command; the legacy window is not compiled.
                 Logger.Info("Фильтр моделей временно отключен", "FilterNavisModels");
 
                 return 0;
