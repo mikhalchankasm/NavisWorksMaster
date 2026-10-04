@@ -7,16 +7,20 @@ namespace NavisHelper.McpConfigurator;
 
 internal static partial class Program
 {
-    private sealed record Options
+    internal sealed record Options
     {
         public bool ShowHelp { get; private init; }
         public bool Detect { get; private init; }
+        public bool Doctor { get; private init; }
+        public bool Json { get; private init; }
         public bool Configure { get; private init; }
         public bool Remove { get; private init; }
         public bool DryRun { get; private init; }
         public bool CreateMissing { get; private init; }
         public string Clients { get; private init; } = "all";
         public string? McpServerPath { get; private init; }
+        internal bool IsDoctorOnly => Doctor && !Configure && !Remove && !Detect &&
+            !DryRun && !CreateMissing && McpServerPath == null;
 
         public static Options Parse(string[] args)
         {
@@ -33,6 +37,14 @@ internal static partial class Program
                 else if (string.Equals(arg, "--detect", StringComparison.OrdinalIgnoreCase))
                 {
                     options = options with { Detect = true };
+                }
+                else if (string.Equals(arg, "--doctor", StringComparison.OrdinalIgnoreCase))
+                {
+                    options = options with { Doctor = true };
+                }
+                else if (string.Equals(arg, "--json", StringComparison.OrdinalIgnoreCase))
+                {
+                    options = options with { Json = true };
                 }
                 else if (string.Equals(arg, "--configure", StringComparison.OrdinalIgnoreCase))
                 {

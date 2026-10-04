@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Help" xml:space="preserve"><value>  NavisHelper.McpConfigurator.exe --doctor --clients &lt;один-id&gt; [--json]</value></data>
+  <data name="Title" xml:space="preserve"><value>Диагностика установки NavisHelper</value></data>
+  <data name="Scope" xml:space="preserve"><value>Область проверки: пользовательский файл выбранного клиента; настройки проекта, администратора и сеанса не разрешаются.</value></data>
+  <data name="Configuration" xml:space="preserve"><value>Конфигурация клиента</value></data>
+  <data name="ServerPath" xml:space="preserve"><value>Сервер из конфигурации</value></data>
+  <data name="Launcher" xml:space="preserve"><value>Исполняемый файл на диске</value></data>
+  <data name="ServerAssembly" xml:space="preserve"><value>Сборка MCP-сервера</value></data>
+  <data name="VersionAgreement" xml:space="preserve"><value>Сравнение версий на диске</value></data>
+  <data name="Readiness" xml:space="preserve"><value>Готовность живого соединения</value></data>
+  <data name="configured" xml:space="preserve"><value>Локальная привязка распознана</value></data>
+  <data name="not_configured" xml:space="preserve"><value>Запись NavisHelper отсутствует</value></data>
+  <data name="no_config" xml:space="preserve"><value>Файл конфигурации отсутствует</value></data>
+  <data name="disabled" xml:space="preserve"><value>Отключено в конфигурации</value></data>
+  <data name="unsupported_client" xml:space="preserve"><value>Конфигурацией управляет CLI; не проверена</value></data>
+  <data name="unsupported_setting" xml:space="preserve"><value>Смысл настройки не поддерживается; проверьте вручную</value></data>
+  <data name="unsupported_command" xml:space="preserve"><value>Способ запуска или транспорт не поддерживается; проверьте вручную</value></data>
+  <data name="malformed_config" xml:space="preserve"><value>Некорректная конфигурация; содержимое не выводится</value></data>
+  <data name="config_too_large" xml:space="preserve"><value>Конфигурация превышает лимит чтения 1 МиБ</value></data>
+  <data name="read_failed" xml:space="preserve"><value>Не удалось прочитать данные для диагностики</value></data>
+  <data name="file_too_large" xml:space="preserve"><value>Сборка превышает лимит чтения 32 МиБ</value></data>
+  <data name="invalid_assembly" xml:space="preserve"><value>Некорректная или неожиданная сборка</value></data>
+  <data name="missing" xml:space="preserve"><value>Отсутствует</value></data>
+  <data name="present" xml:space="preserve"><value>Присутствует</value></data>
+  <data name="readable" xml:space="preserve"><value>Метаданные прочитаны</value></data>
+  <data name="unverified" xml:space="preserve"><value>Не проверено</value></data>
+  <data name="mismatch" xml:space="preserve"><value>Версии различаются</value></data>
+  <data name="consistent" xml:space="preserve"><value>Проверенные версии совпадают; идентичность кода не установлена</value></data>
+  <data name="ConfigureClient" xml:space="preserve"><value>Установите проверенный пакет, затем выполните --configure --clients {0} --mcp-server &lt;проверенный exe&gt;.</value></data>
+  <data name="InspectClient" xml:space="preserve"><value>Проверьте запись NavisHelper в настройках выбранного клиента; исправьте указанную настройку/формат или используйте интерфейс настройки MCP этого клиента.</value></data>
+  <data name="RepairInstallation" xml:space="preserve"><value>Переустановите проверенный пакет NavisHelper с согласованными версиями плагина и MCP-сервера, затем укажите его exe в настройках этого клиента.</value></data>
+  <data name="VerifyBuild" xml:space="preserve"><value>Сравните SHA256 с проверенным пакетом. При наличии рабочего репозитория выполните scripts/check_installed_bundle_drift.py; совпадение версий не доказывает актуальность сборки.</value></data>
+  <data name="ReloadClient" xml:space="preserve"><value>После исправления конфигурации или обновления файлов перезагрузите MCP в этом клиенте или перезапустите клиент: существующий процесс сервера может использовать старую сборку.</value></data>
+  <data name="HealthCheck" xml:space="preserve"><value>В выбранном клиенте вызовите mcp_health_check при открытом нужном хосте и модели Navisworks. При сбое проверьте mcp_recent_calls; после тайм-аута операции — last_operation_status. Doctor сам эти вызовы не выполняет.</value></data>
+  <data name="Usage" xml:space="preserve"><value>Используйте --doctor --clients &lt;один-id&gt; [--json]. Явно выберите один клиент; не совмещайте doctor с --detect, --configure, --remove, --dry-run, --create-missing или --mcp-server.</value></data>
+  <data name="VerifyLauncher" xml:space="preserve"><value>Проверьте, что настроенная команда dotnet указывает на нужную среду .NET. Doctor читает DLL сервера, не выполняя эту команду.</value></data>
+</root>

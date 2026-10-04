@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Help" xml:space="preserve"><value>  NavisHelper.McpConfigurator.exe --doctor --clients &lt;one-id&gt; [--json]</value></data>
+  <data name="Title" xml:space="preserve"><value>NavisHelper installation diagnostics</value></data>
+  <data name="Scope" xml:space="preserve"><value>Scope: selected user configuration file only; project, managed and session overrides are not resolved.</value></data>
+  <data name="Configuration" xml:space="preserve"><value>Client configuration</value></data>
+  <data name="ServerPath" xml:space="preserve"><value>Configured server</value></data>
+  <data name="Launcher" xml:space="preserve"><value>Executable on disk</value></data>
+  <data name="ServerAssembly" xml:space="preserve"><value>MCP server assembly</value></data>
+  <data name="VersionAgreement" xml:space="preserve"><value>Disk version comparison</value></data>
+  <data name="Readiness" xml:space="preserve"><value>Live connection readiness</value></data>
+  <data name="configured" xml:space="preserve"><value>Local binding recognized</value></data>
+  <data name="not_configured" xml:space="preserve"><value>NavisHelper entry absent</value></data>
+  <data name="no_config" xml:space="preserve"><value>Configuration file absent</value></data>
+  <data name="disabled" xml:space="preserve"><value>Disabled in configuration</value></data>
+  <data name="unsupported_client" xml:space="preserve"><value>CLI-owned configuration; not inspected</value></data>
+  <data name="unsupported_setting" xml:space="preserve"><value>Setting semantics not supported; inspect manually</value></data>
+  <data name="unsupported_command" xml:space="preserve"><value>Launcher or transport not supported; inspect manually</value></data>
+  <data name="malformed_config" xml:space="preserve"><value>Invalid configuration; source details withheld</value></data>
+  <data name="config_too_large" xml:space="preserve"><value>Configuration exceeds the 1 MiB read limit</value></data>
+  <data name="read_failed" xml:space="preserve"><value>Unable to read diagnostic evidence</value></data>
+  <data name="file_too_large" xml:space="preserve"><value>Assembly exceeds the 32 MiB read limit</value></data>
+  <data name="invalid_assembly" xml:space="preserve"><value>Invalid or unexpected assembly</value></data>
+  <data name="missing" xml:space="preserve"><value>Missing</value></data>
+  <data name="present" xml:space="preserve"><value>Present</value></data>
+  <data name="readable" xml:space="preserve"><value>Metadata read</value></data>
+  <data name="unverified" xml:space="preserve"><value>Unverified</value></data>
+  <data name="mismatch" xml:space="preserve"><value>Versions differ</value></data>
+  <data name="consistent" xml:space="preserve"><value>Inspected versions agree; identical code is not established</value></data>
+  <data name="ConfigureClient" xml:space="preserve"><value>Install the validated package, then run --configure --clients {0} --mcp-server &lt;validated executable&gt;.</value></data>
+  <data name="InspectClient" xml:space="preserve"><value>Inspect the NavisHelper entry in the selected client's settings; correct the reported setting/format or use that client's MCP configuration UI.</value></data>
+  <data name="RepairInstallation" xml:space="preserve"><value>Reinstall a validated NavisHelper package with matching plugin and MCP server versions, then configure this client to its executable.</value></data>
+  <data name="VerifyBuild" xml:space="preserve"><value>Compare SHA256 values with the validated package. With a development checkout, run scripts/check_installed_bundle_drift.py; version equality alone does not prove the build is current.</value></data>
+  <data name="ReloadClient" xml:space="preserve"><value>After repairing configuration or updating files, reload MCP in this client or restart it; an existing server process can still use an older build.</value></data>
+  <data name="HealthCheck" xml:space="preserve"><value>In the selected client, call mcp_health_check with the intended Navisworks host/model open. If it fails, inspect mcp_recent_calls; after a timed-out operation use last_operation_status. Doctor does not make these calls.</value></data>
+  <data name="Usage" xml:space="preserve"><value>Use --doctor --clients &lt;one-id&gt; [--json]. Choose one client explicitly; do not combine doctor with --detect, --configure, --remove, --dry-run, --create-missing or --mcp-server.</value></data>
+  <data name="VerifyLauncher" xml:space="preserve"><value>Check that the configured dotnet launcher resolves to the intended .NET runtime. Doctor reads the server DLL without executing that launcher.</value></data>
+</root>
