@@ -275,6 +275,101 @@ public sealed class ScenarioLibraryServiceTests : IDisposable
         Assert.Contains(validation.Errors, error => error.Contains("safetyEnvelope is required"));
     }
 
+    [Theory]
+    [InlineData(@"\\?\C:\Reports\selection.csv", "device paths")]
+    [InlineData("//?/C:/Reports/selection.csv", "device paths")]
+    [InlineData(@"/\?\C:\Reports\selection.csv", "device paths")]
+    [InlineData(@"\\?/C:\Reports\selection.csv", "device paths")]
+    [InlineData("//./PIPE/report", "device paths")]
+    [InlineData(@"\/./C:/Reports/selection.csv", "device paths")]
+    [InlineData(@"\??\C:\Reports\selection.csv", "device paths")]
+    [InlineData("/??/C:/Reports/selection.csv", "device paths")]
+    [InlineData(@"\??/C:\Reports\selection.csv", "device paths")]
+    [InlineData(@"\\server@user\share\selection.csv", "credentials in UNC")]
+    [InlineData("//server@user/share/selection.csv", "credentials in UNC")]
+    [InlineData(@"/\server@user/share\selection.csv", "credentials in UNC")]
+    [InlineData(@"\\server@user/share/selection.csv", "credentials in UNC")]
+    [InlineData("//server@user", "credentials in UNC")]
+    [InlineData(@"\\server@user", "credentials in UNC")]
+    [InlineData("///server@user/share/selection.csv", "UNC authority")]
+    [InlineData(@"\\\server@user\share\selection.csv", "UNC authority")]
+    public void ExactReplay_RejectsUnsafePathSpellingsBeforePersistence(string path, string errorFragment)
+    {
+        var draft = CreateExactDraft();
+        draft.ExactReplay.FixedParameters["outputPath"] = Element(path);
+
+        var validation = _service.ValidateDraft(draft, verifyExactFingerprint: false);
+        var response = _service.Save(draft, "", "", true, true, true);
+
+        Assert.Contains(validation.Errors, error => error.Contains(errorFragment, StringComparison.Ordinal));
+        Assert.False(response.Ok);
+        Assert.False(response.Applied);
+        Assert.Equal("scenario_invalid", response.ErrorCode);
+        Assert.Contains(response.Errors, error => error.Contains(errorFragment, StringComparison.Ordinal));
+        Assert.Empty(response.PlannedWrites);
+        Assert.False(Directory.Exists(_root));
+    }
+
+    [Theory]
+    [InlineData(@"D:\Reports\selection.csv")]
+    [InlineData("D:/Reports/selection.csv")]
+    [InlineData(@"D:/Reports\selection.csv")]
+    [InlineData(@"\\server\share\selection.csv")]
+    [InlineData("//server/share/selection.csv")]
+    [InlineData(@"/\server/share\selection.csv")]
+    [InlineData("//server/share/report@review.csv")]
+    public void ExactReplay_PreservesAcceptedPathSpellingAndFingerprint(string path)
+    {
+        var draft = CreateExactDraft();
+        draft.ExactReplay.FixedParameters["outputPath"] = Element(path);
+        Assert.True(_service.ValidateDraft(draft, verifyExactFingerprint: false).IsValid);
+
+        var saved = Save(draft, exact: true);
+        var fetched = _service.Get(saved.ScenarioId);
+
+        Assert.True(fetched.Ok);
+        Assert.Equal(path, draft.ExactReplay.FixedParameters["outputPath"].GetString());
+        Assert.Equal(path, fetched.Scenario.ExactReplay.FixedParameters["outputPath"].GetString());
+        Assert.Equal(draft.ExactReplay.SafetyEnvelope.PreviewFingerprint,
+            fetched.Scenario.ExactReplay.SafetyEnvelope.PreviewFingerprint);
+        Assert.True(_service.ValidateDraft(fetched.Scenario).IsValid);
+    }
+
+    [Fact]
+    public void ExactReplay_PathSpellingParticipatesInFingerprint()
+    {
+        var backslashes = CreateExactDraft();
+        var slashes = CreateExactDraft();
+        slashes.ExactReplay.FixedParameters["outputPath"] = Element("D:/Reports/selection.csv");
+        Assert.True(_service.Save(backslashes, "", "", false, true, true).Ok);
+        Assert.True(_service.Save(slashes, "", "", false, true, true).Ok);
+        Assert.NotEqual(backslashes.ExactReplay.SafetyEnvelope.PreviewFingerprint,
+            slashes.ExactReplay.SafetyEnvelope.PreviewFingerprint);
+        Assert.False(Directory.Exists(_root));
+    }
+
+    [Theory]
+    [InlineData("//?/C:/Reports/selection.csv", "device paths")]
+    [InlineData("//server@user/share/selection.csv", "credentials in UNC")]
+    public void ExactReplay_RevalidatesStoredPathsBeforeReadOrResolve(string path, string errorFragment)
+    {
+        var saved = Save(CreateExactDraft(), exact: true);
+        var node = JsonNode.Parse(File.ReadAllText(saved.FilePath))!.AsObject();
+        node["exactReplay"]!["fixedParameters"]!["outputPath"] = path;
+        File.WriteAllText(saved.FilePath, node.ToJsonString());
+
+        var fetched = _service.Get(saved.ScenarioId);
+        var resolved = _service.Resolve(saved.ScenarioId, null, "preview", "", null, "");
+
+        Assert.False(fetched.Ok);
+        Assert.Equal("scenario_invalid", fetched.ErrorCode);
+        Assert.Contains(errorFragment, fetched.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(resolved.Ok);
+        Assert.Equal("scenario_invalid", resolved.ErrorCode);
+        Assert.Contains(errorFragment, resolved.ErrorMessage, StringComparison.Ordinal);
+        Assert.Empty(resolved.Steps);
+    }
+
     [Fact]
     public void Get_RejectsUnknownPersistedFields()
     {
