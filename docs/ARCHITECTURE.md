@@ -40,6 +40,21 @@ The bundle's `PackageContents.xml` registers `NavisHelper.dll` for each supporte
 ### Core Utilities
 
 - `Core/Logger.cs` — Static file-based logger writing to temp directory or alongside the model file.
+- `Core/ExceptionObservation.cs` — Passive `AppDomain.UnhandledException` and
+  `TaskScheduler.UnobservedTaskException` subscriptions owned by `RibbonLoader`
+  and detached on unload. Global reports require a stack frame from the plugin
+  assembly within a bounded scan; unrelated or unattributed failures are ignored.
+  Reports contain event/type/HResult and owned method names, never exception
+  messages, data, model paths or source filenames. The first ribbon retry failure
+  gets one WARN write attempt per load; retries and host exception policy stay
+  unchanged. There are at most 20 non-terminating write attempts per observer;
+  terminating reports bypass only that count cap. Reentrant/concurrent attempts
+  and writes contending for the logger mutex are dropped, including terminating
+  reports. A dropped/failed write still consumes its attempt; this is bounded
+  diagnostic evidence, not guaranteed crash capture. This diagnostic
+  path never waits for the logger mutex. Local file I/O remains best-effort and
+  is not guaranteed during process termination. Host-handled UI failures and
+  corrupted-state exceptions are outside these two events' coverage.
 - `Core/ColorParser.cs` — Parses `#AARRGGBB`, `#RRGGBB`, and `R,G,B` color formats.
 
 ### Navisworks API Patterns

@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using Autodesk.Navisworks.Api.Plugins;
 using Autodesk.Windows;
 using NavisHelper.Agent;
+using NavisHelper.Core;
 using NavisHelper.Core.Localization;
 
 namespace NavisHelper
@@ -15,6 +16,7 @@ namespace NavisHelper
     public class RibbonLoader : EventWatcherPlugin
     {
         private DispatcherTimer _timer;
+        private ExceptionObservation _exceptionObservation;
 
         internal static void EnsureAgentRuntimeInitialized()
         {
@@ -23,23 +25,51 @@ namespace NavisHelper
 
         public override void OnLoaded()
         {
-            EnsureAgentRuntimeInitialized();
-
-            _timer = new DispatcherTimer();
-            _timer.Interval = TimeSpan.FromSeconds(2);
-            _timer.Tick += OnTimerTick;
-            _timer.Start();
+            StopObservationAndTimer();
+            _exceptionObservation = new ExceptionObservation();
+            _exceptionObservation.Start();
+            try
+            {
+                EnsureAgentRuntimeInitialized();
+                _timer = new DispatcherTimer();
+                _timer.Interval = TimeSpan.FromSeconds(2);
+                _timer.Tick += OnTimerTick;
+                _timer.Start();
+            }
+            catch
+            {
+                StopObservationAndTimer();
+                throw;
+            }
         }
 
         public override void OnUnloading()
         {
-            AgentRuntime.Shutdown();
-
-            if (_timer != null)
+            try
             {
-                _timer.Stop();
-                _timer.Tick -= OnTimerTick;
-                _timer = null;
+                AgentRuntime.Shutdown();
+            }
+            finally
+            {
+                StopObservationAndTimer();
+            }
+        }
+
+        private void StopObservationAndTimer()
+        {
+            try
+            {
+                if (_timer != null)
+                {
+                    _timer.Stop();
+                    _timer.Tick -= OnTimerTick;
+                    _timer = null;
+                }
+            }
+            finally
+            {
+                _exceptionObservation?.Dispose();
+                _exceptionObservation = null;
             }
         }
 
@@ -59,9 +89,10 @@ namespace NavisHelper
                     _timer.Tick -= OnTimerTick;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ribbon not ready yet, will retry
+                // Preserve the retry, but record its first failure once per plugin load.
+                _exceptionObservation?.ReportRibbonRetry(ex);
             }
         }
 

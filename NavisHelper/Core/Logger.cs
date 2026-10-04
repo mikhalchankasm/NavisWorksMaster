@@ -26,15 +26,21 @@ namespace NavisHelper.Core
             WriteLog("ERROR", message, context, modelPath);
         }
 
-        private static void WriteLog(string level, string message, string context, string modelPath)
+        internal static void Diagnostic(string message, string context, bool transient = false, Mutex mutex = null)
+        {
+            WriteLog(transient ? "WARN" : "ERROR", message, context, null, waitForMutex: false, mutex: mutex);
+        }
+
+        private static void WriteLog(string level, string message, string context, string modelPath, bool waitForMutex = true, Mutex mutex = null)
         {
             bool hasMutex = false;
+            var logMutex = mutex ?? LogMutex;
 
             try
             {
                 try
                 {
-                    hasMutex = LogMutex.WaitOne(TimeSpan.FromSeconds(2));
+                    hasMutex = logMutex.WaitOne(waitForMutex ? TimeSpan.FromSeconds(2) : TimeSpan.Zero);
                 }
                 catch (AbandonedMutexException)
                 {
@@ -71,7 +77,7 @@ namespace NavisHelper.Core
                 {
                     try
                     {
-                        LogMutex.ReleaseMutex();
+                        logMutex.ReleaseMutex();
                     }
                     catch
                     {
