@@ -198,7 +198,7 @@ internal sealed partial class ScenarioLibraryService
             }
             if (!ValueMatchesParameterType(fixedValue, parameter.Type))
                 result.Errors.Add("exactReplay fixed value type is invalid: " + parameter.Name);
-            if (parameter.Type is "filePath" or "directoryPath")
+            else if (parameter.Type is "filePath" or "directoryPath")
                 ValidateFixedPath(fixedValue, parameter.Name, result);
         }
 

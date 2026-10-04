@@ -17,6 +17,51 @@ public sealed class ScenarioLibraryServiceTests : IDisposable
         _service = new ScenarioLibraryService(_root);
     }
 
+    public static TheoryData<string, string> InvalidFixedPathValues
+    {
+        get
+        {
+            var cases = new TheoryData<string, string>();
+            foreach (var type in new[] { "filePath", "directoryPath" })
+            foreach (var json in new[] { "123", "true", "false", "null", "[]", "{}" })
+                cases.Add(type, json);
+            return cases;
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidFixedPathValues))]
+    public void ExactReplay_RejectsNonStringPathValuesWithoutThrowing(string type, string json)
+    {
+        var draft = CreateExactDraft();
+        draft.Parameters[0].Type = type;
+        using var value = JsonDocument.Parse(json);
+        draft.ExactReplay.FixedParameters["outputPath"] = value.RootElement.Clone();
+
+        var validation = _service.ValidateDraft(draft);
+        var response = _service.Save(draft, "", "", true, true, true);
+
+        Assert.Contains("exactReplay fixed value type is invalid: outputPath", validation.Errors);
+        Assert.DoesNotContain(validation.Errors, error => error.StartsWith("exactReplay path must be absolute", StringComparison.Ordinal));
+        Assert.False(response.Ok);
+        Assert.False(response.Applied);
+        Assert.Equal("scenario_invalid", response.ErrorCode);
+        Assert.Contains("exactReplay fixed value type is invalid: outputPath", response.Errors);
+        Assert.Empty(response.PlannedWrites);
+        Assert.False(Directory.Exists(_root));
+
+        var valid = CreateExactDraft();
+        valid.Parameters[0].Type = type;
+        var saved = Save(valid, exact: true);
+        var stored = JsonNode.Parse(File.ReadAllText(saved.FilePath))!;
+        stored["exactReplay"]!["fixedParameters"]!["outputPath"] = JsonNode.Parse(json);
+        File.WriteAllText(saved.FilePath, stored.ToJsonString());
+        var fetched = _service.Get(saved.ScenarioId);
+        Assert.False(fetched.Ok);
+        Assert.Equal("scenario_invalid", fetched.ErrorCode);
+        Assert.Contains("exactReplay fixed value type is invalid: outputPath", fetched.ErrorMessage, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Save_PreviewDoesNotCreateScenarioDirectory()
     {
