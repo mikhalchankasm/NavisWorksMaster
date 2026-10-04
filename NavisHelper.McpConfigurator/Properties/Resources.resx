@@ -37,4 +37,17 @@
   <data name="HealthCheck" xml:space="preserve"><value>In the selected client, call mcp_health_check with the intended Navisworks host/model open. If it fails, inspect mcp_recent_calls; after a timed-out operation use last_operation_status. Doctor does not make these calls.</value></data>
   <data name="Usage" xml:space="preserve"><value>Use --doctor --clients &lt;one-id&gt; [--json]. Choose one client explicitly; do not combine doctor with --detect, --configure, --remove, --dry-run, --create-missing or --mcp-server.</value></data>
   <data name="VerifyLauncher" xml:space="preserve"><value>Check that the configured dotnet launcher resolves to the intended .NET runtime. Doctor reads the server DLL without executing that launcher.</value></data>
+  <data name="RuntimeScope" xml:space="preserve"><value>Runtime observations use doctor's environment, not the selected client session. Discovery versions are record metadata, not a fresh host reply. Named server executables only; dotnet-hosted servers are not inventoried. Client association and loaded builds remain unverified.</value></data>
+  <data name="HostObservations" xml:space="preserve"><value>Host discovery observations</value></data>
+  <data name="ServerObservations" xml:space="preserve"><value>Unattributed MCP server processes</value></data>
+  <data name="alive" xml:space="preserve"><value>Process identity matches the record</value></data>
+  <data name="stale" xml:space="preserve"><value>Stale record; process identity does not match</value></data>
+  <data name="invalid_record" xml:space="preserve"><value>Invalid discovery record</value></data>
+  <data name="record_too_large" xml:space="preserve"><value>Discovery record exceeds 32 KiB</value></data>
+  <data name="observed" xml:space="preserve"><value>Observation completed</value></data>
+  <data name="no_records" xml:space="preserve"><value>Discovery directory absent</value></data>
+  <data name="truncated" xml:space="preserve"><value>Partial inventory: 64-record limit reached; enumeration order is not guaranteed</value></data>
+  <data name="same_path_unverified_build" xml:space="preserve"><value>Configured path matches; loaded build unverified</value></data>
+  <data name="different_path" xml:space="preserve"><value>Executable path differs from selected configuration</value></data>
+  <data name="not_comparable" xml:space="preserve"><value>No comparable configured executable; client association unverified</value></data>
 </root>

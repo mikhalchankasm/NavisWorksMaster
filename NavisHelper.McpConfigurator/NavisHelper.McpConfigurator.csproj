@@ -17,5 +17,7 @@
 
   <ItemGroup>
     <PackageReference Include="Tomlyn" Version="2.10.1" />
+    <ProjectReference Include="..\NavisHelper.Contracts\NavisHelper.Contracts.csproj" />
+    <Compile Include="..\NavisHelper.McpServer\Services\HostProcessProbe.cs" Link="Diagnostics\HostProcessProbe.cs" />
   </ItemGroup>
 </Project>
