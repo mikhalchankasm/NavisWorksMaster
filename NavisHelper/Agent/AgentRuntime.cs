@@ -1,7 +1,9 @@
 using System;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Windows.Forms;
 using NavisHelper.Agent.Host;
+using NavisHelper.Agent.Services;
 using NavisHelper.Core;
 
 namespace NavisHelper.Agent
@@ -14,6 +16,25 @@ namespace NavisHelper.Agent
         private static Control _backgroundControl;
         private static int _interactiveBusyCount;
         private static string _interactiveBusyReason = string.Empty;
+
+        public static ProtectedModeApprovals ProtectedModeApprovals { get; } =
+            new ProtectedModeApprovals(() => DateTime.UtcNow, NextApprovalCode);
+        public static volatile string CurrentDocumentKey = string.Empty;
+
+        private static int NextApprovalCode()
+        {
+            using (var generator = RandomNumberGenerator.Create())
+            {
+                var bytes = new byte[2];
+                int number;
+                do
+                {
+                    generator.GetBytes(bytes);
+                    number = BitConverter.ToUInt16(bytes, 0);
+                } while (number >= 60000);
+                return number % 10000;
+            }
+        }
 
         public static bool IsInteractiveBusy
         {
