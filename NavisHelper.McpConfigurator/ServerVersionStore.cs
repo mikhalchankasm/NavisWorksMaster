@@ -37,19 +37,7 @@ internal sealed class ServerVersionStore
         EnsurePlainDirectory(_versions);
         var hadVersions = Directory.Exists(_versions);
         var created = !Directory.Exists(destination);
-        if (!created)
-        {
-            try
-            {
-                if (!string.Equals(VersionName(destination), Path.GetFileName(destination), StringComparison.Ordinal))
-                    throw new IOException("The stored MCP server tree no longer matches its version name.");
-            }
-            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException
-                                       or KeyNotFoundException or InvalidOperationException)
-            {
-                throw new IOException($"Cannot reuse MCP server version directory '{destination}'.", ex);
-            }
-        }
+        if (!created) VerifyVersion(destination);
         var migrated = false;
         string? legacy = null;
         try
@@ -289,7 +277,28 @@ internal sealed class ServerVersionStore
         if (hasPendingState) File.Move(pendingState, StatePath, overwrite: true);
     }
 
-    private bool Healthy(string version) => _healthCheck(Path.Combine(version, Server + ".exe"));
+    // Recovery activates only a stored tree that still matches its version name and passes its check.
+    private bool Healthy(string version)
+    {
+        try { VerifyVersion(version); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException) { return false; }
+        return _healthCheck(Path.Combine(version, Server + ".exe"));
+    }
+
+    private static void VerifyVersion(string directory)
+    {
+        try
+        {
+            var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(directory));
+            if (!string.Equals(VersionName(directory), name, StringComparison.Ordinal))
+                throw new IOException("The stored MCP server tree no longer matches its version name.");
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException
+                                   or KeyNotFoundException or InvalidOperationException)
+        {
+            throw new IOException($"Cannot reuse MCP server version directory '{directory}'.", ex);
+        }
+    }
 
     // The committed state.json Current, when it differs from the failed target and passes its check.
     private string? CommittedFallback(string failed)

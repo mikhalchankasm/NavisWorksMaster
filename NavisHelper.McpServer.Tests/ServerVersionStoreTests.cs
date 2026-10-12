@@ -335,6 +335,19 @@ public sealed class ServerVersionStoreTests : IDisposable
     }
 
     [Fact]
+    public void RecoveryDoesNotFinishASwitchToATreeThatNoLongerMatchesItsName()
+    {
+        var (a, b) = InterruptedSwitch(Interruption.OldLinkDeleted);
+        // Outside the main dll, so only the whole-tree version name catches it.
+        File.AppendAllText(Path.Combine(b, "runtimes", "native.dll"), " changed");
+        var checkedPaths = new List<string>();
+
+        Assert.Empty(Recording(checkedPaths).Prune(_ => true));
+
+        AssertRecovered(a, b, checkedPaths, a, b);
+    }
+
+    [Fact]
     public void RecoveryDiscardsPendingStateTornWhileBeingWritten()
     {
         var (a, b) = InterruptedSwitch(Interruption.StateWritten);
