@@ -200,8 +200,9 @@ function Invoke-Uninstaller([string]$AppRoot, [string]$Name) {
     $uninstallArgs = @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LOG=`"$(Join-Path $testRoot "$Name.log")`"")
     [void](Wait-ProcessTree $uninstaller $uninstallArgs $Name)
     # The uninstaller hands off to a copy of itself in TEMP, which deletes unins000.* last.
+    # File.Exists, not Test-Path: a delete-pending file makes Test-Path throw "Access is denied".
     $deadline = [DateTime]::UtcNow.AddSeconds(120)
-    while ((Test-Path -LiteralPath $uninstaller) -or (Test-Path -LiteralPath (Join-Path $AppRoot "unins000.dat"))) {
+    while ([System.IO.File]::Exists($uninstaller) -or [System.IO.File]::Exists((Join-Path $AppRoot "unins000.dat"))) {
         if ([DateTime]::UtcNow -gt $deadline) { throw "Uninstaller did not finish in $AppRoot" }
         Start-Sleep -Milliseconds 500
     }
