@@ -24,10 +24,10 @@ public sealed class McpServerShutdownTests
         })!;
         try
         {
-            _ = process.StandardError.ReadToEndAsync();
+            _ = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
             await process.StandardInput.WriteLineAsync(
-                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"shutdown-probe\",\"version\":\"1\"}}}");
-            await process.StandardInput.FlushAsync();
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"shutdown-probe\",\"version\":\"1\"}}}".AsMemory(), TestContext.Current.CancellationToken);
+            await process.StandardInput.FlushAsync(TestContext.Current.CancellationToken);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             Assert.Contains("\"id\":1", await process.StandardOutput.ReadLineAsync(timeout.Token));
 

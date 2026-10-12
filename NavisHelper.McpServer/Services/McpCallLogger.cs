@@ -154,6 +154,22 @@ internal sealed class McpCallLogger
         }
     }
 
+    /// <summary>
+    /// Records the client the first time it becomes known and returns true only then.
+    /// One stdio server process serves one client, so this is once per session.
+    /// </summary>
+    public bool TrySetClientOnce(string name, string version)
+    {
+        lock (_syncRoot)
+        {
+            if (_clientName != null)
+                return false;
+            _clientName = name;
+            _clientVersion = version;
+            return true;
+        }
+    }
+
     public void Log(object entry)
     {
         try
