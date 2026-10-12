@@ -80,6 +80,7 @@ public sealed class McpCatalogResourceTests
                 ["NAVISHELPER_MCP_READ_ONLY"] = readOnly ? "1" : "0",
                 ["NAVISHELPER_MCP_TOOLS"] = profile,
             },
-            ShutdownTimeout = TimeSpan.FromSeconds(5),
+            // SDK 2.2 waits for exit before closing stdin; keep that initial wait short.
+            ShutdownTimeout = TimeSpan.FromMilliseconds(250),
         }), cancellationToken: cancellationToken);
 }

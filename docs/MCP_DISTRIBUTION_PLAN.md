@@ -139,6 +139,38 @@ CI runs the fixture-only acceptance tests with
 
 ## Client Config
 
+### Version store commands
+
+The configurator can manage server copies independently of the installer and
+developer scripts (their integration is a separate change):
+
+```powershell
+.\McpConfigurator\NavisHelper.McpConfigurator.exe --install-server <sourceDir> [--install-root <dir>]
+.\McpConfigurator\NavisHelper.McpConfigurator.exe --rollback-server [--install-root <dir>]
+.\McpConfigurator\NavisHelper.McpConfigurator.exe --prune-servers [--install-root <dir>]
+```
+
+The default root is `%LOCALAPPDATA%\NavisHelper`. Copies live in
+`versions\<version>-<sha8>`; the version comes from the server dependency manifest
+and `sha8` from SHA-256 of its DLL. Installation copies the complete source tree,
+reuses identical versions, and checks stdio initialization and a nonempty tool
+list within 30 seconds before activating the `McpServer` directory junction.
+Client configuration uses the stable path
+`%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe`.
+A failed health check removes only a newly copied version and leaves activation
+unchanged. A legacy real `McpServer` directory is moved into the version store;
+if that move is blocked, close MCP clients and retry.
+
+`versions\state.json` retains current and previous targets. Rollback checks the
+previous server and swaps those targets; reinstalling the active version keeps
+the previous target. Pruning preserves current, previous, and copies containing
+a running executable. A server launched through a junction, or an inaccessible
+server executable, conservatively prevents pruning because its loaded version
+cannot be established. Close MCP clients to prune those copies. Run one store
+operation at a time. Commands print one JSON line per result and return nonzero
+on failure. The health check starts and kills its own probe process; it does not
+test connectivity to a live Navisworks host.
+
 The package contains `mcp-client-config.example.json`:
 
 ```json

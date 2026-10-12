@@ -22,6 +22,15 @@ internal static partial class Program
 
         try
         {
+            if (args.Any(arg => arg.Equals("--install-server", StringComparison.OrdinalIgnoreCase) ||
+                arg.Equals("--rollback-server", StringComparison.OrdinalIgnoreCase) ||
+                arg.Equals("--prune-servers", StringComparison.OrdinalIgnoreCase) ||
+                arg.Equals("--install-root", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (doctorRequested || jsonRequested)
+                    return DoctorCommand.Usage(jsonRequested, Console.Out);
+                return RunServerCommand(args);
+            }
             Options options;
             try { options = Options.Parse(args); }
             catch when (doctorRequested || jsonRequested)
@@ -86,6 +95,90 @@ internal static partial class Program
             Console.Error.WriteLine("ERROR: " + ex.Message);
             return 1;
         }
+    }
+
+    private static int RunServerCommand(string[] args)
+    {
+        string? command = null;
+        string? source = null;
+        string? root = null;
+        for (var index = 0; index < args.Length; index++)
+        {
+            var arg = args[index].ToLowerInvariant();
+            if (arg == "--install-root")
+            {
+                if (root != null) throw new ArgumentException("Duplicate --install-root.");
+                root = Value();
+            }
+            else if (arg is "--install-server" or "--rollback-server" or "--prune-servers")
+            {
+                if (command != null) throw new ArgumentException("Use one server operation per invocation.");
+                command = arg;
+                if (arg == "--install-server") source = Value();
+            }
+            else throw new ArgumentException("Unsupported server option: " + args[index]);
+
+            string Value()
+            {
+                if (++index >= args.Length || string.IsNullOrWhiteSpace(args[index]) || args[index].StartsWith("--"))
+                    throw new ArgumentException("Missing value for " + arg);
+                return args[index];
+            }
+        }
+        if (command == null) throw new ArgumentException("A server operation is required.");
+        root ??= Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NavisHelper");
+        var store = new ServerVersionStore(root, path =>
+            McpServerHealthCheck.RunAsync(path, TimeSpan.FromSeconds(30)).GetAwaiter().GetResult());
+        if (command == "--install-server")
+        {
+            var result = store.Install(source!);
+            Console.WriteLine(JsonSerializer.Serialize(result));
+            return result.Activated ? 0 : 1;
+        }
+        if (command == "--rollback-server")
+        {
+            var activated = store.Rollback();
+            Console.WriteLine(JsonSerializer.Serialize(new { Activated = activated }));
+            return activated ? 0 : 1;
+        }
+        var removed = store.Prune(ServerVersionInUse);
+        foreach (var directory in removed)
+            Console.WriteLine(JsonSerializer.Serialize(new { Pruned = directory }));
+        if (removed.Count == 0) Console.WriteLine("{\"Pruned\":null}");
+        return 0;
+    }
+
+    private static bool ServerVersionInUse(string directory)
+    {
+        var processes = Process.GetProcesses();
+        try
+        {
+            foreach (var process in processes)
+            {
+                try
+                {
+                    var executable = process.MainModule?.FileName;
+                    if (executable != null && Path.GetFullPath(executable).StartsWith(
+                        Path.TrimEndingDirectorySeparator(directory) + Path.DirectorySeparatorChar,
+                        StringComparison.OrdinalIgnoreCase)) return true;
+                    // A stable-junction launch cannot be attributed to the loaded version after a switch.
+                    if (executable != null && Path.GetFileName(executable).Equals("NavisHelper.McpServer.exe",
+                        StringComparison.OrdinalIgnoreCase) && new DirectoryInfo(Path.GetDirectoryName(executable)!).LinkTarget != null)
+                        return true;
+                }
+                catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
+                {
+                    try
+                    {
+                        if (process.ProcessName.Equals("NavisHelper.McpServer", StringComparison.OrdinalIgnoreCase))
+                            return true;
+                    }
+                    catch (InvalidOperationException) { /* The process exited during enumeration. */ }
+                }
+            }
+            return false;
+        }
+        finally { foreach (var process in processes) process.Dispose(); }
     }
 
     internal static (string Id, string? ConfigPath)? ResolveDoctorTarget(string client)
@@ -171,6 +264,11 @@ internal static partial class Program
         var sibling = Path.Combine(baseDirectory, "McpServer", "NavisHelper.McpServer.exe");
         if (File.Exists(sibling))
             return sibling;
+
+        var stable = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NavisHelper", "McpServer", "NavisHelper.McpServer.exe");
+        if (File.Exists(stable))
+            return stable;
 
         var localVersioned = FindLatestVersionedServer(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -285,6 +383,9 @@ internal static partial class Program
         Console.WriteLine("  NavisHelper.McpConfigurator.exe --configure --clients all --create-missing --mcp-server \"%LOCALAPPDATA%\\NavisHelper\\McpServer-<version>\\NavisHelper.McpServer.exe\"");
         Console.WriteLine("  NavisHelper.McpConfigurator.exe --configure --clients claude-desktop,cursor,opencode --dry-run");
         Console.WriteLine("  NavisHelper.McpConfigurator.exe --remove --clients all");
+        Console.WriteLine("  NavisHelper.McpConfigurator.exe --install-server <sourceDir> [--install-root <dir>]");
+        Console.WriteLine("  NavisHelper.McpConfigurator.exe --rollback-server [--install-root <dir>]");
+        Console.WriteLine("  NavisHelper.McpConfigurator.exe --prune-servers [--install-root <dir>]");
         Console.WriteLine();
         Console.WriteLine("Client ids:");
         Console.WriteLine("  claude-desktop, claude-code, codex, cursor, opencode, kimi, zcode");

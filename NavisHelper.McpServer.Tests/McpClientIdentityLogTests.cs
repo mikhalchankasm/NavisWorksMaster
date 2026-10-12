@@ -31,7 +31,8 @@ public sealed class McpClientIdentityLogTests : IDisposable
             Command = "dotnet",
             Arguments = new[] { typeof(McpToolCatalogResources).Assembly.Location },
             EnvironmentVariables = new Dictionary<string, string> { ["NAVISHELPER_MCP_LOG_DIR"] = _logDirectory },
-            ShutdownTimeout = TimeSpan.FromSeconds(5),
+            // SDK 2.2 waits for exit before closing stdin; keep that initial wait short.
+            ShutdownTimeout = TimeSpan.FromMilliseconds(250),
         }), new McpClientOptions { ClientInfo = new() { Name = "identity-probe", Version = "9.8.7" } }, cancellationToken: timeout.Token))
         {
             await client.ListToolsAsync(cancellationToken: timeout.Token);
