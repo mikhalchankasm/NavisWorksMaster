@@ -160,22 +160,33 @@ function Assert-ToolsList([string]$Executable) {
     }
 }
 
+# A modal dialog in a silent run never closes on a runner; fail instead of hanging.
+function Wait-ProcessTree([string]$FilePath, [string[]]$Arguments, [string]$Name) {
+    $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -WindowStyle Hidden -PassThru
+    $null = $process.Handle  # Windows PowerShell reports ExitCode only if the handle was opened.
+    if (-not $process.WaitForExit(300000)) {
+        & taskkill.exe /PID $process.Id /T /F | Out-Null
+        throw "$Name did not finish within 5 minutes (a dialog in a silent run?). Log: $testRoot\$Name.log"
+    }
+    return $process.ExitCode
+}
+
 function Invoke-Installer([string]$AppRoot, [string]$Name) {
     $installerArgs = @(
         "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOICONS",
         "/DIR=`"$AppRoot`"",
         "/LOG=`"$(Join-Path $testRoot "$Name.log")`""
     )
-    $process = Start-Process -FilePath $smokeInstaller -ArgumentList $installerArgs -WindowStyle Hidden -Wait -PassThru
+    $exitCode = Wait-ProcessTree $smokeInstaller $installerArgs $Name
     Assert-OwnerInstallUnchanged $Name
-    return $process.ExitCode
+    return $exitCode
 }
 
 function Invoke-Uninstaller([string]$AppRoot, [string]$Name) {
     $uninstaller = Join-Path $AppRoot "unins000.exe"
     Assert-File $uninstaller "Isolated uninstaller"
     $uninstallArgs = @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LOG=`"$(Join-Path $testRoot "$Name.log")`"")
-    Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -WindowStyle Hidden -Wait | Out-Null
+    [void](Wait-ProcessTree $uninstaller $uninstallArgs $Name)
     # The uninstaller hands off to a copy of itself in TEMP, which deletes unins000.* last.
     $deadline = [DateTime]::UtcNow.AddSeconds(120)
     while ((Test-Path -LiteralPath $uninstaller) -or (Test-Path -LiteralPath (Join-Path $AppRoot "unins000.dat"))) {

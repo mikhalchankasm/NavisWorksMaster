@@ -160,6 +160,7 @@ jobs:
       # installer, then scripts/test_installer_upgrade.ps1 installs, upgrades over a legacy
       # McpServer directory and uninstalls a smoke build inside a temp root.
       - name: Compile the installer and prove install, upgrade and uninstall
+        timeout-minutes: 30
         shell: powershell
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\build_installer.ps1 -SkipBuild -PackageName ci-package-smoke

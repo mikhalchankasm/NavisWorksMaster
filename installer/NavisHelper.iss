@@ -108,12 +108,13 @@ begin
     else
     begin
       McpServerActivationFailed := True;
-      MsgBox(ExpandConstant('{cm:McpServerActivationFailed}'), mbError, MB_OK);
+      { A plain MsgBox ignores /SUPPRESSMSGBOXES and blocks a silent install forever. }
+      SuppressibleMsgBox(ExpandConstant('{cm:McpServerActivationFailed}'), mbError, MB_OK, IDOK);
     end;
   end;
 end;
 
-{ A silent install suppresses the message box; the exit code still reports the failure. }
+{ /SUPPRESSMSGBOXES hides the failure message; the exit code still reports it. }
 function GetCustomSetupExitCode(): Integer;
 begin
   if McpServerActivationFailed then
