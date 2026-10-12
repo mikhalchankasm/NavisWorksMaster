@@ -80,6 +80,18 @@ public sealed class ProtectedModeExecutionCheckTests
         Assert.False(gate.Confirm(accepted.Ticket));
     }
 
+    [Fact]
+    public void WithProtectionOffADocumentSwitchChangesNothing()
+    {
+        var gate = Gate(enabled: false);
+        gate.DocumentChanged("C:\\a.nwd");
+        var accepted = ProtectedModeGate.Evaluate(gate, "save_document", "C:\\a.nwd", null, null);
+        Assert.True(accepted.Allowed);
+        gate.DocumentChanged("C:\\b.nwd");
+        Assert.True(gate.Confirm(accepted.Ticket));
+        Assert.Null(accepted.Ticket.GrantId);
+    }
+
     [Theory]
     [InlineData("find_items")]
     [InlineData("clash_run_status")]

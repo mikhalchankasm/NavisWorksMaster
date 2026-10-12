@@ -168,7 +168,7 @@ namespace NavisHelper.Agent.Host
                 // command's time or its generation-0 collections.
                 requestGateLease.RestartTimer();
                 _heavyWorkCollector.BeginRequest();
-                HandleRequest(server, requestObject, requestId, requestGateLease);
+                HandleRequest(server, requestObject, requestId, requestGateLease, approval.Ticket);
             }
             catch (AgentCommandException ex)
             {
