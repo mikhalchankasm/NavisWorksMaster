@@ -229,12 +229,23 @@ public sealed class ServerVersionStoreTests : IDisposable
     // B installed as its rollback slot, and an interrupted switch from A to B.
     private enum Interruption { StateWritten, PendingLinkCreated, OldLinkDeleted, Renamed }
 
-    private (string A, string B) InterruptedSwitch(Interruption point)
+    private (string A, string B) InterruptedSwitch(Interruption point, bool legacyA = false)
     {
         var a = Store().Install(Source("a", "2.10.0.0", "A")).VersionDirectory;
         var b = Store().Install(Source("b", "2.11.0.0", "B")).VersionDirectory;
         Assert.True(Store().Rollback());
         AssertState(a, b);
+        if (legacyA)
+        {
+            // Issue #257: A was installed before #253, so it is stored under the #244 name.
+            var renamed = Path.Combine(_root, "versions", "2.10.0.0-" + DllSha8(a));
+            Directory.Delete(Link, recursive: false);
+            Directory.Move(a, renamed);
+            Junction(Link, renamed);
+            File.WriteAllText(StatePath, JsonSerializer.Serialize(new { Current = renamed, Previous = b }));
+            a = renamed;
+            AssertState(a, b);
+        }
 
         var pending = Link + ".next";
         File.WriteAllText(StatePath + ".next", JsonSerializer.Serialize(new { Current = b, Previous = a }));
@@ -404,6 +415,91 @@ public sealed class ServerVersionStoreTests : IDisposable
         Assert.True(result.Activated);
         Assert.True(SamePath(b, result.PreviousDirectory), "finished the switch to B before installing C");
         AssertRecovered(result.VersionDirectory, b, checkedPaths, a, b, result.VersionDirectory);
+    }
+
+    // Issue #244 named a version "<version>-<first 8 hex of SHA-256 of NavisHelper.McpServer.dll>".
+    private static string DllSha8(string directory) =>
+        Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(directory, Dll))))[..8].ToLowerInvariant();
+
+    private ServerVersionStore FailingFor(string unhealthy, List<string> healthChecked) => new(_root, exe =>
+    {
+        var directory = Path.GetDirectoryName(exe)!;
+        healthChecked.Add(directory);
+        return !SamePath(directory, unhealthy);
+    });
+
+    // Issue #257, acceptance 1: the step-3 rollback may return to a version stored under the legacy name.
+    [Fact]
+    public void Step3RecoveryRollsBackToAHealthyLegacyNamedVersion()
+    {
+        var (a, b) = InterruptedSwitch(Interruption.OldLinkDeleted, legacyA: true);
+        var checkedPaths = new List<string>();
+
+        Assert.Empty(FailingFor(b, checkedPaths).Prune(_ => true));
+
+        AssertRecovered(a, b, checkedPaths, a, b);
+    }
+
+    // Issue #257, acceptance 2: steps 2 and 4 keep or fall back to the committed legacy-named version.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Step2Or4RecoveryKeepsAHealthyLegacyNamedCommittedVersion(bool renamed)
+    {
+        var (a, b) = InterruptedSwitch(renamed ? Interruption.Renamed : Interruption.PendingLinkCreated, legacyA: true);
+        var checkedPaths = new List<string>();
+
+        Assert.Empty(FailingFor(b, checkedPaths).Prune(_ => true));
+
+        AssertRecovered(a, b, checkedPaths, a, b);
+    }
+
+    // Issue #257, acceptance 3: a legacy name vouches for the main dll, so an altered dll is rejected.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RecoveryRejectsALegacyNamedVersionWhoseServerDllChanged(bool renamed)
+    {
+        var (a, b) = InterruptedSwitch(renamed ? Interruption.Renamed : Interruption.OldLinkDeleted, legacyA: true);
+        File.AppendAllText(Path.Combine(a, Dll), " changed");
+        var checkedPaths = new List<string>();
+
+        Assert.ThrowsAny<IOException>(() => FailingFor(b, checkedPaths).Prune(_ => true));
+        Assert.DoesNotContain(checkedPaths, path => SamePath(path, a));
+    }
+
+    // Issue #257, acceptance 4: a tree-hash name still vouches for every file, not only the main dll.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RecoveryRejectsATreeHashNamedFallbackWhoseOtherFileChanged(bool renamed)
+    {
+        var (a, b) = InterruptedSwitch(renamed ? Interruption.Renamed : Interruption.OldLinkDeleted);
+        File.AppendAllText(Path.Combine(a, "runtimes", "native.dll"), " changed");
+        var checkedPaths = new List<string>();
+
+        Assert.ThrowsAny<IOException>(() => FailingFor(b, checkedPaths).Prune(_ => true));
+        Assert.DoesNotContain(checkedPaths, path => SamePath(path, a));
+    }
+
+    // Issue #257, acceptance 5: Install neither reuses nor creates a legacy-named directory.
+    [Fact]
+    public void InstallNeverReusesOrCreatesALegacyNamedDirectory()
+    {
+        var source = Source("a", "2.10.0.0", "A");
+        var legacy = Path.Combine(_root, "versions", "2.10.0.0-" + DllSha8(source));
+        CopyDirectory(source, legacy);
+        File.WriteAllText(Path.Combine(legacy, "runtimes", "native.dll"), "stale");
+
+        var result = Store().Install(source);
+
+        var expected = Path.Combine(_root, "versions", "2.10.0.0-" + TreeSha8(source));
+        Assert.True(result.Activated);
+        Assert.Equal(expected, result.VersionDirectory.TrimEnd('\\'));
+        Assert.Equal(expected, Target);
+        Assert.Equal("stale", File.ReadAllText(Path.Combine(legacy, "runtimes", "native.dll")));
+        Assert.Equal(new[] { expected, legacy }.Order(StringComparer.OrdinalIgnoreCase),
+            Directory.GetDirectories(Path.Combine(_root, "versions")).Order(StringComparer.OrdinalIgnoreCase));
     }
 
     private static void Junction(string link, string target)
