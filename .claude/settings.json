@@ -110,6 +110,8 @@
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test_distribution_safety.ps1*)",
       "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test_distribution_safety.ps1*)",
       "Bash(scripts/live-smoke/*)",
+      "Bash(python scripts/tests/*)",
+      "PowerShell(python scripts/tests/*)",
       "PowerShell(scripts/start_navisworks.ps1*)",
       "PowerShell(scripts/navishelper_host_smoke.ps1*)",
       "PowerShell(scripts/navishelper_host_stress.ps1*)",

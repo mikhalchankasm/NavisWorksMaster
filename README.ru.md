@@ -19,7 +19,7 @@ $installerAsset = $release.assets |
   Where-Object name -Like "NavisHelperSetup-*.exe" |
   Select-Object -First 1
 $checksumsAsset = $release.assets |
-  Where-Object name -Like "SHA256SUMS-*.txt" |
+  Where-Object name -Like "SHA256SUMS*.txt" |
   Select-Object -First 1
 if (-not $installerAsset -or -not $checksumsAsset) {
   throw "Required release assets were not found."
@@ -32,7 +32,8 @@ $checksums = Join-Path $env:TEMP $checksumsAsset.name
 Invoke-WebRequest $installerAsset.browser_download_url -OutFile $installer
 Invoke-WebRequest $checksumsAsset.browser_download_url -OutFile $checksums
 $line = Get-Content $checksums |
-  Where-Object { $_ -match "\*$([regex]::Escape($installerAsset.name))$" }
+  Where-Object { $_ -match "^\s*[0-9A-Fa-f]{64}\s+\*?$([regex]::Escape($installerAsset.name))\s*$" } |
+  Select-Object -First 1
 $expected = ($line -split "\s+")[0]
 $actual = (Get-FileHash $installer -Algorithm SHA256).Hash
 if (-not $expected -or $actual -ne $expected) {
