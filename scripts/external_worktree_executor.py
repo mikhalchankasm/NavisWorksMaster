@@ -313,7 +313,7 @@ def run(
         redacted_stdout = _scrub_whole(process.stdout, secrets)
         host = _host_changes(provider, home.path, target, root, host_before, host_after, secrets)
         if provider == "codex":
-            host["processControl"] = scan(redacted_stdout, process.process_tree_pids)
+            host["processControl"] = scan(process.stdout, process.process_tree_pids, secrets)
             # Read from the whole stream before the record's tail is cut; only problem codes are kept.
             host["telemetry"] = {"problems": telemetry_problems(
                 process.stdout, timed_out=process.timed_out, output_too_large=process.output_too_large

@@ -46,7 +46,8 @@ def stream(*items: list[dict]) -> str:
     for item in items:
         events.extend(item)
     events.append({"type": "turn.completed", "usage": {"input_tokens": 1}})
-    return "\n".join(json.dumps(event) for event in events) + "\n"
+    # Compact, as Codex writes it: a redaction that eats to the next space then runs past a closing quote.
+    return "\n".join(json.dumps(event, separators=(",", ":")) for event in events) + "\n"
 
 
 class ProcessControlInTheRecord(unittest.TestCase):
@@ -154,6 +155,53 @@ class ProcessControlInTheRecord(unittest.TestCase):
             {"itemId": "item_7", "command": command, "output": "", "pids": [FOREIGN_PID], "inRunTree": False}])
         self.assertIn("PROCESS_STOP_OUTSIDE_RUN", record["hostViolations"])
         self.assertEqual(code, 6)
+
+    def test_the_249_journal_excerpt_flags_only_the_stop(self) -> None:
+        """Items 27, 29 and 30 of the #249 journal, shortened; item_30 exited 0 although the stop failed."""
+        item_27 = ('"C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe" -Command "Get-CimInstance '
+                   'Win32_Process -Filter \\"Name=\'dotnet.exe\'\\" | Select-Object ProcessId,ParentProcessId,CommandLine; '
+                   'git diff --check; git status --short"')
+        item_29 = (POWERSHELL + "'Get-Process dotnet -ErrorAction SilentlyContinue | Select-Object Id,CPU,StartTime; "
+                   "Get-ChildItem artifacts/249-test-temp -Force | Select-Object -First 8 Name,LastWriteTime'")
+        item_30 = (POWERSHELL + "'Stop-Process -Id 43204; $env:DOTNET_CLI_HOME = Join-Path (Get-Location) "
+                   "'\"'artifacts\\\\249-dotnet-home'; \"'dotnet test NavisHelper.McpServer.Tests/"
+                   "NavisHelper.McpServer.Tests.csproj -c Release --filter \"FullyQualifiedName~ServerVersionStoreTests\" "
+                   "--no-restore -nodeReuse:false -m:1 --verbosity normal'")
+        output = "+ CategoryInfo : ObjectNotFound: (43204:Int32) [Stop-Process], ProcessCommandException"
+        journal = stream(command_item("item_27", item_27, "PermissionDenied: (:) [Get-CimInstance], CimException"),
+                         command_item("item_29", item_29, "40908 11:00:42\n43204 11:12:27\n56268 11:00:43"),
+                         command_item("item_30", item_30, output))
+        stop = {"itemId": "item_30", "command": item_30, "output": output, "pids": [43204]}
+        record, code = self.run_codex(journal, frozenset({40100}))
+        self.assertEqual(record["host"]["processControl"], [dict(stop, inRunTree=False)])
+        self.assertEqual((record["hostViolations"], code), (["PROCESS_STOP_OUTSIDE_RUN"], 6))
+        # Had the launcher seen 43204 in the run's own Job - the issue's unproven guess - the stop passes.
+        record, code = self.run_codex(journal, frozenset({40100, 43204}))
+        self.assertEqual(record["host"]["processControl"], [dict(stop, inRunTree=True)])
+        self.assertEqual(code, 0)
+
+    def test_a_token_shape_after_the_stop_neither_hides_it_nor_reaches_the_record(self) -> None:
+        """Review of the executor's scanner: `token=\\S+` redaction eats the event's closing quotes.
+
+        Scanning the redacted stream would drop the whole event as unparsable JSON - a stop missed, a clean
+        run. The events are parsed first and only the kept strings are redacted.
+        """
+        command = POWERSHELL + f"'Stop-Process -Id {FOREIGN_PID}; curl.exe https://x.test -H token=abc123secret'"
+        record, code = self.run_codex(stream(command_item("item_8", command, "authorization: abc123secret")))
+        entries = record["host"]["processControl"]
+        self.assertEqual([(entry["itemId"], entry["pids"], entry["inRunTree"]) for entry in entries],
+                         [("item_8", [FOREIGN_PID], False)])
+        self.assertNotIn("abc123secret", json.dumps(entries))
+        self.assertEqual(code, 6)
+
+    def test_a_credential_the_launcher_collected_is_removed_from_the_entry(self) -> None:
+        from scripts.executor_process_control import scan
+
+        secret = 'plain"tok\\en-7f3a9c2e5b1d40aa'  # a quote and a backslash, escaped inside the JSON line
+        command = POWERSHELL + f"'Stop-Process -Id {FOREIGN_PID}; echo {secret}'"
+        entries = scan(stream(command_item("item_9", command, "printed " + secret)), frozenset(), {secret})
+        self.assertEqual(entries[0]["command"], command.replace(secret, "[REDACTED]"))
+        self.assertEqual(entries[0]["output"], "printed [REDACTED]")
 
     def test_the_violation_is_named_by_the_host_guard(self) -> None:
         stop = {"itemId": "item_1", "command": "taskkill /PID 1 /F", "output": "", "pids": [1], "inRunTree": False}
