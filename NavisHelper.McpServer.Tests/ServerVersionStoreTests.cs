@@ -257,10 +257,12 @@ public sealed class ServerVersionStoreTests : IDisposable
         AssertRecovered(b, a, checkedPaths, a, b);
     }
 
-    [Fact]
-    public void RecoveryRollsBackWhenTheUncommittedTargetFailsItsHealthCheck()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RecoveryReturnsToCommittedVersionWhenTheSwitchTargetFailsItsHealthCheck(bool renamed)
     {
-        var (a, b) = InterruptedSwitch(Interruption.OldLinkDeleted);
+        var (a, b) = InterruptedSwitch(renamed ? Interruption.Renamed : Interruption.OldLinkDeleted);
         var checkedPaths = new List<string>();
         var store = new ServerVersionStore(_root, exe =>
         {
@@ -270,6 +272,18 @@ public sealed class ServerVersionStoreTests : IDisposable
         });
 
         Assert.Empty(store.Prune(_ => true));
+
+        AssertRecovered(a, b, checkedPaths, a, b);
+    }
+
+    [Fact]
+    public void RecoveryDiscardsPendingStateTornWhileBeingWritten()
+    {
+        var (a, b) = InterruptedSwitch(Interruption.StateWritten);
+        File.WriteAllText(StatePath + ".next", "{\"Current\":\"" + b[..5]);
+        var checkedPaths = new List<string>();
+
+        Assert.Empty(Recording(checkedPaths).Prune(_ => true));
 
         AssertRecovered(a, b, checkedPaths, a, b);
     }

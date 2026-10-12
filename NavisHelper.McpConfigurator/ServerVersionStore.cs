@@ -187,6 +187,10 @@ internal sealed class ServerVersionStore
                 foreach (var path in new[] { state.Current, state.Previous })
                     if (path != null) ValidateVersionPath(path);
             }
+            catch (JsonException) when (current != null && !hasPending)
+            {
+                // Torn while writing state.json.next (step 1): the old junction is untouched; discard it.
+            }
             catch (Exception ex) when (ex is JsonException or InvalidDataException or ArgumentException or
                 NotSupportedException or UnauthorizedAccessException)
             {
@@ -196,39 +200,53 @@ internal sealed class ServerVersionStore
 
         if (current != null)
         {
+            // Steps 1, 2 or 4: keep McpServer; commit the pending state only if McpServer already points at it.
+            var commit = state != null && Same(state.Current, current);
+            var healthy = Healthy(current);
+            if (!healthy && commit && CommittedFallback(current) is { } fallback)
+            {
+                DeleteJunction(Link);
+                CreateJunction(Link, fallback);
+                commit = false;
+                healthy = true;
+            }
             DeleteJunction(pending);
             if (hasPendingState)
             {
-                if (Same(state!.Current, current)) File.Move(pendingState, StatePath, overwrite: true);
+                if (commit) File.Move(pendingState, StatePath, overwrite: true);
                 else File.Delete(pendingState);
             }
-        }
-        else
-        {
-            current = pendingTarget ?? state?.Current
-                ?? throw new IOException("Pending MCP activation has no version target.");
-            ValidateVersionPath(current);
-            if ((state != null && !Same(state.Current, current)) || !Directory.Exists(current))
-                throw new IOException("Pending MCP activation does not name one existing version.");
-            // Check before committing: an unhealthy target rolls back to the committed state.
-            if (!_healthCheck(Path.Combine(current, Server + ".exe")))
-            {
-                var committed = ReadState().Current;
-                if (committed == null || !Directory.Exists(committed) ||
-                    !_healthCheck(Path.Combine(committed, Server + ".exe")))
-                    throw new IOException("Recovered MCP server failed its health check.");
-                CreateJunction(Link, committed);
-                DeleteJunction(pending);
-                if (hasPendingState) File.Delete(pendingState);
-                return;
-            }
-            if (pendingTarget != null) Directory.Move(pending, Link);
-            else CreateJunction(Link, current);
-            if (hasPendingState) File.Move(pendingState, StatePath, overwrite: true);
+            if (!healthy) throw new IOException("Recovered MCP server failed its health check.");
             return;
         }
-        if (!_healthCheck(Path.Combine(current, Server + ".exe")))
-            throw new IOException("Recovered MCP server failed its health check.");
+
+        // Step 3: the old junction is gone; finish the switch unless its target fails its health check.
+        current = pendingTarget ?? state?.Current
+            ?? throw new IOException("Pending MCP activation has no version target.");
+        ValidateVersionPath(current);
+        if ((state != null && !Same(state.Current, current)) || !Directory.Exists(current))
+            throw new IOException("Pending MCP activation does not name one existing version.");
+        if (!Healthy(current))
+        {
+            CreateJunction(Link, CommittedFallback(current)
+                ?? throw new IOException("Recovered MCP server failed its health check."));
+            DeleteJunction(pending);
+            if (hasPendingState) File.Delete(pendingState);
+            return;
+        }
+        if (pendingTarget != null) Directory.Move(pending, Link);
+        else CreateJunction(Link, current);
+        if (hasPendingState) File.Move(pendingState, StatePath, overwrite: true);
+    }
+
+    private bool Healthy(string version) => _healthCheck(Path.Combine(version, Server + ".exe"));
+
+    // The committed state.json Current, when it differs from the failed target and passes its check.
+    private string? CommittedFallback(string failed)
+    {
+        var committed = ReadState().Current;
+        return committed != null && !Same(committed, failed) && Directory.Exists(committed) && Healthy(committed)
+            ? committed : null;
     }
 
     private void Activate(State next)
