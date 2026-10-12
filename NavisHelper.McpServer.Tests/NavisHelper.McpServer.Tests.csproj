@@ -34,6 +34,8 @@
              Link="HostServices\ProtectedModeApprovals.cs" />
     <Compile Include="..\NavisHelper\Agent\Services\ProtectedModeGate.cs"
              Link="HostServices\ProtectedModeGate.cs" />
+    <Compile Include="..\NavisHelper\Agent\Services\DocumentInstanceTracker.cs"
+             Link="HostServices\DocumentInstanceTracker.cs" />
     <Compile Include="..\NavisHelper\Core\ClashOperationProtocolReason.cs"
              Link="Core\ClashOperationProtocolReason.cs" />
     <Compile Include="..\NavisHelper\Core\PersistedModelNames.cs"
