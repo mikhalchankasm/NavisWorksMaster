@@ -278,10 +278,26 @@ internal sealed class ServerVersionStore
     }
 
     // A stored tree counts as healthy only if it still matches its version name and passes its check.
+    // Recovery also accepts the #244 name (<version>-<sha8 of the server dll>) so it can roll back to a
+    // version installed before #253; Install never creates or reuses such a name (VerifyVersion).
     private bool Healthy(string version)
     {
-        try { VerifyVersion(version); }
-        catch (Exception ex) when (ex is IOException or InvalidDataException) { return false; }
+        try
+        {
+            var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(version));
+            var treeName = VersionName(version);
+            if (!string.Equals(treeName, name, StringComparison.Ordinal))
+            {
+                using var dll = File.OpenRead(Path.Combine(version, Server + ".dll"));
+                var hash = Convert.ToHexString(SHA256.HashData(dll))[..8].ToLowerInvariant();
+                if (!string.Equals(treeName[..^8] + hash, name, StringComparison.Ordinal))
+                    return false;
+                // Legacy DLL hash plus health check confirm only an unchanged main DLL and server startup.
+                // This rollback compatibility path does not guarantee the integrity of the other files.
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or
+            UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException) { return false; }
         return _healthCheck(Path.Combine(version, Server + ".exe"));
     }
 
