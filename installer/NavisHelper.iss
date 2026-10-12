@@ -53,7 +53,7 @@ Type: files; Name: "{group}\Обнаружить MCP-клиенты.lnk"
 #endif
 
 [Files]
-Source: "{#SourceDir}\McpServer\*"; DestDir: "{app}\McpServer"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\McpServer\*"; DestDir: "{app}\McpServerPayload"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceDir}\McpConfigurator\*"; DestDir: "{app}\McpConfigurator"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceDir}\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceDir}\tools\*"; DestDir: "{app}\tools"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -83,8 +83,37 @@ Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{#BundleInstallDir}"
+Type: filesandordirs; Name: "{app}\versions"
 
 [Code]
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+  Installed: Boolean;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    Installed := Exec(ExpandConstant('{app}\McpConfigurator\NavisHelper.McpConfigurator.exe'),
+      '--install-server "' + ExpandConstant('{app}\McpServerPayload') + '" --install-root "' + ExpandConstant('{app}') + '"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    if Installed then
+      Installed := ResultCode = 0;
+    if Installed then
+      DelTree(ExpandConstant('{app}\McpServerPayload'), True, True, True)
+    else
+      MsgBox(ExpandConstant('{cm:McpServerActivationFailed}'), mbError, MB_OK);
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    { Remove the junction itself before deleting stored versions. }
+    RemoveDir(ExpandConstant('{app}\McpServer'));
+  end;
+end;
+
 function IsProcessRunning(ProcessName: string): Boolean;
 var
   ResultCode: Integer;
@@ -195,12 +224,14 @@ end;
 english.ConfigureMcpClients=Optional: configure detected MCP client configs
 english.ConfigureMcpShortcut=Configure detected MCP clients
 english.DetectMcpShortcut=Detect MCP clients
+english.McpServerActivationFailed=The NavisHelper MCP server could not be activated. Close running MCP clients (Claude, Codex, Cursor) and run this installer again. The previous server stays active; the new files are kept in {app}\McpServerPayload.
 english.CloseNavisworksBeforeInstall=Close Autodesk Navisworks before installing. The Navisworks process is still running.
 english.DotNet9RuntimeRequired=NavisHelper requires .NET 9 Runtime for its MCP server. Open the official Microsoft download page now? After installation, run this installer again. Choose No to cancel and install it later.
 english.LegacyMachineWideInstallDetected=A previous machine-wide NavisHelper installation was found in Program Files or ProgramData. This installer supports per-user folders only and cannot safely remove protected legacy files. From the release ZIP or repository, run tools\remove_machinewide_bundle.ps1 -Force in an elevated PowerShell, then run this installer again.
 russian.ConfigureMcpClients=Необязательно: настроить конфиги обнаруженных MCP-клиентов
 russian.ConfigureMcpShortcut=Настроить обнаруженные MCP-клиенты
 russian.DetectMcpShortcut=Обнаружить MCP-клиенты
+russian.McpServerActivationFailed=Не удалось активировать MCP-сервер NavisHelper. Закройте запущенные MCP-клиенты (Claude, Codex, Cursor) и запустите установщик ещё раз. Прежний сервер продолжает работать; новые файлы сохранены в {app}\McpServerPayload.
 russian.CloseNavisworksBeforeInstall=Перед установкой нужно закрыть Autodesk Navisworks. Сейчас процесс Navisworks ещё запущен.
 russian.DotNet9RuntimeRequired=Для MCP-сервера NavisHelper нужен .NET 9 Runtime. Открыть официальную страницу Microsoft для скачивания? После установки запустите этот installer заново. Нажмите «Нет», чтобы отменить установку и поставить Runtime позже.
 russian.LegacyMachineWideInstallDetected=Обнаружена предыдущая системная установка NavisHelper в Program Files или ProgramData. Этот installer поддерживает только пользовательские папки и не может безопасно удалить защищённые старые файлы. В elevated PowerShell из release ZIP или репозитория выполните tools\remove_machinewide_bundle.ps1 -Force, затем запустите installer ещё раз.

@@ -51,7 +51,7 @@ When a legacy NavisHelper bundle or installation root is present under `ProgramD
 
 For local developer verification after a build, use `tools\install_local_bundle.ps1` from the repository instead of manually copying files into Autodesk folders. It installs only to `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle` and does not require admin rights. Remove any legacy system-wide copy before installing.
 
-For local MCP server verification after a build, use `tools\install_local_mcp_server.ps1`. It installs only to `%LOCALAPPDATA%\NavisHelper\McpServer-<version>` without admin rights and never stops a running `NavisHelper.McpServer.exe`; a same-version reinstall with an active process fails with an explicit restart instruction.
+For local MCP server verification, build both the server and configurator in Release, then use `tools\install_local_mcp_server.ps1`. It invokes the built configurator's `--install-server` on `NavisHelper.McpServer\bin\Release\net9.0` and prints its JSON result. Missing builds and failed installation produce explicit errors. `-Source` overrides the server source; `-Destination` becomes `--install-root`, restricted to `%LOCALAPPDATA%\NavisHelper` and its subdirectories. Activation validation is mandatory; `-SkipVersionCheck` is removed. See [Version store commands](#version-store-commands) for layout and activation behavior.
 
 ## Windows Installer
 
@@ -66,7 +66,7 @@ This script:
 - builds a full distribution package;
 - compiles `installer\NavisHelper.iss`;
 - installs the Autodesk bundle into `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle`;
-- installs MCP binaries into `%LOCALAPPDATA%\NavisHelper`;
+- stages MCP binaries in `{app}\McpServerPayload` and activates them through `McpConfigurator --install-server` in the selected installation root;
 - offers an unchecked Finish-page action to configure detected MCP clients for the current user.
 
 The plugin and MCP binaries are fully installed when that action remains unchecked. If the user selects it, the installer runs `McpConfigurator --configure --clients all` without `--create-missing`: it may create or update a config file inside each detected client's existing user directory, while missing client applications and their config roots are skipped. The same safe command is available later from the `Configure detected MCP clients` Start-menu shortcut. Creating missing client config roots requires this deliberate manual command:
@@ -77,7 +77,7 @@ The plugin and MCP binaries are fully installed when that action remains uncheck
 
 Inno Setup 6 must be installed on the release machine. Longer term, a WiX/MSI package is still the better enterprise target, but Inno is the fastest native Windows `.exe` path for the first external users.
 
-The Inno uninstaller removes `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle` wholesale. Do not place user-edited files inside that bundle directory.
+The Inno uninstaller removes the `McpServer` junction itself before deleting `{app}\versions`, keeps the existing client-removal command, and removes `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle` wholesale. Do not place user-edited files inside that bundle directory.
 
 Release-quality installer requirements:
 
@@ -141,8 +141,7 @@ CI runs the fixture-only acceptance tests with
 
 ### Version store commands
 
-The configurator can manage server copies independently of the installer and
-developer scripts (their integration is a separate change):
+The installer and developer script use the configurator to manage server copies:
 
 ```powershell
 .\McpConfigurator\NavisHelper.McpConfigurator.exe --install-server <sourceDir> [--install-root <dir>]
@@ -157,6 +156,15 @@ reuses identical versions, and checks stdio initialization and a nonempty tool
 list within 30 seconds before activating the `McpServer` directory junction.
 Client configuration uses the stable path
 `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe`.
+The installer stages files in `{app}\McpServerPayload`, then runs
+`--install-server "{app}\McpServerPayload" --install-root "{app}"` at `ssPostInstall`,
+hidden and waiting for completion, including in smoke builds. Only a successful
+exit deletes the payload; failure displays a localized English/Russian error and
+retains it for retry. Finish-page configuration and Start-menu shortcuts keep the
+stable junction path. Existing stdio processes keep their loaded version until
+the MCP client restarts or reloads.
+The ZIP package flow still uses `McpServer-<version>`; migrating it and its package
+smoke is the next step.
 A failed health check removes only a newly copied version and leaves activation
 unchanged. A legacy real `McpServer` directory is moved into the version store;
 if that move is blocked, close MCP clients and retry.
