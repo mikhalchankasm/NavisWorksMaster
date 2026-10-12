@@ -55,6 +55,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to save selection memory slot: " + ex, "SelectionSectionBox");
                 MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Selection_Memory_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -89,6 +90,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Warn("Failed to recall selection memory slot: " + ex, "SelectionSectionBox");
                 MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Selection_Memory_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -186,6 +188,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Warn("Failed to copy selection bounds: " + ex, "SelectionSectionBox");
                 SetGlobalStatusResource(
                     "Panel_Selection_BoundsFailed_Format",
                     Brushes.Red,
@@ -249,6 +252,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to apply selection section box: " + ex, "SelectionSectionBox");
                 MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Selection_SectionBox_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -272,8 +276,9 @@ namespace NavisHelper.WPF
 
                         ApplySelectionSectionBox(false);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Logger.Warn("Failed to refresh selection section box: " + ex, "SelectionSectionBox");
                     }
                 };
             }
@@ -480,12 +485,15 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to reset selection section box: " + ex, "SelectionSectionBox");
                 MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Selection_SectionBox_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void ExportSelectedPropertiesToExcelLikeFile()
         {
+            using (var failures = new PanelCatchLog("Selected property export reads", "NavisHelperPanel"))
+            {
             try
             {
                 var doc = NwApplication.ActiveDocument;
@@ -528,10 +536,10 @@ namespace NavisHelper.WPF
                         {
                             if (property == null) continue;
                             string propertyName;
-                            try { propertyName = property.DisplayName; } catch { propertyName = "(property)"; }
+                            try { propertyName = property.DisplayName; } catch (Exception ex) { failures.Add(ex); propertyName = "(property)"; }
                             if (string.IsNullOrWhiteSpace(propertyName)) propertyName = property.Name ?? "(property)";
                             string value = string.Empty;
-                            try { var variant = property.Value; value = variant == null ? string.Empty : variant.ToDisplayString() ?? string.Empty; } catch { }
+                            try { var variant = property.Value; value = variant == null ? string.Empty : variant.ToDisplayString() ?? string.Empty; } catch (Exception ex) { failures.Add(ex); }
                             lines.Add($"{EscapeCsv(path)};{EscapeCsv(display)};{EscapeCsv(categoryName)};{EscapeCsv(propertyName)};{EscapeCsv(value)}");
                         }
                     }
@@ -545,7 +553,9 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to export selected properties: " + ex, "SelectionSectionBox");
                 MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Selection_ExportProperties_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
+            }
             }
         }
     }

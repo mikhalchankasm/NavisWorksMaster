@@ -186,6 +186,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Warn("Failed to load Clash tests: " + ex, "ClashUI");
                 SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
             }
         }
@@ -408,8 +409,9 @@ namespace NavisHelper.WPF
                     dynamic dyn = row;
                     name = dyn.Name as string;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Logger.Warn("Failed to read preview Clash row name: " + ex, "ClashUI");
                 }
 
                 ApplyCurrentClashPreviewSettings();
@@ -447,6 +449,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Warn("Failed to preview selected Clash: " + ex, "ClashUI");
                 SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
             }
         }
@@ -501,8 +504,9 @@ namespace NavisHelper.WPF
 
                         PreviewSelectedClash();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Logger.Warn("Failed to refresh Clash preview: " + ex, "ClashUI");
                     }
                 };
             }
@@ -592,6 +596,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Warn("Failed to draw selected Clash center markers: " + ex, "ClashUI");
                 SetGlobalStatusResource("Panel_Clash_Markers_Failed_Format", Brushes.Red, ex.Message);
             }
         }
@@ -623,6 +628,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to save manual Clash viewpoint: " + ex, "ClashUI");
                 SetGlobalStatusResource("Panel_Clash_Viewpoint_Failed_Format", Brushes.Red, ex.Message);
             }
         }
@@ -643,8 +649,9 @@ namespace NavisHelper.WPF
                         return NormalizeSavedItemName(name, "Manual Clash View");
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to read manual Clash viewpoint name: " + ex, "ClashUI");
             }
 
             return "Manual Clash View " + DateTime.Now.ToString("yyyyMMdd HHmmss", CultureInfo.InvariantCulture);
@@ -687,6 +694,8 @@ namespace NavisHelper.WPF
             IList<Point3D> centers,
             out UiStatusResourceDescriptor debug)
         {
+            using (var failures = new PanelCatchLog("Clash center projection", "ClashUI"))
+            {
             debug = null;
             if (doc == null || doc.ActiveView == null || centers == null || centers.Count == 0)
                 return 0;
@@ -708,14 +717,14 @@ namespace NavisHelper.WPF
 
                 ProjectionResult projection = null;
                 try { projection = view.ProjectPoint(center, false, false); }
-                catch { }
+                catch (Exception ex) { failures.Add(ex); }
 
                 if (projection == null)
                     continue;
 
                 Point2D cameraSpace;
                 try { cameraSpace = LcOpRedline.ScreenToCameraSpace(view.Viewer, projection.X, projection.Y); }
-                catch { continue; }
+                catch (Exception ex) { failures.Add(ex); continue; }
 
                 if (!IsFinite(cameraSpace.X) || !IsFinite(cameraSpace.Y))
                     continue;
@@ -750,6 +759,7 @@ namespace NavisHelper.WPF
                 drawn,
                 centers.Count);
             return drawn;
+            }
         }
 
         private static double[] GetRedlineMarkerRadii(Autodesk.Navisworks.Api.View activeView, int pixels)
@@ -774,8 +784,9 @@ namespace NavisHelper.WPF
 
                 return new[] { unitX * pixels, unitY * pixels };
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to calculate redline marker radii: " + ex, "ClashUI");
                 return new[] { 0.03, 0.03 };
             }
         }
@@ -795,7 +806,7 @@ namespace NavisHelper.WPF
                 RedlineJsonSanitizer.SetSupportedRedlines(doc.ActiveView, "{\"Type\":\"RedlineCollection\",\"Version\":1,\"Values\":[]}", null);
                 doc.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All);
             }
-            catch { }
+            catch (Exception ex) { Logger.Error("Failed to clear active view redlines: " + ex, "ClashUI"); }
         }
     }
 }

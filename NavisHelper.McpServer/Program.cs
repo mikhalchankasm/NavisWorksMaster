@@ -71,6 +71,7 @@ var resolvedTools = host.Services.GetServices<McpServerTool>().ToList();
 readOnlyMode.VerifyRegisteredTools(resolvedTools);
 McpToolAnnotations.Apply(resolvedTools);
 var normalization = McpToolSchemaCompatibility.Normalize(resolvedTools);
+McpToolSchemaCompaction.Apply(resolvedTools);
 McpToolArgumentValidationFilter.Initialize(resolvedTools);
 var loggerFactory = host.Services.GetRequiredService<ILoggerFactory>();
 loggerFactory

@@ -23,6 +23,8 @@ namespace NavisHelper.WPF
     {
         private void CreateClashOrbitGif()
         {
+            using (var failures = new PanelCatchLog("Clash orbit frame preparation", "ClashUI"))
+            {
             var doc = NwApplication.ActiveDocument;
             if (doc == null || doc.IsClear || doc.CurrentViewpoint == null)
             {
@@ -59,8 +61,9 @@ namespace NavisHelper.WPF
                 dynamic dyn = row;
                 rowName = dyn.Name as string;
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to read Clash orbit row name: " + ex, "ClashUI");
             }
 
             var defaultGifName = NormalizeSavedItemName(
@@ -117,19 +120,19 @@ namespace NavisHelper.WPF
                     var frameViewpoint = baseViewpoint.CreateCopy();
                     var framePosition = new Point3D(center.X + rotated[0], center.Y + rotated[1], center.Z + rotated[2]);
                     frameViewpoint.Position = framePosition;
-                    ResetViewpointOffsets(frameViewpoint);
+                    ResetViewpointOffsets(frameViewpoint, failures);
                     frameViewpoint.PointAt(center);
-                    try { frameViewpoint.AlignUp(new Vector3D(0, 0, 1)); } catch { }
+                    try { frameViewpoint.AlignUp(new Vector3D(0, 0, 1)); } catch (Exception ex) { failures.Add(ex); }
                     frameViewpoint.FocalDistance = Distance(framePosition, center);
                     doc.CurrentViewpoint.CopyFrom(frameViewpoint);
-                    try { doc.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All); } catch { }
-                    PumpDispatcherOnce();
+                    try { doc.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All); } catch (Exception ex) { failures.Add(ex); }
+                    PumpDispatcherOnce(failures);
                     Thread.Sleep(75);
-                    PumpDispatcherOnce();
+                    PumpDispatcherOnce(failures);
 
                     var framePath = Path.Combine(framesDir, "frame_" + i.ToString("000", CultureInfo.InvariantCulture) + ".bmp");
                     string warning;
-                    if (!TryCaptureCurrentViewImage(framePath, out warning))
+                    if (!TryCaptureCurrentViewImage(framePath, out warning, failures))
                         throw new InvalidOperationException(
                             UiLocalizationService.Current.Format(
                                 "Panel_Clash_Gif_FrameFailed_Format",
@@ -150,15 +153,15 @@ namespace NavisHelper.WPF
                 gifCreated = true;
                 doc.CurrentViewpoint.CopyFrom(baseViewpoint);
                 SetGlobalStatusResource("Panel_Clash_Gif_Created_Format", Brushes.DarkGreen, gifPath);
-                try { Process.Start("explorer.exe", "/select,\"" + gifPath + "\""); } catch { }
+                try { Process.Start("explorer.exe", "/select,\"" + gifPath + "\""); } catch (Exception ex) { Logger.Warn("Failed to open Clash GIF in Explorer: " + ex, "ClashUI"); }
             }
             finally
             {
                 if (progress != null)
                 {
-                    try { NwApplication.EndProgress(); } catch { }
+                    try { NwApplication.EndProgress(); } catch (Exception ex) { Logger.Warn("Failed to end Clash GIF progress: " + ex, "ClashUI"); }
                 }
-                try { doc.CurrentViewpoint.CopyFrom(baseViewpoint); } catch { }
+                try { doc.CurrentViewpoint.CopyFrom(baseViewpoint); } catch (Exception ex) { Logger.Error("Failed to restore viewpoint after Clash GIF export: " + ex, "ClashUI"); }
                 try
                 {
                     if (gifCreated)
@@ -173,15 +176,20 @@ namespace NavisHelper.WPF
                         Directory.Delete(outputDir, true);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Logger.Warn("Failed to clean up Clash GIF temporary files: " + ex, "ClashUI");
                 }
                 interactiveBusy.Dispose();
             }
+            }
         }
 
-        private static void PumpDispatcherOnce()
+        private static void PumpDispatcherOnce(PanelCatchLog failures = null)
         {
+            using (var localFailures = failures == null ? new PanelCatchLog("Dispatcher refresh", "ClashUI") : null)
+            {
+            failures = failures ?? localFailures;
             try
             {
                 var frame = new DispatcherFrame();
@@ -195,8 +203,10 @@ namespace NavisHelper.WPF
                     frame);
                 Dispatcher.PushFrame(frame);
             }
-            catch
+            catch (Exception ex)
             {
+                failures.Add(ex);
+            }
             }
         }
 
@@ -231,15 +241,15 @@ namespace NavisHelper.WPF
             return Math.Sqrt(dx * dx + dy * dy + dz * dz);
         }
 
-        private static void ResetViewpointOffsets(Viewpoint viewpoint)
+        private static void ResetViewpointOffsets(Viewpoint viewpoint, PanelCatchLog failures)
         {
-            try { viewpoint.RightOffsetAtFocalDistance = 0; } catch { }
-            try { viewpoint.UpOffsetAtFocalDistance = 0; } catch { }
-            try { viewpoint.RightOffsetFactor = 0; } catch { }
-            try { viewpoint.UpOffsetFactor = 0; } catch { }
+            try { viewpoint.RightOffsetAtFocalDistance = 0; } catch (Exception ex) { failures.Add(ex); }
+            try { viewpoint.UpOffsetAtFocalDistance = 0; } catch (Exception ex) { failures.Add(ex); }
+            try { viewpoint.RightOffsetFactor = 0; } catch (Exception ex) { failures.Add(ex); }
+            try { viewpoint.UpOffsetFactor = 0; } catch (Exception ex) { failures.Add(ex); }
         }
 
-        private static bool TryCaptureCurrentViewImage(string outputPath, out string warning)
+        private static bool TryCaptureCurrentViewImage(string outputPath, out string warning, PanelCatchLog failures)
         {
             warning = string.Empty;
             object optionsObject = null;
@@ -260,7 +270,7 @@ namespace NavisHelper.WPF
                     }
                     finally
                     {
-                        ReleaseComObjectIfNeeded(opt, "image export option property");
+                        ReleaseComObjectIfNeeded(opt, "image export option property", failures);
                     }
                 }
 
@@ -275,17 +285,18 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                failures.Add(ex);
                 warning = ex.Message;
                 return false;
             }
             finally
             {
-                ReleaseComObjectIfNeeded(propertiesObject, "image export options collection");
-                ReleaseComObjectIfNeeded(optionsObject, "image export options");
+                ReleaseComObjectIfNeeded(propertiesObject, "image export options collection", failures);
+                ReleaseComObjectIfNeeded(optionsObject, "image export options", failures);
             }
         }
 
-        private static void ReleaseComObjectIfNeeded(object value, string context)
+        private static void ReleaseComObjectIfNeeded(object value, string context, PanelCatchLog failures)
         {
             if (value == null)
                 return;
@@ -297,12 +308,14 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
-                Logger.Error("Failed to release COM object " + (context ?? string.Empty) + ": " + ex.Message, "ClashUI");
+                failures.Add(ex);
             }
         }
 
         private static void WriteAnimatedGif(IEnumerable<string> framePaths, string outputPath, ushort frameDelay)
         {
+            using (var failures = new PanelCatchLog("Clash GIF frame metadata", "ClashUI"))
+            {
             var encoder = new GifBitmapEncoder();
             foreach (var framePath in framePaths)
             {
@@ -321,8 +334,9 @@ namespace NavisHelper.WPF
                     metadata.SetQuery("/grctlext/Disposal", (byte)2);
                     frame = BitmapFrame.Create(image, null, metadata, null);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    failures.Add(ex);
                     frame = BitmapFrame.Create(image);
                 }
 
@@ -331,6 +345,7 @@ namespace NavisHelper.WPF
 
             using (var stream = File.Create(outputPath))
                 encoder.Save(stream);
+            }
         }
     }
 }

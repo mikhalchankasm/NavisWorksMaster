@@ -683,7 +683,7 @@ namespace NavisHelper.WPF
                 _clashGroupMarkersForViewpoints.IsChecked = cs.UseGroupCenterMarkersForViewpoints;
                 _clashTransSlider.Value = cs.TransparencyPercent;
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn("Failed to load Clash tab settings: " + ex, "ClashUI"); }
 
             var tab = new TabItem { Content = root };
             _panelLocalizationBindings.BindHeader(tab, "Panel_Tab_Clashes");

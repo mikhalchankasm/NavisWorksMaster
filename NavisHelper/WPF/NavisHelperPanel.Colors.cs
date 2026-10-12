@@ -126,7 +126,7 @@ namespace NavisHelper.WPF
                 AIConfig.Instance.SetColorScheme((int)scheme);
                 NwApplication.Plugins.ExecuteAddInPlugin("AIColorObjects.CBC");
             }
-            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { Logger.Error("Failed to apply color scheme: " + ex, "NavisHelperPanel"); MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         private void OnApplyLocalPalette(object sender, RoutedEventArgs e)
@@ -355,7 +355,7 @@ namespace NavisHelper.WPF
                         PanelUi("Panel_Colors_Ai_Title"));
                 }
             }
-            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_SaveFailed_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { Logger.Error("Failed to save AI response: " + ex, "NavisHelperPanel"); MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_SaveFailed_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         // ============================================================
@@ -405,7 +405,7 @@ namespace NavisHelper.WPF
                 if (_matchTransText != null)
                     _matchTransText.Text = ((int)(_matchTransparency * 100)).ToString() + "%";
             }
-            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Match_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { Logger.Warn("Failed to read selected object color: " + ex, "NavisHelperPanel"); MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Match_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         private void OnPickAndApplyColor()
@@ -419,6 +419,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to pick and apply color: " + ex, "NavisHelperPanel");
                 MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Match_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -441,6 +442,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Warn("Failed to parse manual color: " + ex, "NavisHelperPanel");
                 SetGlobalStatusResource("Panel_Colors_Match_ParseFailed_Format", Brushes.DarkRed, ex.Message);
             }
         }
@@ -464,6 +466,8 @@ namespace NavisHelper.WPF
 
         private void OnColorByProperty()
         {
+            using (var failures = new PanelCatchLog("Selected model property reads", "NavisHelperPanel"))
+            {
             try
             {
                 var doc = NwApplication.ActiveDocument;
@@ -483,7 +487,7 @@ namespace NavisHelper.WPF
                 foreach (var item in selection)
                 {
                     if (item == null) continue;
-                    string value = FindPropertyValue(item, PropertyAliases);
+                    string value = FindPropertyValue(item, PropertyAliases, failures);
                     if (string.IsNullOrWhiteSpace(value))
                         value = PanelUi("Panel_Colors_Property_NoValue");
 
@@ -532,7 +536,9 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to color selected items by property: " + ex, "NavisHelperPanel");
                 MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Property_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
+            }
             }
         }
 
@@ -546,13 +552,14 @@ namespace NavisHelper.WPF
                 _selMgr.ResetOverrides();
                 _selMgr.ResetView();
                 _clashMgr.ResetView();
-                try { doc.CurrentSelection.Clear(); } catch { }
-                try { doc.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All); } catch { }
+                try { doc.CurrentSelection.Clear(); } catch (Exception ex) { Logger.Warn("Failed to clear selection after resetting overrides: " + ex, "NavisHelperPanel"); }
+                try { doc.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All); } catch (Exception ex) { Logger.Warn("Failed to redraw after resetting overrides: " + ex, "NavisHelperPanel"); }
 
                 SetGlobalStatusResource("Panel_Colors_OverridesReset", Brushes.DarkGreen);
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to reset model overrides: " + ex, "NavisHelperPanel");
                 MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Overrides_Title"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -828,7 +835,7 @@ namespace NavisHelper.WPF
                 if (selected != null && selected.Count > 0 && selected.First != null)
                     value = selected.First.DisplayName ?? string.Empty;
             }
-            catch { value = string.Empty; }
+            catch (Exception ex) { Logger.Warn("Failed to read default Search Set value: " + ex, "NavisHelperPanel"); value = string.Empty; }
 
             var setName = string.IsNullOrWhiteSpace(value)
                 ? "Search Set " + DateTime.Now.ToString("yyyy-MM-dd HH-mm", CultureInfo.InvariantCulture)
@@ -864,8 +871,9 @@ namespace NavisHelper.WPF
             {
                 return string.Equals(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, "ru", StringComparison.OrdinalIgnoreCase);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to read UI culture: " + ex, "NavisHelperPanel");
                 return false;
             }
         }
@@ -1094,7 +1102,7 @@ namespace NavisHelper.WPF
                 if (_matchTransCheck?.IsChecked == true && _matchTransparency >= 0)
                     doc.Models.OverridePermanentTransparency(sel, _matchTransparency);
             }
-            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Match_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { Logger.Error("Failed to apply selected color: " + ex, "NavisHelperPanel"); MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Match_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         // ============================================================
@@ -1172,7 +1180,7 @@ namespace NavisHelper.WPF
 
                 SelectFromHistory(entry);
             }
-            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { Logger.Warn("Failed to select color history items: " + ex, "NavisHelperPanel"); MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         private void OnRecolorFromHistory(object sender, RoutedEventArgs e)
@@ -1187,7 +1195,7 @@ namespace NavisHelper.WPF
                 SelectFromHistory(entry);
                 OnApplyColorScheme(sender, e);
             }
-            catch (Exception ex) { MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { Logger.Error("Failed to recolor history items: " + ex, "NavisHelperPanel"); MessageBox.Show(UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message), PanelUi("Panel_Colors_Ai_Title"), MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         /// <summary>
@@ -1405,7 +1413,7 @@ namespace NavisHelper.WPF
             return result;
         }
 
-        private static string FindPropertyValue(ModelItem item, (string Category, string Name)[] aliases)
+        private static string FindPropertyValue(ModelItem item, (string Category, string Name)[] aliases, PanelCatchLog failures)
         {
             if (item == null) return null;
             if (item.PropertyCategories == null) return null;
@@ -1433,7 +1441,7 @@ namespace NavisHelper.WPF
                             continue;
 
                         string value = null;
-                        try { value = prop.Value?.ToDisplayString(); } catch { try { value = prop.Value?.ToString(); } catch { value = null; } }
+                        try { value = prop.Value?.ToDisplayString(); } catch (Exception ex) { failures.Add(ex); try { value = prop.Value?.ToString(); } catch (Exception fallbackEx) { failures.Add(fallbackEx); value = null; } }
                         if (string.IsNullOrWhiteSpace(value))
                             continue;
                         return value.Trim();
@@ -1476,7 +1484,7 @@ namespace NavisHelper.WPF
                 if (property == null) return string.Empty;
                 return (property.GetValue(clash, null) as string) ?? string.Empty;
             }
-            catch { return string.Empty; }
+            catch (Exception ex) { Logger.Warn("Failed to read Clash assignment: " + ex, "NavisHelperPanel"); return string.Empty; }
         }
 
         private static string EncodeXml(string value)
@@ -1486,7 +1494,7 @@ namespace NavisHelper.WPF
             {
                 return System.Security.SecurityElement.Escape(value) ?? string.Empty;
             }
-            catch { return value ?? string.Empty; }
+            catch (Exception ex) { Logger.Warn("Failed to encode XML value: " + ex, "NavisHelperPanel"); return value ?? string.Empty; }
         }
 
         private static string SanitizeFileName(string value)

@@ -36,10 +36,39 @@ using NwColor = Autodesk.Navisworks.Api.Color;
 
 namespace NavisHelper.WPF
 {
+    // Owns one operation's best-effort failures; helpers share it across item loops.
+    internal sealed class PanelCatchLog : IDisposable
+    {
+        private readonly string _operation;
+        private readonly string _context;
+        private int _count;
+        private Exception _first;
+
+        public PanelCatchLog(string operation, string context)
+        {
+            _operation = operation;
+            _context = context;
+        }
+
+        public void Add(Exception exception)
+        {
+            _count++;
+            if (_first == null) _first = exception;
+        }
+
+        public void Dispose()
+        {
+            if (_count > 0)
+                Logger.Warn(_operation + ": " + _count + " failures; first: " + _first, _context);
+        }
+    }
+
     public partial class NavisHelperPanel : UserControl
     {
         private void SelectClashResultItems(ClashResultSelectionMode mode)
         {
+            using (var failures = new PanelCatchLog("Clash model selection resolution", "ClashUI"))
+            {
             var doc = NwApplication.ActiveDocument;
             if (doc == null || doc.IsClear)
             {
@@ -58,14 +87,14 @@ namespace NavisHelper.WPF
             foreach (var result in results)
             {
                 if (mode == ClashResultSelectionMode.ItemA || mode == ClashResultSelectionMode.Both)
-                    AddClashSideItems(selection, result.Item1, result.Selection1);
+                    AddClashSideItems(selection, result.Item1, result.Selection1, failures);
                 if (mode == ClashResultSelectionMode.ItemB || mode == ClashResultSelectionMode.Both)
-                    AddClashSideItems(selection, result.Item2, result.Selection2);
+                    AddClashSideItems(selection, result.Item2, result.Selection2, failures);
             }
 
             if (selection.Count == 0)
             {
-                try { doc.CurrentSelection.Clear(); } catch { }
+                try { doc.CurrentSelection.Clear(); } catch (Exception ex) { Logger.Warn("Failed to clear missing Clash selection: " + ex, "ClashUI"); }
                 SetGlobalStatusResource(
                     "Panel_Clash_SelectionNotFound_Format",
                     Brushes.Orange,
@@ -85,28 +114,33 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Warn("Failed to select Clash result items: " + ex, "ClashUI");
                 SetGlobalStatusResource("Panel_Clash_SelectionFailed_Format", Brushes.Red, ex.Message);
+            }
             }
         }
 
-        private static void AddClashSideItems(ModelItemCollection target, ModelItem primaryItem, ModelItemCollection sideItems)
+        private static void AddClashSideItems(ModelItemCollection target, ModelItem primaryItem, ModelItemCollection sideItems, PanelCatchLog failures)
         {
             if (sideItems != null && sideItems.Count > 0)
             {
                 foreach (var item in sideItems)
-                    AddSelectableModelItem(target, item);
+                    AddSelectableModelItem(target, item, failures);
                 return;
             }
 
-            AddSelectableModelItem(target, primaryItem);
+            AddSelectableModelItem(target, primaryItem, failures);
         }
 
-        private static bool AddSelectableModelItem(ModelItemCollection target, ModelItem item)
+        private static bool AddSelectableModelItem(ModelItemCollection target, ModelItem item, PanelCatchLog failures = null)
         {
+            using (var localFailures = failures == null ? new PanelCatchLog("Clash model selection resolution", "ClashUI") : null)
+            {
+            failures = failures ?? localFailures;
             if (target == null || item == null)
                 return false;
 
-            var selectable = ResolveSelectableModelItem(item);
+            var selectable = ResolveSelectableModelItem(item, failures);
             if (selectable == null)
                 return false;
 
@@ -114,9 +148,10 @@ namespace NavisHelper.WPF
                 target.Add(selectable);
 
             return true;
+            }
         }
 
-        private static ModelItem ResolveSelectableModelItem(ModelItem item)
+        private static ModelItem ResolveSelectableModelItem(ModelItem item, PanelCatchLog failures)
         {
             var current = item;
             while (current != null)
@@ -126,8 +161,9 @@ namespace NavisHelper.WPF
                 {
                     parent = current.Parent;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    failures.Add(ex);
                     return null;
                 }
 
@@ -139,8 +175,9 @@ namespace NavisHelper.WPF
                     var ignored = current.DisplayName;
                     return current;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    failures.Add(ex);
                     current = parent;
                 }
             }
@@ -268,8 +305,9 @@ namespace NavisHelper.WPF
                 if (result != null)
                     results.Add(result);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to read Clash result row: " + ex, "ClashUI");
             }
 
             return results;
@@ -472,17 +510,19 @@ namespace NavisHelper.WPF
 
         private List<ClashResultGridRow> BuildClashGridRows(IEnumerable<ClashResult> results, ClashGroupingSide groupingSide)
         {
+            using (var failures = new PanelCatchLog("Clash grid model data", "ClashUI"))
+            {
             var source = results == null
                 ? new List<ClashResult>()
                 : results.Where(result => result != null).ToList();
 
             if (_virtualClashGroups.Count > 0)
-                return BuildVirtualClashGridRows(source);
+                return BuildVirtualClashGridRows(source, failures);
 
             source = source.Where(PassesClashFilters).ToList();
 
             if (groupingSide == ClashGroupingSide.None)
-                return source.Select(CreateRawClashGridRow)
+                return source.Select(result => CreateRawClashGridRow(result, failures))
                     .OrderBy(row => row.Name ?? string.Empty, NaturalStringComparer.Instance)
                     .ToList();
 
@@ -491,11 +531,11 @@ namespace NavisHelper.WPF
 
             foreach (var result in source)
             {
-                var ancestor = ResolveClashGroupingAncestor(result, groupingSide, _clashGroupingPath);
-                var key = BuildModelItemPath(ancestor);
+                var ancestor = ResolveClashGroupingAncestor(result, groupingSide, _clashGroupingPath, failures);
+                var key = BuildModelItemPath(ancestor, failures);
                 if (ancestor == null || string.IsNullOrWhiteSpace(key))
                 {
-                    rawRows.Add(CreateRawClashGridRow(result));
+                    rawRows.Add(CreateRawClashGridRow(result, failures));
                     continue;
                 }
 
@@ -517,17 +557,18 @@ namespace NavisHelper.WPF
             {
                 if (bucket.Results.Count <= 1)
                 {
-                    rows.Add(CreateRawClashGridRow(bucket.Results[0]));
+                    rows.Add(CreateRawClashGridRow(bucket.Results[0], failures));
                     continue;
                 }
 
-                rows.Add(CreateGroupedClashGridRow(bucket, groupingSide));
+                rows.Add(CreateGroupedClashGridRow(bucket, groupingSide, failures));
             }
 
             return rows
                 .OrderByDescending(row => row.IsGroup)
                 .ThenBy(row => row.Name ?? string.Empty, NaturalStringComparer.Instance)
                 .ToList();
+            }
         }
 
         private bool PassesClashFilters(ClashResult result)
@@ -586,7 +627,7 @@ namespace NavisHelper.WPF
             return (value ?? string.Empty).IndexOf(filter.Trim(), StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        private List<ClashResultGridRow> BuildVirtualClashGridRows(IList<ClashResult> source)
+        private List<ClashResultGridRow> BuildVirtualClashGridRows(IList<ClashResult> source, PanelCatchLog failures)
         {
             var rows = new List<ClashResultGridRow>();
             var grouped = new List<ClashResult>();
@@ -609,7 +650,7 @@ namespace NavisHelper.WPF
                 if (visibleResults.Count == 0)
                     continue;
 
-                rows.Add(CreateVirtualClashGridRow(group, visibleResults));
+                rows.Add(CreateVirtualClashGridRow(group, visibleResults, failures));
             }
 
             RemoveEmptyVirtualClashGroups();
@@ -619,7 +660,7 @@ namespace NavisHelper.WPF
                 if (grouped.Any(item => object.ReferenceEquals(item, result)))
                     continue;
 
-                rows.Add(CreateRawClashGridRow(result));
+                rows.Add(CreateRawClashGridRow(result, failures));
             }
 
             return rows
@@ -628,13 +669,13 @@ namespace NavisHelper.WPF
                 .ToList();
         }
 
-        private ClashResultGridRow CreateRawClashGridRow(ClashResult result)
+        private ClashResultGridRow CreateRawClashGridRow(ClashResult result, PanelCatchLog failures)
         {
             return new ClashResultGridRow
             {
                 Status = StatusLabel(result.Status),
                 Name = result.DisplayName,
-                Distance = FormatClashDistance(result),
+                Distance = FormatClashDistance(result, failures),
                 ItemA = GetClashItemName(result.Selection1),
                 ItemB = GetClashItemName(result.Selection2),
                 Result = result,
@@ -643,9 +684,9 @@ namespace NavisHelper.WPF
             };
         }
 
-        private ClashResultGridRow CreateGroupedClashGridRow(ClashGroupBucket bucket, ClashGroupingSide groupingSide)
+        private ClashResultGridRow CreateGroupedClashGridRow(ClashGroupBucket bucket, ClashGroupingSide groupingSide, PanelCatchLog failures)
         {
-            var groupName = GetDisplayNameOrFallback(bucket.Ancestor, GetDefaultClashGroupName(groupingSide));
+            var groupName = GetDisplayNameOrFallback(bucket.Ancestor, GetDefaultClashGroupName(groupingSide), failures);
             var prefix = groupingSide == ClashGroupingSide.ItemA ? "A" : "B";
             return new ClashResultGridRow
             {
@@ -669,7 +710,7 @@ namespace NavisHelper.WPF
             };
         }
 
-        private ClashResultGridRow CreateVirtualClashGridRow(VirtualClashGroup group, IList<ClashResult> visibleResults = null)
+        private ClashResultGridRow CreateVirtualClashGridRow(VirtualClashGroup group, IList<ClashResult> visibleResults, PanelCatchLog failures)
         {
             var groupName = string.IsNullOrWhiteSpace(group.Label)
                 ? GetDefaultClashGroupName(group.Side)
@@ -682,7 +723,7 @@ namespace NavisHelper.WPF
                 ? new List<ClashResult>()
                 : resultsSource.Where(result => result != null).ToList();
             var groupItem = results
-                .Select(result => ResolveClashGroupingAncestor(result, group.Side, group.Path))
+                .Select(result => ResolveClashGroupingAncestor(result, group.Side, group.Path, failures))
                 .FirstOrDefault(item => item != null);
 
             return new ClashResultGridRow
@@ -730,7 +771,7 @@ namespace NavisHelper.WPF
                     : "Panel_Clash_DefaultGroupB");
         }
 
-        private static ModelItem ResolveClashGroupingAncestor(ClashResult result, ClashGroupingSide side, string selectedPath)
+        private static ModelItem ResolveClashGroupingAncestor(ClashResult result, ClashGroupingSide side, string selectedPath, PanelCatchLog failures)
         {
             if (result == null)
                 return null;
@@ -743,7 +784,7 @@ namespace NavisHelper.WPF
                 return null;
 
             if (!string.IsNullOrWhiteSpace(selectedPath))
-                return ResolveClashGroupingAncestorByPath(item, selectedPath);
+                return ResolveClashGroupingAncestorByPath(item, selectedPath, failures);
 
             var current = item;
             ModelItem nearestNamedComposite = null;
@@ -765,21 +806,22 @@ namespace NavisHelper.WPF
 
                     current = parent;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    failures.Add(ex);
                     break;
                 }
             }
 
-            return highestNamedComposite ?? nearestNamedComposite ?? GetNamedAncestor(item);
+            return highestNamedComposite ?? nearestNamedComposite ?? GetNamedAncestor(item, failures);
         }
 
-        private static ModelItem ResolveClashGroupingAncestorByPath(ModelItem item, string selectedPath)
+        private static ModelItem ResolveClashGroupingAncestorByPath(ModelItem item, string selectedPath, PanelCatchLog failures)
         {
             if (item == null || string.IsNullOrWhiteSpace(selectedPath))
                 return null;
 
-            var entries = BuildModelItemPathEntries(item);
+            var entries = BuildModelItemPathEntries(item, failures);
             var index = ClashGroupingPathPolicy.FindPathIndex(entries.Select(entry => entry.Path), selectedPath);
             return index < 0 ? null : entries[index].Item;
         }
@@ -795,9 +837,12 @@ namespace NavisHelper.WPF
             return sideItems.Cast<ModelItem>().FirstOrDefault(item => item != null);
         }
 
-        private static List<ModelItemPathEntry> BuildModelItemPathEntries(ModelItem item)
+        private static List<ModelItemPathEntry> BuildModelItemPathEntries(ModelItem item, PanelCatchLog failures = null)
         {
-            var raw = CollectModelItemPath(item);
+            using (var localFailures = failures == null ? new PanelCatchLog("Clash model path reads", "ClashUI") : null)
+            {
+            failures = failures ?? localFailures;
+            var raw = CollectModelItemPath(item, failures);
             var segments = ClashGroupingPathPolicy.BuildSegments(raw.Select(entry => entry.Item2));
             var entries = new List<ModelItemPathEntry>();
             for (var i = 0; i < raw.Count; i++)
@@ -812,9 +857,10 @@ namespace NavisHelper.WPF
             }
 
             return entries;
+            }
         }
 
-        private static List<Tuple<ModelItem, string>> CollectModelItemPath(ModelItem item)
+        private static List<Tuple<ModelItem, string>> CollectModelItemPath(ModelItem item, PanelCatchLog failures)
         {
             var raw = new List<Tuple<ModelItem, string>>();
             var current = item;
@@ -828,8 +874,9 @@ namespace NavisHelper.WPF
 
                     current = current.Parent;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    failures.Add(ex);
                     break;
                 }
             }
@@ -838,7 +885,7 @@ namespace NavisHelper.WPF
             return raw;
         }
 
-        private static ModelItem GetNamedAncestor(ModelItem item)
+        private static ModelItem GetNamedAncestor(ModelItem item, PanelCatchLog failures)
         {
             var current = item;
             while (current != null)
@@ -850,8 +897,9 @@ namespace NavisHelper.WPF
 
                     current = current.Parent;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    failures.Add(ex);
                     return null;
                 }
             }
@@ -859,16 +907,16 @@ namespace NavisHelper.WPF
             return null;
         }
 
-        private static string BuildModelItemPath(ModelItem item)
+        private static string BuildModelItemPath(ModelItem item, PanelCatchLog failures)
         {
             if (item == null)
                 return string.Empty;
 
             return ClashGroupingPathPolicy.BuildPath(
-                CollectModelItemPath(item).Select(entry => entry.Item2));
+                CollectModelItemPath(item, failures).Select(entry => entry.Item2));
         }
 
-        private static string GetDisplayNameOrFallback(ModelItem item, string fallback)
+        private static string GetDisplayNameOrFallback(ModelItem item, string fallback, PanelCatchLog failures)
         {
             if (item == null)
                 return fallback;
@@ -878,8 +926,9 @@ namespace NavisHelper.WPF
                 if (!string.IsNullOrWhiteSpace(item.DisplayName))
                     return item.DisplayName.Trim();
             }
-            catch
+            catch (Exception ex)
             {
+                failures.Add(ex);
             }
 
             return fallback;

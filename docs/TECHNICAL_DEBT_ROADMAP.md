@@ -1,6 +1,6 @@
 # Roadmap технического долга NavisHelper
 
-Статус документа: подтверждённые и практически обоснованные пункты этапов 0–8 выполнены последовательными buildable границами; спорные и избыточные перестройки оставлены explicitly out of scope. Финальный checkout прошёл 846/846 automated tests, compile/router/catalog guards, Release2024–2027 x64 matrix, SHA-checked AppData deployment, MCP/NWD regressions и воспроизводимый in-process lifecycle smoke панели. Изменения не меняли внешний MCP wire-протокол, MCP tool names или существующие production plugin IDs.
+Статус документа: обновлён по повторному аудиту 2026-10-12 для `v2.10.0.0`. Выполненные изменения, работы в процессе и открытый долг зафиксированы в разделе 11. Разделы 1–10 сохраняют исторические результаты проверки `v2.6.3.0` и не описывают текущее состояние.
 
 ## 1. Зафиксированная база проверки
 
@@ -457,3 +457,64 @@ Root-resolution string rules затем вынесены в `NavisHelper.Contrac
 ## 10. Текущее решение по продолжению
 
 Этапы 0–4, безопасный non-Clash слой, SearchService seam, persisted Search Set rules/builder/tree management и saved-viewpoint parser/orchestration boundaries Этапа 5, узкое устранение подтверждённого fallback-duplicate и анализ Stage 6, а также exporter/diagnostic, virtual-group state/policies, saved-item identity traversal, shared name-policy, global panel lifecycle и shell-factory isolation Stage 7 выполнены и проверены. SubtreeDump file-output, job-policy/status/retention и root string-rule seams, command-side Clash BBox plan seam и mechanical Clash report-support split выполнены и проверены; Navisworks-dependent geometry, locking и collection mutation намеренно не дробились без отдельного behavioral harness. Подтверждённые дефекты обрезания side tag, разрыва surrogate pair и static retention панели исправлены отдельными behavioral increments. Повторный аудит также закрыт: Contracts boundary документирована, bypass policy централизована и защищена тестами/guard/live smoke, косметический whitespace удалён. Все подтверждённые и практически выполнимые пункты roadmap закрыты. Unreachable defaults, гипотетические equality changes, новый Domain, искусственные tab UserControl, механическое слияние несвязанных option helpers, массовые rename и дальнейшее дробление Navisworks-dependent geometry/state не считаются подтверждённым долгом без runtime evidence. Немедленная перепись `DocumentCommandService.Clash.cs` или `NavisHelperPanel` запрещена ограничениями этого roadmap.
+
+## 11. Повторный аудит 2026-10-12 (v2.10)
+
+### Что проверено
+
+Повторный аудит охватывал размер и структурные границы плагина, диагностику,
+MCP-каталог и метаданные инструментов, зависимости, горячие клавиши, параллельные
+сборки и способы установки MCP-сервера. Состояние после аудита:
+
+- версия продукта — `2.10.0.0`, MCP-каталог — 113 инструментов;
+- контрольный прогон аудита — `2564/2564` тестов MCP-сервера; число взято из
+  контекста аудита, а не из повторного прогона при обновлении документации;
+- по данным аудита, исходные файлы плагина не превышают 70 КБ; крупнейшие —
+  `Agent/Services/ModelColorSchemeService.cs` (около 68 КБ) и
+  `WPF/NavisHelperPanel.Clash.GroupingEngine.cs` (около 66 КБ);
+- лимиты partial-типов исчерпаны: `NavisHelperPanel` — `18/18`,
+  `DocumentCommandService` — `32/32`. Новые семейства поведения требуют отдельных
+  типов, дальнейшее partial-разбиение не закрывает структурный долг.
+
+### Выполнено
+
+Изменения уже включены в `main`:
+
+| PR | Результат |
+|---|---|
+| #231 | Launcher исполнителя Codex включён в `scripts/`. |
+| #232 | MCP-аннотации `readOnly`/`destructive`/`openWorld` формируются из `[ToolCapabilities]`. |
+| #233 | 33 ранее молчаливых `catch` в `ClashPreviewManager` и `SelectionPreviewManager` теперь пишут в журнал. |
+| #234 | Журнал MCP-сервера направлен только в stderr; запись в Windows Event Log исключена. |
+| #235 | Инструкции сервера передаются при `initialize`. |
+| #236 | Идентификатор клиента включён в журнал MCP-вызовов. |
+| #238 | Добавлены заголовки инструментов и `idempotentHint`. |
+| #239 | Расширение Claude Desktop `.mcpb` собирается через `scripts/build_mcpb.py`: Desktop удалял `navishelper` из `claude_desktop_config.json` при перезапуске. |
+
+### В работе
+
+- **В работе:** уплотнение `tools/list` при запуске. Исходный объём — около
+  218 тыс. символов, примерно 50 тыс. токенов; первый шаг даёт около 7% сокращения.
+  Изменение готовится отдельным PR и ещё не считается выполненным.
+- **В работе:** журналирование оставшихся молчаливых `catch` в плагине:
+  сначала WPF-файлы Clash-панели, затем остальные области. Готовятся отдельные PR.
+
+### Открытый долг
+
+- **Размер `tools/list`.** Для существенного сокращения нужно переписать тексты
+  инструментов и параметров по семействам; стартовое уплотнение этого не заменяет.
+- **Зависимости.** `ModelContextProtocol` остаётся на `1.2.0`, актуальная версия
+  на дату аудита — `2.2.0`; переход затрагивает major-версию.
+  `Microsoft.Extensions.Hosting` — `8.0.1` при целевом `net9`.
+- **Горячие клавиши.** `NavisHelper/Core/KeyboardHook.cs` устанавливает глобальный
+  `WH_KEYBOARD_LL` внутри Navisworks. Требуется проверить возможность ограничить
+  обработку горячих клавиш окном Navisworks.
+- **Параллельные сборки.** Одновременные MSBuild-задания из двух агентских сессий
+  на одной машине вызвали диалог аварии. Правило launcher «один MSBuild за раз»
+  действует только внутри сессии; требуется координация между сессиями.
+- **Расхождение установок.** Dev-установка использует `McpServer-<version>`,
+  установщик — `McpServer`, а `.mcpb` несёт собственную копию сервера.
+  Направление решения — версионная установка со стабильным launcher и атомарным
+  переключением, по примеру AIDrafting `versions/<v>` + `current.json`.
+
+Идеи развития и отклонённое предложение описаны в [бэклоге функций](FEATURE_BACKLOG.md).
