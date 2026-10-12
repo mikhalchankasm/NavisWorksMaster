@@ -91,13 +91,25 @@ function Assert-OwnerInstallUnchanged([string]$Step) {
     Assert-File $outsideMarker "Marker outside the isolated install root after $Step"
 }
 
-# Mirrors ServerVersionStore.VersionName: <deps.json version>-<first 8 hex of the DLL sha256>.
+# Mirrors ServerVersionStore.VersionName: <deps.json version>-<first 8 hex of the tree hash>, where the
+# tree hash is SHA-256 over "<relative/path>\0<file sha256>\n" for every file, ordinal by path.
 function Get-ServerVersionName([string]$Directory) {
     $deps = Get-Content -LiteralPath (Join-Path $Directory "$serverName.deps.json") -Raw
     $versions = @([regex]::Matches($deps, '"NavisHelper\.McpServer/([0-9.]+)"') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
     if ($versions.Count -ne 1) { throw "Expected one server version in $Directory, found: $($versions -join ', ')" }
-    $hash = (Get-FileHash -LiteralPath (Join-Path $Directory "$serverName.dll") -Algorithm SHA256).Hash
-    return $versions[0] + "-" + $hash.Substring(0, 8).ToLowerInvariant()
+    $root = [System.IO.Path]::GetFullPath($Directory).TrimEnd('\') + '\'
+    $relativePaths = [string[]]@(Get-ChildItem -LiteralPath $Directory -Recurse -File -Force |
+        ForEach-Object { $_.FullName.Substring($root.Length).Replace('\', '/') })
+    [Array]::Sort($relativePaths, [StringComparer]::Ordinal)
+    $manifest = New-Object System.Text.StringBuilder
+    foreach ($relative in $relativePaths) {
+        $fileHash = (Get-FileHash -LiteralPath (Join-Path $root $relative) -Algorithm SHA256).Hash.ToLowerInvariant()
+        [void]$manifest.Append($relative + [char]0 + $fileHash + "`n")
+    }
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try { $treeHash = [BitConverter]::ToString($sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($manifest.ToString()))).Replace('-', '') }
+    finally { $sha256.Dispose() }
+    return $versions[0] + "-" + $treeHash.Substring(0, 8).ToLowerInvariant()
 }
 
 function Get-JunctionTarget([string]$Path) {
