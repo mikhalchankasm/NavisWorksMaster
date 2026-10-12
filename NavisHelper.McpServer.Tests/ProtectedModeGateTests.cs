@@ -85,10 +85,11 @@ public sealed class ProtectedModeGateTests
     }
 
     [Fact]
-    public void MissingSessionOrClientStillGetsAnApprovalRequest()
+    public void MissingClientNameStillGetsAnApprovalRequest()
     {
+        // A missing session id is refused outright: ProtectedModeExecutionCheckTests.
         var approvals = EnabledGate();
-        var decision = ProtectedModeGate.Evaluate(approvals, "save_document", "C:\\a.nwd", null, null);
+        var decision = ProtectedModeGate.Evaluate(approvals, "save_document", "C:\\a.nwd", "s1", null);
         Assert.False(decision.Allowed);
         Assert.Contains("unknown client", decision.Message);
         var pending = Assert.Single(approvals.Pending);
