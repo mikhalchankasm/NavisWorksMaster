@@ -30,6 +30,8 @@ packages/
 __pycache__/
 *.pyc
 artifacts/
+# Executor context files carry task facts for one run and are never committed.
+.avox-context-*.txt
 tmp_*.il
 tmp_reflect/
 tmp_reflect_*.cs
