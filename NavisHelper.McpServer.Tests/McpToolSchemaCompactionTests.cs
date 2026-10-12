@@ -89,7 +89,7 @@ public sealed class McpToolSchemaCompactionTests
     // The new text equals the old one, or the pinned rewrite, or the old one with
     // its final "Default is X." / "Default is X/dry-run." sentence removed where
     // X is exactly the schema default.
-    private static bool AllowedDescription(string oldText, string newText, JsonNode? schemaDefault)
+    private static bool AllowedDescription(string oldText, string newText, JsonNode schemaDefault)
     {
         if (newText == oldText) return true;
         if (Rewrites.TryGetValue(oldText, out var rewrite)) return newText == rewrite;
