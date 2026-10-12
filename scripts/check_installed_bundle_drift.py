@@ -724,11 +724,11 @@ def selftest() -> int:
     with tempfile.TemporaryDirectory(prefix="drift-order-selftest-") as tmp:
         # C# StringComparer.Ordinal puts the surrogate pair (0xD83D...) before U+E000.
         order = Path(tmp)
-        (order / ".dll").write_bytes(b"P")
+        (order / "\uE000.dll").write_bytes(b"P")
         (order / "\U0001F600.dll").write_bytes(b"E")
         expected = hashlib.sha256("".join(
             name + "\0" + hashlib.sha256(data).hexdigest() + "\n"
-            for name, data in (("\U0001F600.dll", b"E"), (".dll", b"P"))
+            for name, data in (("\U0001F600.dll", b"E"), ("\uE000.dll", b"P"))
         ).encode("utf-8")).hexdigest()
         if tree_sha(order) != expected:
             failures += 1
