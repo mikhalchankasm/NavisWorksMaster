@@ -90,7 +90,7 @@ namespace NavisHelper.Agent.Host
             _commandService.FailRunningSubtreeNameDumps("Active document changed while dump job was running.");
             _commandService.FailRunningClashReport("Active document changed while clash report was running.");
             DetachTrackedDocument();
-            UpdateTrackedDocumentMetadata(null);
+            UpdateTrackedDocumentMetadata(null, DocumentResetTrigger.Closed);
             RefreshDiscoveryFile(null);
         }
 
@@ -104,7 +104,7 @@ namespace NavisHelper.Agent.Host
             // Overlay world markers belong to the document they were set on; the store
             // drops them when the active document is another one (or none).
             WorldMarkerOverlayStore.OnDocumentChanged(document);
-            AttachTrackedDocument(document);
+            AttachTrackedDocument(document, DocumentResetTrigger.ActiveDocumentChanged);
             RefreshDiscoveryFile(document);
         }
 
@@ -118,15 +118,15 @@ namespace NavisHelper.Agent.Host
             _searchService.InvalidateRootSearchIndex();
             _commandService.FailRunningSubtreeNameDumps("Active document file name changed while dump job was running.");
             _commandService.FailRunningClashReport("Active document file name changed while clash report was running.");
-            AttachTrackedDocument(document);
+            AttachTrackedDocument(document, DocumentResetTrigger.FileNameChanged);
             RefreshDiscoveryFile(document);
         }
 
-        private void AttachTrackedDocument(Document document)
+        private void AttachTrackedDocument(Document document, DocumentResetTrigger trigger)
         {
             if (ReferenceEquals(_trackedDocument, document))
             {
-                UpdateTrackedDocumentMetadata(document);
+                UpdateTrackedDocumentMetadata(document, trigger);
                 return;
             }
 
@@ -136,7 +136,7 @@ namespace NavisHelper.Agent.Host
             if (_trackedDocument != null)
                 _trackedDocument.FileNameChanged += OnTrackedDocumentFileNameChanged;
 
-            UpdateTrackedDocumentMetadata(document);
+            UpdateTrackedDocumentMetadata(document, trigger);
         }
 
         private void DetachTrackedDocument()
@@ -148,7 +148,7 @@ namespace NavisHelper.Agent.Host
             }
         }
 
-        private void UpdateTrackedDocumentMetadata(Document document)
+        private void UpdateTrackedDocumentMetadata(Document document, DocumentResetTrigger trigger)
         {
             _lastDocumentFileName = document == null
                 ? string.Empty
@@ -158,8 +158,11 @@ namespace NavisHelper.Agent.Host
             var documentKey = string.IsNullOrWhiteSpace(_lastDocumentFileName)
                 ? (document == null ? string.Empty : document.Title ?? string.Empty)
                 : _lastDocumentFileName;
+            var reset = DocumentInstanceTracker.ShouldReset(AgentRuntime.CurrentDocumentKey, documentKey, trigger);
+            Logger.Info(DocumentInstanceTracker.LogLine(AgentRuntime.CurrentDocumentKey, documentKey, trigger), "AgentHost");
             AgentRuntime.CurrentDocumentKey = documentKey;
-            AgentRuntime.ProtectedModeApprovals.DocumentChanged(documentKey);
+            if (reset)
+                AgentRuntime.ProtectedModeApprovals.DocumentChanged(documentKey);
         }
     }
 }

@@ -566,6 +566,7 @@
     <Compile Include="Agent\Services\ClashReportOperationTracker.cs" />
     <Compile Include="Agent\Services\ProtectedModeApprovals.cs" />
     <Compile Include="Agent\Services\ProtectedModeGate.cs" />
+    <Compile Include="Agent\Services\DocumentInstanceTracker.cs" />
     <Compile Include="Agent\Services\SelectionSetReferenceResolver.cs" />
     <Compile Include="Agent\Services\ClashTestsFromSetsService.cs" />
     <Compile Include="Agent\Services\ClashTestTransferExporterService.cs" />

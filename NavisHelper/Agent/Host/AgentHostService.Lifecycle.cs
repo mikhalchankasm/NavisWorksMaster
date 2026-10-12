@@ -54,7 +54,7 @@ namespace NavisHelper.Agent.Host
                 CleanupOwnStaleDiscoveryFiles(pid);
                 WriteDiscoveryFile(GetDocumentTitleSafe());
                 SubscribeToApplicationEvents();
-                AttachTrackedDocument(Autodesk.Navisworks.Api.Application.ActiveDocument);
+                AttachTrackedDocument(Autodesk.Navisworks.Api.Application.ActiveDocument, DocumentResetTrigger.ActiveDocumentChanged);
 
                 for (var index = 0; index < ListenerSlots; index++)
                 {
@@ -93,7 +93,7 @@ namespace NavisHelper.Agent.Host
                 CleanupOwnStaleDiscoveryFiles(pid);
                 WriteDiscoveryFile(GetDocumentTitleSafe());
                 SubscribeToApplicationEvents();
-                AttachTrackedDocument(Autodesk.Navisworks.Api.Application.ActiveDocument);
+                AttachTrackedDocument(Autodesk.Navisworks.Api.Application.ActiveDocument, DocumentResetTrigger.ActiveDocumentChanged);
 
                 for (var index = 0; index < ListenerSlots; index++)
                 {
