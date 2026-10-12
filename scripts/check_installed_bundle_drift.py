@@ -184,7 +184,9 @@ def tree_sha(folder: Path) -> str:
 
     collect(folder)
     digest = hashlib.sha256()
-    for relative in sorted(files):
+    # Ordinal by UTF-16 code unit, as C# StringComparer.Ordinal sorts; plain sorted()
+    # orders by code point and puts U+E000..U+FFFF before non-BMP characters.
+    for relative in sorted(files, key=lambda path: path.encode("utf-16-be", "surrogatepass")):
         digest.update((relative + "\0" + sha(folder / relative) + "\n").encode("utf-8"))
     return digest.hexdigest()
 
@@ -718,6 +720,21 @@ def selftest() -> int:
             print(f"  FAIL  fixed tree hash vector -- {measured}, expected {expected}")
         else:
             print(f"  PASS  fixed tree hash vector -- {measured}")
+
+    with tempfile.TemporaryDirectory(prefix="drift-order-selftest-") as tmp:
+        # C# StringComparer.Ordinal puts the surrogate pair (0xD83D...) before U+E000.
+        order = Path(tmp)
+        (order / ".dll").write_bytes(b"P")
+        (order / "\U0001F600.dll").write_bytes(b"E")
+        expected = hashlib.sha256("".join(
+            name + "\0" + hashlib.sha256(data).hexdigest() + "\n"
+            for name, data in (("\U0001F600.dll", b"E"), (".dll", b"P"))
+        ).encode("utf-8")).hexdigest()
+        if tree_sha(order) != expected:
+            failures += 1
+            print("  FAIL  tree hash orders paths by UTF-16 code unit, as C# does")
+        else:
+            print("  PASS  tree hash orders paths by UTF-16 code unit, as C# does")
 
     cases = (
         ("build differs from the checkout bundle",
