@@ -277,7 +277,7 @@ internal sealed class ServerVersionStore
         if (hasPendingState) File.Move(pendingState, StatePath, overwrite: true);
     }
 
-    // Recovery activates only a stored tree that still matches its version name and passes its check.
+    // A stored tree counts as healthy only if it still matches its version name and passes its check.
     private bool Healthy(string version)
     {
         try { VerifyVersion(version); }
