@@ -83,8 +83,10 @@ python scripts/check_installed_bundle_drift.py
 
 ### MCP-сервер: `MCP SERVER DRIFT`
 
-Сервер ставится отдельно от bundle — в `%LOCALAPPDATA%\NavisHelper`, в каталоги `McpServer` и
-`McpServer-<version>`. Скрипт инвентаризирует их все: версии читает из
+Installer и dev-скрипт ставят сервер отдельно от bundle через `McpConfigurator --install-server`:
+в `%LOCALAPPDATA%\NavisHelper\versions\<version>-<sha8>`, с junction `McpServer` на активную версию.
+ZIP пока использует `McpServer-<version>`; его перевод на version store — следующий этап.
+Проверка дрейфа инвентаризирует стабильный путь `McpServer` и старые `McpServer-<version>`: версии читает из
 `NavisHelper.McpServer.deps.json`, а равенство проверяет по sha256 каждого установленного
 `NavisHelper.McpServer.dll` против сборки чекаута `NavisHelper.McpServer/bin/Release/net9.0`.
 Версии остаются полезным инвентарём, но доказательством не являются: код меняется и без роста
@@ -130,21 +132,20 @@ Claude Code держит серверы в собственных настрой
 
 ```powershell
 dotnet build NavisHelper.McpServer/NavisHelper.McpServer.csproj -c Release
+dotnet build NavisHelper.McpConfigurator/NavisHelper.McpConfigurator.csproj -c Release
 powershell -ExecutionPolicy Bypass -File tools\install_local_mcp_server.ps1
-& "$env:LOCALAPPDATA\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe" --configure --clients all --mcp-server "$env:LOCALAPPDATA\NavisHelper\McpServer-<version>\NavisHelper.McpServer.exe"
+& ".\NavisHelper.McpConfigurator\bin\Release\net9.0\NavisHelper.McpConfigurator.exe" --configure --clients all --mcp-server "$env:LOCALAPPDATA\NavisHelper\McpServer\NavisHelper.McpServer.exe"
 ```
 
-Сборка нужна, если сервер в чекауте не собран (`MCP SERVER NOTHING VERIFIED`): установщик берёт
-его из `NavisHelper.McpServer/bin/Release/net9.0` и без DLL сразу падает.
-
-Если переустанавливается та же версия (`version matches, code differs`), а какой-то клиент
-уже запустил сервер из этого `McpServer-<version>`, установщик откажется заменять каталог.
-Тогда сначала закройте такие клиенты, потом установка и конфигуратор, потом запуск клиентов.
-Новая версия ставится в свой каталог и работающему клиенту не мешает — ему хватит перезапуска
-после конфигуратора: запущенный клиент держит старый процесс.
-
-`<version>` — каталог, который инвентарь назвал совпавшим по хэшу; в команду его подставляет
-сам скрипт. `--clients all` у конфигуратора включает и Claude Code, которого проверка не читает.
+Соберите сервер и конфигуратор: dev-скрипт явно сообщает об отсутствии любой из сборок.
+Он передаёт сборку в `--install-server` и печатает JSON результата. `-Source` задаёт каталог
+сервера, `-Destination` — корень установки (`--install-root`) внутри `%LOCALAPPDATA%\NavisHelper`.
+Проверка сервера перед активацией обязательна; параметр `-SkipVersionCheck` удалён.
+Даже перекомпиляция той же версии получает отдельный каталог при изменении хэша DLL.
+После установки перезапустите или переподключите MCP-клиент: работающий процесс остаётся на старой версии.
+Если миграции старого обычного каталога `McpServer` мешает клиент, закройте его и повторите установку.
+Подробности активации и отката — в [version store commands](docs/MCP_DISTRIBUTION_PLAN.md#version-store-commands).
+`--clients all` у конфигуратора включает и Claude Code, которого проверка не читает.
 
 ### Чем `--detect` не помогает
 
