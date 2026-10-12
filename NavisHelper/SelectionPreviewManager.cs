@@ -160,7 +160,7 @@ namespace NavisHelper
                     if (selectedGeom.Count > 0)
                         doc.Models.OverridePermanentTransparency(selectedGeom, 0);
                 }
-                catch { }
+                catch (Exception ex) { Logger.Warn("Failed to apply selection context transparency: " + ex.Message, "SelectionPreview"); }
             }
 
             LastStatus =
@@ -191,6 +191,8 @@ namespace NavisHelper
             {
                 if (_origTransparency != null && _origTransparency.Count > 0)
                 {
+                    var transparencyFailureCount = 0;
+                    Exception firstTransparencyException = null;
                     foreach (var item in _prevTransparentItems)
                     {
                         try
@@ -201,8 +203,10 @@ namespace NavisHelper
                             else
                                 doc.Models.OverridePermanentTransparency(new ModelItemCollection { item }, 0);
                         }
-                        catch { }
+                        catch (Exception ex) { transparencyFailureCount++; if (firstTransparencyException == null) firstTransparencyException = ex; }
                     }
+                    if (transparencyFailureCount > 0)
+                        Logger.Warn($"Failed to restore {transparencyFailureCount} original transparencies; first failure: {firstTransparencyException.Message}", "SelectionPreview");
                 }
                 else
                 {
@@ -249,8 +253,9 @@ namespace NavisHelper
                     anchorRoot => currentRoots.Any(
                         currentRoot => ReferenceEquals(anchorRoot, currentRoot) || Equals(anchorRoot, currentRoot)));
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to validate saved selection anchor: " + ex.Message, "SelectionPreview");
                 return false;
             }
         }
@@ -285,6 +290,8 @@ namespace NavisHelper
                     selectedSet.Add(d);
 
             var contextItems = new ModelItemCollection();
+            var boundsFailureCount = 0;
+            Exception firstBoundsException = null;
 
             // Поиск через родителей (быстро, как в ClashPreviewManager)
             foreach (var item in selectedItems)
@@ -307,11 +314,13 @@ namespace NavisHelper
                             if (contextItems.Count > 500) break;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { boundsFailureCount++; if (firstBoundsException == null) firstBoundsException = ex; }
                 }
                 if (contextItems.Count > 500) break;
             }
 
+            if (boundsFailureCount > 0)
+                Logger.Warn($"Failed to inspect {boundsFailureCount} context item bounds; first failure: {firstBoundsException.Message}", "SelectionPreview");
             ApplyTransparencyToItems(doc, contextItems, trans);
         }
 
@@ -335,6 +344,8 @@ namespace NavisHelper
                     selectedSet.Add(d);
 
             var contextItems = new ModelItemCollection();
+            var boundsFailureCount = 0;
+            Exception firstBoundsException = null;
 
             foreach (var model in doc.Models)
             {
@@ -356,11 +367,13 @@ namespace NavisHelper
                             if (contextItems.Count > 5000) break;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { boundsFailureCount++; if (firstBoundsException == null) firstBoundsException = ex; }
                 }
                 if (contextItems.Count > 5000) break;
             }
 
+            if (boundsFailureCount > 0)
+                Logger.Warn($"Failed to inspect {boundsFailureCount} section-box item bounds; first failure: {firstBoundsException.Message}", "SelectionPreview");
             ApplyTransparencyToItems(doc, contextItems, trans);
 
             // Выделенные — непрозрачны
@@ -440,16 +453,20 @@ namespace NavisHelper
             if (items.Count == 0) return;
 
             _origTransparency = new Dictionary<ModelItem, double>();
+            var transparencyFailureCount = 0;
+            Exception firstTransparencyException = null;
             foreach (var item in items)
             {
                 try { _origTransparency[item] = item.Geometry.PermanentTransparency; }
-                catch { }
+                catch (Exception ex) { transparencyFailureCount++; if (firstTransparencyException == null) firstTransparencyException = ex; }
             }
+            if (transparencyFailureCount > 0)
+                Logger.Warn($"Failed to capture {transparencyFailureCount} original transparencies; first failure: {firstTransparencyException.Message}", "SelectionPreview");
             doc.Models.OverridePermanentTransparency(items, trans);
             _prevTransparentItems = items;
 
             try { doc.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All); }
-            catch { }
+            catch (Exception ex) { Logger.Warn("Failed to redraw selection transparency: " + ex.Message, "SelectionPreview"); }
         }
     }
 }

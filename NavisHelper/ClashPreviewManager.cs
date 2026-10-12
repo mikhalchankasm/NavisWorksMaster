@@ -96,6 +96,8 @@ namespace NavisHelper
 
             // Сохраняем оригинальные цвета (включая потомков с геометрией)
             _origColors = new Dictionary<ModelItem, Color>();
+            var colorFailureCount = 0;
+            Exception firstColorException = null;
             foreach (var item in allItems)
             {
                 try
@@ -103,8 +105,10 @@ namespace NavisHelper
                     if (item.HasGeometry)
                         _origColors[item] = item.Geometry.PermanentColor;
                 }
-                catch { }
+                catch (Exception ex) { colorFailureCount++; if (firstColorException == null) firstColorException = ex; }
             }
+            if (colorFailureCount > 0)
+                Logger.Warn($"Failed to capture {colorFailureCount} original colors; first failure: {firstColorException.Message}", "ClashPreview");
 
             // Подсветка (null = без подсветки)
             if (ColorA != null && items1 != null && items1.Count > 0)
@@ -152,6 +156,8 @@ namespace NavisHelper
                 try
                 {
                     // Сохраняем оригинальную прозрачность clash items
+                    var transparencyFailureCount = 0;
+                    Exception firstTransparencyException = null;
                     foreach (var item in allItems)
                     {
                         try
@@ -162,8 +168,10 @@ namespace NavisHelper
                                 _origTransparency[item] = item.Geometry.PermanentTransparency;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { transparencyFailureCount++; if (firstTransparencyException == null) firstTransparencyException = ex; }
                     }
+                    if (transparencyFailureCount > 0)
+                        Logger.Warn($"Failed to capture {transparencyFailureCount} original transparencies; first failure: {firstTransparencyException.Message}", "ClashPreview");
 
                     ApplyContextTransparency(doc, allItems);
                     // Гарантируем что элементы коллизии НЕ прозрачны
@@ -175,7 +183,7 @@ namespace NavisHelper
                         if (!_prevTransparentItems.Contains(item))
                             _prevTransparentItems.Add(item);
                 }
-                catch { }
+                catch (Exception ex) { Logger.Warn("Failed to apply Clash context transparency: " + ex.Message, "ClashPreview"); }
             }
 
             // Точка коллизии — используем центр bbox (гарантированно видимые координаты)
@@ -190,12 +198,12 @@ namespace NavisHelper
                     {
                         // Обновляем позицию, сохраняя текущий размер
                         ClashMarkerTool.MarkerPoint = LastClashCenter;
-                        try { Application.ActiveDocument.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All); } catch { }
+                        try { Application.ActiveDocument.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All); } catch (Exception ex) { Logger.Warn("Failed to redraw Clash marker: " + ex.Message, "ClashPreview"); }
                     }
                     markerInfo = $"\n  Clash point: {LastClashCenter.X:F3}, {LastClashCenter.Y:F3}, {LastClashCenter.Z:F3}";
                 }
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn("Failed to update Clash marker: " + ex.Message, "ClashPreview"); }
 
             var name1 = items1.Count > 0 ? items1.First().DisplayName : "?";
             var name2 = items2.Count > 0 ? items2.First().DisplayName : "?";
@@ -287,6 +295,8 @@ namespace NavisHelper
             AddUniqueItems(allItems, items2);
 
             _origColors = new Dictionary<ModelItem, Color>();
+            var colorFailureCount = 0;
+            Exception firstColorException = null;
             foreach (var item in allItems)
             {
                 try
@@ -294,8 +304,10 @@ namespace NavisHelper
                     if (item.HasGeometry)
                         _origColors[item] = item.Geometry.PermanentColor;
                 }
-                catch { }
+                catch (Exception ex) { colorFailureCount++; if (firstColorException == null) firstColorException = ex; }
             }
+            if (colorFailureCount > 0)
+                Logger.Warn($"Failed to capture {colorFailureCount} original colors; first failure: {firstColorException.Message}", "ClashPreview");
 
             if (ColorA != null && items1.Count > 0)
                 doc.Models.OverridePermanentColor(items1, ColorA);
@@ -333,6 +345,8 @@ namespace NavisHelper
             {
                 try
                 {
+                    var transparencyFailureCount = 0;
+                    Exception firstTransparencyException = null;
                     foreach (var item in allItems)
                     {
                         try
@@ -343,8 +357,10 @@ namespace NavisHelper
                                 _origTransparency[item] = item.Geometry.PermanentTransparency;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { transparencyFailureCount++; if (firstTransparencyException == null) firstTransparencyException = ex; }
                     }
+                    if (transparencyFailureCount > 0)
+                        Logger.Warn($"Failed to capture {transparencyFailureCount} original transparencies; first failure: {firstTransparencyException.Message}", "ClashPreview");
 
                     ApplyContextTransparency(doc, allItems);
                     doc.Models.OverridePermanentTransparency(allItems, 0);
@@ -354,7 +370,7 @@ namespace NavisHelper
                         if (!_prevTransparentItems.Contains(item))
                             _prevTransparentItems.Add(item);
                 }
-                catch { }
+                catch (Exception ex) { Logger.Warn("Failed to apply Clash group context transparency: " + ex.Message, "ClashPreview"); }
             }
 
             try
@@ -363,10 +379,10 @@ namespace NavisHelper
                 if (LastClashCenter != null && ClashMarkerTool.IsActive)
                 {
                     ClashMarkerTool.MarkerPoint = LastClashCenter;
-                    try { Application.ActiveDocument.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All); } catch { }
+                    try { Application.ActiveDocument.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All); } catch (Exception ex) { Logger.Warn("Failed to redraw Clash group marker: " + ex.Message, "ClashPreview"); }
                 }
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn("Failed to update Clash group marker: " + ex.Message, "ClashPreview"); }
 
             var displayName = string.IsNullOrWhiteSpace(groupName) ? "Группа коллизий" : groupName;
             LastStatus = $"{displayName}\n  Коллизий: {list.Count}\n  A: {items1.Count}\n  B: {items2.Count}";
@@ -390,12 +406,14 @@ namespace NavisHelper
             if (viewpoint == null || point == null)
                 return;
 
-            try { viewpoint.RightOffsetAtFocalDistance = 0; } catch { }
-            try { viewpoint.UpOffsetAtFocalDistance = 0; } catch { }
-            try { viewpoint.RightOffsetFactor = 0; } catch { }
-            try { viewpoint.UpOffsetFactor = 0; } catch { }
+            var failureCount = 0;
+            Exception firstException = null;
+            try { viewpoint.RightOffsetAtFocalDistance = 0; } catch (Exception ex) { failureCount++; if (firstException == null) firstException = ex; }
+            try { viewpoint.UpOffsetAtFocalDistance = 0; } catch (Exception ex) { failureCount++; if (firstException == null) firstException = ex; }
+            try { viewpoint.RightOffsetFactor = 0; } catch (Exception ex) { failureCount++; if (firstException == null) firstException = ex; }
+            try { viewpoint.UpOffsetFactor = 0; } catch (Exception ex) { failureCount++; if (firstException == null) firstException = ex; }
 
-            try { viewpoint.PointAt(point); } catch { }
+            try { viewpoint.PointAt(point); } catch (Exception ex) { failureCount++; if (firstException == null) firstException = ex; }
 
             try
             {
@@ -405,7 +423,9 @@ namespace NavisHelper
                 var dz = p.Z - point.Z;
                 viewpoint.FocalDistance = Math.Sqrt(dx * dx + dy * dy + dz * dz);
             }
-            catch { }
+            catch (Exception ex) { failureCount++; if (firstException == null) firstException = ex; }
+            if (failureCount > 0)
+                Logger.Warn($"Failed {failureCount} viewpoint focal-point updates; first failure: {firstException.Message}", "ClashPreview");
         }
 
         /// <summary>Сброс overrides — только затронутые элементы, не вся модель.</summary>
@@ -416,6 +436,8 @@ namespace NavisHelper
             // Восстанавливаем оригинальные цвета
             if (_prevColoredItems != null && _prevColoredItems.Count > 0)
             {
+                var colorFailureCount = 0;
+                Exception firstColorException = null;
                 foreach (var item in _prevColoredItems)
                 {
                     try
@@ -430,8 +452,10 @@ namespace NavisHelper
                                 doc.Models.OverridePermanentColor(new ModelItemCollection { item }, item.Geometry.OriginalColor);
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { colorFailureCount++; if (firstColorException == null) firstColorException = ex; }
                 }
+                if (colorFailureCount > 0)
+                    Logger.Warn($"Failed to restore {colorFailureCount} original colors; first failure: {firstColorException.Message}", "ClashPreview");
                 _origColors = null;
                 _prevColoredItems = null;
             }
@@ -441,6 +465,8 @@ namespace NavisHelper
             {
                 if (_origTransparency != null && _origTransparency.Count > 0)
                 {
+                    var transparencyFailureCount = 0;
+                    Exception firstTransparencyException = null;
                     foreach (var item in _prevTransparentItems)
                     {
                         try
@@ -451,8 +477,10 @@ namespace NavisHelper
                             else
                                 doc.Models.OverridePermanentTransparency(new ModelItemCollection { item }, 0);
                         }
-                        catch { }
+                        catch (Exception ex) { transparencyFailureCount++; if (firstTransparencyException == null) firstTransparencyException = ex; }
                     }
+                    if (transparencyFailureCount > 0)
+                        Logger.Warn($"Failed to restore {transparencyFailureCount} original transparencies; first failure: {firstTransparencyException.Message}", "ClashPreview");
                 }
                 else
                 {
@@ -472,7 +500,7 @@ namespace NavisHelper
             ClearMarkers();
             if (_originalViewpoint != null && doc != null && doc.CurrentViewpoint != null)
             {
-                try { doc.CurrentViewpoint.CopyFrom(_originalViewpoint); } catch { }
+                try { doc.CurrentViewpoint.CopyFrom(_originalViewpoint); } catch (Exception ex) { Logger.Error("Failed to restore original Clash viewpoint: " + ex.Message, "ClashPreview"); }
             }
             _originalViewpoint = null;
             if (doc != null && doc.CurrentSelection != null)
@@ -569,6 +597,8 @@ namespace NavisHelper
 
             var revealedPathItems = new ModelItemCollection();
             var detachedVisibilityItemCount = 0;
+            var visibilityFailureCount = 0;
+            Exception firstVisibilityException = null;
             foreach (var item in pairSet.Concat(pathSet).Distinct())
             {
                 try
@@ -584,12 +614,14 @@ namespace NavisHelper
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error("Failed to inspect Clash pair path visibility: " + ex.Message, "ClashPreview");
+                    visibilityFailureCount++; if (firstVisibilityException == null) firstVisibilityException = ex;
                 }
             }
             var hiddenBranches = new ModelItemCollection();
             foreach (ModelItem root in roots)
-                CollectPairIsolationFrontier(root, pairSet, pathSet, hiddenBranches);
+                CollectPairIsolationFrontier(root, pairSet, pathSet, hiddenBranches, ref visibilityFailureCount, ref firstVisibilityException);
+            if (visibilityFailureCount > 0)
+                Logger.Error($"Failed to inspect {visibilityFailureCount} Clash pair visibility states; first failure: {firstVisibilityException.Message}", "ClashPreview");
 
             // Store restore handles before the first visibility mutation. If an API call fails,
             // ClearPairIsolation can roll back the partial operation or retry later.
@@ -617,7 +649,7 @@ namespace NavisHelper
                     hiddenBranches.Count,
                     detachedVisibilityItemCount);
                 try { document.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All); }
-                catch { }
+                catch (Exception ex) { Logger.Warn("Failed to redraw Clash pair isolation: " + ex.Message, "ClashPreview"); }
             }
             catch
             {
@@ -641,7 +673,7 @@ namespace NavisHelper
             ModelItem item,
             ISet<ModelItem> pairItems,
             ISet<ModelItem> pairPaths,
-            ModelItemCollection hiddenBranches)
+            ModelItemCollection hiddenBranches, ref int visibilityFailureCount, ref Exception firstVisibilityException)
         {
             if (item == null || hiddenBranches == null)
                 return;
@@ -658,9 +690,10 @@ namespace NavisHelper
                     if (!item.IsHidden)
                         hiddenBranches.Add(item);
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Unknown visibility must not be changed because it cannot be restored safely.
+                    visibilityFailureCount++; if (firstVisibilityException == null) firstVisibilityException = ex;
                 }
                 return;
             }
@@ -669,7 +702,7 @@ namespace NavisHelper
                 return;
 
             foreach (ModelItem child in item.Children)
-                CollectPairIsolationFrontier(child, pairItems, pairPaths, hiddenBranches);
+                CollectPairIsolationFrontier(child, pairItems, pairPaths, hiddenBranches, ref visibilityFailureCount, ref firstVisibilityException);
         }
 
         private void CaptureOriginalViewpointIfNeeded(Document doc)
@@ -677,7 +710,7 @@ namespace NavisHelper
             if (_originalViewpoint != null || doc == null || doc.CurrentViewpoint == null)
                 return;
 
-            try { _originalViewpoint = doc.CurrentViewpoint.CreateCopy(); } catch { }
+            try { _originalViewpoint = doc.CurrentViewpoint.CreateCopy(); } catch (Exception ex) { Logger.Warn("Failed to capture original Clash viewpoint: " + ex.Message, "ClashPreview"); }
         }
 
         /// <summary>Безопасная прозрачность — только владельцы текущих clash-элементов на два уровня вверх.</summary>
@@ -969,16 +1002,20 @@ namespace NavisHelper
 
             _origTransparency = new Dictionary<ModelItem, double>();
             var affected = new ModelItemCollection();
+            var transparencyFailureCount = 0;
+            Exception firstTransparencyException = null;
             foreach (var item in ownerItems)
             {
                 AddUniqueItem(affected, item);
-                CaptureOriginalTransparency(_origTransparency, item);
+                CaptureOriginalTransparency(_origTransparency, item, ref transparencyFailureCount, ref firstTransparencyException);
             }
             foreach (var item in opaqueCollection)
             {
                 AddUniqueItem(affected, item);
-                CaptureOriginalTransparency(_origTransparency, item);
+                CaptureOriginalTransparency(_origTransparency, item, ref transparencyFailureCount, ref firstTransparencyException);
             }
+            if (transparencyFailureCount > 0)
+                Logger.Warn($"Failed to capture {transparencyFailureCount} original transparencies; first failure: {firstTransparencyException.Message}", "ClashPreview");
 
             ApplyTransparencyOverrideInBatches(doc, ownerItems, ContextTransparency);
             if (opaqueCollection.Count > 0)
@@ -987,7 +1024,7 @@ namespace NavisHelper
             _prevTransparentItems = affected;
 
             try { doc.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All); }
-            catch { }
+            catch (Exception ex) { Logger.Warn("Failed to redraw Clash transparency: " + ex.Message, "ClashPreview"); }
 
             LastFullBoxTransparencyStatus =
                 $"{statusPrefix}: владельцев {ownerItems.Count}, текущих непрозрачных {opaqueCollection.Count}";
@@ -1019,6 +1056,8 @@ namespace NavisHelper
 
             if (_origTransparency != null)
             {
+                var transparencyFailureCount = 0;
+                Exception firstTransparencyException = null;
                 foreach (var item in _prevTransparentItems)
                 {
                     try
@@ -1029,8 +1068,10 @@ namespace NavisHelper
                         else
                             doc.Models.OverridePermanentTransparency(new ModelItemCollection { item }, 0);
                     }
-                    catch { }
+                    catch (Exception ex) { transparencyFailureCount++; if (firstTransparencyException == null) firstTransparencyException = ex; }
                 }
+                if (transparencyFailureCount > 0)
+                    Logger.Warn($"Failed to restore {transparencyFailureCount} original transparencies; first failure: {firstTransparencyException.Message}", "ClashPreview");
             }
             else
             {
@@ -1046,7 +1087,8 @@ namespace NavisHelper
             RestorePreviousTransparency(Application.ActiveDocument);
         }
 
-        private static void CaptureOriginalTransparency(Dictionary<ModelItem, double> target, ModelItem item)
+        private static void CaptureOriginalTransparency(Dictionary<ModelItem, double> target, ModelItem item,
+            ref int transparencyFailureCount, ref Exception firstTransparencyException)
         {
             if (target == null || item == null || target.ContainsKey(item))
                 return;
@@ -1055,9 +1097,10 @@ namespace NavisHelper
             {
                 target[item] = item.HasGeometry ? item.Geometry.PermanentTransparency : 0;
             }
-            catch
+            catch (Exception ex)
             {
                 target[item] = 0;
+                transparencyFailureCount++; if (firstTransparencyException == null) firstTransparencyException = ex;
             }
         }
 

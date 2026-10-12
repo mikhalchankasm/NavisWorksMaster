@@ -7,7 +7,9 @@ namespace NavisHelper.McpServer.Tests;
 // visibility. A silently swallowed failure there leaves the model recolored with
 // nothing in the log. Every catch block must therefore name its exception and
 // either log, rethrow, or use the exception (to aggregate per-item failures that
-// are logged once after the loop).
+// are logged once after the loop). A catch of one specific, expected exception
+// type may instead handle it without the variable, as long as its body is not
+// empty.
 public sealed class PreviewManagerCatchArchitectureTests
 {
     private static readonly Regex CatchHeader = new(@"\bcatch\b\s*(?:\(\s*([\w.]+)(?:\s+(\w+))?\s*\))?\s*(?:when\s*\([^)]*\)\s*)?\{");
@@ -28,6 +30,10 @@ public sealed class PreviewManagerCatchArchitectureTests
 
             var logsOrRethrows = body.Contains("Logger.") || Regex.IsMatch(body, @"\bthrow\b");
             var usesException = variable != null && Regex.IsMatch(body, @"\b" + Regex.Escape(variable) + @"\b");
+            var type = match.Groups[1].Success ? match.Groups[1].Value : null;
+            var expectedSpecificType = type != null && type != "Exception" && type != "System.Exception";
+            if (expectedSpecificType && variable == null && body.Trim().Length > 0)
+                continue;
             if (variable == null && !Regex.IsMatch(body, @"\bthrow\b"))
                 violations.Add(fileName + ":" + line + " catch does not name its exception");
             else if (!logsOrRethrows && !usesException)
