@@ -133,6 +133,11 @@ Codex can write only inside its worktree, so anything it must produce — a
 baseline file, a measured result — goes under the git-ignored `artifacts/`
 directory, not into the committed tree.
 
+Codex also cannot commit. A linked worktree keeps its git directory in the
+main checkout (`.git/worktrees/<name>/`), outside the sandbox's writable root,
+so `git commit` fails on `index.lock`. Write the brief's Deliver line as "leave
+the change uncommitted", and the curator commits the reviewed diff.
+
 ## After the run
 
 The curator reruns the task's acceptance check against their own baseline, not
