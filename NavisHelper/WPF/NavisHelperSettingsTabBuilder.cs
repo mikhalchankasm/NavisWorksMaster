@@ -90,6 +90,7 @@ namespace NavisHelper.WPF
         private bool _isCatalogLoading;
         private bool _updatingAiModelUi;
         private bool _isDisposed;
+        private ProtectedModeSection _protectedModeSection;
 
         public NavisHelperSettingsTabBuilder(
             Action<string, Brush, object[]> setStatusResource,
@@ -134,12 +135,16 @@ namespace NavisHelper.WPF
                 return;
             _isDisposed = true;
             _aiOperationLifetime.Dispose();
+            _protectedModeSection?.Dispose();
         }
 
         public TabItem Build()
         {
             var stack = new StackPanel { Margin = new Thickness(8) };
             stack.Children.Add(BuildLocalizedSection("AI", BuildAiSettingsSection()));
+            _protectedModeSection = new ProtectedModeSection(_bindings, _dispatcher, _setStatusResource);
+            stack.Children.Add(BuildLocalizedSection(
+                "Settings_ProtectedMode_Section", _protectedModeSection.Build()));
             stack.Children.Add(BuildLocalizedSection(
                 "Settings_Service_Section",
                 BuildServiceSection()));

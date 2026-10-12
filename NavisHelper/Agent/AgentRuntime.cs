@@ -21,6 +21,11 @@ namespace NavisHelper.Agent
             new ProtectedModeApprovals(() => DateTime.UtcNow, NextApprovalCode);
         public static volatile string CurrentDocumentKey = string.Empty;
 
+        static AgentRuntime()
+        {
+            ProtectedModeApprovals.Enabled = ProtectedModeSettingsStore.CreateDefault().ReadEnabled();
+        }
+
         private static int NextApprovalCode()
         {
             using (var generator = RandomNumberGenerator.Create())

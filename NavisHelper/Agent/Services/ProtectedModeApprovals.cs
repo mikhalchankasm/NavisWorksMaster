@@ -13,10 +13,14 @@ namespace NavisHelper.Agent.Services
         private readonly object _sync = new object();
         private readonly Func<DateTime> _utcNow;
         private readonly Func<int> _nextCode;
-        private readonly Dictionary<Tuple<string, string>, Guid> _approved = new Dictionary<Tuple<string, string>, Guid>();
+        private readonly Dictionary<Tuple<string, string>, GrantedApproval> _approved = new Dictionary<Tuple<string, string>, GrantedApproval>();
+        private readonly List<GrantedApproval> _grantOrder = new List<GrantedApproval>();
         private readonly List<PendingApproval> _pending = new List<PendingApproval>();
         private bool _enabled;
         private long _documentEpoch;
+        private long _revision;
+
+        public event EventHandler Changed;
 
         public ProtectedModeApprovals(Func<DateTime> utcNow, Func<int> nextCode)
         {
@@ -29,21 +33,25 @@ namespace NavisHelper.Agent.Services
             get { lock (_sync) return _enabled; }
             set
             {
-                lock (_sync)
+                WithNotification(() =>
                 {
+                    var changed = _enabled != value;
                     _enabled = value;
                     if (!value)
                     {
+                        changed |= _approved.Count != 0 || _pending.Count != 0;
                         _approved.Clear();
+                        _grantOrder.Clear();
                         _pending.Clear();
                     }
-                }
+                    if (changed) _revision++;
+                });
             }
         }
 
         public ApprovalDecision Check(string command, string documentKey, string sessionId, string clientName)
         {
-            lock (_sync)
+            return WithNotification(() =>
             {
                 var requiresApproval = ProtectedModeGate.RequiresApproval(command);
                 if (!_enabled || !requiresApproval)
@@ -55,10 +63,10 @@ namespace NavisHelper.Agent.Services
 
                 var now = _utcNow();
                 ExpirePending(now);
-                Guid grantId;
-                if (_approved.TryGetValue(Tuple.Create(documentKey, sessionId), out grantId))
+                GrantedApproval grant;
+                if (_approved.TryGetValue(Tuple.Create(documentKey, sessionId), out grant))
                     return new ApprovalDecision(true, null, new ApprovalTicket(command, documentKey,
-                        sessionId, _documentEpoch, requiresApproval, grantId));
+                        sessionId, _documentEpoch, requiresApproval, grant.GrantId));
 
                 var pending = _pending.FirstOrDefault(request =>
                     request.DocumentKey == documentKey && request.SessionId == sessionId);
@@ -66,9 +74,10 @@ namespace NavisHelper.Agent.Services
                 {
                     pending = new PendingApproval(documentKey, sessionId, clientName, CreateCode(), now);
                     _pending.Add(pending);
+                    _revision++;
                 }
                 return new ApprovalDecision(false, pending.Code);
-            }
+            });
         }
 
         public bool Confirm(ApprovalTicket ticket)
@@ -96,9 +105,9 @@ namespace NavisHelper.Agent.Services
                     !string.Equals(currentDocumentKey, ticket.DocumentKey, StringComparison.Ordinal))
                     return false;
 
-                Guid grantId;
-                return _approved.TryGetValue(Tuple.Create(ticket.DocumentKey, ticket.SessionId), out grantId)
-                    && grantId == ticket.GrantId.Value;
+                GrantedApproval grant;
+                return _approved.TryGetValue(Tuple.Create(ticket.DocumentKey, ticket.SessionId), out grant)
+                    && grant.GrantId == ticket.GrantId.Value;
             }
         }
 
@@ -106,63 +115,126 @@ namespace NavisHelper.Agent.Services
         {
             get
             {
-                lock (_sync)
+                return WithNotification<IReadOnlyList<PendingApproval>>(() =>
                 {
                     ExpirePending(_utcNow());
                     // Immutable entries and a detached list prevent callers from mutating gate state.
                     return _pending.OrderBy(request => request.RequestedUtc).ToList().AsReadOnly();
-                }
+                });
             }
+        }
+
+        public IReadOnlyList<GrantedApproval> Approved
+        {
+            get { lock (_sync) return _grantOrder.ToList().AsReadOnly(); }
         }
 
         public bool Approve(string code)
         {
-            lock (_sync)
+            return WithNotification(() =>
             {
-                ExpirePending(_utcNow());
+                var now = _utcNow();
+                ExpirePending(now);
                 var pending = _pending.FirstOrDefault(request => request.Code == code);
                 if (pending == null)
                     return false;
 
-                _approved[Tuple.Create(pending.DocumentKey, pending.SessionId)] = Guid.NewGuid();
+                var key = Tuple.Create(pending.DocumentKey, pending.SessionId);
+                GrantedApproval previous;
+                if (_approved.TryGetValue(key, out previous)) _grantOrder.Remove(previous);
+                var grant = new GrantedApproval(pending.DocumentKey, pending.SessionId,
+                    pending.ClientName, Guid.NewGuid(), now);
+                _approved[key] = grant;
+                _grantOrder.Add(grant);
                 _pending.Remove(pending);
+                _revision++;
                 return true;
-            }
+            });
         }
 
         public bool Deny(string code)
         {
-            lock (_sync)
+            return WithNotification(() =>
             {
                 ExpirePending(_utcNow());
-                return _pending.RemoveAll(request => request.Code == code) != 0;
-            }
+                var removed = _pending.RemoveAll(request => request.Code == code) != 0;
+                if (removed) _revision++;
+                return removed;
+            });
         }
 
         public void Revoke(string documentKey)
         {
-            lock (_sync)
+            WithNotification(() =>
             {
                 foreach (var key in _approved.Keys.Where(key => key.Item1 == documentKey).ToList())
                     _approved.Remove(key);
-                _pending.RemoveAll(request => request.DocumentKey == documentKey);
-            }
+                var removed = _grantOrder.RemoveAll(grant => grant.DocumentKey == documentKey);
+                removed += _pending.RemoveAll(request => request.DocumentKey == documentKey);
+                if (removed != 0) _revision++;
+            });
+        }
+
+        public void Revoke(string documentKey, string sessionId)
+        {
+            WithNotification(() =>
+            {
+                var key = Tuple.Create(documentKey, sessionId);
+                GrantedApproval grant;
+                var removed = _approved.TryGetValue(key, out grant);
+                if (removed)
+                {
+                    _approved.Remove(key);
+                    _grantOrder.Remove(grant);
+                }
+                removed |= _pending.RemoveAll(request =>
+                    request.DocumentKey == documentKey && request.SessionId == sessionId) != 0;
+                if (removed) _revision++;
+            });
         }
 
         public void DocumentChanged(string newDocumentKey)
         {
-            lock (_sync)
+            WithNotification(() =>
             {
                 _documentEpoch++;
+                var changed = _approved.Count != 0;
                 _approved.Clear();
-                _pending.RemoveAll(request => request.DocumentKey != newDocumentKey);
-            }
+                _grantOrder.Clear();
+                changed |= _pending.RemoveAll(request => request.DocumentKey != newDocumentKey) != 0;
+                if (changed) _revision++;
+            });
         }
 
         // Called only while holding _sync; expiration is inclusive at ten minutes.
         private void ExpirePending(DateTime now)
         {
-            _pending.RemoveAll(request => now - request.RequestedUtc >= RequestLifetime);
+            if (_pending.RemoveAll(request => now - request.RequestedUtc >= RequestLifetime) != 0)
+                _revision++;
+        }
+
+        private void WithNotification(Action action)
+        {
+            WithNotification(() => { action(); return true; });
+        }
+
+        private T WithNotification<T>(Func<T> action)
+        {
+            var changed = false;
+            try
+            {
+                lock (_sync)
+                {
+                    var revision = _revision;
+                    try { return action(); }
+                    finally { changed = _revision != revision; }
+                }
+            }
+            finally
+            {
+                // Notify after releasing the lock, including expiration before a failed operation.
+                if (changed) Changed?.Invoke(this, EventArgs.Empty);
+            }
         }
 
         private string CreateCode()
@@ -218,6 +290,24 @@ namespace NavisHelper.Agent.Services
         public long DocumentEpoch { get; }
         public bool RequiresApproval { get; }
         public Guid? GrantId { get; }
+    }
+
+    internal sealed class GrantedApproval
+    {
+        public GrantedApproval(string documentKey, string sessionId, string clientName, Guid grantId, DateTime grantedUtc)
+        {
+            DocumentKey = documentKey;
+            SessionId = sessionId;
+            ClientName = clientName;
+            GrantId = grantId;
+            GrantedUtc = grantedUtc;
+        }
+
+        public string DocumentKey { get; }
+        public string SessionId { get; }
+        public string ClientName { get; }
+        public Guid GrantId { get; }
+        public DateTime GrantedUtc { get; }
     }
 
     internal sealed class PendingApproval

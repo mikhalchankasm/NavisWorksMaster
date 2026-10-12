@@ -857,6 +857,20 @@ Keeps only geometric objects on the lowest level.</value>
   <data name="Settings_About_Section" xml:space="preserve">
     <value>About</value>
   </data>
+  <data name="Settings_ProtectedMode_Section" xml:space="preserve"><value>Agent write access</value></data>
+  <data name="Settings_ProtectedMode_Enable" xml:space="preserve"><value>Protected mode</value></data>
+  <data name="Settings_ProtectedMode_Explanation" xml:space="preserve"><value>Require approval before an agent changes the document. Approval covers one document and one client session. Read-only tools remain available.</value></data>
+  <data name="Settings_ProtectedMode_Pending" xml:space="preserve"><value>Pending requests</value></data>
+  <data name="Settings_ProtectedMode_Approved" xml:space="preserve"><value>Granted access</value></data>
+  <data name="Settings_ProtectedMode_RequestFormat" xml:space="preserve"><value>{0} · {1} · Code: {2}</value></data>
+  <data name="Settings_ProtectedMode_GrantFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="Settings_ProtectedMode_Allow" xml:space="preserve"><value>Allow</value></data>
+  <data name="Settings_ProtectedMode_Deny" xml:space="preserve"><value>Deny</value></data>
+  <data name="Settings_ProtectedMode_Revoke" xml:space="preserve"><value>Revoke</value></data>
+  <data name="Settings_ProtectedMode_Empty" xml:space="preserve"><value>None</value></data>
+  <data name="Settings_ProtectedMode_UnsavedDocument" xml:space="preserve"><value>Unsaved document</value></data>
+  <data name="Settings_ProtectedMode_RequestStatus" xml:space="preserve"><value>An agent is requesting write access. Allow or deny it in Settings.</value></data>
+  <data name="Settings_ProtectedMode_PersistenceWarning" xml:space="preserve"><value>Protected mode changed for this run, but the setting could not be saved.</value></data>
   <data name="Settings_Service_Section" xml:space="preserve">
     <value>Service</value>
   </data>

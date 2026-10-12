@@ -857,6 +857,20 @@
   <data name="Settings_About_Section" xml:space="preserve">
     <value>О программе</value>
   </data>
+  <data name="Settings_ProtectedMode_Section" xml:space="preserve"><value>Доступ агентов к изменениям</value></data>
+  <data name="Settings_ProtectedMode_Enable" xml:space="preserve"><value>Защищённый режим</value></data>
+  <data name="Settings_ProtectedMode_Explanation" xml:space="preserve"><value>Требовать разрешение перед изменением документа агентом. Разрешение действует для одного документа и одного сеанса клиента. Инструменты чтения остаются доступны.</value></data>
+  <data name="Settings_ProtectedMode_Pending" xml:space="preserve"><value>Ожидающие запросы</value></data>
+  <data name="Settings_ProtectedMode_Approved" xml:space="preserve"><value>Выданные разрешения</value></data>
+  <data name="Settings_ProtectedMode_RequestFormat" xml:space="preserve"><value>{0} · {1} · Код: {2}</value></data>
+  <data name="Settings_ProtectedMode_GrantFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="Settings_ProtectedMode_Allow" xml:space="preserve"><value>Разрешить</value></data>
+  <data name="Settings_ProtectedMode_Deny" xml:space="preserve"><value>Отклонить</value></data>
+  <data name="Settings_ProtectedMode_Revoke" xml:space="preserve"><value>Отозвать</value></data>
+  <data name="Settings_ProtectedMode_Empty" xml:space="preserve"><value>Нет</value></data>
+  <data name="Settings_ProtectedMode_UnsavedDocument" xml:space="preserve"><value>Несохранённый документ</value></data>
+  <data name="Settings_ProtectedMode_RequestStatus" xml:space="preserve"><value>Агент запрашивает доступ к изменениям. Разрешите или отклоните запрос в настройках.</value></data>
+  <data name="Settings_ProtectedMode_PersistenceWarning" xml:space="preserve"><value>Защищённый режим изменён для текущего запуска, но сохранить настройку не удалось.</value></data>
   <data name="Settings_Service_Section" xml:space="preserve">
     <value>Сервис</value>
   </data>

@@ -657,6 +657,7 @@
     <Compile Include="Core\ColorParser.cs" />
     <Compile Include="Core\ClashOperationProtocolReason.cs" />
     <Compile Include="Core\PersistedModelNames.cs" />
+    <Compile Include="Core\ProtectedModeSettingsStore.cs" />
     <Compile Include="Core\Localization\ColorSchemeUiText.cs" />
     <Compile Include="Core\Localization\ClashViewpointErrorRecord.cs" />
     <Compile Include="Core\Localization\PreviewManagerUiOutcome.cs" />
@@ -727,6 +728,7 @@
     <Compile Include="WPF\PanelLocalizationBindings.cs" />
     <Compile Include="WPF\UiTheme.cs" />
     <Compile Include="WPF\NavisHelperSettingsTabBuilder.cs" />
+    <Compile Include="WPF\ProtectedModeSection.cs" />
     <Compile Include="WPF\OpenRouterConnectionPanel.cs" />
     <Compile Include="WPF\OpenRouterModelSelector.cs" />
     <Compile Include="CopySelectedNames.cs" />

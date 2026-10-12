@@ -38,6 +38,8 @@
              Link="Core\ClashOperationProtocolReason.cs" />
     <Compile Include="..\NavisHelper\Core\PersistedModelNames.cs"
              Link="Core\PersistedModelNames.cs" />
+    <Compile Include="..\NavisHelper\Core\ProtectedModeSettingsStore.cs"
+             Link="Core\ProtectedModeSettingsStore.cs" />
     <Compile Include="..\NavisHelper\Core\Import\CsvAttributeReader.cs"
              Link="Core\Import\CsvAttributeReader.cs" />
     <Compile Include="..\NavisHelper\Core\Localization\PreviewManagerUiOutcome.cs"
