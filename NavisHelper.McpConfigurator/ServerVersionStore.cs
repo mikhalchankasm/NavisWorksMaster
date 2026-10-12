@@ -210,9 +210,22 @@ internal sealed class ServerVersionStore
             ValidateVersionPath(current);
             if ((state != null && !Same(state.Current, current)) || !Directory.Exists(current))
                 throw new IOException("Pending MCP activation does not name one existing version.");
+            // Check before committing: an unhealthy target rolls back to the committed state.
+            if (!_healthCheck(Path.Combine(current, Server + ".exe")))
+            {
+                var committed = ReadState().Current;
+                if (committed == null || !Directory.Exists(committed) ||
+                    !_healthCheck(Path.Combine(committed, Server + ".exe")))
+                    throw new IOException("Recovered MCP server failed its health check.");
+                CreateJunction(Link, committed);
+                DeleteJunction(pending);
+                if (hasPendingState) File.Delete(pendingState);
+                return;
+            }
             if (pendingTarget != null) Directory.Move(pending, Link);
             else CreateJunction(Link, current);
             if (hasPendingState) File.Move(pendingState, StatePath, overwrite: true);
+            return;
         }
         if (!_healthCheck(Path.Combine(current, Server + ".exe")))
             throw new IOException("Recovered MCP server failed its health check.");

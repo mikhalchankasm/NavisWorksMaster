@@ -258,6 +258,23 @@ public sealed class ServerVersionStoreTests : IDisposable
     }
 
     [Fact]
+    public void RecoveryRollsBackWhenTheUncommittedTargetFailsItsHealthCheck()
+    {
+        var (a, b) = InterruptedSwitch(Interruption.OldLinkDeleted);
+        var checkedPaths = new List<string>();
+        var store = new ServerVersionStore(_root, exe =>
+        {
+            var directory = Path.GetDirectoryName(exe)!;
+            checkedPaths.Add(directory);
+            return !SamePath(directory, b);
+        });
+
+        Assert.Empty(store.Prune(_ => true));
+
+        AssertRecovered(a, b, checkedPaths, a, b);
+    }
+
+    [Fact]
     public void InstallRecoversSwitchInterruptedAfterRenamingPendingJunction()
     {
         var (a, b) = InterruptedSwitch(Interruption.Renamed);
