@@ -51,11 +51,15 @@ useful inventory, but are not evidence of equality: code can change while `AppVe
 does not. If the checkout server is not built, no server can be verified and the run
 refuses to approve the install just as it does when no plugin version was built.
 
-The inventory still cannot say which server a client runs: that is selected in the
-client's config, not by what is on disk. So the configs are read too. For each of the
-six clients `NavisHelper.McpConfigurator` writes -- Claude Desktop, Codex, Cursor,
-OpenCode, Kimi Code and ZCode -- the guard names the server folder the config points at
-and whether that folder holds the checkout's build:
+The inventory still cannot say which server a client runs. For each of the six clients
+`NavisHelper.McpConfigurator` writes -- Claude Desktop, Codex, Cursor, OpenCode, Kimi Code
+and ZCode -- the guard names the configured server folder and whether it holds the
+checkout's build. Claude Desktop instead uses its installed NavisHelper .mcpb extension
+servers when any exist under `%APPDATA%/Claude/Claude Extensions`: each is verified,
+and drift in any one wins. Its config paths are then notes because Desktop rewrites
+that file. Only child names containing `navishelper` (case-insensitive) are inspected;
+other extension folders and all extension manifests and configs are never read.
+Without an extension, Claude Desktop keeps the config-based verdict:
 
     matches         the folder's whole tree hashes to the checkout build
     differs         it exists and hashes to something else
@@ -355,6 +359,21 @@ def configure_command(clients: list[str], server_folder: Path | None) -> str:
     return command
 
 
+def claude_desktop_extensions() -> list[Path]:
+    """Find NavisHelper extensions without inspecting other vendors' folders."""
+    appdata = CLIENT_ROOTS.get("APPDATA", "")
+    if not appdata:
+        return []
+    root = Path(appdata) / "Claude" / "Claude Extensions"
+    if not root.is_dir():
+        return []
+    return sorted(
+        (path for path in root.iterdir()
+         if "navishelper" in path.name.lower() and path.is_dir()
+         and (path / "server" / SERVER_EXE).is_file()),
+        key=lambda path: path.name.lower())
+
+
 def check_client_configs(matching_install: Path | None) -> bool:
     """Report the server each MCP client is configured to run, and whether it is this build.
 
@@ -363,22 +382,37 @@ def check_client_configs(matching_install: Path | None) -> bool:
     """
     checkout_dll = checkout_server_dll()
     checkout_hash = tree_sha(checkout_dll.parent) if checkout_dll.is_file() else None
+    extensions = claude_desktop_extensions()
 
     print()
-    print("MCP clients, by the server their config names:")
+    print("MCP clients, by their extension server or the server their config names:"
+          if extensions else "MCP clients, by the server their config names:")
     drifted: list[str] = []
     named = 0
     for client, config in client_config_paths():
+        extension_client = client == "claude-desktop" and bool(extensions)
+        prefix = f"note: {client}" if extension_client else f"  {client}"
+        if extension_client:
+            named += 1
+            for extension in extensions:
+                verdict = server_verdict(extension / "server", checkout_hash)
+                print(f"  {client}: {verdict} (extension)  {extension}")
+                if verdict in ("differs", "missing"):
+                    drifted.append(client)
         if config is None:
-            print(f"  {client}: its config root is not in the environment, so it cannot")
+            print(f"{prefix}: its config root is not in the environment, so it cannot")
             print("      be located; nothing about this client is verified.")
             continue
         if not config.is_file():
-            print(f"  {client}: no config")
+            print(f"{prefix}: no config")
             continue
         folders = configured_server_folders(config)
         if not folders:
-            print(f"  {client}: not configured")
+            print(f"{prefix}: not configured")
+            continue
+        if extension_client:
+            for folder in folders:
+                print(f"{prefix}: config names {folder} (Desktop rewrites this file)")
             continue
         named += 1
         for folder in folders:
@@ -400,11 +434,21 @@ def check_client_configs(matching_install: Path | None) -> bool:
     print("would not run this checkout's server. Nothing else reports this: the build,")
     print("the server installer and the client each succeed on their own, and a client")
     print("that is already running keeps the server process it started.")
-    if matching_install is None:
-        print(f"  {INSTALL_SERVER}")
-        print("  No installed server matches this checkout's build, so install one first.")
-    print(f"  {configure_command(list(dict.fromkeys(drifted)), matching_install)}")
-    print("  Then restart those clients.")
+    config_drifted = [client for client in dict.fromkeys(drifted)
+                      if not (client == "claude-desktop" and extensions)]
+    if config_drifted:
+        if matching_install is None:
+            print(f"  {INSTALL_SERVER}")
+            print("  No installed server matches this checkout's build, so install one first.")
+        print(f"  {configure_command(config_drifted, matching_install)}")
+        print("  Then restart those clients.")
+    if extensions and "claude-desktop" in drifted:
+        server_folder = matching_install if matching_install is not None else checkout_dll.parent
+        if checkout_hash is None:
+            print(f"  {BUILD_SERVER}")
+        print(f'  python scripts/build_mcpb.py --server-dir "{server_folder}" '
+              '--output "NavisHelper.mcpb"')
+        print("  Then reinstall that .mcpb in Claude Desktop.")
     return True
 
 
