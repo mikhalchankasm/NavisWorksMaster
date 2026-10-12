@@ -79,6 +79,53 @@ public sealed class InstallerSemanticsTests
             StringComparison.Ordinal);
     }
 
+    // Owner decision 2026-10-12: {app}\McpServer is a junction to versions\<v>-<sha8>.
+    // Copying files to it would overwrite the running version through the link, so the
+    // installer stages the server and hands it to McpConfigurator --install-server.
+    [Fact]
+    public void ServerIsStagedAndInstalledBehindTheJunction()
+    {
+        var installer = ReadInstaller();
+        var files = GetSection(installer, "Files");
+        Assert.DoesNotContain("DestDir: \"{app}\\McpServer\"", files, StringComparison.Ordinal);
+        Assert.Contains(
+            "Source: \"{#SourceDir}\\McpServer\\*\"; DestDir: \"{app}\\McpServerPayload\"",
+            files,
+            StringComparison.Ordinal);
+
+        var code = GetSection(installer, "Code");
+        var postInstall = code.IndexOf("ssPostInstall", StringComparison.Ordinal);
+        Assert.True(postInstall >= 0, "No ssPostInstall step installs the staged server.");
+        var step = code.Substring(postInstall);
+        Assert.Contains("--install-server", step, StringComparison.Ordinal);
+        Assert.Contains("McpServerPayload", step, StringComparison.Ordinal);
+        Assert.Contains("ResultCode", step, StringComparison.Ordinal);
+        Assert.Contains("DelTree(ExpandConstant('{app}\\McpServerPayload')", step, StringComparison.Ordinal);
+
+        // Clients keep the stable path behind the junction.
+        Assert.Contains("--mcp-server \"\"{app}\\McpServer\\NavisHelper.McpServer.exe\"\"", GetSection(installer, "Run"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UninstallRemovesTheJunctionBeforeTheVersions()
+    {
+        var installer = ReadInstaller();
+        var code = GetSection(installer, "Code");
+        var uninstall = code.IndexOf("usUninstall", StringComparison.Ordinal);
+        Assert.True(uninstall >= 0, "No usUninstall step removes the junction.");
+        // RemoveDir deletes the link itself and never follows it into a version.
+        Assert.Contains("RemoveDir(ExpandConstant('{app}\\McpServer'))", code.Substring(uninstall), StringComparison.Ordinal);
+        Assert.Contains("Type: filesandordirs; Name: \"{app}\\versions\"", GetSection(installer, "UninstallDelete"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DevInstallScriptUsesTheVersionStore()
+    {
+        var script = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "tools", "install_local_mcp_server.ps1"));
+        Assert.Contains("--install-server", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"NavisHelper\\McpServer-\"", script, StringComparison.Ordinal);
+    }
+
     private static string ReadInstaller()
     {
         return File.ReadAllText(Path.Combine(
