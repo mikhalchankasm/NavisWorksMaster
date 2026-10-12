@@ -198,10 +198,10 @@ namespace NavisHelper.Agent.Services
             WithNotification(() =>
             {
                 _documentEpoch++;
-                var changed = _approved.Count != 0;
+                var changed = _approved.Count != 0 || _pending.Count != 0;
                 _approved.Clear();
                 _grantOrder.Clear();
-                changed |= _pending.RemoveAll(request => request.DocumentKey != newDocumentKey) != 0;
+                _pending.Clear();
                 if (changed) _revision++;
             });
         }
