@@ -45,6 +45,11 @@ acceptance criterion cannot hold - stop and say so instead of working around
 it. Report the acceptance criterion and its measured result. Do not merge
 anything.
 
+Never stop, kill or signal any process from a command you write (Stop-Process,
+taskkill, kill, .Kill()). Running a test suite which stops only children the test
+itself started is allowed. If a lock or a running process blocks you,
+report the lock and stop work.
+
 BRIEF:
 """
 

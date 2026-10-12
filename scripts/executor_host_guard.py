@@ -27,6 +27,7 @@ HOST_SNAPSHOT_UNAVAILABLE = "HOST_SNAPSHOT_UNAVAILABLE"
 SANDBOX_ACCOUNTS_CREATED = "SANDBOX_ACCOUNTS_CREATED"
 SANDBOX_PROFILE_GRANT = "SANDBOX_PROFILE_GRANT"
 EXECUTOR_TELEMETRY_INCOMPLETE = "EXECUTOR_TELEMETRY_INCOMPLETE"
+PROCESS_STOP_OUTSIDE_RUN = "PROCESS_STOP_OUTSIDE_RUN"
 
 # `codex exec --json` event types listed in the installed 0.161 binary (2026-10-08). Anything else is
 # reported, not ignored: a renamed event in a new release must not read as a quiet run.
@@ -397,4 +398,6 @@ def violations(host: dict[str, object], *, windows: bool | None = None) -> list[
         found.append(EXECUTOR_TELEMETRY_INCOMPLETE)
     if windows and unavailable_snapshots(host):
         found.append(HOST_SNAPSHOT_UNAVAILABLE)
+    if any(entry.get("inRunTree") is False for entry in host.get("processControl", [])):
+        found.append(PROCESS_STOP_OUTSIDE_RUN)
     return found

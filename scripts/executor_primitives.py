@@ -170,6 +170,7 @@ class ProcessResult:
     duration_seconds: float
     timed_out: bool = False
     output_too_large: bool = False
+    process_tree_pids: frozenset[int] = frozenset()
 
 
 def _repo_root() -> Path:
@@ -528,6 +529,10 @@ class _WindowsJob:
         kernel32.SetInformationJobObject.restype = wintypes.BOOL
         kernel32.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
         kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+        kernel32.QueryInformationJobObject.argtypes = [
+            wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p,
+        ]
+        kernel32.QueryInformationJobObject.restype = wintypes.BOOL
         kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
         kernel32.CloseHandle.restype = wintypes.BOOL
 
@@ -543,6 +548,7 @@ class _WindowsJob:
         self._kernel32 = kernel32
         self._handle: int | None = handle
         self.assigned = False
+        self.process_tree_pids: set[int] = set()
 
     def assign(self, process: subprocess.Popen[bytes]) -> None:
         from ctypes import wintypes
@@ -553,8 +559,38 @@ class _WindowsJob:
             raise ctypes.WinError(ctypes.get_last_error())
         self.assigned = True
 
+    def sample_pids(self) -> None:
+        """Keep the union of observed members; a failed query proves nothing new."""
+        from ctypes import wintypes
+
+        if self._handle is None or not self.assigned:
+            return
+        capacity = 64
+        try:
+            while capacity <= 1_048_576:
+                class ProcessIdList(ctypes.Structure):
+                    _fields_ = [
+                        ("assigned", wintypes.DWORD),
+                        ("listed", wintypes.DWORD),
+                        ("pids", ctypes.c_size_t * capacity),
+                    ]
+
+                ids = ProcessIdList()
+                ok = self._kernel32.QueryInformationJobObject(
+                    self._handle, 3, ctypes.byref(ids), ctypes.sizeof(ids), None,
+                )  # JobObjectBasicProcessIdList
+                if ids.assigned > ids.listed:
+                    capacity = max(capacity * 2, ids.assigned)
+                    continue
+                if ok:
+                    self.process_tree_pids.update(ids.pids[:min(ids.listed, capacity)])
+                return
+        except OSError:
+            return
+
     def close(self) -> None:
         if self._handle is not None:
+            self.sample_pids()
             self._kernel32.CloseHandle(self._handle)
             self._handle = None
 
@@ -653,6 +689,7 @@ def _run_process(
     started = time.monotonic()
     launch_options: dict[str, Any]
     windows_job: _WindowsJob | None = None
+    process_tree_pids: set[int] = set()
     if os.name == "nt":
         launch_options = {
             "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -672,6 +709,7 @@ def _run_process(
             if os.name == "nt":
                 try:
                     windows_job = _WindowsJob()
+                    process_tree_pids = windows_job.process_tree_pids
                 except OSError as exc:
                     raise ExecutorError(
                         "CLI_FAILURE", f"Cannot create a bounded Windows process job: {_redact(str(exc))}"
@@ -691,6 +729,7 @@ def _run_process(
                 )
                 if windows_job is not None:
                     windows_job.assign(process)
+                    windows_job.sample_pids()
                     _resume_windows_process(process)
             except OSError as exc:
                 if process is not None:
@@ -702,7 +741,11 @@ def _run_process(
             deadline = started + timeout_seconds
             timed_out = False
             output_too_large = False
+            next_pid_sample = time.monotonic()
             while process.poll() is None:
+                if windows_job is not None and time.monotonic() >= next_pid_sample:
+                    windows_job.sample_pids()
+                    next_pid_sample = time.monotonic() + 0.25
                 stdout_size = os.fstat(stdout_file.fileno()).st_size
                 stderr_size = os.fstat(stderr_file.fileno()).st_size
                 if stdout_size > max_output_bytes or stderr_size > max_output_bytes:
@@ -743,6 +786,7 @@ def _run_process(
                 time.monotonic() - started,
                 timed_out,
                 output_too_large,
+                frozenset(process_tree_pids),
             )
         except BaseException:
             if process is not None and not process_tree_stopped:

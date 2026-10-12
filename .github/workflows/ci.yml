@@ -94,6 +94,7 @@ jobs:
       - name: Test the external executor launcher
         run: >-
           python -m unittest
+          scripts.tests.test_executor_process_control
           scripts.tests.test_external_worktree_executor
           scripts.tests.test_executor_worktree
           scripts.tests.test_agent_home_isolation

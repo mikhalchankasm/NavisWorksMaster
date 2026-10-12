@@ -62,6 +62,7 @@ from scripts.executor_host_guard import (
     violations,
 )
 from scripts.executor_msbuild_nodes import RUN_MARKER, clean_orphan_msbuild_nodes
+from scripts.executor_process_control import scan
 from scripts.executor_worktree import (
     build_argv,
     codex_isolation_arguments,
@@ -312,6 +313,7 @@ def run(
         redacted_stdout = _scrub_whole(process.stdout, secrets)
         host = _host_changes(provider, home.path, target, root, host_before, host_after, secrets)
         if provider == "codex":
+            host["processControl"] = scan(redacted_stdout, process.process_tree_pids)
             # Read from the whole stream before the record's tail is cut; only problem codes are kept.
             host["telemetry"] = {"problems": telemetry_problems(
                 process.stdout, timed_out=process.timed_out, output_too_large=process.output_too_large
