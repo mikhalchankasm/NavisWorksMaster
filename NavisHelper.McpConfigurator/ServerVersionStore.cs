@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace NavisHelper.McpConfigurator;
@@ -35,6 +36,19 @@ internal sealed class ServerVersionStore
         EnsurePlainDirectory(_versions);
         var hadVersions = Directory.Exists(_versions);
         var created = !Directory.Exists(destination);
+        if (!created)
+        {
+            try
+            {
+                if (!string.Equals(VersionName(destination), Path.GetFileName(destination), StringComparison.Ordinal))
+                    throw new IOException("The stored MCP server tree no longer matches its version name.");
+            }
+            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException
+                                       or KeyNotFoundException or InvalidOperationException)
+            {
+                throw new IOException($"Cannot reuse MCP server version directory '{destination}'.", ex);
+            }
+        }
         var migrated = false;
         string? legacy = null;
         try
@@ -120,6 +134,7 @@ internal sealed class ServerVersionStore
 
     private static string VersionName(string directory)
     {
+        var hash = TreeHash(directory);
         using var deps = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, Server + ".deps.json")));
         var versions = deps.RootElement.GetProperty("targets").EnumerateObject()
             .SelectMany(target => target.Value.EnumerateObject())
@@ -127,9 +142,34 @@ internal sealed class ServerVersionStore
             .Select(entry => entry.Name[(Server.Length + 1)..]).Distinct().ToArray();
         if (versions.Length != 1 || !Version.TryParse(versions[0], out _))
             throw new InvalidDataException("The MCP server dependency manifest must identify one version.");
-        using var dll = File.OpenRead(Path.Combine(directory, Server + ".dll"));
-        var hash = Convert.ToHexString(SHA256.HashData(dll))[..8].ToLowerInvariant();
-        return versions[0] + "-" + hash;
+        return versions[0] + "-" + hash[..8];
+    }
+
+    private static string TreeHash(string directory)
+    {
+        var files = new List<string>();
+        CollectFiles(directory);
+        using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var relative in files.OrderBy(path => path, StringComparer.Ordinal))
+        {
+            using var file = File.OpenRead(Path.Combine(directory, relative));
+            var fileHash = Convert.ToHexString(SHA256.HashData(file)).ToLowerInvariant();
+            digest.AppendData(Encoding.UTF8.GetBytes(relative + "\0" + fileHash + "\n"));
+        }
+        return Convert.ToHexString(digest.GetHashAndReset()).ToLowerInvariant();
+
+        void CollectFiles(string folder)
+        {
+            EnsurePlainDirectory(folder);
+            foreach (var entry in Directory.EnumerateFileSystemEntries(folder))
+            {
+                var attributes = File.GetAttributes(entry);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException("Reparse points are not supported in an MCP server tree.");
+                if ((attributes & FileAttributes.Directory) != 0) CollectFiles(entry);
+                else files.Add(Path.GetRelativePath(directory, entry).Replace(Path.DirectorySeparatorChar, '/'));
+            }
+        }
     }
 
     private State ReadState()

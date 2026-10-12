@@ -153,6 +153,13 @@ namespace NavisHelper.Agent.Host
             _lastDocumentFileName = document == null
                 ? string.Empty
                 : document.FileName ?? string.Empty;
+            // Called on the UI thread at startup and on document/file-name changes.
+            // Pipe requests consume only this managed snapshot.
+            var documentKey = string.IsNullOrWhiteSpace(_lastDocumentFileName)
+                ? (document == null ? string.Empty : document.Title ?? string.Empty)
+                : _lastDocumentFileName;
+            AgentRuntime.CurrentDocumentKey = documentKey;
+            AgentRuntime.ProtectedModeApprovals.DocumentChanged(documentKey);
         }
     }
 }

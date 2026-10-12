@@ -105,12 +105,14 @@ public sealed class HostRequestLogLinesTests
         // Raising either number adds a line to every request, and each line costs a named
         // mutex and a file open inside the host time the baseline measures. Dispatch holds
         // the arrival line's two partners plus the dispatcher-cleared line, which is not
-        // request-scoped; transport holds arrival plus the two request-gate rejections.
+        // request-scoped; transport holds arrival plus three rejections (interactive busy,
+        // protected-mode approval, request gate). A rejection replaces the request path's
+        // lines rather than adding to them.
         var dispatch = Read("NavisHelper", "Agent", "Host", "AgentHostService.Dispatch.cs");
         var transport = Read("NavisHelper", "Agent", "Host", "AgentHostService.Transport.cs");
 
         Assert.Equal(4, Count(dispatch, "Logger.Info("));
-        Assert.Equal(3, Count(transport, "Logger.Info("));
+        Assert.Equal(4, Count(transport, "Logger.Info("));
     }
 
     private static int Count(string source, string token)

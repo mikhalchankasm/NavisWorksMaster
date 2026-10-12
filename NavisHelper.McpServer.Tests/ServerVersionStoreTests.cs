@@ -44,8 +44,24 @@ public sealed class ServerVersionStoreTests : IDisposable
         return directory;
     }
 
-    private static string Sha8(string file) =>
-        Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(file)))[..8].ToLowerInvariant();
+    // Issue #249: a version is named after the whole server tree. The tree hash is
+    // SHA-256 over one UTF-8 line per file, ordered by ordinal relative path with '/'
+    // separators: "<relative path>\0<lowercase hex SHA-256 of the file>\n".
+    // scripts/check_installed_bundle_drift.py computes the same value.
+    private static string TreeSha8(string directory)
+    {
+        var manifest = new System.Text.StringBuilder();
+        foreach (var relative in Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
+                     .Select(file => Path.GetRelativePath(directory, file).Replace('\\', '/'))
+                     .OrderBy(path => path, StringComparer.Ordinal))
+        {
+            var bytes = File.ReadAllBytes(Path.Combine(directory, relative));
+            manifest.Append(relative).Append('\0')
+                .Append(Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()).Append('\n');
+        }
+        return Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(manifest.ToString())))[..8]
+            .ToLowerInvariant();
+    }
 
     private string Link => Path.Combine(_root, "McpServer");
 
@@ -61,7 +77,7 @@ public sealed class ServerVersionStoreTests : IDisposable
         var source = Source("a", "2.10.0.0", "A");
         var result = Store().Install(source);
 
-        var expected = Path.Combine(_root, "versions", "2.10.0.0-" + Sha8(Path.Combine(source, Dll)));
+        var expected = Path.Combine(_root, "versions", "2.10.0.0-" + TreeSha8(source));
         Assert.True(result.Activated);
         Assert.Equal(expected, result.VersionDirectory.TrimEnd('\\'));
         Assert.Equal(expected, Target);
@@ -77,7 +93,7 @@ public sealed class ServerVersionStoreTests : IDisposable
         CopyDirectory(legacy, Link);
         var result = Store().Install(Source("b", "2.10.0.0", "B"));
 
-        var moved = Path.Combine(_root, "versions", "2.9.0.0-" + Sha8(Path.Combine(legacy, Dll)));
+        var moved = Path.Combine(_root, "versions", "2.9.0.0-" + TreeSha8(legacy));
         Assert.True(result.Activated);
         Assert.Equal(moved, result.PreviousDirectory?.TrimEnd('\\'));
         Assert.Equal("exe L", File.ReadAllText(Path.Combine(moved, Exe)));
@@ -107,6 +123,48 @@ public sealed class ServerVersionStoreTests : IDisposable
         Assert.True(second.Activated);
         Assert.Equal(first.VersionDirectory, second.VersionDirectory);
         Assert.Single(Directory.GetDirectories(Path.Combine(_root, "versions")));
+    }
+
+    [Fact]
+    public void TreeHashMatchesTheFixedVectorSharedWithTheDriftScript()
+    {
+        // The same tree and value are asserted by check_installed_bundle_drift.py --selftest.
+        Assert.Equal("cfaffae2", TreeSha8(Source("a", "2.10.0.0", "A")));
+        var result = Store().Install(Source("a", "2.10.0.0", "A"));
+        Assert.Equal(Path.Combine(_root, "versions", "2.10.0.0-cfaffae2"), result.VersionDirectory.TrimEnd('\\'));
+    }
+
+    [Theory]
+    [InlineData("NavisHelper.McpServer.deps.json")]
+    [InlineData("runtimes\\native.dll")]
+    [InlineData("NavisHelper.McpServer.runtimeconfig.json")]
+    public void ChangingAnyFileButTheServerDllCreatesASecondVersionAndSwitchesToIt(string changed)
+    {
+        var source = Source("a", "2.10.0.0", "A");
+        var first = Store().Install(source);
+        var path = Path.Combine(source, changed);
+        File.AppendAllText(path, File.Exists(path) ? " " : "{}");
+        var second = Store().Install(source);
+
+        Assert.True(second.Activated);
+        Assert.NotEqual(first.VersionDirectory.TrimEnd('\\'), second.VersionDirectory.TrimEnd('\\'));
+        Assert.Equal(Path.Combine(_root, "versions", "2.10.0.0-" + TreeSha8(source)), second.VersionDirectory.TrimEnd('\\'));
+        Assert.Equal(second.VersionDirectory.TrimEnd('\\'), Target);
+        Assert.Equal(first.VersionDirectory, second.PreviousDirectory);
+        Assert.Equal(2, Directory.GetDirectories(Path.Combine(_root, "versions")).Length);
+    }
+
+    [Fact]
+    public void ExistingVersionDirectoryWhoseTreeNoLongerMatchesItsNameIsNotReused()
+    {
+        var source = Source("a", "2.10.0.0", "A");
+        var first = Store().Install(source);
+        var before = Target;
+        File.WriteAllText(Path.Combine(first.VersionDirectory, "runtimes", "native.dll"), "tampered");
+
+        Assert.ThrowsAny<IOException>(() => Store().Install(source));
+        Assert.Equal(before, Target);
+        Assert.Equal("tampered", File.ReadAllText(Path.Combine(Link, "runtimes", "native.dll")));
     }
 
     [Fact]

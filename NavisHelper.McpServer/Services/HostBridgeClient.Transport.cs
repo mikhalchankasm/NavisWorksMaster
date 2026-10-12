@@ -10,6 +10,8 @@ namespace NavisHelper.McpServer.Services;
 
 internal sealed partial class HostBridgeClient
 {
+    internal static JsonSerializerOptions RequestJsonOptions => JsonOptions;
+
     private async Task<TResponse> CallHostAsync<TResponse>(string command, object payload, CancellationToken cancellationToken, HostTargetOptions target = null, int timeoutMs = DefaultTimeoutMs)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -58,15 +60,8 @@ internal sealed partial class HostBridgeClient
                 }
 
                 var hostTimeoutMs = Math.Max(1, remainingTimeoutMs - HostTimeoutMarginMs);
-                var requestJson = JsonSerializer.Serialize(new
-                {
-                    protocol_version = ProtocolConstants.CurrentProtocolVersion,
-                    request_id = requestId,
-                    instance_id = record.InstanceId,
-                    command = command,
-                    timeout_ms = hostTimeoutMs,
-                    payload = payload,
-                }, JsonOptions);
+                var requestJson = HostRequestEnvelope.Build(requestId, record.InstanceId,
+                    command, hostTimeoutMs, payload, McpSessionIdentity.Id, _callLogger.ClientName);
 
                 string responseJson;
                 try
