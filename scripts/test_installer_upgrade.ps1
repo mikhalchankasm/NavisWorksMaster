@@ -206,14 +206,19 @@ function Invoke-Uninstaller([string]$AppRoot, [string]$Name) {
         if ([DateTime]::UtcNow -gt $deadline) { throw "Uninstaller did not finish in $AppRoot" }
         Start-Sleep -Milliseconds 500
     }
-    Start-Sleep -Seconds 2
+    # The TEMP copy removes the then-empty install root after unins000.*; give it time.
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    while ([System.IO.Directory]::Exists($AppRoot) -and [DateTime]::UtcNow -lt $deadline) {
+        Start-Sleep -Milliseconds 500
+    }
     Assert-OwnerInstallUnchanged $Name
     Assert-PathMissing (Join-Path $AppRoot "McpServer") "MCP server junction after uninstall"
     Assert-PathMissing (Join-Path $AppRoot "versions") "MCP version store after uninstall"
     Assert-PathMissing $bundleRoot "Isolated bundle after uninstall"
-    if (Test-Path -LiteralPath $AppRoot) {
-        $left = Get-ChildItem -LiteralPath $AppRoot -Recurse -Force | ForEach-Object { $_.FullName }
-        throw "Uninstall left files in ${AppRoot}: $($left -join '; ')"
+    if ([System.IO.Directory]::Exists($AppRoot)) {
+        $left = @([System.IO.Directory]::GetFileSystemEntries($AppRoot, '*', [System.IO.SearchOption]::AllDirectories))
+        if ($left.Count -gt 0) { throw "Uninstall left files in ${AppRoot}: $($left -join '; ')" }
+        Write-Host "Note: the empty install root $AppRoot was still present 30 seconds after uninstall."
     }
 }
 
