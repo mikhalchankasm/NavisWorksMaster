@@ -57,7 +57,8 @@ and ZCode -- the guard names the configured server folder and whether it holds t
 checkout's build. Claude Desktop instead uses its installed NavisHelper .mcpb extension
 servers when any exist under `%APPDATA%/Claude/Claude Extensions`: each is verified,
 and drift in any one wins. Its config paths are then notes because Desktop rewrites
-that file. Only child names containing `navishelper` (case-insensitive) are inspected;
+that file. Only child names containing `navishelper` (case-insensitive) are inspected,
+and one without its server executable or DLL is `missing`;
 other extension folders and all extension manifests and configs are never read.
 Without an extension, Claude Desktop keeps the config-based verdict:
 
@@ -360,7 +361,12 @@ def configure_command(clients: list[str], server_folder: Path | None) -> str:
 
 
 def claude_desktop_extensions() -> list[Path]:
-    """Find NavisHelper extensions without inspecting other vendors' folders."""
+    """Find NavisHelper extensions without inspecting other vendors' folders.
+
+    Matched by name alone: a NavisHelper extension that lost its server executable is
+    still the one Desktop would try to start, so it is reported as missing rather than
+    dropped, which would let the config verdict claim a match.
+    """
     appdata = CLIENT_ROOTS.get("APPDATA", "")
     if not appdata:
         return []
@@ -369,8 +375,7 @@ def claude_desktop_extensions() -> list[Path]:
         return []
     return sorted(
         (path for path in root.iterdir()
-         if "navishelper" in path.name.lower() and path.is_dir()
-         and (path / "server" / SERVER_EXE).is_file()),
+         if "navishelper" in path.name.lower() and path.is_dir()),
         key=lambda path: path.name.lower())
 
 
@@ -395,7 +400,8 @@ def check_client_configs(matching_install: Path | None) -> bool:
         if extension_client:
             named += 1
             for extension in extensions:
-                verdict = server_verdict(extension / "server", checkout_hash)
+                verdict = ("missing" if not (extension / "server" / SERVER_EXE).is_file()
+                           else server_verdict(extension / "server", checkout_hash))
                 print(f"  {client}: {verdict} (extension)  {extension}")
                 if verdict in ("differs", "missing"):
                     drifted.append(client)
@@ -1004,12 +1010,15 @@ def selftest() -> int:
     EXT_MATCHING = "local.mcpb.navishelper-contributors.navishelper"
     EXT_STALE = "local.mcpb.navishelper-old.navishelper"
     EXT_NO_DLL = "local.mcpb.navishelper-broken.navishelper"
+    EXT_NO_EXE = "local.mcpb.navishelper-noexe.navishelper"
     EXT_OTHER = "local.mcpb.other-vendor.other"
     EXT_SECRET = "sk-extension-selftest-1111111111"
 
     def write_extension(root: Path, name: str, contents: bytes | None) -> Path:
         folder = Path(client_roots(root)["APPDATA"]) / "Claude" / "Claude Extensions" / name
         write_server_tree(folder / "server", "2.10.0.0", contents)
+        if name == EXT_NO_EXE:
+            (folder / "server" / SERVER_EXE).unlink()
         (folder / "manifest.json").write_text(
             json.dumps({"name": name, "token": EXT_SECRET}), encoding="utf-8")
         return folder
@@ -1025,6 +1034,10 @@ def selftest() -> int:
          "claude-desktop: matches (extension)"),
         ("2b an extension whose server has no DLL", {EXT_NO_DLL: None}, FIXTURE_MATCHING, 1,
          ("claude-desktop: missing (extension)", "MCP CLIENT DRIFT: claude-desktop"), None),
+        ("2c a NavisHelper extension whose server has no executable",
+         {EXT_NO_EXE: b"CHECKOUT"}, FIXTURE_MATCHING, 1,
+         ("claude-desktop: missing (extension)", "MCP CLIENT DRIFT: claude-desktop"),
+         "claude-desktop: matches"),
         ("3 no extension falls back to the config verdict", {}, FIXTURE_MATCHING, 0,
          ("claude-desktop: matches",), "(extension)"),
         ("4 two NavisHelper extensions, one differing: both reported, drift wins",
