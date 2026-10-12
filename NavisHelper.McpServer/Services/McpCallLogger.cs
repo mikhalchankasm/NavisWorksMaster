@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using NavisHelper.Agent.Contracts;
 
 namespace NavisHelper.McpServer.Services;
@@ -21,6 +22,8 @@ internal sealed class McpCallLogger
     private readonly object _syncRoot = new object();
     private readonly string _logDirectory;
     private DateTime? _lastCleanupDateUtc;
+    private string _clientName;
+    private string _clientVersion;
 
     public McpCallLogger()
     {
@@ -142,13 +145,28 @@ internal sealed class McpCallLogger
         });
     }
 
+    public void SetClient(string name, string version)
+    {
+        lock (_syncRoot)
+        {
+            _clientName = name;
+            _clientVersion = version;
+        }
+    }
+
     public void Log(object entry)
     {
         try
         {
-            var line = JsonSerializer.Serialize(entry, JsonOptions);
             lock (_syncRoot)
             {
+                var json = JsonSerializer.SerializeToNode(entry, JsonOptions);
+                if (_clientName != null && json is JsonObject fields)
+                {
+                    fields["client_name"] = _clientName;
+                    fields["client_version"] = _clientVersion;
+                }
+                var line = json?.ToJsonString(JsonOptions) ?? "null";
                 var logFilePath = GetCurrentLogFilePath();
                 var hasMutex = false;
                 try
