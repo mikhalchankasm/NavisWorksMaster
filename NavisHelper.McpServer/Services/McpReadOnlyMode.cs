@@ -19,10 +19,9 @@ internal sealed class McpReadOnlyMode
         var effects = new Dictionary<string, ToolEffects>(StringComparer.Ordinal);
         foreach (var method in toolMethods)
         {
-            var attribute = method.GetCustomAttribute<McpServerToolAttribute>(inherit: false);
             var capabilities = method.GetCustomAttribute<ToolCapabilitiesAttribute>(inherit: false)
                 ?? throw new InvalidOperationException("Missing tool capabilities: " + method.Name);
-            var name = string.IsNullOrWhiteSpace(attribute.Name) ? ToSnakeCase(method.Name) : attribute.Name;
+            var name = ToolName(method);
             if (!effects.TryAdd(name, capabilities.Effects))
                 throw new InvalidOperationException("Duplicate MCP tool name: " + name);
         }
@@ -35,6 +34,12 @@ internal sealed class McpReadOnlyMode
         (args ?? Array.Empty<string>()).Contains("--read-only", StringComparer.Ordinal) ||
         string.Equals(environmentValue, "1", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(environmentValue, "true", StringComparison.OrdinalIgnoreCase);
+
+    internal static string ToolName(MethodInfo method)
+    {
+        var attribute = method.GetCustomAttribute<McpServerToolAttribute>(inherit: false);
+        return string.IsNullOrWhiteSpace(attribute?.Name) ? ToSnakeCase(method.Name) : attribute.Name;
+    }
 
     internal static IEnumerable<MethodInfo> RegisteredToolMethods() =>
         typeof(NavisworksHostTools).Assembly.GetTypes()
