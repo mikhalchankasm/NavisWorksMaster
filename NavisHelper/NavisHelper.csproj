@@ -564,6 +564,7 @@
     <Compile Include="Agent\Services\ClashRenumberMutationService.cs" />
     <Compile Include="Agent\Services\ClashTestMutationService.cs" />
     <Compile Include="Agent\Services\ClashReportOperationTracker.cs" />
+    <Compile Include="Agent\Services\ProtectedModeApprovals.cs" />
     <Compile Include="Agent\Services\SelectionSetReferenceResolver.cs" />
     <Compile Include="Agent\Services\ClashTestsFromSetsService.cs" />
     <Compile Include="Agent\Services\ClashTestTransferExporterService.cs" />

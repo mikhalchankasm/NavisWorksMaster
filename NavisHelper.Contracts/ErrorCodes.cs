@@ -31,6 +31,7 @@ namespace NavisHelper.Agent.Contracts
         public const string TransportConnectFailed = "transport_connect_failed";
         public const string CommandFailed = "command_failed";
         public const string ReadOnlyMode = "read_only_mode";
+        public const string ApprovalRequired = "approval_required";
         public const string ArtifactWriteFailed = "artifact_write_failed";
         public const string ClashTransferXmlMalformed = "clash_transfer_xml_malformed";
         public const string ClashTransferXmlUnsafe = "clash_transfer_xml_unsafe";

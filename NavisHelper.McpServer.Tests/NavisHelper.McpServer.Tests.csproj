@@ -30,6 +30,8 @@
   <ItemGroup>
     <Compile Include="..\NavisHelper\Agent\Services\ClashReportOperationTracker.cs"
              Link="HostServices\ClashReportOperationTracker.cs" />
+    <Compile Include="..\NavisHelper\Agent\Services\ProtectedModeApprovals.cs"
+             Link="HostServices\ProtectedModeApprovals.cs" />
     <Compile Include="..\NavisHelper\Core\ClashOperationProtocolReason.cs"
              Link="Core\ClashOperationProtocolReason.cs" />
     <Compile Include="..\NavisHelper\Core\PersistedModelNames.cs"
