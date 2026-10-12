@@ -149,5 +149,21 @@ jobs:
         shell: powershell
         run: ./scripts/test_distribution_safety.ps1
 
+      # Pinned: [Code] needs ExecAndCaptureOutput (Inno Setup 6.3+).
+      - name: Install Inno Setup
+        shell: powershell
+        run: |
+          choco install innosetup --version=6.7.1 -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Reuses the fixture plugin matrix from the ZIP smoke above. Compiles the release
+      # installer, then scripts/test_installer_upgrade.ps1 installs, upgrades over a legacy
+      # McpServer directory and uninstalls a smoke build inside a temp root.
+      - name: Compile the installer and prove install, upgrade and uninstall
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\build_installer.ps1 -SkipBuild -PackageName ci-package-smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       # The Navisworks plugin build matrix is intentionally not run in GitHub Actions:
       # it requires the Autodesk Navisworks Manage SDK installed under Program Files.

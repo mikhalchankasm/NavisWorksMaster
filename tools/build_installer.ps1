@@ -1,6 +1,8 @@
 param(
     [string]$Runtime = "win-x64",
     [switch]$SelfContained,
+    # Reuse the plugin matrix already in NavisHelper.bundle (CI: the fixture matrix).
+    [switch]$SkipBuild,
     [string]$AppVersion = "2.10.0.0",
     [string]$PackageName = "",
     [string]$OutputRoot = ""
@@ -67,6 +69,9 @@ $packageArgs = @{
 }
 if ($SelfContained) {
     $packageArgs.SelfContained = $true
+}
+if ($SkipBuild) {
+    $packageArgs.SkipBuild = $true
 }
 
 & $packageScript @packageArgs
