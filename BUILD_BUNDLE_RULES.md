@@ -87,8 +87,8 @@ Installer и dev-скрипт ставят сервер отдельно от bu
 в `%LOCALAPPDATA%\NavisHelper\versions\<version>-<sha8>`, с junction `McpServer` на активную версию.
 ZIP пока использует `McpServer-<version>`; его перевод на version store — следующий этап.
 Проверка дрейфа инвентаризирует стабильный путь `McpServer` и старые `McpServer-<version>`: версии читает из
-`NavisHelper.McpServer.deps.json`, а равенство проверяет по sha256 каждого установленного
-`NavisHelper.McpServer.dll` против сборки чекаута `NavisHelper.McpServer/bin/Release/net9.0`.
+`NavisHelper.McpServer.deps.json`, а равенство проверяет по SHA-256 всего дерева файлов
+папки установленного сервера против дерева сборки чекаута `NavisHelper.McpServer/bin/Release/net9.0`.
 Версии остаются полезным инвентарём, но доказательством не являются: код меняется и без роста
 `AppVersion`.
 

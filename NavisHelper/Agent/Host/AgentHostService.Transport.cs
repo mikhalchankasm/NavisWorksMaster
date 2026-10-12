@@ -142,6 +142,17 @@ namespace NavisHelper.Agent.Host
                     return;
                 }
 
+                var approval = ProtectedModeGate.Evaluate(AgentRuntime.ProtectedModeApprovals,
+                    command, AgentRuntime.CurrentDocumentKey,
+                    requestObject.Value<string>("session_id"), requestObject.Value<string>("client_name"));
+                if (!approval.Allowed)
+                {
+                    RecordOperationFailed(requestId, command, approval.ErrorCode, approval.Message);
+                    Logger.Info("request_id=" + (requestId ?? "<null>") + " command=" + (command ?? "<null>") + " rejected error_code=" + approval.ErrorCode + " reason=approval_required", "AgentHost");
+                    WriteError(server, requestId, approval.ErrorCode, approval.Message, connectionStartedAt.ElapsedMilliseconds);
+                    return;
+                }
+
                 if (!_requestGate.Wait(0))
                 {
                     RecordOperationFailed(requestId, command, ErrorCodes.HostBusy, "AgentHost is already processing another request.");
@@ -157,7 +168,7 @@ namespace NavisHelper.Agent.Host
                 // command's time or its generation-0 collections.
                 requestGateLease.RestartTimer();
                 _heavyWorkCollector.BeginRequest();
-                HandleRequest(server, requestObject, requestId, requestGateLease);
+                HandleRequest(server, requestObject, requestId, requestGateLease, approval.Ticket);
             }
             catch (AgentCommandException ex)
             {

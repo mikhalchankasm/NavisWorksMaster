@@ -13,9 +13,10 @@ namespace NavisHelper.Agent.Services
         private readonly object _sync = new object();
         private readonly Func<DateTime> _utcNow;
         private readonly Func<int> _nextCode;
-        private readonly HashSet<Tuple<string, string>> _approved = new HashSet<Tuple<string, string>>();
+        private readonly Dictionary<Tuple<string, string>, Guid> _approved = new Dictionary<Tuple<string, string>, Guid>();
         private readonly List<PendingApproval> _pending = new List<PendingApproval>();
         private bool _enabled;
+        private long _documentEpoch;
 
         public ProtectedModeApprovals(Func<DateTime> utcNow, Func<int> nextCode)
         {
@@ -44,13 +45,20 @@ namespace NavisHelper.Agent.Services
         {
             lock (_sync)
             {
-                if (!_enabled || !HostCommandEffects.RequiresApproval(command))
-                    return new ApprovalDecision(true, null);
+                var requiresApproval = ProtectedModeGate.RequiresApproval(command);
+                if (!_enabled || !requiresApproval)
+                    return new ApprovalDecision(true, null, new ApprovalTicket(command, documentKey,
+                        sessionId, _documentEpoch, requiresApproval, null));
+
+                if (string.IsNullOrWhiteSpace(sessionId))
+                    return new ApprovalDecision(false, null, errorCode: ErrorCodes.SessionRequired);
 
                 var now = _utcNow();
                 ExpirePending(now);
-                if (_approved.Contains(Tuple.Create(documentKey, sessionId)))
-                    return new ApprovalDecision(true, null);
+                Guid grantId;
+                if (_approved.TryGetValue(Tuple.Create(documentKey, sessionId), out grantId))
+                    return new ApprovalDecision(true, null, new ApprovalTicket(command, documentKey,
+                        sessionId, _documentEpoch, requiresApproval, grantId));
 
                 var pending = _pending.FirstOrDefault(request =>
                     request.DocumentKey == documentKey && request.SessionId == sessionId);
@@ -60,6 +68,37 @@ namespace NavisHelper.Agent.Services
                     _pending.Add(pending);
                 }
                 return new ApprovalDecision(false, pending.Code);
+            }
+        }
+
+        public bool Confirm(ApprovalTicket ticket)
+        {
+            return Confirm(ticket, null);
+        }
+
+        /// <summary>
+        /// Final check on the UI thread right before the command runs. With protection off
+        /// nothing is refused. With protection on, the ticket must carry a grant that still
+        /// exists for the same document instance; when <paramref name="currentDocumentKey"/>
+        /// is given, the active document must also be the one the request was accepted for.
+        /// </summary>
+        public bool Confirm(ApprovalTicket ticket, string currentDocumentKey)
+        {
+            lock (_sync)
+            {
+                if (ticket == null)
+                    return false;
+                if (!ticket.RequiresApproval || !_enabled)
+                    return true;
+                if (!ticket.GrantId.HasValue || ticket.DocumentEpoch != _documentEpoch)
+                    return false;
+                if (currentDocumentKey != null &&
+                    !string.Equals(currentDocumentKey, ticket.DocumentKey, StringComparison.Ordinal))
+                    return false;
+
+                Guid grantId;
+                return _approved.TryGetValue(Tuple.Create(ticket.DocumentKey, ticket.SessionId), out grantId)
+                    && grantId == ticket.GrantId.Value;
             }
         }
 
@@ -85,7 +124,7 @@ namespace NavisHelper.Agent.Services
                 if (pending == null)
                     return false;
 
-                _approved.Add(Tuple.Create(pending.DocumentKey, pending.SessionId));
+                _approved[Tuple.Create(pending.DocumentKey, pending.SessionId)] = Guid.NewGuid();
                 _pending.Remove(pending);
                 return true;
             }
@@ -104,7 +143,8 @@ namespace NavisHelper.Agent.Services
         {
             lock (_sync)
             {
-                _approved.RemoveWhere(key => key.Item1 == documentKey);
+                foreach (var key in _approved.Keys.Where(key => key.Item1 == documentKey).ToList())
+                    _approved.Remove(key);
                 _pending.RemoveAll(request => request.DocumentKey == documentKey);
             }
         }
@@ -113,7 +153,8 @@ namespace NavisHelper.Agent.Services
         {
             lock (_sync)
             {
-                _approved.RemoveWhere(key => key.Item1 != newDocumentKey);
+                _documentEpoch++;
+                _approved.Clear();
                 _pending.RemoveAll(request => request.DocumentKey != newDocumentKey);
             }
         }
@@ -144,16 +185,39 @@ namespace NavisHelper.Agent.Services
 
     internal sealed class ApprovalDecision
     {
-        public ApprovalDecision(bool allowed, string code)
+        public ApprovalDecision(bool allowed, string code, ApprovalTicket ticket = null, string errorCode = ErrorCodes.ApprovalRequired)
         {
             Allowed = allowed;
             Code = code;
-            ErrorCode = allowed ? null : ErrorCodes.ApprovalRequired;
+            ErrorCode = allowed ? null : errorCode;
+            Ticket = ticket;
         }
 
         public bool Allowed { get; }
         public string Code { get; }
         public string ErrorCode { get; }
+        public ApprovalTicket Ticket { get; }
+    }
+
+    internal sealed class ApprovalTicket
+    {
+        public ApprovalTicket(string command, string documentKey, string sessionId, long documentEpoch,
+            bool requiresApproval, Guid? grantId)
+        {
+            Command = command;
+            DocumentKey = documentKey;
+            SessionId = sessionId;
+            DocumentEpoch = documentEpoch;
+            RequiresApproval = requiresApproval;
+            GrantId = grantId;
+        }
+
+        public string Command { get; }
+        public string DocumentKey { get; }
+        public string SessionId { get; }
+        public long DocumentEpoch { get; }
+        public bool RequiresApproval { get; }
+        public Guid? GrantId { get; }
     }
 
     internal sealed class PendingApproval

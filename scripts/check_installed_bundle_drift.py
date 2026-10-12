@@ -43,11 +43,13 @@ always skip or always fail, and a check that cannot fail is not a check.
 
 The MCP server is installed separately under `%LOCALAPPDATA%\\NavisHelper`, so this guard
 also inventories every `McpServer` and `McpServer-<version>` install there. Each installed
-`NavisHelper.McpServer.dll` is compared by hash with the checkout's
-`NavisHelper.McpServer/bin/Release/net9.0` build. Versions remain useful inventory, but
-are not evidence of equality: code can change while `AppVersion` does not. If the
-checkout server is not built, no server can be verified and the run refuses to approve
-the install just as it does when no plugin version was built.
+server folder is compared by whole-tree SHA-256 with the checkout's
+`NavisHelper.McpServer/bin/Release/net9.0` build. The hash includes each file's
+case-preserving relative path and content hash, sorted ordinally; empty directories
+do not contribute, and reparse points within the tree are rejected. Versions remain
+useful inventory, but are not evidence of equality: code can change while `AppVersion`
+does not. If the checkout server is not built, no server can be verified and the run
+refuses to approve the install just as it does when no plugin version was built.
 
 The inventory still cannot say which server a client runs: that is selected in the
 client's config, not by what is on disk. So the configs are read too. For each of the
@@ -55,7 +57,7 @@ six clients `NavisHelper.McpConfigurator` writes -- Claude Desktop, Codex, Curso
 OpenCode, Kimi Code and ZCode -- the guard names the server folder the config points at
 and whether that folder holds the checkout's build:
 
-    matches         the folder's DLL hashes to the checkout build
+    matches         the folder's whole tree hashes to the checkout build
     differs         it exists and hashes to something else
     missing         the folder or its DLL is not there
     not configured  the config file exists but names no NavisHelper server
@@ -100,6 +102,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -161,6 +164,33 @@ def sha(path: Path) -> str:
     return digest.hexdigest()
 
 
+def tree_sha(folder: Path) -> str:
+    """Hash sorted UTF-8 path/NUL/file-SHA-256/newline records for all files.
+
+    The root may be the active McpServer junction; entries below it must be plain.
+    """
+    files: list[str] = []
+
+    def collect(directory: Path) -> None:
+        for entry in directory.iterdir():
+            attributes = entry.lstat()
+            if (stat.S_ISLNK(attributes.st_mode) or
+                    getattr(attributes, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT):
+                raise OSError(f"Reparse points are not supported in an MCP server tree: {entry}")
+            if stat.S_ISDIR(attributes.st_mode):
+                collect(entry)
+            else:
+                files.append(entry.relative_to(folder).as_posix())
+
+    collect(folder)
+    digest = hashlib.sha256()
+    # Ordinal by UTF-16 code unit, as C# StringComparer.Ordinal sorts; plain sorted()
+    # orders by code point and puts U+E000..U+FFFF before non-BMP characters.
+    for relative in sorted(files, key=lambda path: path.encode("utf-16-be", "surrogatepass")):
+        digest.update((relative + "\0" + sha(folder / relative) + "\n").encode("utf-8"))
+    return digest.hexdigest()
+
+
 def describe(path: Path) -> str:
     stat = path.stat()
     written = datetime.fromtimestamp(stat.st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -197,13 +227,13 @@ def installed_server_versions(folder: Path) -> list[str]:
 
 
 def checkout_server_dll() -> Path:
-    """The server build this checkout produced; its hash is the reference for both
+    """The server build this checkout produced; its parent tree hash is the reference for both
     the installed servers and the server each client is configured to run."""
     return ROOT / "NavisHelper.McpServer" / "bin" / "Release" / "net9.0" / SERVER_DLL
 
 
 def check_server_installs() -> tuple[bool, Path | None]:
-    """Inventory local MCP servers and verify at least one by DLL hash.
+    """Inventory local MCP servers and verify at least one by whole-tree hash.
 
     Returns whether the inventory drifted, and the installed folder that matches the
     checkout build -- the one a client should be pointed at, when there is one.
@@ -240,12 +270,12 @@ def check_server_installs() -> tuple[bool, Path | None]:
         print(f"  {INSTALL_SERVER}")
         return True, None
 
-    checkout_hash = sha(checkout_dll)
+    checkout_hash = tree_sha(checkout_dll.parent)
     matching = []
     stale = []
     for folder, versions in installs:
         installed_dll = folder / SERVER_DLL
-        if installed_dll.is_file() and sha(installed_dll) == checkout_hash:
+        if installed_dll.is_file() and tree_sha(folder) == checkout_hash:
             matching.append((folder, versions))
         else:
             stale.append((folder, versions, installed_dll.is_file()))
@@ -311,7 +341,7 @@ def server_verdict(folder: Path, checkout_hash: str | None) -> str:
     installed_dll = folder / SERVER_DLL
     if not installed_dll.is_file():
         return "missing"
-    return "matches" if checkout_hash is not None and sha(installed_dll) == checkout_hash \
+    return "matches" if checkout_hash is not None and tree_sha(folder) == checkout_hash \
         else "differs"
 
 
@@ -328,11 +358,11 @@ def configure_command(clients: list[str], server_folder: Path | None) -> str:
 def check_client_configs(matching_install: Path | None) -> bool:
     """Report the server each MCP client is configured to run, and whether it is this build.
 
-    `matching_install` is the inventory's answer -- the installed folder whose DLL hashes
+    `matching_install` is the inventory's answer -- the installed folder whose whole tree hashes
     to the checkout build -- so the fix can name a server that is actually there.
     """
     checkout_dll = checkout_server_dll()
-    checkout_hash = sha(checkout_dll) if checkout_dll.is_file() else None
+    checkout_hash = tree_sha(checkout_dll.parent) if checkout_dll.is_file() else None
 
     print()
     print("MCP clients, by the server their config names:")
@@ -650,21 +680,61 @@ def selftest() -> int:
             sys.stdout = stdout
         return code, captured.getvalue()
 
-    def write_server_build(root: Path, contents: bytes = b"SERVER") -> None:
-        server_build = root / "NavisHelper.McpServer" / "bin" / "Release" / "net9.0"
-        server_build.mkdir(parents=True, exist_ok=True)
-        (server_build / SERVER_DLL).write_bytes(contents)
-
-    def write_server_install(server_root: Path, folder_name: str, version: str,
-                             contents: bytes | None = b"SERVER") -> None:
-        folder = server_root / folder_name
+    def write_server_tree(folder: Path, version: str, contents: bytes | None) -> None:
         folder.mkdir(parents=True, exist_ok=True)
         deps = {"targets": {".NETCoreApp,Version=v9.0": {
             "NavisHelper.McpServer/" + version: {}}}}
         (folder / "NavisHelper.McpServer.deps.json").write_text(
             json.dumps(deps), encoding="utf-8")
+        (folder / SERVER_EXE).write_bytes(b"EXE")
+        (folder / "NavisHelper.McpServer.runtimeconfig.json").write_bytes(b"{}")
+        (folder / "runtimes").mkdir(exist_ok=True)
+        (folder / "runtimes" / "native.dll").write_bytes(b"NATIVE")
         if contents is not None:
             (folder / SERVER_DLL).write_bytes(contents)
+
+    def write_server_build(root: Path, contents: bytes = b"SERVER",
+                           version: str = "2.10.0.0") -> None:
+        server_build = root / "NavisHelper.McpServer" / "bin" / "Release" / "net9.0"
+        write_server_tree(server_build, version, contents)
+
+    def write_server_install(server_root: Path, folder_name: str, version: str,
+                             contents: bytes | None = b"SERVER") -> None:
+        write_server_tree(server_root / folder_name, version, contents)
+
+    with tempfile.TemporaryDirectory(prefix="drift-vector-selftest-") as tmp:
+        vector = Path(tmp)
+        for relative, contents in (
+            ("NavisHelper.McpServer.deps.json",
+             b'{"targets":{".NETCoreApp,Version=v9.0":{"NavisHelper.McpServer/2.10.0.0":{}}}}'),
+            (SERVER_DLL, b"dll A"), (SERVER_EXE, b"exe A"),
+            ("runtimes/native.dll", b"native A"),
+        ):
+            path = vector / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(contents)
+        measured = tree_sha(vector)
+        expected = "cfaffae2f1fea18b17f179584f491c59d50cfc4f1293a6b316d431661f72bb3c"
+        if measured != expected:
+            failures += 1
+            print(f"  FAIL  fixed tree hash vector -- {measured}, expected {expected}")
+        else:
+            print(f"  PASS  fixed tree hash vector -- {measured}")
+
+    with tempfile.TemporaryDirectory(prefix="drift-order-selftest-") as tmp:
+        # C# StringComparer.Ordinal puts the surrogate pair (0xD83D...) before U+E000.
+        order = Path(tmp)
+        (order / "\uE000.dll").write_bytes(b"P")
+        (order / "\U0001F600.dll").write_bytes(b"E")
+        expected = hashlib.sha256("".join(
+            name + "\0" + hashlib.sha256(data).hexdigest() + "\n"
+            for name, data in (("\U0001F600.dll", b"E"), ("\uE000.dll", b"P"))
+        ).encode("utf-8")).hexdigest()
+        if tree_sha(order) != expected:
+            failures += 1
+            print("  FAIL  tree hash orders paths by UTF-16 code unit, as C# does")
+        else:
+            print("  PASS  tree hash orders paths by UTF-16 code unit, as C# does")
 
     cases = (
         ("build differs from the checkout bundle",
@@ -715,6 +785,9 @@ def selftest() -> int:
          (("McpServer", "2.10.0.0", b"INSTALLED"),), 1,
          ("McpServer: 2.10.0.0", "version matches, code differs", INSTALL_SERVER,
           "point the MCP client at that install and restart the client"), None),
+        ("MCP server same DLL with different deps.json", b"SAME",
+         (("McpServer", "2.10.0.0", b"SAME"),), 1,
+         ("MCP SERVER DRIFT", "version matches, code differs"), None),
         ("MCP server hash match", b"SAME",
          (("McpServer", "2.9.0.0", b"SAME"),), 0,
          ("McpServer: 2.9.0.0", "MCP server verified by SHA-256: McpServer."),
@@ -737,9 +810,12 @@ def selftest() -> int:
                 server_root = root / "servers"
                 server_root.mkdir()
                 if checkout_bytes is not None:
-                    write_server_build(root, checkout_bytes)
+                    write_server_build(root, checkout_bytes, installs[0][1])
                 for folder_name, version, contents in installs:
                     write_server_install(server_root, folder_name, version, contents)
+                if label == "MCP server same DLL with different deps.json":
+                    deps = server_root / "McpServer" / "NavisHelper.McpServer.deps.json"
+                    deps.write_bytes(deps.read_bytes() + b"\n")
                 code, output = run(root, bundle, installed, server_root)
                 for ok, detail in (
                     (code == expected_code, "exit %d, expected %d" % (code, expected_code)),
@@ -801,6 +877,9 @@ def selftest() -> int:
          {"claude-desktop": lambda servers: json_config(servers / FIXTURE_STALE)}, 1,
          ("claude-desktop: differs", "MCP CLIENT DRIFT: claude-desktop",
           "--clients claude-desktop", '--mcp-server "{matching}"'), None),
+        ("a client with the same DLL but different deps.json", b"CHECKOUT",
+         {"codex": lambda servers: toml_config(servers / FIXTURE_STALE)}, 1,
+         ("codex: differs", "MCP CLIENT DRIFT: codex"), None),
         ("a client pointed at a folder that holds no server", b"CHECKOUT",
          {"cursor": lambda servers: json_config(servers / "McpServer-removed")}, 1,
          ("cursor: missing", "MCP CLIENT DRIFT: cursor"), None),
@@ -849,6 +928,10 @@ def selftest() -> int:
                 write_server_install(server_root, FIXTURE_MATCHING, "2.10.0.0", checkout_bytes)
                 write_server_install(server_root, FIXTURE_STALE, "2.9.0.0", b"OLDER")
                 write_server_install(server_root, FIXTURE_SPACED, "2.10.0.0", checkout_bytes)
+                if label == "a client with the same DLL but different deps.json":
+                    write_server_install(server_root, FIXTURE_STALE, "2.10.0.0", checkout_bytes)
+                    deps = server_root / FIXTURE_STALE / "NavisHelper.McpServer.deps.json"
+                    deps.write_bytes(deps.read_bytes() + b"\n")
                 parts = tuple(
                     part.replace("{matching}", str(server_root / FIXTURE_MATCHING / SERVER_EXE))
                     for part in expected_parts)

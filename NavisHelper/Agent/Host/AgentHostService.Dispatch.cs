@@ -27,7 +27,8 @@ namespace NavisHelper.Agent.Host
     internal sealed partial class AgentHostService : IDisposable
     {
 
-        private void HandleRequest(NamedPipeServerStream server, JObject requestObject, string requestId, RequestGateLease requestGateLease)
+        private void HandleRequest(NamedPipeServerStream server, JObject requestObject, string requestId,
+            RequestGateLease requestGateLease, ApprovalTicket approvalTicket)
         {
             var command = requestObject.Value<string>("command");
             var instanceId = requestObject.Value<string>("instance_id");
@@ -53,6 +54,19 @@ namespace NavisHelper.Agent.Host
                 var uiWaitMs = startedAt.ElapsedMilliseconds;
 
                 var document = Autodesk.Navisworks.Api.Application.ActiveDocument;
+                // Final protected-mode check on the UI thread, right before the command runs.
+                if (approvalTicket == null)
+                    throw new AgentCommandException(ErrorCodes.ApprovalRequired,
+                        "The request carries no approval ticket.");
+                if (approvalTicket.RequiresApproval)
+                {
+                    var documentKey = document == null ? string.Empty : document.FileName ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(documentKey))
+                        documentKey = document == null ? string.Empty : document.Title ?? string.Empty;
+                    if (!AgentRuntime.ProtectedModeApprovals.Confirm(approvalTicket, documentKey))
+                        throw new AgentCommandException(ErrorCodes.ApprovalRequired,
+                            "The document changed or the approval was revoked; ask the user to approve again.");
+                }
                 RefreshDiscoveryFile(document);
                 Logger.Info(
                     HostRequestLogLines.OperationStart(

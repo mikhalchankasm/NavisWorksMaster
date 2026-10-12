@@ -46,6 +46,11 @@ internal sealed class McpCallLogger
         get { return GetCurrentLogFilePath(); }
     }
 
+    public string ClientName
+    {
+        get { lock (_syncRoot) return _clientName; }
+    }
+
     public McpRecentCallsResponse GetRecentCalls(int lineCount)
     {
         if (lineCount < 1)

@@ -151,9 +151,13 @@ The installer and developer script use the configurator to manage server copies:
 
 The default root is `%LOCALAPPDATA%\NavisHelper`. Copies live in
 `versions\<version>-<sha8>`; the version comes from the server dependency manifest
-and `sha8` from SHA-256 of its DLL. Installation copies the complete source tree,
-reuses identical versions, and checks stdio initialization and a nonempty tool
-list within 30 seconds before activating the `McpServer` directory junction.
+and `sha8` from SHA-256 of the whole server tree. The hash covers sorted,
+case-preserving relative file paths and their content hashes, excluding empty
+directories and rejecting reparse points within the tree. Installation copies
+the complete source tree, reuses an existing version only if its tree still
+matches its name (otherwise it fails without changing the store), and checks
+stdio initialization and a nonempty tool list within 30 seconds before activating
+the `McpServer` directory junction.
 Client configuration uses the stable path
 `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe`.
 The installer stages files in `{app}\McpServerPayload`, then runs
