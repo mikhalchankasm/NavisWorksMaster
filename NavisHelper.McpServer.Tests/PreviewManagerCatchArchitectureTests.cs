@@ -27,6 +27,15 @@ public sealed class PreviewManagerCatchArchitectureTests
     [InlineData("WPF/NavisHelperPanel.Clash.SelectionGrid.cs")]
     [InlineData("WPF/NavisHelperPanel.Colors.cs")]
     [InlineData("WPF/NavisHelperPanel.Selection.cs")]
+    [InlineData("SelectionPlaneTool.cs")]
+    [InlineData("TopViewBoundingRect.cs")]
+    [InlineData("ExportImportColors.cs")]
+    [InlineData("Core/ExceptionObservation.cs")]
+    [InlineData("AI/AiWorkerProcessRunner.cs")]
+    [InlineData("Agent/Services/SearchService.Scoped.cs")]
+    [InlineData("Agent/Services/SearchService.Spatial.cs")]
+    [InlineData("Agent/Services/ClashIsolationService.cs")]
+    [InlineData("Agent/Services/MatchHandleItemsService.cs")]
     public void EveryCatchNamesAndUsesItsException(string fileName)
     {
         var source = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "NavisHelper", fileName));
