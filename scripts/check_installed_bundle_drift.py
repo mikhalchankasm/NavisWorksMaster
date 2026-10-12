@@ -51,11 +51,16 @@ useful inventory, but are not evidence of equality: code can change while `AppVe
 does not. If the checkout server is not built, no server can be verified and the run
 refuses to approve the install just as it does when no plugin version was built.
 
-The inventory still cannot say which server a client runs: that is selected in the
-client's config, not by what is on disk. So the configs are read too. For each of the
-six clients `NavisHelper.McpConfigurator` writes -- Claude Desktop, Codex, Cursor,
-OpenCode, Kimi Code and ZCode -- the guard names the server folder the config points at
-and whether that folder holds the checkout's build:
+The inventory still cannot say which server a client runs. For each of the six clients
+`NavisHelper.McpConfigurator` writes -- Claude Desktop, Codex, Cursor, OpenCode, Kimi Code
+and ZCode -- the guard names the configured server folder and whether it holds the
+checkout's build. Claude Desktop instead uses its installed NavisHelper .mcpb extension
+servers when any exist under `%APPDATA%/Claude/Claude Extensions`: each is verified,
+and drift in any one wins. Its config paths are then notes because Desktop rewrites
+that file. Only child names containing `navishelper` (case-insensitive) are inspected,
+and one without its server executable or DLL is `missing`;
+other extension folders and all extension manifests and configs are never read.
+Without an extension, Claude Desktop keeps the config-based verdict:
 
     matches         the folder's whole tree hashes to the checkout build
     differs         it exists and hashes to something else
@@ -355,6 +360,25 @@ def configure_command(clients: list[str], server_folder: Path | None) -> str:
     return command
 
 
+def claude_desktop_extensions() -> list[Path]:
+    """Find NavisHelper extensions without inspecting other vendors' folders.
+
+    Matched by name alone: a NavisHelper extension that lost its server executable is
+    still the one Desktop would try to start, so it is reported as missing rather than
+    dropped, which would let the config verdict claim a match.
+    """
+    appdata = CLIENT_ROOTS.get("APPDATA", "")
+    if not appdata:
+        return []
+    root = Path(appdata) / "Claude" / "Claude Extensions"
+    if not root.is_dir():
+        return []
+    return sorted(
+        (path for path in root.iterdir()
+         if "navishelper" in path.name.lower() and path.is_dir()),
+        key=lambda path: path.name.lower())
+
+
 def check_client_configs(matching_install: Path | None) -> bool:
     """Report the server each MCP client is configured to run, and whether it is this build.
 
@@ -363,22 +387,38 @@ def check_client_configs(matching_install: Path | None) -> bool:
     """
     checkout_dll = checkout_server_dll()
     checkout_hash = tree_sha(checkout_dll.parent) if checkout_dll.is_file() else None
+    extensions = claude_desktop_extensions()
 
     print()
-    print("MCP clients, by the server their config names:")
+    print("MCP clients, by their extension server or the server their config names:"
+          if extensions else "MCP clients, by the server their config names:")
     drifted: list[str] = []
     named = 0
     for client, config in client_config_paths():
+        extension_client = client == "claude-desktop" and bool(extensions)
+        prefix = f"note: {client}" if extension_client else f"  {client}"
+        if extension_client:
+            named += 1
+            for extension in extensions:
+                verdict = ("missing" if not (extension / "server" / SERVER_EXE).is_file()
+                           else server_verdict(extension / "server", checkout_hash))
+                print(f"  {client}: {verdict} (extension)  {extension}")
+                if verdict in ("differs", "missing"):
+                    drifted.append(client)
         if config is None:
-            print(f"  {client}: its config root is not in the environment, so it cannot")
+            print(f"{prefix}: its config root is not in the environment, so it cannot")
             print("      be located; nothing about this client is verified.")
             continue
         if not config.is_file():
-            print(f"  {client}: no config")
+            print(f"{prefix}: no config")
             continue
         folders = configured_server_folders(config)
         if not folders:
-            print(f"  {client}: not configured")
+            print(f"{prefix}: not configured")
+            continue
+        if extension_client:
+            for folder in folders:
+                print(f"{prefix}: config names {folder} (Desktop rewrites this file)")
             continue
         named += 1
         for folder in folders:
@@ -400,11 +440,21 @@ def check_client_configs(matching_install: Path | None) -> bool:
     print("would not run this checkout's server. Nothing else reports this: the build,")
     print("the server installer and the client each succeed on their own, and a client")
     print("that is already running keeps the server process it started.")
-    if matching_install is None:
-        print(f"  {INSTALL_SERVER}")
-        print("  No installed server matches this checkout's build, so install one first.")
-    print(f"  {configure_command(list(dict.fromkeys(drifted)), matching_install)}")
-    print("  Then restart those clients.")
+    config_drifted = [client for client in dict.fromkeys(drifted)
+                      if not (client == "claude-desktop" and extensions)]
+    if config_drifted:
+        if matching_install is None:
+            print(f"  {INSTALL_SERVER}")
+            print("  No installed server matches this checkout's build, so install one first.")
+        print(f"  {configure_command(config_drifted, matching_install)}")
+        print("  Then restart those clients.")
+    if extensions and "claude-desktop" in drifted:
+        server_folder = matching_install if matching_install is not None else checkout_dll.parent
+        if checkout_hash is None:
+            print(f"  {BUILD_SERVER}")
+        print(f'  python scripts/build_mcpb.py --server-dir "{server_folder}" '
+              '--output "NavisHelper.mcpb"')
+        print("  Then reinstall that .mcpb in Claude Desktop.")
     return True
 
 
@@ -631,7 +681,7 @@ def selftest() -> int:
     import io as _io
     import tempfile
 
-    global ROOT, REPO_BUNDLE, SERVER_ROOT, CLIENT_ROOTS
+    global ROOT, REPO_BUNDLE, SERVER_ROOT, CLIENT_ROOTS, sha, tree_sha
     failures = 0
 
     def build_tree(root: Path, *, plugin_in_build=b"BUILT", plugin_in_bundle=b"BUILT",
@@ -951,6 +1001,127 @@ def selftest() -> int:
                 else:
                     print("  PASS  %s" % label)
     finally:
+        ROOT, REPO_BUNDLE, SERVER_ROOT = real_root, real_bundle, real_server_root
+        CLIENT_ROOTS = real_client_roots
+
+    # Claude Desktop runs NavisHelper from its .mcpb extension, not from the server its
+    # config names (#266). Each extension is a folder under `Claude Extensions`; only a
+    # NavisHelper one may be looked into, and another extension's folder is never read.
+    EXT_MATCHING = "local.mcpb.navishelper-contributors.navishelper"
+    EXT_STALE = "local.mcpb.navishelper-old.navishelper"
+    EXT_NO_DLL = "local.mcpb.navishelper-broken.navishelper"
+    EXT_NO_EXE = "local.mcpb.navishelper-noexe.navishelper"
+    EXT_OTHER = "local.mcpb.other-vendor.other"
+    EXT_SECRET = "sk-extension-selftest-1111111111"
+
+    def write_extension(root: Path, name: str, contents: bytes | None) -> Path:
+        folder = Path(client_roots(root)["APPDATA"]) / "Claude" / "Claude Extensions" / name
+        write_server_tree(folder / "server", "2.10.0.0", contents)
+        if name == EXT_NO_EXE:
+            (folder / "server" / SERVER_EXE).unlink()
+        (folder / "manifest.json").write_text(
+            json.dumps({"name": name, "token": EXT_SECRET}), encoding="utf-8")
+        return folder
+
+    extension_cases = (
+        ("1 a matching extension, while the config names a stale server",
+         {EXT_MATCHING: b"CHECKOUT"}, FIXTURE_STALE, 0,
+         ("claude-desktop: matches (extension)", EXT_MATCHING), "MCP CLIENT DRIFT"),
+        ("2 a differing extension, while the config names the matching server",
+         {EXT_STALE: b"OLDER"}, FIXTURE_MATCHING, 1,
+         ("claude-desktop: differs (extension)", "MCP CLIENT DRIFT: claude-desktop",
+          "python scripts/build_mcpb.py", "Claude Desktop"),
+         "claude-desktop: matches (extension)"),
+        ("2b an extension whose server has no DLL", {EXT_NO_DLL: None}, FIXTURE_MATCHING, 1,
+         ("claude-desktop: missing (extension)", "MCP CLIENT DRIFT: claude-desktop"), None),
+        ("2c a NavisHelper extension whose server has no executable",
+         {EXT_NO_EXE: b"CHECKOUT"}, FIXTURE_MATCHING, 1,
+         ("claude-desktop: missing (extension)", "MCP CLIENT DRIFT: claude-desktop"),
+         "claude-desktop: matches"),
+        ("3 no extension falls back to the config verdict", {}, FIXTURE_MATCHING, 0,
+         ("claude-desktop: matches",), "(extension)"),
+        ("4 two NavisHelper extensions, one differing: both reported, drift wins",
+         {EXT_MATCHING: b"CHECKOUT", EXT_STALE: b"OLDER"}, FIXTURE_MATCHING, 1,
+         ("claude-desktop: matches (extension)", "claude-desktop: differs (extension)",
+          EXT_MATCHING, EXT_STALE, "MCP CLIENT DRIFT: claude-desktop"), None),
+        ("5 another extension beside it is ignored and not read",
+         {EXT_MATCHING: b"CHECKOUT", EXT_OTHER: b"CHECKOUT"}, FIXTURE_MATCHING, 0,
+         ("claude-desktop: matches (extension)",), (EXT_OTHER, EXT_SECRET)),
+    )
+    import builtins as _builtins
+    real_open, real_iterdir, real_sha, real_tree_sha = _io.open, Path.iterdir, sha, tree_sha
+    touched: list[Path] = []
+
+    def note_touch(path) -> None:
+        try:
+            touched.append(Path(os.fsdecode(path)).resolve())
+        except (TypeError, ValueError, OSError):
+            pass
+
+    def recording_open(file, *args, **kwargs):
+        note_touch(file)
+        return real_open(file, *args, **kwargs)
+
+    def recording_iterdir(self):
+        note_touch(self)
+        return real_iterdir(self)
+
+    def recording_sha(path):
+        note_touch(path)
+        return real_sha(path)
+
+    def recording_tree_sha(folder):
+        note_touch(folder)
+        return real_tree_sha(folder)
+
+    try:
+        for label, extensions, config_folder, expected_code, expected_parts, absent \
+                in extension_cases:
+            with tempfile.TemporaryDirectory(prefix="drift-extension-selftest-") as tmp:
+                root = Path(tmp)
+                bundle, installed = build_tree(root)
+                server_root = root / "servers"
+                server_root.mkdir()
+                write_server_build(root, b"CHECKOUT")
+                write_server_install(server_root, FIXTURE_MATCHING, "2.10.0.0", b"CHECKOUT")
+                write_server_install(server_root, FIXTURE_STALE, "2.9.0.0", b"OLDER")
+                folders = {name: write_extension(root, name, contents)
+                           for name, contents in extensions.items()}
+                touched.clear()
+                _io.open = _builtins.open = recording_open
+                Path.iterdir = recording_iterdir
+                sha, tree_sha = recording_sha, recording_tree_sha
+                try:
+                    code, output = run(root, bundle, installed, server_root,
+                                       {"claude-desktop": json_config(server_root / config_folder)})
+                finally:
+                    _io.open = _builtins.open = real_open
+                    Path.iterdir = real_iterdir
+                    sha, tree_sha = real_sha, real_tree_sha
+                other = folders.get(EXT_OTHER)
+                read_other = [path for path in touched
+                              if other is not None and path.is_relative_to(other.resolve())]
+                absents = absent if isinstance(absent, tuple) else (absent,)
+                for ok, detail in (
+                    (code == expected_code, "exit %d, expected %d" % (code, expected_code)),
+                    (all(part in output for part in expected_parts),
+                     "output lacks one of %r" % (expected_parts,)),
+                    (all(part is None or part not in output for part in absents),
+                     "output contains one of %r" % (absents,)),
+                    (EXT_SECRET not in output, "output contains an extension manifest value"),
+                    (not read_other, "another extension was read: %r" % read_other[:3]),
+                ):
+                    if not ok:
+                        failures += 1
+                        print("  FAIL  extension %s -- %s" % (label, detail))
+                        print(output)
+                        break
+                else:
+                    print("  PASS  extension %s" % label)
+    finally:
+        _io.open = _builtins.open = real_open
+        Path.iterdir = real_iterdir
+        sha, tree_sha = real_sha, real_tree_sha
         ROOT, REPO_BUNDLE, SERVER_ROOT = real_root, real_bundle, real_server_root
         CLIENT_ROOTS = real_client_roots
 
