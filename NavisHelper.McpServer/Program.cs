@@ -13,10 +13,7 @@ var readOnlyMode = new McpReadOnlyMode(
     McpReadOnlyMode.RegisteredToolMethods());
 var builder = Host.CreateApplicationBuilder(args.Where(arg => arg != "--read-only").ToArray());
 
-builder.Logging.AddConsole(options =>
-{
-    options.LogToStandardErrorThreshold = LogLevel.Trace;
-});
+McpServerLogging.Configure(builder.Logging);
 
 builder.Services.AddSingleton<McpCallLogger>();
 builder.Services.AddSingleton(readOnlyMode);
