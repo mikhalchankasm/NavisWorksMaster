@@ -289,6 +289,19 @@ public sealed class ServerVersionStoreTests : IDisposable
     }
 
     [Fact]
+    public void FirstInstallRecoversPendingStateTornWhileBeingWritten()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "versions"));
+        File.WriteAllText(StatePath + ".next", "{\"Current\":");
+        var checkedPaths = new List<string>();
+
+        var result = Recording(checkedPaths).Install(Source("c", "2.12.0.0", "C"));
+
+        Assert.True(result.Activated);
+        AssertRecovered(result.VersionDirectory, null, checkedPaths, result.VersionDirectory);
+    }
+
+    [Fact]
     public void InstallRecoversSwitchInterruptedAfterRenamingPendingJunction()
     {
         var (a, b) = InterruptedSwitch(Interruption.Renamed);

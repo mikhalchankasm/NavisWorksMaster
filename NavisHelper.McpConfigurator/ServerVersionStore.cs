@@ -187,15 +187,22 @@ internal sealed class ServerVersionStore
                 foreach (var path in new[] { state.Current, state.Previous })
                     if (path != null) ValidateVersionPath(path);
             }
-            catch (JsonException) when (current != null && !hasPending)
+            catch (JsonException) when (!hasPending)
             {
-                // Torn while writing state.json.next (step 1): the old junction is untouched; discard it.
+                // Torn while writing state.json.next (step 1): no junction was touched; discard it.
             }
             catch (Exception ex) when (ex is JsonException or InvalidDataException or ArgumentException or
                 NotSupportedException or UnauthorizedAccessException)
             {
                 throw new IOException("Cannot read pending MCP version state.", ex);
             }
+        }
+
+        if (current == null && pendingTarget == null && state == null)
+        {
+            // A first activation torn at step 1 switched nothing.
+            File.Delete(pendingState);
+            return;
         }
 
         if (current != null)
