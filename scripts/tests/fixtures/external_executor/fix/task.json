@@ -1,0 +1,6 @@
+{
+  "schemaVersion": "avox-external-task/v1",
+  "task": "Fix the clamp implementation so the supplied deterministic tests pass. Change only tiny_math.py and preserve its signature and docstring.",
+  "inputFiles": ["tiny_math.py", "test_tiny_math.py"],
+  "writableFiles": ["tiny_math.py"]
+}

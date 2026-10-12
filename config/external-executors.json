@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "avox-external-executors/v1",
+  "providers": {
+    "claude": {
+      "model": "claude-sonnet-5",
+      "authMode": "Claude Pro OAuth",
+      "effort": "low"
+    },
+    "kimi": {
+      "model": "kimi-code/k3",
+      "authMode": "Kimi Code managed OAuth",
+      "effort": "high"
+    },
+    "glm": {
+      "model": "zai-coding-plan/glm-5.3",
+      "authMode": "Z.AI Coding Plan credential",
+      "effort": "max",
+      "endpoint": "https://api.z.ai/api/coding/paas/v4"
+    },
+    "glm-flash": {
+      "model": "zai-coding-plan/glm-5.3-flash",
+      "authMode": "Z.AI Coding Plan credential",
+      "effort": "max",
+      "endpoint": "https://api.z.ai/api/coding/paas/v4"
+    }
+  },
+  "executorProviders": {
+    "qwen": {
+      "model": "qwen3.8-max",
+      "authMode": "ModelStudio Token Plan key",
+      "authType": "openai",
+      "effort": "model-mandated",
+      "endpoint": "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1"
+    },
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "authMode": "ChatGPT OAuth",
+      "serviceTier": "priority"
+    },
+    "codex-plan": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "authMode": "ChatGPT OAuth",
+      "mode": "advisor"
+    }
+  }
+}

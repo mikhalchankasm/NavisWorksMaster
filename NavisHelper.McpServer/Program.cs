@@ -13,10 +13,7 @@ var readOnlyMode = new McpReadOnlyMode(
     McpReadOnlyMode.RegisteredToolMethods());
 var builder = Host.CreateApplicationBuilder(args.Where(arg => arg != "--read-only").ToArray());
 
-builder.Logging.AddConsole(options =>
-{
-    options.LogToStandardErrorThreshold = LogLevel.Trace;
-});
+McpServerLogging.Configure(builder.Logging);
 
 builder.Services.AddSingleton<McpCallLogger>();
 builder.Services.AddSingleton(readOnlyMode);
@@ -27,7 +24,7 @@ builder.Services.AddSingleton<McpTaskTimerService>();
 builder.Services.AddSingleton<ScenarioLibraryService>();
 builder.Services.AddSingleton<NavisworksToolContext>();
 builder.Services
-    .AddMcpServer()
+    .AddMcpServer(options => options.ServerInstructions = McpServerInstructions.Text)
     .WithMessageFilters(filters => filters.AddIncomingFilter(McpClientIdentityFilter.Create))
     .WithRequestFilters(filters =>
     {
@@ -72,6 +69,7 @@ builder.Services
 var host = builder.Build();
 var resolvedTools = host.Services.GetServices<McpServerTool>().ToList();
 readOnlyMode.VerifyRegisteredTools(resolvedTools);
+McpToolAnnotations.Apply(resolvedTools);
 var normalization = McpToolSchemaCompatibility.Normalize(resolvedTools);
 McpToolArgumentValidationFilter.Initialize(resolvedTools);
 var loggerFactory = host.Services.GetRequiredService<ILoggerFactory>();

@@ -1,39 +1,58 @@
-# External executors: fetching and running the Avox launcher
+# External executors: running the executor launcher
 
 This page covers the mechanics of running an external executor from a
-NavisHelper checkout: how to fetch the launcher, how to run it, and what its
-record tells you. Who may be an executor and in what role is
+NavisHelper checkout: how to run the launcher and what its record tells you.
+Who may be an executor and in what role is
 [AGENTS.md section 6](../AGENTS.md#6-roles); it is not restated here.
 
-The launcher belongs to Avox (`https://github.com/mikhalchankasm/Avox.git`), a
-separate repository NavisHelper does not vendor. NavisHelper pins one Avox
-commit and fetches six files from it; the pin and one SHA-256 hash per file live
-in `scripts/fetch_executor_launcher.py`.
+The launcher lives in this repository: `scripts/external_worktree_executor.py`
+with its modules (`executor_worktree.py`, `agent_home_isolation.py`,
+`executor_primitives.py`, `executor_host_guard.py`, `executor_msbuild_nodes.py`,
+`executor_event_journal.py`), the route config `config/external-executors.json`
+and the tests in `scripts/tests/`. Start an executor only through it: never run
+a provider CLI by hand or through a provider's plugin or IDE integration, which
+would inherit the operator's MCP servers, hooks and configuration.
 
-## Fetch and run
+## Run
+
+From the repository root (the imports are `scripts.<module>`):
 
 ```console
-python scripts/fetch_executor_launcher.py --avox <path-to-an-Avox-clone>
-cd artifacts/executor-launcher
-python -m scripts.external_worktree_executor --provider {glm|qwen|codex} --worktree <path> --brief <file> --timeout 1800 --record <json>
+python -m scripts.external_worktree_executor --provider codex --worktree <path> --brief <file> --timeout 1800 --record <json>
 ```
 
-`--avox` may also come from the `AVOX_REPO` environment variable. The fetch
-reads committed bytes only (`git show <pin>:<path>`): it never reads or changes
-the Avox working tree and never fetches. If the pin is missing from the clone,
-the script exits non-zero, writes nothing, and tells you to run
-`git -C <avox> fetch origin`. The default destination
-`artifacts/executor-launcher` is under the git-ignored `artifacts/` directory,
-so a fetched launcher is never committed by accident. A destination that already
-holds any file other than the pinned ones (and `__pycache__` left by an
-earlier run) is refused: the script names the extra files, writes nothing, and
-deletes nothing.
+`--provider` also accepts `glm`, `glm-flash`, `qwen`, `claude`, `kimi` and
+`codex-plan`; `codex` is the main route. Pass `--worktree`, `--brief` and
+`--record` as absolute paths, and keep the brief and the record outside every
+checkout. A refused launch exits 2 with a JSON `{error, message}` on stderr
+(`CLI_MISSING`, `AUTH_MISSING`, `CONFIG_INVALID`, `SANDBOX_UNSAFE`) and spends
+no quota.
 
-The launcher finds its config at `config/external-executors.json` relative to
-its own `scripts/` folder, and runs as a module from the fetched root — hence
-the `cd` and `python -m`.
-Because the command runs from the launcher folder, give `--worktree`, `--brief`
-and `--record` as absolute paths.
+Before every `codex` run the launcher runs `codex features list` in the
+isolated home and refuses unless the CLI version is in
+`CODEX_REVIEWED_VERSIONS` and the account features (connectors, browser,
+plugins, web search) are off. A new codex minor release therefore stops the
+executor until it is reviewed; see "Upgrading the CLI" in the Avox guide below.
+
+## Origin and updates
+
+The launcher was copied from Avox
+(`https://github.com/mikhalchankasm/Avox.git`) at commit
+`bcada2588e819f8650c06ddbaa8ff18d58f7b46f`. The only local change is the
+preamble in `executor_worktree.py`, which names NavisHelper instead of Avox,
+and the matching assertion in `test_executor_worktree.py`. The `AVOX_*`
+environment names, the `avox-*/v1` record schemas and the `.avox-context-*.txt`
+pattern keep their Avox names so later Avox fixes copy over unchanged.
+Avox's `docs/EXECUTOR_SETUP.md` is the full reference for providers, sign-in,
+isolated homes and known traps.
+
+To take an Avox fix, copy the same files from one Avox commit, keep the
+preamble change, run the tests below, and name the Avox commit here and in the
+PR. Launcher changes ship with this page in the same PR.
+
+```console
+python -m unittest scripts.tests.test_external_worktree_executor scripts.tests.test_executor_worktree scripts.tests.test_agent_home_isolation scripts.tests.test_executor_host_guard scripts.tests.test_executor_msbuild_nodes scripts.tests.test_executor_event_journal scripts.tests.test_executor_escape_guard
+```
 
 ## The executor's worktree
 
@@ -54,13 +73,14 @@ Windows writes CRLF, one extra byte per line, so a brief that fits as LF can
 be over the limit as written. Over the limit the launcher exits 2 and writes
 no record.
 
-Two lines every brief carries:
+Write the brief in English: Cyrillic doubles the byte count. Facts that do not
+fit go into `.avox-context-<id>.txt` in the worktree root; `.gitignore` keeps
+it out of commits, and it is deleted before the worktree is removed. Executors
+cannot read GitHub, so issue facts belong in that file, never live model data.
 
-- "the preamble's Avox is the launcher's name" — the launcher's preamble says
-  Avox, and an executor that meets the word unexplained may go looking for a
-  repository it will not find;
-- "Do not run scripts/review/*" — review is the curator's job; an executor has
-  once started a nested review from inside its own run.
+Every brief carries the line "Do not run scripts/review/*" — review is the
+curator's job; an executor has once started a nested review from inside its
+own run.
 
 ## The main checkout during a run
 
@@ -113,15 +133,13 @@ Codex can write only inside its worktree, so anything it must produce — a
 baseline file, a measured result — goes under the git-ignored `artifacts/`
 directory, not into the committed tree.
 
+Codex also cannot commit. A linked worktree keeps its git directory in the
+main checkout (`.git/worktrees/<name>/`), outside the sandbox's writable root,
+so `git commit` fails on `index.lock`. Write the brief's Deliver line as "leave
+the change uncommitted", and the curator commits the reviewed diff.
+
 ## After the run
 
 The curator reruns the task's acceptance check against their own baseline, not
 the executor's report, and states the provenance (which provider, which pin,
 which record) in the PR. An executor's claim of success is input, not evidence.
-
-## Bumping the pin
-
-Change the pinned SHA and every hash together in one reviewed PR, and say
-in that PR what changed upstream in Avox. A pin bumped without its hashes fails
-the fetch loudly; hashes edited to match an unpinned upstream commit are a
-review problem, which is why the two travel in one diff.

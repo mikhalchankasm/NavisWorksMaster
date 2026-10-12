@@ -90,6 +90,18 @@ jobs:
       - name: Self-test the installed-bundle drift guard
         run: python scripts/check_installed_bundle_drift.py --selftest
 
+      # Fixture-only: no provider CLI is started, no network, no credential.
+      - name: Test the external executor launcher
+        run: >-
+          python -m unittest
+          scripts.tests.test_external_worktree_executor
+          scripts.tests.test_executor_worktree
+          scripts.tests.test_agent_home_isolation
+          scripts.tests.test_executor_host_guard
+          scripts.tests.test_executor_msbuild_nodes
+          scripts.tests.test_executor_event_journal
+          scripts.tests.test_executor_escape_guard
+
       # Fixture-only: no Codex, no network, no credential. It guards the write-back
       # that carries a rotated Codex token out of the reviewer's disposable home,
       # whose failure mode is the operator being logged out on their next run.
