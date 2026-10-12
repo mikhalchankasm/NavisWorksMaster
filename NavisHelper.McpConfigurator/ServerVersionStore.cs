@@ -25,6 +25,7 @@ internal sealed class ServerVersionStore
 
     public ServerActivation Install(string sourceDirectory)
     {
+        RecoverActivation();
         var source = Path.GetFullPath(sourceDirectory);
         if (!File.Exists(Path.Combine(source, Server + ".exe")))
             throw new FileNotFoundException("MCP server executable was not found.", Path.Combine(source, Server + ".exe"));
@@ -92,6 +93,7 @@ internal sealed class ServerVersionStore
 
     public bool Rollback()
     {
+        RecoverActivation();
         var state = ReadState();
         if (state.Previous == null || !Directory.Exists(state.Previous))
             return false;
@@ -104,6 +106,7 @@ internal sealed class ServerVersionStore
 
     public IReadOnlyList<string> Prune(Func<string, bool> inUse)
     {
+        RecoverActivation();
         if (!Directory.Exists(_versions)) return Array.Empty<string>();
         var state = ReadState();
         var current = CurrentTarget();
@@ -150,6 +153,69 @@ internal sealed class ServerVersionStore
         var resolved = Path.GetFullPath(target, _root);
         ValidateVersionPath(resolved);
         return resolved;
+    }
+
+    private void RecoverActivation()
+    {
+        var pending = Link + ".next";
+        var pendingState = StatePath + ".next";
+        var pendingTarget = new DirectoryInfo(pending).LinkTarget;
+        var hasPending = Directory.Exists(pending) || File.Exists(pending) || pendingTarget != null;
+        var hasPendingState = File.Exists(pendingState) || Directory.Exists(pendingState) ||
+            new FileInfo(pendingState).LinkTarget != null;
+        if (!hasPending && !hasPendingState) return;
+
+        EnsurePlainDirectory(_root);
+        EnsurePlainDirectory(_versions);
+        var current = CurrentTarget();
+        if ((hasPending && pendingTarget == null) ||
+            ((Directory.Exists(Link) || File.Exists(Link)) && current == null) ||
+            new FileInfo(pendingState).LinkTarget != null)
+            throw new IOException("MCP activation recovery requires junctions and a plain state.json.next.");
+        if (pendingTarget != null)
+        {
+            pendingTarget = Path.GetFullPath(pendingTarget, _root);
+            ValidateVersionPath(pendingTarget);
+        }
+        State? state = null;
+        if (hasPendingState)
+        {
+            try
+            {
+                state = JsonSerializer.Deserialize<State>(File.ReadAllText(pendingState))
+                    ?? throw new InvalidDataException("Invalid MCP version state.");
+                foreach (var path in new[] { state.Current, state.Previous })
+                    if (path != null) ValidateVersionPath(path);
+            }
+            catch (Exception ex) when (ex is JsonException or InvalidDataException or ArgumentException or
+                NotSupportedException or UnauthorizedAccessException)
+            {
+                throw new IOException("Cannot read pending MCP version state.", ex);
+            }
+        }
+
+        if (current != null)
+        {
+            DeleteJunction(pending);
+            if (hasPendingState)
+            {
+                if (Same(state!.Current, current)) File.Move(pendingState, StatePath, overwrite: true);
+                else File.Delete(pendingState);
+            }
+        }
+        else
+        {
+            current = pendingTarget ?? state?.Current
+                ?? throw new IOException("Pending MCP activation has no version target.");
+            ValidateVersionPath(current);
+            if ((state != null && !Same(state.Current, current)) || !Directory.Exists(current))
+                throw new IOException("Pending MCP activation does not name one existing version.");
+            if (pendingTarget != null) Directory.Move(pending, Link);
+            else CreateJunction(Link, current);
+            if (hasPendingState) File.Move(pendingState, StatePath, overwrite: true);
+        }
+        if (!_healthCheck(Path.Combine(current, Server + ".exe")))
+            throw new IOException("Recovered MCP server failed its health check.");
     }
 
     private void Activate(State next)
