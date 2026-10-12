@@ -92,8 +92,8 @@ namespace NavisHelper.WPF
                 _pending.Children.Clear();
                 foreach (var request in pending)
                 {
-                    var row = Row(_localization.Format("Settings_ProtectedMode_RequestFormat",
-                        request.ClientName, DocumentName(request.DocumentKey), request.Code));
+                    var row = Row(ProtectedModeLabels.RequestRow(_localization, request,
+                        DocumentName(request.DocumentKey)));
                     row.Children.Add(ActionButton("Settings_ProtectedMode_Allow", () => _approvals.Approve(request.Code)));
                     row.Children.Add(ActionButton("Settings_ProtectedMode_Deny", () => _approvals.Deny(request.Code)));
                     _pending.Children.Add(row);
@@ -103,8 +103,8 @@ namespace NavisHelper.WPF
                 var approved = _approvals.Approved;
                 foreach (var grant in approved)
                 {
-                    var row = Row(_localization.Format("Settings_ProtectedMode_GrantFormat",
-                        grant.ClientName, DocumentName(grant.DocumentKey)));
+                    var row = Row(ProtectedModeLabels.GrantRow(_localization, grant,
+                        DocumentName(grant.DocumentKey)));
                     row.Children.Add(ActionButton("Settings_ProtectedMode_Revoke",
                         () => _approvals.Revoke(grant.DocumentKey, grant.SessionId)));
                     _approved.Children.Add(row);

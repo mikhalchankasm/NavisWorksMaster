@@ -23,8 +23,7 @@ namespace NavisHelper.Agent.Services
         public static ProtectedModeGateDecision Evaluate(ProtectedModeApprovals approvals,
             string command, string documentKey, string sessionId, string clientName)
         {
-            var client = string.IsNullOrWhiteSpace(clientName) ? "unknown client" : clientName;
-            var decision = approvals.Check(command, documentKey, sessionId, client);
+            var decision = approvals.Check(command, documentKey, sessionId, clientName);
             if (decision.Allowed)
                 return new ProtectedModeGateDecision(true, null, decision.Ticket);
 
@@ -33,6 +32,7 @@ namespace NavisHelper.Agent.Services
                     "This MCP server did not identify its session; update NavisHelper's MCP server.",
                     errorCode: ErrorCodes.SessionRequired);
 
+            var client = ProtectedModeLabels.ClientLabel(clientName, sessionId, "unknown client");
             var fileName = Path.GetFileName(documentKey);
             return new ProtectedModeGateDecision(false, "Protected mode: " + client
                 + " needs approval to change '" + (string.IsNullOrEmpty(fileName) ? documentKey : fileName)

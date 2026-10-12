@@ -869,6 +869,7 @@
   <data name="Settings_ProtectedMode_Revoke" xml:space="preserve"><value>Отозвать</value></data>
   <data name="Settings_ProtectedMode_Empty" xml:space="preserve"><value>Нет</value></data>
   <data name="Settings_ProtectedMode_UnsavedDocument" xml:space="preserve"><value>Несохранённый документ</value></data>
+  <data name="Settings_ProtectedMode_UnknownClient" xml:space="preserve"><value>неизвестный клиент</value></data>
   <data name="Settings_ProtectedMode_RequestStatus" xml:space="preserve"><value>Агент запрашивает доступ к изменениям. Разрешите или отклоните запрос в настройках.</value></data>
   <data name="Settings_ProtectedMode_PersistenceWarning" xml:space="preserve"><value>Защищённый режим изменён для текущего запуска, но сохранить настройку не удалось.</value></data>
   <data name="Settings_Service_Section" xml:space="preserve">

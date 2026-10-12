@@ -869,6 +869,7 @@ Keeps only geometric objects on the lowest level.</value>
   <data name="Settings_ProtectedMode_Revoke" xml:space="preserve"><value>Revoke</value></data>
   <data name="Settings_ProtectedMode_Empty" xml:space="preserve"><value>None</value></data>
   <data name="Settings_ProtectedMode_UnsavedDocument" xml:space="preserve"><value>Unsaved document</value></data>
+  <data name="Settings_ProtectedMode_UnknownClient" xml:space="preserve"><value>unknown client</value></data>
   <data name="Settings_ProtectedMode_RequestStatus" xml:space="preserve"><value>An agent is requesting write access. Allow or deny it in Settings.</value></data>
   <data name="Settings_ProtectedMode_PersistenceWarning" xml:space="preserve"><value>Protected mode changed for this run, but the setting could not be saved.</value></data>
   <data name="Settings_Service_Section" xml:space="preserve">
