@@ -631,7 +631,7 @@ def selftest() -> int:
     import io as _io
     import tempfile
 
-    global ROOT, REPO_BUNDLE, SERVER_ROOT, CLIENT_ROOTS
+    global ROOT, REPO_BUNDLE, SERVER_ROOT, CLIENT_ROOTS, sha, tree_sha
     failures = 0
 
     def build_tree(root: Path, *, plugin_in_build=b"BUILT", plugin_in_bundle=b"BUILT",
@@ -951,6 +951,120 @@ def selftest() -> int:
                 else:
                     print("  PASS  %s" % label)
     finally:
+        ROOT, REPO_BUNDLE, SERVER_ROOT = real_root, real_bundle, real_server_root
+        CLIENT_ROOTS = real_client_roots
+
+    # Claude Desktop runs NavisHelper from its .mcpb extension, not from the server its
+    # config names (#266). Each extension is a folder under `Claude Extensions`; only a
+    # NavisHelper one may be looked into, and another extension's folder is never read.
+    EXT_MATCHING = "local.mcpb.navishelper-contributors.navishelper"
+    EXT_STALE = "local.mcpb.navishelper-old.navishelper"
+    EXT_NO_DLL = "local.mcpb.navishelper-broken.navishelper"
+    EXT_OTHER = "local.mcpb.other-vendor.other"
+    EXT_SECRET = "sk-extension-selftest-1111111111"
+
+    def write_extension(root: Path, name: str, contents: bytes | None) -> Path:
+        folder = Path(client_roots(root)["APPDATA"]) / "Claude" / "Claude Extensions" / name
+        write_server_tree(folder / "server", "2.10.0.0", contents)
+        (folder / "manifest.json").write_text(
+            json.dumps({"name": name, "token": EXT_SECRET}), encoding="utf-8")
+        return folder
+
+    extension_cases = (
+        ("1 a matching extension, while the config names a stale server",
+         {EXT_MATCHING: b"CHECKOUT"}, FIXTURE_STALE, 0,
+         ("claude-desktop: matches (extension)", EXT_MATCHING), "MCP CLIENT DRIFT"),
+        ("2 a differing extension, while the config names the matching server",
+         {EXT_STALE: b"OLDER"}, FIXTURE_MATCHING, 1,
+         ("claude-desktop: differs (extension)", "MCP CLIENT DRIFT: claude-desktop",
+          "python scripts/build_mcpb.py", "Claude Desktop"),
+         "claude-desktop: matches (extension)"),
+        ("2b an extension whose server has no DLL", {EXT_NO_DLL: None}, FIXTURE_MATCHING, 1,
+         ("claude-desktop: missing (extension)", "MCP CLIENT DRIFT: claude-desktop"), None),
+        ("3 no extension falls back to the config verdict", {}, FIXTURE_MATCHING, 0,
+         ("claude-desktop: matches",), "(extension)"),
+        ("4 two NavisHelper extensions, one differing: both reported, drift wins",
+         {EXT_MATCHING: b"CHECKOUT", EXT_STALE: b"OLDER"}, FIXTURE_MATCHING, 1,
+         ("claude-desktop: matches (extension)", "claude-desktop: differs (extension)",
+          EXT_MATCHING, EXT_STALE, "MCP CLIENT DRIFT: claude-desktop"), None),
+        ("5 another extension beside it is ignored and not read",
+         {EXT_MATCHING: b"CHECKOUT", EXT_OTHER: b"CHECKOUT"}, FIXTURE_MATCHING, 0,
+         ("claude-desktop: matches (extension)",), (EXT_OTHER, EXT_SECRET)),
+    )
+    import builtins as _builtins
+    real_open, real_iterdir, real_sha, real_tree_sha = _io.open, Path.iterdir, sha, tree_sha
+    touched: list[Path] = []
+
+    def note_touch(path) -> None:
+        try:
+            touched.append(Path(os.fsdecode(path)).resolve())
+        except (TypeError, ValueError, OSError):
+            pass
+
+    def recording_open(file, *args, **kwargs):
+        note_touch(file)
+        return real_open(file, *args, **kwargs)
+
+    def recording_iterdir(self):
+        note_touch(self)
+        return real_iterdir(self)
+
+    def recording_sha(path):
+        note_touch(path)
+        return real_sha(path)
+
+    def recording_tree_sha(folder):
+        note_touch(folder)
+        return real_tree_sha(folder)
+
+    try:
+        for label, extensions, config_folder, expected_code, expected_parts, absent \
+                in extension_cases:
+            with tempfile.TemporaryDirectory(prefix="drift-extension-selftest-") as tmp:
+                root = Path(tmp)
+                bundle, installed = build_tree(root)
+                server_root = root / "servers"
+                server_root.mkdir()
+                write_server_build(root, b"CHECKOUT")
+                write_server_install(server_root, FIXTURE_MATCHING, "2.10.0.0", b"CHECKOUT")
+                write_server_install(server_root, FIXTURE_STALE, "2.9.0.0", b"OLDER")
+                folders = {name: write_extension(root, name, contents)
+                           for name, contents in extensions.items()}
+                touched.clear()
+                _io.open = _builtins.open = recording_open
+                Path.iterdir = recording_iterdir
+                sha, tree_sha = recording_sha, recording_tree_sha
+                try:
+                    code, output = run(root, bundle, installed, server_root,
+                                       {"claude-desktop": json_config(server_root / config_folder)})
+                finally:
+                    _io.open = _builtins.open = real_open
+                    Path.iterdir = real_iterdir
+                    sha, tree_sha = real_sha, real_tree_sha
+                other = folders.get(EXT_OTHER)
+                read_other = [path for path in touched
+                              if other is not None and path.is_relative_to(other.resolve())]
+                absents = absent if isinstance(absent, tuple) else (absent,)
+                for ok, detail in (
+                    (code == expected_code, "exit %d, expected %d" % (code, expected_code)),
+                    (all(part in output for part in expected_parts),
+                     "output lacks one of %r" % (expected_parts,)),
+                    (all(part is None or part not in output for part in absents),
+                     "output contains one of %r" % (absents,)),
+                    (EXT_SECRET not in output, "output contains an extension manifest value"),
+                    (not read_other, "another extension was read: %r" % read_other[:3]),
+                ):
+                    if not ok:
+                        failures += 1
+                        print("  FAIL  extension %s -- %s" % (label, detail))
+                        print(output)
+                        break
+                else:
+                    print("  PASS  extension %s" % label)
+    finally:
+        _io.open = _builtins.open = real_open
+        Path.iterdir = real_iterdir
+        sha, tree_sha = real_sha, real_tree_sha
         ROOT, REPO_BUNDLE, SERVER_ROOT = real_root, real_bundle, real_server_root
         CLIENT_ROOTS = real_client_roots
 
