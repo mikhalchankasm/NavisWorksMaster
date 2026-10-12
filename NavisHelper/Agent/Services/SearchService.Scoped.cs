@@ -49,6 +49,8 @@ namespace NavisHelper.Agent.Services
                 return BuildNativeScopedResponse(response, search, nativeMatches, previewLimit, sessionStore);
             }
 
+            using (var failures = new CatchFailureSummary("Scoped search cleanup", "Search"))
+            {
             var preparedSearch = PrepareManualSearch(search);
             var matchedItems = countOnly ? null : new List<ModelItem>();
             var sampleValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -72,7 +74,7 @@ namespace NavisHelper.Agent.Services
                 if (previousItem != null && IsWalkOwnedWrapper(previousItem, scopeRoots, matchedItems))
                 {
                     try { previousItem.Dispose(); }
-                    catch { }
+                    catch (Exception ex) { failures.Record(ex); }
                 }
                 previousItem = stack.Peek().Item;
                 if (started.ElapsedMilliseconds > MaxScopedTraversalMilliseconds)
@@ -116,7 +118,7 @@ namespace NavisHelper.Agent.Services
                 if (itemChildren is IDisposable disposableChildren)
                 {
                     try { disposableChildren.Dispose(); }
-                    catch { }
+                    catch (Exception ex) { failures.Record(ex); }
                 }
                 for (var childIndex = children.Count - 1; childIndex >= 0; childIndex--)
                     stack.Push(new ScopedSearchNode(children[childIndex], node.Depth + 1));
@@ -125,7 +127,7 @@ namespace NavisHelper.Agent.Services
             if (previousItem != null && IsWalkOwnedWrapper(previousItem, scopeRoots, matchedItems))
             {
                 try { previousItem.Dispose(); }
-                catch { }
+                catch (Exception ex) { failures.Record(ex); }
             }
             response.SampleValuesFromModel = sampleValues.ToList();
             var result = new FindItemsResult
@@ -154,6 +156,7 @@ namespace NavisHelper.Agent.Services
             }
             response.Results.Add(result);
             return response;
+            }
         }
 
         private static bool IsWalkOwnedWrapper(

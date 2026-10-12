@@ -1,4 +1,5 @@
 using System;
+using NavisHelper.Core;
 using System.Collections.Generic;
 using System.Text;
 using Autodesk.Navisworks.Api;
@@ -72,6 +73,7 @@ namespace NavisHelper.Agent.Services
                 : null;
             var pageBytes = 0L;
             var index = 0;
+            using (var failures = new CatchFailureSummary("Match handle item metadata and cleanup", "MatchHandle"))
             try
             {
                 foreach (var item in items)
@@ -81,7 +83,7 @@ namespace NavisHelper.Agent.Services
 
                     if (index >= page.Offset)
                     {
-                        var info = BuildItem(index, item, includePaths, sourceFilesByItem);
+                        var info = BuildItem(index, item, includePaths, sourceFilesByItem, failures);
                         pageBytes += EstimateBytes(info);
                         if (response.Items.Count > 0 && pageBytes > MatchHandleItemsPaging.MaxPageBytes)
                         {
@@ -108,7 +110,7 @@ namespace NavisHelper.Agent.Services
                 if (sourceFilesByItem != null)
                 {
                     foreach (var ancestor in sourceFilesByItem.Keys)
-                        DisposeWrapper(ancestor);
+                        DisposeWrapper(ancestor, failures);
                 }
             }
 
@@ -131,7 +133,8 @@ namespace NavisHelper.Agent.Services
             int index,
             ModelItem item,
             bool includePaths,
-            IDictionary<ModelItem, string> sourceFilesByItem)
+            IDictionary<ModelItem, string> sourceFilesByItem,
+            CatchFailureSummary failures)
         {
             var info = new MatchHandleItemInfo
             {
@@ -152,7 +155,7 @@ namespace NavisHelper.Agent.Services
                 if (includePaths)
                     info.Path = ItemChainPaths.Build(BuildChainNames(chain))[chain.Count - 1];
                 if (sourceFilesByItem != null)
-                    info.SourceFile = GetSourceFileCached(sourceFilesByItem, chain, cached);
+                    info.SourceFile = GetSourceFileCached(sourceFilesByItem, chain, cached, failures);
             }
             finally
             {
@@ -163,7 +166,7 @@ namespace NavisHelper.Agent.Services
                 for (var depth = 1; depth < chain.Count - 1; depth++)
                 {
                     if (!cached.Exists(kept => ReferenceEquals(kept, chain[depth])))
-                        DisposeWrapper(chain[depth]);
+                        DisposeWrapper(chain[depth], failures);
                 }
             }
 
@@ -220,7 +223,8 @@ namespace NavisHelper.Agent.Services
         private static string GetSourceFileCached(
             IDictionary<ModelItem, string> sourceFilesByItem,
             IList<ModelItem> chain,
-            ICollection<ModelItem> cached)
+            ICollection<ModelItem> cached,
+            CatchFailureSummary failures)
         {
             // Climb from the item until a node has the property or a cached answer.
             // Every ancestor passed on the way has no property of its own, so it shares
@@ -239,7 +243,7 @@ namespace NavisHelper.Agent.Services
                     passed.Add(node);
                 var property = NativePropertyLookup.FindSourceFileProperty(node);
                 if (property != null)
-                    sourceFile = GetPropertyDisplayValue(property);
+                    sourceFile = GetPropertyDisplayValue(property, failures);
             }
 
             sourceFile = sourceFile ?? string.Empty;
@@ -252,16 +256,16 @@ namespace NavisHelper.Agent.Services
             return sourceFile;
         }
 
-        private static void DisposeWrapper(ModelItem item)
+        private static void DisposeWrapper(ModelItem item, CatchFailureSummary failures)
         {
             // An interop call that can throw on a torn-down document; cleanup must
             // never become the failure the caller sees.
             if (item == null)
                 return;
-            try { item.Dispose(); } catch (Exception) { }
+            try { item.Dispose(); } catch (Exception ex) { failures.Record(ex); }
         }
 
-        private static string GetPropertyDisplayValue(DataProperty property)
+        private static string GetPropertyDisplayValue(DataProperty property, CatchFailureSummary failures)
         {
             if (property == null)
                 return string.Empty;
@@ -274,8 +278,9 @@ namespace NavisHelper.Agent.Services
             {
                 return value.ToDisplayString();
             }
-            catch
+            catch (Exception ex)
             {
+                failures.Record(ex);
                 return value.ToString();
             }
         }

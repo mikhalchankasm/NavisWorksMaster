@@ -8,6 +8,35 @@ using System.Threading.Tasks;
 
 namespace NavisHelper.Core
 {
+    // One summary per operation, including exits caused by another failure.
+    internal sealed class CatchFailureSummary : IDisposable
+    {
+        private readonly string _operation;
+        private readonly string _context;
+        private int _count;
+        private Exception _first;
+
+        internal CatchFailureSummary(string operation, string context)
+        {
+            _operation = operation;
+            _context = context;
+        }
+
+        internal void Record(Exception error)
+        {
+            _count++;
+            if (_first == null)
+                _first = error;
+        }
+
+        public void Dispose()
+        {
+            if (_count > 0)
+                Logger.Warn(_operation + " failures=" + _count + "; first=" +
+                    _first.GetType().Name + ": " + _first.Message.Replace('\r', ' ').Replace('\n', ' '), _context);
+        }
+    }
+
     // Passive, best-effort diagnostics: never changes exception handling policy.
     internal sealed class ExceptionObservation : IDisposable
     {
@@ -62,10 +91,11 @@ namespace NavisHelper.Core
                     _events.UnobservedTask += OnUnobservedTask;
                     _started = true;
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Observation must not prevent plugin startup, even if event access fails.
                     Detach();
+                    Logger.Warn("Could not start exception observation: " + ex.Message, "ExceptionObservation");
                 }
             }
         }
@@ -83,8 +113,10 @@ namespace NavisHelper.Core
 
         private void Detach()
         {
-            try { _events.Unhandled -= OnUnhandled; } catch { }
-            try { _events.UnobservedTask -= OnUnobservedTask; } catch { }
+            try { _events.Unhandled -= OnUnhandled; }
+            catch (Exception ex) { Logger.Warn("Could not detach unhandled exception observer: " + ex.Message, "ExceptionObservation"); }
+            try { _events.UnobservedTask -= OnUnobservedTask; }
+            catch (Exception ex) { Logger.Warn("Could not detach task exception observer: " + ex.Message, "ExceptionObservation"); }
         }
 
         internal void ReportRibbonRetry(Exception error)
@@ -121,9 +153,10 @@ namespace NavisHelper.Core
                 var sink = requireOwner ? _write : _writeRetry;
                 sink("event=" + operation + "; terminating=" + terminating + "; " + detail);
             }
-            catch
+            catch (Exception ex)
             {
                 // Formatting and the sink must not replace the original failure.
+                Trace.WriteLine(ex);
             }
             finally
             {

@@ -1,4 +1,5 @@
 using System;
+using NavisHelper.Core;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -99,13 +100,15 @@ namespace NavisHelper.AI
                         return AiWorkerRunResult.Failure(
                             AiWorkerRunFailureKind.StartupFailed);
                 }
-                catch (Win32Exception)
+                catch (Win32Exception ex)
                 {
+                    Logger.Warn("Could not start AI worker: " + ex.Message, "AiWorker");
                     return AiWorkerRunResult.Failure(
                         AiWorkerRunFailureKind.StartupFailed);
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException ex)
                 {
+                    Logger.Warn("Could not start AI worker: " + ex.Message, "AiWorker");
                     return AiWorkerRunResult.Failure(
                         AiWorkerRunFailureKind.StartupFailed);
                 }
@@ -134,6 +137,7 @@ namespace NavisHelper.AI
                         ex is InvalidOperationException ||
                         ex is ObjectDisposedException)
                     {
+                        // Expected when the worker exits before stdin completes.
                         if (cancellationToken.IsCancellationRequested)
                             return await FinishCancellationAsync(process, exit.Task,
                                 standardOutputTask, standardErrorTask).ConfigureAwait(false);
@@ -224,8 +228,8 @@ namespace NavisHelper.AI
         private static async Task ObserveClosedPipeAsync(Task read)
         {
             try { await read.ConfigureAwait(false); }
-            catch (IOException) { }
-            catch (InvalidOperationException) { }
+            catch (IOException) { /* Expected when the exited worker closes its pipe. */ }
+            catch (InvalidOperationException) { /* Expected when the exited worker closes its stream. */ }
         }
 
         private static async Task<AiWorkerRunResult> CreateExitedResultAsync(
@@ -258,9 +262,11 @@ namespace NavisHelper.AI
             }
             catch (InvalidOperationException)
             {
+                // Expected if the worker has already exited.
             }
             catch (Win32Exception)
             {
+                // Expected if the worker exits before Kill reaches it.
             }
         }
     }

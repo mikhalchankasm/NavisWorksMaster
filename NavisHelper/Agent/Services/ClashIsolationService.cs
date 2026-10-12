@@ -491,7 +491,11 @@ namespace NavisHelper.Agent.Services
             if (_preview != null)
             {
                 try { _preview.ResetView(); }
-                catch (Exception ex) { warnings?.Add("Could not reset clash preview overrides: " + ex.Message); }
+                catch (Exception ex)
+                {
+                    warnings?.Add("Could not reset clash preview overrides: " + ex.Message);
+                    Logger.Warn("Could not reset clash preview overrides: " + ex.Message, "ClashMcp");
+                }
             }
 
             try
@@ -528,7 +532,8 @@ namespace NavisHelper.Agent.Services
             {
                 if (!string.IsNullOrWhiteSpace(directory))
                     Directory.CreateDirectory(directory);
-                try { document?.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All); } catch { }
+                try { document?.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All); }
+                catch (Exception ex) { Logger.Warn("Could not request screenshot redraw: " + ex.Message, "ClashMcp"); }
                 if (!ClashReportScreenshotCaptureService.TryCaptureCurrentViewImage(temporaryPath, options, out warning))
                     return false;
 
@@ -549,6 +554,7 @@ namespace NavisHelper.Agent.Services
             }
             catch (Exception ex)
             {
+                Logger.Warn("Could not capture clash screenshot: " + ex.Message, "ClashMcp");
                 warning = ex.Message;
                 return false;
             }
@@ -559,7 +565,7 @@ namespace NavisHelper.Agent.Services
                     if (File.Exists(temporaryPath))
                         File.Delete(temporaryPath);
                 }
-                catch { }
+                catch (Exception ex) { Logger.Warn("Could not remove temporary clash screenshot: " + ex.Message, "ClashMcp"); }
             }
         }
 

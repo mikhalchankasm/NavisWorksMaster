@@ -57,6 +57,8 @@ namespace NavisHelper.Agent.Services
                 Max = request.Max,
                 MatchMode = matchMode,
             };
+            using (var failures = new CatchFailureSummary("Spatial search", "AgentHost"))
+            {
             var seenItems = new HashSet<ModelItem>();
 
             if (document.Models != null)
@@ -65,7 +67,7 @@ namespace NavisHelper.Agent.Services
                 // that a model ruled out below is never enumerated. The flat enumeration
                 // could only be filtered item by item, which is the reason this tool had no
                 // lever except raising maxScannedItems: every filter ran after the counter.
-                foreach (ModelItem modelRoot in EnumerateCandidateModels(document, request, sourceFileContains, response))
+                foreach (ModelItem modelRoot in EnumerateCandidateModels(document, request, sourceFileContains, response, failures))
                 {
                     // The walk is per subtree now, not per item. `isolate_by_box` always
                     // skipped an item whose box missed the zone, and Autodesk defines
@@ -89,7 +91,7 @@ namespace NavisHelper.Agent.Services
                                      // The model root may be Navisworks' own cached wrapper; only
                                      // the walk's descendants are provably fresh (TECH-W13 probe).
                                      if (!ReferenceEquals(node, modelRoot) && !seenItems.Contains(node))
-                                         DisposeItem(node);
+                                         DisposeItem(node, failures);
                                  }))
                     {
                         skipThisSubtree = false;
@@ -126,6 +128,7 @@ namespace NavisHelper.Agent.Services
                         }
                         catch (Exception ex)
                         {
+                            failures.Record(ex);
                             if (response.Warnings.Count < 10)
                                 response.Warnings.Add("Skipped item with unreadable bounding box: " + ex.Message);
                             continue;
@@ -150,7 +153,7 @@ namespace NavisHelper.Agent.Services
                         {
                             response.OutsideItemCount++;
                             skipThisSubtree = true;
-                            DisposeBox(box);
+                            DisposeBox(box, failures);
                             continue;
                         }
 
@@ -164,7 +167,7 @@ namespace NavisHelper.Agent.Services
                         var childItems = item.Children;
                         if (!includeContainers && childItems != null && childItems.Any())
                         {
-                            DisposeBox(box);
+                            DisposeBox(box, failures);
                             continue;
                         }
 
@@ -181,7 +184,7 @@ namespace NavisHelper.Agent.Services
                             sourceFile = TryGetSourceFile(item) ?? string.Empty;
                             if (sourceFile.IndexOf(sourceFileContains, StringComparison.OrdinalIgnoreCase) < 0)
                             {
-                                DisposeBox(box);
+                                DisposeBox(box, failures);
                                 continue;
                             }
                         }
@@ -194,7 +197,7 @@ namespace NavisHelper.Agent.Services
                                 request.Max,
                                 matchMode))
                         {
-                            DisposeBox(box);
+                            DisposeBox(box, failures);
                             continue;
                         }
 
@@ -202,7 +205,7 @@ namespace NavisHelper.Agent.Services
                         if (matches.Count >= maxResults)
                         {
                             response.ResultsTruncated = true;
-                            DisposeBox(box);
+                            DisposeBox(box, failures);
                             continue;
                         }
 
@@ -211,7 +214,7 @@ namespace NavisHelper.Agent.Services
                         // avoiding retention of native item wrappers for later zone matches.
                         if (!seenItems.Add(item))
                         {
-                            DisposeBox(box);
+                            DisposeBox(box, failures);
                             continue;
                         }
 
@@ -272,6 +275,7 @@ namespace NavisHelper.Agent.Services
                 "find_items_by_bbox mode=" + matchMode + " scanned=" + response.ScannedItemCount + " matched=" + response.MatchedItemCount + " returned=" + response.ReturnedItemCount + " traversal_truncated=" + response.TraversalTruncated + " results_truncated=" + response.ResultsTruncated + " elapsed_ms=" + started.ElapsedMilliseconds,
                 "AgentHost");
             return response;
+            }
         }
 
         /// <summary>
@@ -285,7 +289,8 @@ namespace NavisHelper.Agent.Services
             Document document,
             FindItemsByBboxRequest request,
             string sourceFileContains,
-            FindItemsByBboxResponse response)
+            FindItemsByBboxResponse response,
+            CatchFailureSummary failures)
         {
             foreach (Model model in document.Models)
             {
@@ -296,7 +301,7 @@ namespace NavisHelper.Agent.Services
                 if (rootItem == null)
                     continue;
 
-                if (!SpatialModelPruning.ModelFileCanSatisfyFilter(TryGetModelSourceFile(model, response), sourceFileContains))
+                if (!SpatialModelPruning.ModelFileCanSatisfyFilter(TryGetModelSourceFile(model, response, failures), sourceFileContains))
                 {
                     response.PrunedModelCount++;
                     continue;
@@ -304,7 +309,7 @@ namespace NavisHelper.Agent.Services
 
                 // Read once: the reader walks the model and can warn, so asking twice would
                 // pay for it twice and could report the same failure twice.
-                var modelBox = TryGetModelBox(model, response);
+                var modelBox = TryGetModelBox(model, response, failures);
                 if (!SpatialModelPruning.ModelExtentsCanHoldAMatch(
                         ToSpatialPoint(modelBox, takeMin: true),
                         ToSpatialPoint(modelBox, takeMin: false),
@@ -330,7 +335,7 @@ namespace NavisHelper.Agent.Services
         // Both readers fail open. A model whose extents or file cannot be read is scanned,
         // because "we could not tell" must not be recorded as "nothing here" -- the whole
         // value of a prune is that it is provably empty, and an unreadable model is not.
-        private static BoundingBox3D TryGetModelBox(Model model, FindItemsByBboxResponse response)
+        private static BoundingBox3D TryGetModelBox(Model model, FindItemsByBboxResponse response, CatchFailureSummary failures)
         {
             try
             {
@@ -338,13 +343,14 @@ namespace NavisHelper.Agent.Services
             }
             catch (Exception ex)
             {
+                failures.Record(ex);
                 if (response.Warnings.Count < 10)
                     response.Warnings.Add("Could not read a model's extents, so it was scanned rather than skipped: " + ex.Message);
                 return null;
             }
         }
 
-        private static string TryGetModelSourceFile(Model model, FindItemsByBboxResponse response)
+        private static string TryGetModelSourceFile(Model model, FindItemsByBboxResponse response, CatchFailureSummary failures)
         {
             try
             {
@@ -352,6 +358,7 @@ namespace NavisHelper.Agent.Services
             }
             catch (Exception ex)
             {
+                failures.Record(ex);
                 // Said out loud, not swallowed. The contract promises that a model whose file
                 // name cannot be read is scanned rather than skipped *and* that the caller is
                 // told, because the alternative is a silently slower call with no explanation
@@ -388,20 +395,20 @@ namespace NavisHelper.Agent.Services
         // released as soon as the code is done with it, not left to the finalizer:
         // a heap of stale wrappers slows every later search in the session. Dispose
         // is an interop call that can throw on a torn-down document, so each
-        // release is wrapped and the exception ignored -- cleanup must never
+        // release is wrapped and failures are summarized -- cleanup must never
         // become the failure the caller sees.
-        private static void DisposeItem(ModelItem item)
+        private static void DisposeItem(ModelItem item, CatchFailureSummary failures)
         {
             if (item == null)
                 return;
-            try { item.Dispose(); } catch (Exception) { }
+            try { item.Dispose(); } catch (Exception ex) { failures.Record(ex); }
         }
 
-        private static void DisposeBox(BoundingBox3D box)
+        private static void DisposeBox(BoundingBox3D box, CatchFailureSummary failures)
         {
             if (box == null)
                 return;
-            try { box.Dispose(); } catch (Exception) { }
+            try { box.Dispose(); } catch (Exception ex) { failures.Record(ex); }
         }
 
         private static SpatialSearchItem BuildSpatialPreviewItem(SpatialMatch match)

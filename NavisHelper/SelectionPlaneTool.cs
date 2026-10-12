@@ -1,4 +1,5 @@
 using System;
+using NavisHelper.Core;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
 using Application = Autodesk.Navisworks.Api.Application;
@@ -58,6 +59,7 @@ namespace NavisHelper
             }
             catch (Exception ex)
             {
+                Logger.Warn("Selection plane operation failed: " + ex.Message, "Selection");
                 LastError = ex.Message;
                 return false;
             }
@@ -79,7 +81,7 @@ namespace NavisHelper
                 _previousTool = null;
                 RequestRedraw();
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn("Could not restore selection tool: " + ex.Message, "Selection"); }
         }
 
         public override bool MouseDown(View view, KeyModifiers modifiers, ushort button, int x, int y, double timeOffset)
@@ -120,7 +122,7 @@ namespace NavisHelper
                 graphics.Line(p0, p2);
                 graphics.Line(p1, p3);
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn("Could not render selection plane: " + ex.Message, "Selection"); }
         }
 
         private static void EnsureToolActive()
@@ -152,6 +154,7 @@ namespace NavisHelper
             }
             catch (Exception ex)
             {
+                Logger.Warn("Selection plane operation failed: " + ex.Message, "Selection");
                 LastError = ex.Message;
             }
         }
@@ -214,7 +217,7 @@ namespace NavisHelper
         private static void RequestRedraw()
         {
             try { Application.ActiveDocument.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All); }
-            catch { }
+            catch (Exception ex) { Logger.Warn("Could not request selection redraw: " + ex.Message, "Selection"); }
         }
     }
 }

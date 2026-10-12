@@ -254,8 +254,9 @@ namespace NavisHelper
                 if (IsFinite(unit) && unit > 1e-9)
                     return unit * Math.Max(pixels, 1);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not read camera spacing; using default: " + ex.Message, "TopViewBoundingRect");
             }
 
             return 0.024;
@@ -282,7 +283,7 @@ namespace NavisHelper
                             initialText = clip;
                     }
                 }
-                catch { }
+                catch (Exception ex) { Logger.Warn("Could not read viewpoint name from clipboard: " + ex.Message, "TopViewBoundingRect"); }
 
                 var label = new Label
                 {

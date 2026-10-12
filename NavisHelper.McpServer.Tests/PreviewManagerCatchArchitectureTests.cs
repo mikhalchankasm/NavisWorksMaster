@@ -7,12 +7,12 @@ namespace NavisHelper.McpServer.Tests;
 // visibility. A silently swallowed failure there leaves the model recolored with
 // nothing in the log. Every catch block must therefore name its exception and
 // either log, rethrow, or use the exception (to aggregate per-item failures that
-// are logged once after the loop). A catch of one specific, expected exception
+// are logged once after the loop, or in a when-filter that picks expected types). A catch of one specific, expected exception
 // type may instead handle it without the variable, as long as its body is not
 // empty.
 public sealed class PreviewManagerCatchArchitectureTests
 {
-    private static readonly Regex CatchHeader = new(@"\bcatch\b\s*(?:\(\s*([\w.]+)(?:\s+(\w+))?\s*\))?\s*(?:when\s*\([^)]*\)\s*)?\{");
+    private static readonly Regex CatchHeader = new(@"\bcatch\b\s*(?:\(\s*([\w.]+)(?:\s+(\w+))?\s*\))?\s*(?:when\s*\((?<filter>[^)]*)\)\s*)?\{");
 
     [Theory]
     [InlineData("ClashPreviewManager.cs")]
@@ -48,7 +48,9 @@ public sealed class PreviewManagerCatchArchitectureTests
             var body = BlockBody(source, match.Index + match.Length - 1);
 
             var logsOrRethrows = body.Contains("Logger.") || Regex.IsMatch(body, @"\bthrow\b");
-            var usesException = variable != null && Regex.IsMatch(body, @"\b" + Regex.Escape(variable) + @"\b");
+            var filter = match.Groups["filter"].Success ? match.Groups["filter"].Value : "";
+            var usesException = variable != null && body.Trim().Length > 0 &&
+                Regex.IsMatch(body + " " + filter, @"\b" + Regex.Escape(variable) + @"\b");
             var type = match.Groups[1].Success ? match.Groups[1].Value : null;
             var expectedSpecificType = type != null && type != "Exception" && type != "System.Exception";
             if (expectedSpecificType && variable == null && body.Trim().Length > 0)

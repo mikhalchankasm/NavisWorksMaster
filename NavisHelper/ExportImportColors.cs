@@ -140,6 +140,7 @@ namespace NavisHelper
         public override int Execute(params string[] parameters)
         {
             IDisposable interactiveBusy = null;
+            using (var failures = new CatchFailureSummary("Color IO", "ColorsIO"))
             try
             {
                 interactiveBusy = NavisHelper.Agent.AgentRuntime.BeginInteractiveOperation("Export colors");
@@ -239,7 +240,7 @@ namespace NavisHelper
                                     collectTimedOut = true;
                                     break;
                                 }
-                                ExportItemColor(item, lines);
+                                ExportItemColor(item, lines, failures);
                             }
                         }
 
@@ -283,7 +284,7 @@ namespace NavisHelper
                                     export2TimedOut = true;
                                     break;
                                 }
-                                ExportItemColor(item, lines);
+                                ExportItemColor(item, lines, failures);
                             }
 
                             if (export2TimedOut)
@@ -357,6 +358,7 @@ namespace NavisHelper
             }
             catch (Exception ex)
             {
+                failures.Record(ex);
                 MessageBox.Show(
                     UiLocalizationService.Current.Format(
                         "OperationErrorDetailsFormat",
@@ -374,7 +376,7 @@ namespace NavisHelper
             return 0;
         }
 
-        private void ExportItemColor(ModelItem item, List<string> lines)
+        private void ExportItemColor(ModelItem item, List<string> lines, CatchFailureSummary failures)
         {
             string name = item.DisplayName;
             if (string.IsNullOrWhiteSpace(name)) return;
@@ -408,7 +410,7 @@ namespace NavisHelper
 
                 lines.Add(string.Format("{0};{1},{2},{3};{4}", name, r, g, b, transp));
             }
-            catch { }
+            catch (Exception ex) { failures.Record(ex); }
         }
 
         /// <summary>
@@ -506,6 +508,7 @@ namespace NavisHelper
         public override int Execute(params string[] parameters)
         {
             IDisposable interactiveBusy = null;
+            using (var failures = new CatchFailureSummary("Color IO", "ColorsIO"))
             try
             {
                 interactiveBusy = NavisHelper.Agent.AgentRuntime.BeginInteractiveOperation("Import colors");
@@ -591,7 +594,7 @@ namespace NavisHelper
                         progressBar.Value = (int)((double)selIndex / selection.Count * 100);
                         System.Windows.Forms.Application.DoEvents();
 
-                        var colorMap = ReadColorFile(colorFilePath);
+                        var colorMap = ReadColorFile(colorFilePath, failures);
                         if (colorMap.Count == 0)
                         {
                             itemLogs.Add(string.Format("--- {0} ---\nФайл: {1}\nЦветов в файле: 0 (пустой/ошибка парсинга)", itemName, colorFilePath));
@@ -733,6 +736,7 @@ namespace NavisHelper
             }
             catch (Exception ex)
             {
+                failures.Record(ex);
                 MessageBox.Show(
                     UiLocalizationService.Current.Format(
                         "OperationErrorDetailsFormat",
@@ -750,7 +754,7 @@ namespace NavisHelper
             return 0;
         }
 
-        private Dictionary<string, ColorEntry> ReadColorFile(string filePath)
+        private Dictionary<string, ColorEntry> ReadColorFile(string filePath, CatchFailureSummary failures)
         {
             var colorMap = new Dictionary<string, ColorEntry>(StringComparer.OrdinalIgnoreCase);
             foreach (var line in File.ReadAllLines(filePath, Encoding.UTF8))
@@ -777,7 +781,7 @@ namespace NavisHelper
                         Transparency = transparency
                     };
                 }
-                catch { }
+                catch (Exception ex) { failures.Record(ex); }
             }
             return colorMap;
         }
