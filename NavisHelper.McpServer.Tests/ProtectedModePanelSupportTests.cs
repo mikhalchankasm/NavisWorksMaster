@@ -72,7 +72,7 @@ public sealed class ProtectedModePanelSupportTests : IDisposable
     [Fact]
     public void ApprovedListsGrantsAndRevokeDropsExactlyOneGrantId()
     {
-        var gate = Gate(1, 2);
+        var gate = Gate(1, 2, 3);
         gate.Enabled = true;
         gate.DocumentChanged("doc-a");
         gate.Check("save_document", "doc-a", "s1", "Claude Code");
