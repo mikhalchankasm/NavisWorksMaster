@@ -93,6 +93,31 @@ public sealed class ProtectedModeGateTests
         Assert.False(decision.Allowed);
         Assert.Contains("unknown client", decision.Message);
         var pending = Assert.Single(approvals.Pending);
-        Assert.Equal("unknown client", pending.ClientName);
+        // #265: the name is kept as received; the panel localizes a missing one.
+        Assert.True(string.IsNullOrEmpty(pending.ClientName));
+    }
+
+    // #264: the agent can tell the user which session tag to look for in the panel.
+    [Fact]
+    public void ApprovalMessageCarriesTheSessionTag()
+    {
+        var approvals = EnabledGate();
+        var decision = ProtectedModeGate.Evaluate(approvals, "save_document", "C:\\models\\a.nwd",
+            "3F9A1C77-0B2D-4E5F-8A9B-1C2D3E4F5A6B", "Claude Code");
+
+        Assert.False(decision.Allowed);
+        Assert.Equal(ErrorCodes.ApprovalRequired, decision.ErrorCode);
+        Assert.Contains("Claude Code [3f9a1c]", decision.Message);
+        Assert.Contains("4821", decision.Message);
+        Assert.Contains("a.nwd", decision.Message);
+        Assert.DoesNotContain("3F9A1C77-0B2D-4E5F-8A9B-1C2D3E4F5A6B", decision.Message);
+        Assert.Equal("Claude Code", Assert.Single(approvals.Pending).ClientName);
+    }
+
+    [Fact]
+    public void ApprovalMessageForAMissingClientStaysEnglishAndTagged()
+    {
+        var decision = ProtectedModeGate.Evaluate(EnabledGate(), "save_document", "C:\\a.nwd", "ab12cd34", "  ");
+        Assert.Contains("unknown client [ab12cd]", decision.Message);
     }
 }
