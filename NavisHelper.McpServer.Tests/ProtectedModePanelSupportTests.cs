@@ -69,6 +69,22 @@ public sealed class ProtectedModePanelSupportTests : IDisposable
         Assert.Empty(gate.Approved);
     }
 
+    // #258: dropping a pending request on a reopen of the same document is a real change.
+    [Fact]
+    public void DocumentChangeThatDropsAPendingRequestNotifiesOnce()
+    {
+        var gate = Gate(1);
+        gate.Enabled = true;
+        gate.DocumentChanged("doc-a");
+        gate.Check("save_document", "doc-a", "s1", "Claude Code");
+        var changes = 0;
+        gate.Changed += (_, _) => changes++;
+
+        gate.DocumentChanged("doc-a");
+        Assert.Equal(1, changes);
+        Assert.Empty(gate.Pending);
+    }
+
     [Fact]
     public void ApprovedListsGrantsAndRevokeDropsExactlyOneGrantId()
     {

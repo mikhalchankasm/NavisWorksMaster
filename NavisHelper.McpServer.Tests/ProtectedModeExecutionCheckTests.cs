@@ -54,6 +54,29 @@ public sealed class ProtectedModeExecutionCheckTests
         Assert.False(gate.Confirm(accepted.Ticket));
     }
 
+    // #258: after a reopen the old code is void; the next write gets a new code, and
+    // approving that one lets the write run in the new document instance.
+    [Fact]
+    public void AfterReopenANewCodeApprovesTheWriteForTheNewInstance()
+    {
+        var gate = Gate(true, 1, 2);
+        gate.DocumentChanged("C:\\a.nwd");
+        var before = ProtectedModeGate.Evaluate(gate, "save_document", "C:\\a.nwd", "s1", "Claude Code");
+        Assert.False(before.Allowed);
+        Assert.Equal("0001", Assert.Single(gate.Pending).Code);
+
+        gate.DocumentChanged("C:\\a.nwd");
+        Assert.False(gate.Approve("0001"));
+
+        Assert.False(ProtectedModeGate.Evaluate(gate, "save_document", "C:\\a.nwd", "s1", "Claude Code").Allowed);
+        var fresh = Assert.Single(gate.Pending);
+        Assert.Equal("0002", fresh.Code);
+        Assert.True(gate.Approve(fresh.Code));
+        var accepted = ProtectedModeGate.Evaluate(gate, "save_document", "C:\\a.nwd", "s1", "Claude Code");
+        Assert.True(accepted.Allowed);
+        Assert.True(gate.Confirm(accepted.Ticket, "C:\\a.nwd"));
+    }
+
     [Fact]
     public void RevokeBetweenAcceptanceAndExecutionRefusesTheWrite()
     {

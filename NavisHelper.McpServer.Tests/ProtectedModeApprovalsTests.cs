@@ -136,11 +136,46 @@ public sealed class ProtectedModeApprovalsTests
 
         Assert.Equal("0004", gate.Check("save_document", "doc-b", "s2", "Codex").Code);
         gate.DocumentChanged("doc-b");
-        // The doc-a approval is gone; the doc-b request survives the switch to doc-b.
+        // #258: every document change is a new instance. The doc-a approval and the
+        // doc-b request are both gone, so the old code 0004 no longer works.
+        Assert.Empty(gate.Pending);
+        Assert.False(gate.Approve("0004"));
         Assert.Equal("0005", gate.Check("save_document", "doc-a", "s1", "Claude Code").Code);
-        Assert.Equal(new[] { "0004", "0005" }, gate.Pending.Select(p => p.Code));
+        Assert.Equal(new[] { "0005" }, gate.Pending.Select(p => p.Code));
         Assert.False(gate.Approve("0000"));
         Assert.False(gate.Deny("0000"));
+    }
+
+    // #258: a request made before the same file was reopened must not approve the
+    // new document instance.
+    [Fact]
+    public void ReopeningTheSameDocumentVoidsItsPendingCode()
+    {
+        var (gate, _) = Create();
+        gate.DocumentChanged("a.nwd");
+        Assert.Equal("4821", gate.Check("save_document", "a.nwd", "s1", "Claude Code").Code);
+
+        gate.DocumentChanged("a.nwd");
+
+        Assert.Empty(gate.Pending);
+        Assert.False(gate.Approve("4821"));
+        Assert.False(gate.Deny("4821"));
+        Assert.False(gate.Check("save_document", "a.nwd", "s1", "Claude Code").Allowed);
+    }
+
+    [Fact]
+    public void SwitchingAwayAndBackVoidsThePendingCode()
+    {
+        var (gate, _) = Create();
+        gate.DocumentChanged("a.nwd");
+        Assert.Equal("4821", gate.Check("save_document", "a.nwd", "s1", "Claude Code").Code);
+
+        gate.DocumentChanged("b.nwd");
+        gate.DocumentChanged("a.nwd");
+
+        Assert.Empty(gate.Pending);
+        Assert.False(gate.Approve("4821"));
+        Assert.False(gate.Deny("4821"));
     }
 
     [Fact]
