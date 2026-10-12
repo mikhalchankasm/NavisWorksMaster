@@ -27,7 +27,7 @@ builder.Services.AddSingleton<McpTaskTimerService>();
 builder.Services.AddSingleton<ScenarioLibraryService>();
 builder.Services.AddSingleton<NavisworksToolContext>();
 builder.Services
-    .AddMcpServer()
+    .AddMcpServer(options => options.ServerInstructions = McpServerInstructions.Text)
     .WithRequestFilters(filters =>
     {
         filters.AddListToolsFilter(readOnlyMode.FilterList);
