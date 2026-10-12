@@ -141,6 +141,23 @@ class ProcessControlInTheRecord(unittest.TestCase):
                 self.assertNotIn("hostViolations", record)
                 self.assertEqual(code, 0)
 
+    def test_an_own_pid_does_not_prove_a_selection_or_a_remote_stop(self) -> None:
+        """Codex review P1s: a WMI predicate can select more than the PID it names, and a remote PID is not ours."""
+        for command in (
+            f'wmic process where "ProcessId={OWN_PID} OR ProcessId>0" call terminate',
+            f"wmic process where processid={OWN_PID} call terminate",
+            POWERSHELL + f"'Get-CimInstance Win32_Process -Filter \"ProcessId={OWN_PID}\" | "
+                         "Invoke-CimMethod -MethodName Terminate'",
+            f"taskkill /S otherhost /PID {OWN_PID} /F",
+            f"taskkill /PID {OWN_PID} /FI \"STATUS eq RUNNING\" /F",
+            f"wmic /node:otherhost process where processid={OWN_PID} call terminate",
+            f"tskill {OWN_PID} /SERVER:otherhost",
+        ):
+            with self.subTest(command=command):
+                record, code = self.run_codex(stream(command_item("item_4", command)), frozenset({OWN_PID}))
+                self.assertFalse(record["host"]["processControl"][0]["inRunTree"])
+                self.assertEqual(code, 6)
+
     def test_one_foreign_pid_beside_an_own_one_is_a_violation(self) -> None:
         command = POWERSHELL + f"'Stop-Process -Id {OWN_PID},{FOREIGN_PID}'"
         record, code = self.run_codex(stream(command_item("item_6", command)), frozenset({OWN_PID}))

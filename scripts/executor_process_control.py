@@ -84,7 +84,12 @@ def _targets(command: str) -> tuple[list[int], bool]:
         target_text = before + stop.group() + after if stop.group("wmic") or stop.group("cim") else after
         dynamic = re.search(r"\$(?:\w+|\{)|(?<!\w)-Name\b|/IM\b|\bName\s*=", target_text, re.I)
         piped = left > 0 and command[left - 1] == "|"
-        proven = proven and bool(targets) and not dynamic and not piped
+        # A WMI/CIM predicate can select more than the PID it names ("ProcessId=1 OR ProcessId>0"), and a
+        # remote or filtered stop is not checked against this machine's Job: neither can prove ownership.
+        selection = bool(stop.group("wmic") or stop.group("cim"))
+        remote = re.search(r"(?<![\w-])(?:/S(?=[\s:])|/SERVER:|/node:|/FI\b|-ComputerName\b|-CimSession\b)",
+                           before + stop.group() + after, re.I)
+        proven = proven and bool(targets) and not dynamic and not piped and not selection and not remote
         pids.extend(pid for pid in targets if pid not in pids)
     return pids, bool(proven)
 

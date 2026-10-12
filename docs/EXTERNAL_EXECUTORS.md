@@ -132,7 +132,11 @@ accounts read access to all of `AppData`. So the pinned launcher:
 
 `inRunTree` is true only when every stop names literal PIDs and all of them
 were observed in the run's Windows Job Object. A stop by name, pipeline or
-variable is unproven. Any false entry adds `PROCESS_STOP_OUTSIDE_RUN` to
+variable is unproven, and so is every WMI/CIM stop (its predicate can select
+more than the PID it names) and every remote or filtered one (`/S`, `/FI`,
+`-ComputerName`). Detection reads the command text, so a command that only
+mentions a stop - `rg 'Stop-Process'` - also fails the run; read the entry
+before acting on the exit code. Any false entry adds `PROCESS_STOP_OUTSIDE_RUN` to
 `hostViolations` and fails the run with exit 6, even if the stop itself failed;
 outside Windows no run-tree PIDs are proven. The executor preamble prohibits
 process stops from commands it writes and tells it to report locks and stop
