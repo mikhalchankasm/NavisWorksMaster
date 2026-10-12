@@ -73,8 +73,9 @@ namespace NavisHelper.WPF
                 if (_clashDataChangedDebounceTimer != null)
                     _clashDataChangedDebounceTimer.Stop();
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to detach Clash UI document events: " + ex, "ClashUI");
             }
         }
 
@@ -128,8 +129,8 @@ namespace NavisHelper.WPF
             catch (Exception ex) { Logger.Error("Failed to clear Clash pair isolation during document switch: " + ex.Message, "ClashUI"); }
             try { _clashMgr?.ForgetDocumentState(); }
             catch (Exception ex) { Logger.Error("Failed to forget Clash preview state during document switch: " + ex.Message, "ClashUI"); }
-            try { ClashMarkerTool.Hide(); } catch { }
-            try { SelectionPlaneTool.Hide(); } catch { }
+            try { ClashMarkerTool.Hide(); } catch (Exception ex) { Logger.Warn("Failed to hide Clash marker during document switch: " + ex, "ClashUI"); }
+            try { SelectionPlaneTool.Hide(); } catch (Exception ex) { Logger.Warn("Failed to hide selection plane during document switch: " + ex, "ClashUI"); }
 
             _suppressClashTestSelectionChanged = true;
             _suppressClashResultSelectionChanged = true;
@@ -155,8 +156,8 @@ namespace NavisHelper.WPF
             catch (Exception ex)
             {
                 Logger.Error("Failed to clear Clash controls during document switch: " + ex.Message, "ClashUI");
-                try { if (_testGrid != null) _testGrid.ItemsSource = null; } catch { }
-                try { if (_clashGrid != null) _clashGrid.ItemsSource = null; } catch { }
+                try { if (_testGrid != null) _testGrid.ItemsSource = null; } catch (Exception cleanupEx) { Logger.Warn("Failed to clear test grid after document switch: " + cleanupEx, "ClashUI"); }
+                try { if (_clashGrid != null) _clashGrid.ItemsSource = null; } catch (Exception cleanupEx) { Logger.Warn("Failed to clear result grid after document switch: " + cleanupEx, "ClashUI"); }
             }
             finally
             {
@@ -169,9 +170,9 @@ namespace NavisHelper.WPF
                 _clashGroupContentsStatus.Text = PanelUi("Panel_Clash_SelectResultOrGroup");
             if (_clashGroupingStatus != null)
                 _clashGroupingStatus.Text = PanelUi("Panel_Clash_GroupingNone");
-            try { SetClashGroupPanelVisible(false, save: false); } catch { }
-            try { if (_clashSettingsToggle != null) _clashSettingsToggle.IsChecked = false; } catch { }
-            try { SetGlobalStatusResource("Panel_Clash_DocumentChanged", Brushes.Gray); } catch { }
+            try { SetClashGroupPanelVisible(false, save: false); } catch (Exception ex) { Logger.Warn("Failed to hide Clash group panel during document switch: " + ex, "ClashUI"); }
+            try { if (_clashSettingsToggle != null) _clashSettingsToggle.IsChecked = false; } catch (Exception ex) { Logger.Warn("Failed to reset Clash settings toggle during document switch: " + ex, "ClashUI"); }
+            try { SetGlobalStatusResource("Panel_Clash_DocumentChanged", Brushes.Gray); } catch (Exception ex) { Logger.Warn("Failed to refresh document change status: " + ex, "ClashUI"); }
         }
 
         private void BeginInvokeForCurrentClashDocument(Action action, DispatcherPriority priority)
@@ -218,8 +219,9 @@ namespace NavisHelper.WPF
                 {
                     _clashEventTestsData.Changed -= OnClashTestsDataChanged;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Logger.Warn("Failed to detach Clash TestsData.Changed: " + ex, "ClashUI");
                 }
             }
 
@@ -290,6 +292,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to save Clash assignment: " + ex, "ClashUI");
                 MessageBox.Show(
                     UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
                     PanelUi("Panel_Clash_AssignedTo_Title"),
@@ -843,6 +846,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Warn("Failed to toggle Clash marker: " + ex, "ClashUI");
                 MessageBox.Show(
                     UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
                     PanelUi("Panel_Clash_Marker_Title"),
@@ -875,6 +879,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Warn("Failed to toggle selection plane: " + ex, "ClashUI");
                 MessageBox.Show(
                     UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
                     PanelUi("Panel_Clash_Plane_Title"),

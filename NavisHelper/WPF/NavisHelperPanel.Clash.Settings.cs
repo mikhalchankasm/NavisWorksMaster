@@ -57,7 +57,7 @@ namespace NavisHelper.WPF
                         vpName = $"{name ?? "Clash"} ({itemA} / {itemB})";
                     }
                 }
-                catch { }
+                catch (Exception ex) { Logger.Warn("Failed to read saved Clash viewpoint name: " + ex, "ClashViewpoints"); }
 
                 // Находим или создаём папку для viewpoints коллизий
                 var savedVps = doc.SavedViewpoints;
@@ -177,6 +177,7 @@ namespace NavisHelper.WPF
             }
             catch (UiStatusResourceException ex)
             {
+                Logger.Error("Failed to save Clash viewpoint: " + ex, "ClashViewpoints");
                 SetGlobalStatusResource(
                     new UiStatusResourceDescriptor(
                         "Panel_Clash_Viewpoint_Failed_Format",
@@ -185,6 +186,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to save Clash viewpoint: " + ex, "ClashViewpoints");
                 SetGlobalStatusResource("Panel_Clash_Viewpoint_Failed_Format", Brushes.Red, ex.Message);
             }
         }
@@ -223,7 +225,7 @@ namespace NavisHelper.WPF
                     ClashGroupPanelVisible = _clashGroupPanelVisible
                 }.Save();
             }
-            catch { }
+            catch (Exception ex) { Logger.Error("Failed to save Clash settings: " + ex, "ClashViewpoints"); }
         }
 
         private static string GetClashItemName(Autodesk.Navisworks.Api.ModelItemCollection items)
@@ -241,7 +243,7 @@ namespace NavisHelper.WPF
             return UiLocalizationService.Current.Format("Panel_Clash_ItemFallback_Format", items.Count);
         }
 
-        private static string FormatClashDistance(ClashResult result)
+        private static string FormatClashDistance(ClashResult result, PanelCatchLog failures)
         {
             if (result == null)
                 return string.Empty;
@@ -259,14 +261,16 @@ namespace NavisHelper.WPF
                     if (doc != null)
                         units = " " + doc.Units;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    failures.Add(ex);
                 }
 
                 return value.ToString("0.###", CultureInfo.InvariantCulture) + units;
             }
-            catch
+            catch (Exception ex)
             {
+                failures.Add(ex);
                 return string.Empty;
             }
         }

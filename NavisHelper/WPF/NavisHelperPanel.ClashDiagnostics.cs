@@ -31,17 +31,17 @@ namespace NavisHelper.WPF
 
                 dynamic row = _clashGrid?.SelectedItem;
                 ClashResult clash = null;
-                try { clash = row?.Result as ClashResult; } catch { }
+                try { clash = row?.Result as ClashResult; } catch (Exception ex) { Logger.Warn("Failed to read diagnostic Clash result: " + ex, "ClashUI"); }
 
                 var viewpoint = doc.CurrentViewpoint.CreateCopy();
                 var cameraJson = string.Empty;
-                try { cameraJson = viewpoint.GetCamera() ?? string.Empty; } catch (Exception ex) { cameraJson = "GetCamera error: " + ex.Message; }
+                try { cameraJson = viewpoint.GetCamera() ?? string.Empty; } catch (Exception ex) { Logger.Warn("Failed to read diagnostic camera JSON: " + ex, "ClashUI"); cameraJson = "GetCamera error: " + ex.Message; }
 
                 ProjectionResult projected = null;
                 var center = _clashMgr.LastClashCenter ?? clash?.Center;
                 if (center != null && doc.ActiveView != null)
                 {
-                    try { projected = doc.ActiveView.ProjectPoint(center, false, false); } catch { }
+                    try { projected = doc.ActiveView.ProjectPoint(center, false, false); } catch (Exception ex) { Logger.Warn("Failed to project diagnostic Clash center: " + ex, "ClashUI"); }
                 }
 
                 var focalEstimate = EstimateFocalPoint(viewpoint);
@@ -56,6 +56,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to save Clash camera diagnostic: " + ex, "ClashUI");
                 SetGlobalStatusResource("Panel_Clash_Camera_Failed_Format", Brushes.Red, ex.Message);
             }
         }
@@ -117,8 +118,9 @@ namespace NavisHelper.WPF
 
                 return viewpoint.FocalDistance.ToString("G17", CultureInfo.InvariantCulture);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to read diagnostic focal distance: " + ex, "ClashUI");
                 return "null";
             }
         }
@@ -132,8 +134,9 @@ namespace NavisHelper.WPF
                     ? "null"
                     : value.ToString("G17", CultureInfo.InvariantCulture);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to read diagnostic numeric value: " + ex, "ClashUI");
                 return "null";
             }
         }
@@ -182,8 +185,9 @@ namespace NavisHelper.WPF
             {
                 return Convert.ToString(getter(), CultureInfo.InvariantCulture) ?? string.Empty;
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to read diagnostic row value: " + ex, "ClashUI");
                 return string.Empty;
             }
         }
@@ -195,8 +199,9 @@ namespace NavisHelper.WPF
                 var value = getter();
                 return value == null ? string.Empty : value.ToString();
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Failed to read diagnostic viewpoint value: " + ex, "ClashUI");
                 return string.Empty;
             }
         }

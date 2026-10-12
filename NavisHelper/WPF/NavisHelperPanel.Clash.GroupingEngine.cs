@@ -356,6 +356,7 @@ namespace NavisHelper.WPF
                 }
                 catch (Exception ex)
                 {
+                    Logger.Error("Failed to run Clash action: " + ex, "ClashUI");
                     SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
                 }
             };
@@ -416,6 +417,7 @@ namespace NavisHelper.WPF
                     }
                     catch (Exception ex)
                     {
+                        Logger.Error("Failed to run Clash top bar action: " + ex, "ClashUI");
                         SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
                     }
                 };
@@ -497,8 +499,8 @@ namespace NavisHelper.WPF
             _clashMgr.UsePairIsolation = false;
             _clashMgr.ResetView();
             ClearActiveViewRedlines(doc);
-            try { doc?.CurrentSelection?.Clear(); } catch { }
-            try { doc?.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All); } catch { }
+            try { doc?.CurrentSelection?.Clear(); } catch (Exception ex) { Logger.Warn("Failed to clear selection while resetting Clash view: " + ex, "ClashUI"); }
+            try { doc?.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All); } catch (Exception ex) { Logger.Warn("Failed to redraw reset Clash view: " + ex, "ClashUI"); }
             SetGlobalStatusResource("Panel_Clash_ViewReset", Brushes.Gray);
         }
 
@@ -592,6 +594,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to apply Clash selection transparency: " + ex, "ClashUI");
                 SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
             }
         }
@@ -765,6 +768,7 @@ namespace NavisHelper.WPF
                 }
                 catch (Exception ex)
                 {
+                    Logger.Error("Failed to run Clash test action: " + ex, "ClashUI");
                     SetGlobalStatusResource("Panel_Common_Error_Format", Brushes.Red, ex.Message);
                     MessageBox.Show(
                         UiLocalizationService.Current.Format("Panel_Common_Error_Format", ex.Message),
@@ -916,6 +920,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to rename virtual Clash group: " + ex, "ClashUI");
                 SetGlobalStatusResource("Panel_Clash_GroupRenameFailed_Format", Brushes.Red, ex.Message);
                 BeginInvokeForCurrentClashDocument(RefreshClashGridRows, DispatcherPriority.Background);
             }
@@ -1128,6 +1133,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Warn("Failed to select Clash tree item: " + ex, "ClashUI");
                 SetGlobalStatusResource("Panel_Clash_TreeItemSelectFailed_Format", Brushes.Red, ex.Message);
             }
         }
@@ -1322,6 +1328,8 @@ namespace NavisHelper.WPF
 
         private List<ClashResult> FindClashResultsForTreeNode(ClashTreeNodeTag tag)
         {
+            using (var failures = new PanelCatchLog("Clash tree model matching", "ClashUI"))
+            {
             if (tag == null || tag.Side == ClashGroupingSide.None || string.IsNullOrWhiteSpace(tag.Path))
                 return new List<ClashResult>();
 
@@ -1331,11 +1339,12 @@ namespace NavisHelper.WPF
                 return cached.ToList();
 
             var matches = (_loadedResults ?? new List<ClashResult>())
-                .Where(result => result != null && ResolveClashGroupingAncestor(result, tag.Side, tag.Path) != null)
+                .Where(result => result != null && ResolveClashGroupingAncestor(result, tag.Side, tag.Path, failures) != null)
                 .Distinct()
                 .ToList();
             _clashTreeMatchCache[cacheKey] = matches;
             return matches.ToList();
+            }
         }
 
         private void ResetPendingClashGroupingSelection()
@@ -1405,6 +1414,7 @@ namespace NavisHelper.WPF
             }
             catch (Exception ex)
             {
+                Logger.Error("Failed to persist Clash result group: " + ex, "ClashUI");
                 SetGlobalStatusResource("Panel_Clash_GroupSaveFailed_Format", Brushes.Red, ex.Message);
                 return false;
             }
