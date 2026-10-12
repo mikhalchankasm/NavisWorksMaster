@@ -63,9 +63,7 @@ namespace NavisHelper.Agent.Host
                     var documentKey = document == null ? string.Empty : document.FileName ?? string.Empty;
                     if (string.IsNullOrWhiteSpace(documentKey))
                         documentKey = document == null ? string.Empty : document.Title ?? string.Empty;
-                    var sameDocument = string.Equals(documentKey, approvalTicket.DocumentKey, StringComparison.Ordinal);
-                    if (!AgentRuntime.ProtectedModeApprovals.Confirm(approvalTicket)
-                        || (approvalTicket.GrantId.HasValue && !sameDocument))
+                    if (!AgentRuntime.ProtectedModeApprovals.Confirm(approvalTicket, documentKey))
                         throw new AgentCommandException(ErrorCodes.ApprovalRequired,
                             "The document changed or the approval was revoked; ask the user to approve again.");
                 }

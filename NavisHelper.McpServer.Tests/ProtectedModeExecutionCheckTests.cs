@@ -92,6 +92,29 @@ public sealed class ProtectedModeExecutionCheckTests
         Assert.Null(accepted.Ticket.GrantId);
     }
 
+    // External review of #248 (P2): turning protection off after an approved request was
+    // accepted must not refuse it.
+    [Fact]
+    public void TurningProtectionOffBetweenAcceptanceAndExecutionLetsTheWriteRun()
+    {
+        var gate = Gate();
+        gate.DocumentChanged("C:\\a.nwd");
+        var accepted = Approved(gate, "C:\\a.nwd", "s1");
+        gate.Enabled = false;
+        Assert.True(gate.Confirm(accepted.Ticket));
+        Assert.True(gate.Confirm(accepted.Ticket, "C:\\b.nwd"));
+    }
+
+    [Fact]
+    public void ActiveDocumentMustMatchTheAcceptedOneWhenProtected()
+    {
+        var gate = Gate();
+        gate.DocumentChanged("C:\\a.nwd");
+        var accepted = Approved(gate, "C:\\a.nwd", "s1");
+        Assert.True(gate.Confirm(accepted.Ticket, "C:\\a.nwd"));
+        Assert.False(gate.Confirm(accepted.Ticket, "C:\\b.nwd"));
+    }
+
     [Theory]
     [InlineData("find_items")]
     [InlineData("clash_run_status")]

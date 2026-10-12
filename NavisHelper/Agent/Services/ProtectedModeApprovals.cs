@@ -73,21 +73,31 @@ namespace NavisHelper.Agent.Services
 
         public bool Confirm(ApprovalTicket ticket)
         {
+            return Confirm(ticket, null);
+        }
+
+        /// <summary>
+        /// Final check on the UI thread right before the command runs. With protection off
+        /// nothing is refused. With protection on, the ticket must carry a grant that still
+        /// exists for the same document instance; when <paramref name="currentDocumentKey"/>
+        /// is given, the active document must also be the one the request was accepted for.
+        /// </summary>
+        public bool Confirm(ApprovalTicket ticket, string currentDocumentKey)
+        {
             lock (_sync)
             {
                 if (ticket == null)
                     return false;
-                if (!ticket.RequiresApproval)
+                if (!ticket.RequiresApproval || !_enabled)
                     return true;
-                // An unprotected acceptance remains valid only while protection is off;
-                // with protection off nothing changes for users, document switches included.
-                if (!ticket.GrantId.HasValue)
-                    return !_enabled;
-                if (ticket.DocumentEpoch != _documentEpoch)
+                if (!ticket.GrantId.HasValue || ticket.DocumentEpoch != _documentEpoch)
+                    return false;
+                if (currentDocumentKey != null &&
+                    !string.Equals(currentDocumentKey, ticket.DocumentKey, StringComparison.Ordinal))
                     return false;
 
                 Guid grantId;
-                return _enabled && _approved.TryGetValue(Tuple.Create(ticket.DocumentKey, ticket.SessionId), out grantId)
+                return _approved.TryGetValue(Tuple.Create(ticket.DocumentKey, ticket.SessionId), out grantId)
                     && grantId == ticket.GrantId.Value;
             }
         }
