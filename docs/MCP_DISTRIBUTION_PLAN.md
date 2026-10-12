@@ -108,6 +108,35 @@ Output:
 - `artifacts\mcp-server\NavisHelper.McpServer-win-x64-framework-dependent`
 - `artifacts\mcp-server\NavisHelper.McpServer-win-x64-framework-dependent.zip`
 
+## Claude Desktop extension (.mcpb)
+
+Claude Desktop was observed on 2026-10-12 rewriting `claude_desktop_config.json`
+on restart and dropping the server entry written by `McpConfigurator`. Desktop
+extensions (`.mcpb`) provide the supported local-server installation path.
+
+With Python 3.10 or later, package the framework-dependent output from
+`tools/publish_mcp_server.ps1`:
+
+```powershell
+python scripts/build_mcpb.py --server-dir artifacts/mcp-server/NavisHelper.McpServer-win-x64-framework-dependent --output artifacts/NavisHelper.mcpb
+```
+
+Alternatively, pass `--server-dir NavisHelper.McpServer/bin/Release/net9.0`
+after building the server. The builder uses the server project's `<Version>`
+unless `--version a.b.c.d` is supplied: `a.b.c.0` becomes `a.b.c`, and a nonzero
+revision becomes SemVer build metadata (`a.b.c+d`). It includes the server tree,
+icon and manifest in a deterministic archive and replaces the output atomically.
+
+The framework-dependent server needs the **.NET 9 runtime** on Windows. Open the
+`.mcpb` in Claude Desktop to install it under **Settings > Extensions**. Configure
+read-only mode and the tool profile there (`all` by default; `core` or server
+tool set names are also supported). The bundled server is a separate copy from
+`%LOCALAPPDATA%\NavisHelper\McpServer-<version>`; update the extension by building
+and installing a new bundle. Navisworks still needs its NavisHelper plugin.
+
+CI runs the fixture-only acceptance tests with
+`python -m unittest scripts.tests.test_build_mcpb`; no .NET build is needed for them.
+
 ## Client Config
 
 The package contains `mcp-client-config.example.json`:
