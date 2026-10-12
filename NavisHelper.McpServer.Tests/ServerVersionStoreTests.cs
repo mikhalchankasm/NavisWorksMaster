@@ -302,6 +302,27 @@ public sealed class ServerVersionStoreTests : IDisposable
     }
 
     [Fact]
+    public void FirstInstallRollsBackAnUnhealthySwitchTargetAndInstallsTheNewSource()
+    {
+        var b = Store().Install(Source("b", "2.11.0.0", "B")).VersionDirectory;
+        Directory.Delete(Link, recursive: false);
+        File.Move(StatePath, StatePath + ".next");
+        Junction(Link + ".next", b);
+        var checkedPaths = new List<string>();
+        var store = new ServerVersionStore(_root, exe =>
+        {
+            var directory = Path.GetDirectoryName(exe)!;
+            checkedPaths.Add(directory);
+            return !SamePath(directory, b);
+        });
+
+        var result = store.Install(Source("c", "2.12.0.0", "C"));
+
+        Assert.True(result.Activated);
+        AssertRecovered(result.VersionDirectory, null, checkedPaths, b, result.VersionDirectory);
+    }
+
+    [Fact]
     public void InstallRecoversSwitchInterruptedAfterRenamingPendingJunction()
     {
         var (a, b) = InterruptedSwitch(Interruption.Renamed);
