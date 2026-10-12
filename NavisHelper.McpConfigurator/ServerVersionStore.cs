@@ -26,6 +26,7 @@ internal sealed class ServerVersionStore
 
     public ServerActivation Install(string sourceDirectory)
     {
+        RecoverActivation();
         var source = Path.GetFullPath(sourceDirectory);
         if (!File.Exists(Path.Combine(source, Server + ".exe")))
             throw new FileNotFoundException("MCP server executable was not found.", Path.Combine(source, Server + ".exe"));
@@ -36,19 +37,7 @@ internal sealed class ServerVersionStore
         EnsurePlainDirectory(_versions);
         var hadVersions = Directory.Exists(_versions);
         var created = !Directory.Exists(destination);
-        if (!created)
-        {
-            try
-            {
-                if (!string.Equals(VersionName(destination), Path.GetFileName(destination), StringComparison.Ordinal))
-                    throw new IOException("The stored MCP server tree no longer matches its version name.");
-            }
-            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException
-                                       or KeyNotFoundException or InvalidOperationException)
-            {
-                throw new IOException($"Cannot reuse MCP server version directory '{destination}'.", ex);
-            }
-        }
+        if (!created) VerifyVersion(destination);
         var migrated = false;
         string? legacy = null;
         try
@@ -106,6 +95,7 @@ internal sealed class ServerVersionStore
 
     public bool Rollback()
     {
+        RecoverActivation();
         var state = ReadState();
         if (state.Previous == null || !Directory.Exists(state.Previous))
             return false;
@@ -118,6 +108,7 @@ internal sealed class ServerVersionStore
 
     public IReadOnlyList<string> Prune(Func<string, bool> inUse)
     {
+        RecoverActivation();
         if (!Directory.Exists(_versions)) return Array.Empty<string>();
         var state = ReadState();
         var current = CurrentTarget();
@@ -190,6 +181,131 @@ internal sealed class ServerVersionStore
         var resolved = Path.GetFullPath(target, _root);
         ValidateVersionPath(resolved);
         return resolved;
+    }
+
+    private void RecoverActivation()
+    {
+        var pending = Link + ".next";
+        var pendingState = StatePath + ".next";
+        var pendingTarget = new DirectoryInfo(pending).LinkTarget;
+        var hasPending = Directory.Exists(pending) || File.Exists(pending) || pendingTarget != null;
+        var hasPendingState = File.Exists(pendingState) || Directory.Exists(pendingState) ||
+            new FileInfo(pendingState).LinkTarget != null;
+        if (!hasPending && !hasPendingState) return;
+
+        EnsurePlainDirectory(_root);
+        EnsurePlainDirectory(_versions);
+        var current = CurrentTarget();
+        if ((hasPending && pendingTarget == null) ||
+            ((Directory.Exists(Link) || File.Exists(Link)) && current == null) ||
+            new FileInfo(pendingState).LinkTarget != null)
+            throw new IOException("MCP activation recovery requires junctions and a plain state.json.next.");
+        if (pendingTarget != null)
+        {
+            pendingTarget = Path.GetFullPath(pendingTarget, _root);
+            ValidateVersionPath(pendingTarget);
+        }
+        State? state = null;
+        if (hasPendingState)
+        {
+            try
+            {
+                state = JsonSerializer.Deserialize<State>(File.ReadAllText(pendingState))
+                    ?? throw new InvalidDataException("Invalid MCP version state.");
+                foreach (var path in new[] { state.Current, state.Previous })
+                    if (path != null) ValidateVersionPath(path);
+            }
+            catch (JsonException) when (!hasPending)
+            {
+                // Torn while writing state.json.next (step 1): no junction was touched; discard it.
+            }
+            catch (Exception ex) when (ex is JsonException or InvalidDataException or ArgumentException or
+                NotSupportedException or UnauthorizedAccessException)
+            {
+                throw new IOException("Cannot read pending MCP version state.", ex);
+            }
+        }
+
+        if (current == null && pendingTarget == null && state == null)
+        {
+            // A first activation torn at step 1 switched nothing.
+            File.Delete(pendingState);
+            return;
+        }
+
+        if (current != null)
+        {
+            // Steps 1, 2 or 4: keep McpServer; commit the pending state only if McpServer already points at it.
+            var commit = state != null && Same(state.Current, current);
+            var healthy = Healthy(current);
+            if (!healthy && commit && CommittedFallback(current) is { } fallback)
+            {
+                DeleteJunction(Link);
+                CreateJunction(Link, fallback);
+                commit = false;
+                healthy = true;
+            }
+            DeleteJunction(pending);
+            if (hasPendingState)
+            {
+                if (commit) File.Move(pendingState, StatePath, overwrite: true);
+                else File.Delete(pendingState);
+            }
+            if (!healthy) throw new IOException("Recovered MCP server failed its health check.");
+            return;
+        }
+
+        // Step 3: the old junction is gone; finish the switch unless its target fails its health check.
+        current = pendingTarget ?? state?.Current
+            ?? throw new IOException("Pending MCP activation has no version target.");
+        ValidateVersionPath(current);
+        if ((state != null && !Same(state.Current, current)) || !Directory.Exists(current))
+            throw new IOException("Pending MCP activation does not name one existing version.");
+        if (!Healthy(current))
+        {
+            // Roll back to the committed state; a first activation has none and continues without one.
+            var committed = ReadState().Current;
+            if (committed != null && Directory.Exists(committed)) CreateJunction(Link, committed);
+            DeleteJunction(pending);
+            if (hasPendingState) File.Delete(pendingState);
+            if (committed != null && !Healthy(committed))
+                throw new IOException("Recovered MCP server failed its health check.");
+            return;
+        }
+        if (pendingTarget != null) Directory.Move(pending, Link);
+        else CreateJunction(Link, current);
+        if (hasPendingState) File.Move(pendingState, StatePath, overwrite: true);
+    }
+
+    // A stored tree counts as healthy only if it still matches its version name and passes its check.
+    private bool Healthy(string version)
+    {
+        try { VerifyVersion(version); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException) { return false; }
+        return _healthCheck(Path.Combine(version, Server + ".exe"));
+    }
+
+    private static void VerifyVersion(string directory)
+    {
+        try
+        {
+            var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(directory));
+            if (!string.Equals(VersionName(directory), name, StringComparison.Ordinal))
+                throw new IOException("The stored MCP server tree no longer matches its version name.");
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException
+                                   or KeyNotFoundException or InvalidOperationException)
+        {
+            throw new IOException($"Cannot reuse MCP server version directory '{directory}'.", ex);
+        }
+    }
+
+    // The committed state.json Current, when it differs from the failed target and passes its check.
+    private string? CommittedFallback(string failed)
+    {
+        var committed = ReadState().Current;
+        return committed != null && !Same(committed, failed) && Directory.Exists(committed) && Healthy(committed)
+            ? committed : null;
     }
 
     private void Activate(State next)

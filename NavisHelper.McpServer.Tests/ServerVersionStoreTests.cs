@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text.Json;
 using NavisHelper.McpConfigurator;
 using Xunit;
 
@@ -217,6 +219,203 @@ public sealed class ServerVersionStoreTests : IDisposable
 
         var fake = Source("fake", "2.10.0.0", "F");
         Assert.False(await McpServerHealthCheck.RunAsync(Path.Combine(fake, Exe), TimeSpan.FromSeconds(10)));
+    }
+
+    // Issue #250: Activate writes state.json.next, creates McpServer.next, deletes the
+    // old junction, renames McpServer.next, then moves the state file. A process killed
+    // between those steps must not block the next --install-server, --rollback-server or
+    // --prune-servers. Deleting the old junction is the commit point: before it the switch
+    // rolls back, after it the switch is finished. Each test starts with A active,
+    // B installed as its rollback slot, and an interrupted switch from A to B.
+    private enum Interruption { StateWritten, PendingLinkCreated, OldLinkDeleted, Renamed }
+
+    private (string A, string B) InterruptedSwitch(Interruption point)
+    {
+        var a = Store().Install(Source("a", "2.10.0.0", "A")).VersionDirectory;
+        var b = Store().Install(Source("b", "2.11.0.0", "B")).VersionDirectory;
+        Assert.True(Store().Rollback());
+        AssertState(a, b);
+
+        var pending = Link + ".next";
+        File.WriteAllText(StatePath + ".next", JsonSerializer.Serialize(new { Current = b, Previous = a }));
+        if (point == Interruption.StateWritten) return (a, b);
+        Junction(pending, b);
+        if (point == Interruption.PendingLinkCreated) return (a, b);
+        Directory.Delete(Link, recursive: false);
+        if (point == Interruption.OldLinkDeleted) return (a, b);
+        Directory.Move(pending, Link);
+        return (a, b);
+    }
+
+    private string StatePath => Path.Combine(_root, "versions", "state.json");
+
+    private ServerVersionStore Recording(List<string> healthChecked) =>
+        new(_root, exe => { healthChecked.Add(Path.GetDirectoryName(exe)!); return true; });
+
+    private static bool SamePath(string? a, string? b) => a != null && b != null &&
+        string.Equals(a.TrimEnd('\\'), b.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+
+    private void AssertState(string current, string? previous)
+    {
+        using var state = JsonDocument.Parse(File.ReadAllText(StatePath));
+        Assert.True(SamePath(current, state.RootElement.GetProperty("Current").GetString()), "state.json Current");
+        var stored = state.RootElement.GetProperty("Previous");
+        if (previous == null) Assert.Equal(JsonValueKind.Null, stored.ValueKind);
+        else Assert.True(SamePath(previous, stored.GetString()), "state.json Previous");
+    }
+
+    // Exactly one McpServer junction, no leftovers, state.json agrees with the junction,
+    // the target was health-checked by this command, and no version directory was lost.
+    private void AssertRecovered(string current, string? previous, List<string> healthChecked, params string[] versions)
+    {
+        Assert.True(SamePath(current, Target), "McpServer target");
+        Assert.False(Directory.Exists(Link + ".next") || new DirectoryInfo(Link + ".next").LinkTarget != null, "McpServer.next left");
+        Assert.False(File.Exists(StatePath + ".next"), "state.json.next left");
+        Assert.Single(Directory.GetDirectories(_root, "McpServer*"));
+        AssertState(current, previous);
+        Assert.Contains(healthChecked, path => SamePath(path, current));
+        foreach (var version in versions)
+            Assert.True(File.Exists(Path.Combine(version, Exe)), "version lost: " + version);
+    }
+
+    [Fact]
+    public void InstallRecoversSwitchInterruptedAfterWritingPendingState()
+    {
+        var (a, b) = InterruptedSwitch(Interruption.StateWritten);
+        var checkedPaths = new List<string>();
+
+        var result = Recording(checkedPaths).Install(Source("c", "2.12.0.0", "C"));
+
+        Assert.True(result.Activated);
+        Assert.True(SamePath(a, result.PreviousDirectory), "rolled back to A before installing C");
+        AssertRecovered(result.VersionDirectory, a, checkedPaths, a, b, result.VersionDirectory);
+    }
+
+    [Fact]
+    public void RollbackRecoversSwitchInterruptedAfterCreatingPendingJunction()
+    {
+        var (a, b) = InterruptedSwitch(Interruption.PendingLinkCreated);
+        var checkedPaths = new List<string>();
+
+        Assert.True(Recording(checkedPaths).Rollback());
+
+        // Rolled back to A with B as its rollback slot, then the rollback switched to B.
+        AssertRecovered(b, a, checkedPaths, a, b);
+    }
+
+    [Fact]
+    public void PruneRecoversSwitchInterruptedAfterDeletingOldJunction()
+    {
+        var (a, b) = InterruptedSwitch(Interruption.OldLinkDeleted);
+        var checkedPaths = new List<string>();
+
+        var removed = Recording(checkedPaths).Prune(_ => true);
+
+        Assert.Empty(removed);
+        AssertRecovered(b, a, checkedPaths, a, b);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RecoveryReturnsToCommittedVersionWhenTheSwitchTargetFailsItsHealthCheck(bool renamed)
+    {
+        var (a, b) = InterruptedSwitch(renamed ? Interruption.Renamed : Interruption.OldLinkDeleted);
+        var checkedPaths = new List<string>();
+        var store = new ServerVersionStore(_root, exe =>
+        {
+            var directory = Path.GetDirectoryName(exe)!;
+            checkedPaths.Add(directory);
+            return !SamePath(directory, b);
+        });
+
+        Assert.Empty(store.Prune(_ => true));
+
+        AssertRecovered(a, b, checkedPaths, a, b);
+    }
+
+    [Fact]
+    public void RecoveryDoesNotFinishASwitchToATreeThatNoLongerMatchesItsName()
+    {
+        var (a, b) = InterruptedSwitch(Interruption.OldLinkDeleted);
+        // Outside the main dll, so only the whole-tree version name catches it.
+        File.AppendAllText(Path.Combine(b, "runtimes", "native.dll"), " changed");
+        var checkedPaths = new List<string>();
+
+        Assert.Empty(Recording(checkedPaths).Prune(_ => true));
+
+        AssertRecovered(a, b, checkedPaths, a, b);
+    }
+
+    [Fact]
+    public void RecoveryDiscardsPendingStateTornWhileBeingWritten()
+    {
+        var (a, b) = InterruptedSwitch(Interruption.StateWritten);
+        File.WriteAllText(StatePath + ".next", "{\"Current\":\"" + b[..5]);
+        var checkedPaths = new List<string>();
+
+        Assert.Empty(Recording(checkedPaths).Prune(_ => true));
+
+        AssertRecovered(a, b, checkedPaths, a, b);
+    }
+
+    [Fact]
+    public void FirstInstallRecoversPendingStateTornWhileBeingWritten()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "versions"));
+        File.WriteAllText(StatePath + ".next", "{\"Current\":");
+        var checkedPaths = new List<string>();
+
+        var result = Recording(checkedPaths).Install(Source("c", "2.12.0.0", "C"));
+
+        Assert.True(result.Activated);
+        AssertRecovered(result.VersionDirectory, null, checkedPaths, result.VersionDirectory);
+    }
+
+    [Fact]
+    public void FirstInstallRollsBackAnUnhealthySwitchTargetAndInstallsTheNewSource()
+    {
+        var b = Store().Install(Source("b", "2.11.0.0", "B")).VersionDirectory;
+        Directory.Delete(Link, recursive: false);
+        File.Move(StatePath, StatePath + ".next");
+        Junction(Link + ".next", b);
+        var checkedPaths = new List<string>();
+        var store = new ServerVersionStore(_root, exe =>
+        {
+            var directory = Path.GetDirectoryName(exe)!;
+            checkedPaths.Add(directory);
+            return !SamePath(directory, b);
+        });
+
+        var result = store.Install(Source("c", "2.12.0.0", "C"));
+
+        Assert.True(result.Activated);
+        AssertRecovered(result.VersionDirectory, null, checkedPaths, b, result.VersionDirectory);
+    }
+
+    [Fact]
+    public void InstallRecoversSwitchInterruptedAfterRenamingPendingJunction()
+    {
+        var (a, b) = InterruptedSwitch(Interruption.Renamed);
+        var checkedPaths = new List<string>();
+
+        var result = Recording(checkedPaths).Install(Source("c", "2.12.0.0", "C"));
+
+        Assert.True(result.Activated);
+        Assert.True(SamePath(b, result.PreviousDirectory), "finished the switch to B before installing C");
+        AssertRecovered(result.VersionDirectory, b, checkedPaths, a, b, result.VersionDirectory);
+    }
+
+    private static void Junction(string link, string target)
+    {
+        var start = new ProcessStartInfo("cmd.exe", $"/d /c mklink /J \"{link}\" \"{target}\"")
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+        };
+        using var process = Process.Start(start)!;
+        process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        Assert.Equal(0, process.ExitCode);
     }
 
     private static void CopyDirectory(string source, string destination)
