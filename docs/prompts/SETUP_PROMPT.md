@@ -20,7 +20,7 @@ https://github.com/mikhalchankasm/NavisWorksMaster
 - Если обнаружена старая системная установка NavisHelper в `Program Files` или `ProgramData`, удали её из PowerShell с правами администратора: `tools\remove_machinewide_bundle.ps1 -Force` (из распакованного ZIP или clone). Новый installer/package специально остановится до копирования файлов, чтобы не оставить конфликтующие bundle-версии.
 - Репозиторий может быть private. Не читай `raw.githubusercontent.com` как источник инструкции: сначала получи локальную копию через `git clone` или обнови существующий clone через `git pull`.
 - Ожидаемый путь после ZIP/package per-user установки:
-  %LOCALAPPDATA%\NavisHelper\McpServer-<версия>\NavisHelper.McpServer.exe
+  %LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe (junction на активную версию)
 - Configurator:
   %LOCALAPPDATA%\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe
 - Bundle:
@@ -34,8 +34,8 @@ https://github.com/mikhalchankasm/NavisWorksMaster
 - Если есть `NavisHelper-full-*.zip`, распакуй его в отдельную папку, перейди в распакованную папку и выполни без прав администратора:
   powershell -ExecutionPolicy Bypass -File .\Install-NavisHelperBundle.ps1 -ConfigureMcp
 - Если есть только `NavisHelperSetup-*.exe`, запусти его обычным способом без повышения прав.
-- После ZIP/package установки MCP config должен указывать на `%LOCALAPPDATA%\NavisHelper\McpServer-<версия>\NavisHelper.McpServer.exe`, а не на временную папку распаковки. Установка новой версии не завершает уже работающий stdio process; перезапусти или reload MCP-клиент после обновления.
-- ZIP `v2.6.3.0` мог оставить устаревшую папку `%LOCALAPPDATA%\NavisHelper\McpServer` без версии. Новый ZIP удаляет её только если это подтверждённый неработающий runtime NavisHelper; неизвестную папку не удаляй, а сообщи пользователю предупреждение.
+- После ZIP/package установки MCP config должен указывать на `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe` через junction, а не на временную папку распаковки. Установка новой версии не завершает уже работающий stdio process; перезапусти или reload MCP-клиент после обновления.
+- ZIP устанавливает сервер через `McpConfigurator --install-server` с явным `--install-root`: одинаковая версия используется повторно, старые `McpServer-<версия>` сохраняются, обычная legacy-папка `McpServer` переносится в version store с сохранением файлов. Если работающий legacy-сервер блокирует перенос, установка завершится с ненулевым кодом; попроси пользователя закрыть MCP-клиент и повтори установку.
 - Для private repo используй Git Credential Manager, `gh auth login` или GitHub device flow. Никогда не вставляй PAT, cookies или другие секреты в prompt, чат или лог.
 - Если installer/ZIP успешно установлен, переходи сразу к ШАГУ 5.
 
@@ -64,17 +64,17 @@ https://github.com/mikhalchankasm/NavisWorksMaster
 ШАГ 4А. Запусти установку.
 - Для ZIP/package используй per-user установку без admin.
 - Для `.exe` installer используй обычный запуск без повышения прав и дождись завершения.
-- Per-user ZIP/package должен положить MCP server в `%LOCALAPPDATA%\NavisHelper\McpServer-<версия>` и bundle в `%APPDATA%\Autodesk\ApplicationPlugins`.
+- Per-user ZIP/package должен положить MCP server в `%LOCALAPPDATA%\NavisHelper\versions\<версия>-<treehash8>` с junction `McpServer` на активную версию и bundle в `%APPDATA%\Autodesk\ApplicationPlugins`.
 - Для ZIP/package из этого репозитория предпочитай:
   powershell -ExecutionPolicy Bypass -File .\Install-NavisHelperBundle.ps1 -ConfigureMcp
-- После ZIP/package установки MCP config должен указывать на `%LOCALAPPDATA%\NavisHelper\McpServer-<версия>\NavisHelper.McpServer.exe`, а не на временную папку распаковки.
+- После ZIP/package установки MCP config должен указывать на `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe` через junction, а не на временную папку распаковки.
 
 ШАГ 5. Настрой MCP-клиенты без удаления существующих серверов.
 Выполни:
 
 & "$env:LOCALAPPDATA\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe" --configure --clients all --create-missing
 
-Если configurator сообщает об отсутствии server, подставь реальный новый путь `McpServer-<версия>\NavisHelper.McpServer.exe` из вывода install script.
+Если configurator сообщает об отсутствии server, передай через `--mcp-server` путь junction `McpServer\NavisHelper.McpServer.exe` из строки `MCP client path:` в выводе install script.
 
 ШАГ 6. Проверь результат.
 Выполни:

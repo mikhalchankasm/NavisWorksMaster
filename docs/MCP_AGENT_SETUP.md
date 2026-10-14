@@ -42,9 +42,9 @@ Close `Roamer.exe` before running the packaged installer:
 powershell -ExecutionPolicy Bypass -File .\Install-NavisHelperBundle.ps1 -ConfigureMcp
 ```
 
-The package installs the bundle to `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle`, the MCP server to `%LOCALAPPDATA%\NavisHelper\McpServer-<version>\NavisHelper.McpServer.exe`, and the configurator to `%LOCALAPPDATA%\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe`. It configures missing client files when requested and then runs detection against that versioned executable. Restart or reload the MCP client after configuration.
+The package installs the bundle to `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle` and the configurator to `%LOCALAPPDATA%\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe`. It runs `McpConfigurator --install-server` with an explicit `--install-root "%LOCALAPPDATA%\NavisHelper"`, storing the server in `versions\<version>-<treehash8>` behind the `McpServer` junction. It prints `MCP client path: %LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe` with the environment variable expanded. Requested client configuration and detection use that junction executable. Restart or reload the MCP client after configuration.
 
-The affected `v2.6.3.0` ZIP could leave `%LOCALAPPDATA%\NavisHelper\McpServer` without a version. Current packages remove that directory only after verifying that it is an inactive NavisHelper MCP runtime; otherwise they warn and leave it untouched. To recover manually, verify the directory contents first, remove only the confirmed stale NavisHelper runtime, then rerun the installer and:
+Identical server versions reuse their store target, and old `McpServer-<version>` directories are kept. The configurator migrates a legacy real `McpServer` directory into the version store with its files preserved. If a running legacy server blocks migration, installation exits non-zero and leaves that directory untouched; close the MCP client using it, then rerun the installer and:
 
 ```powershell
 & "$env:LOCALAPPDATA\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe" --detect
