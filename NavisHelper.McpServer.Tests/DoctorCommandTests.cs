@@ -77,16 +77,33 @@ public sealed class DoctorCommandTests : IDisposable
     public void OneMismatchedSdkIsReportedEvenWhenAnotherIsMissing()
     {
         var report = Report((path, name) => name != "NavisHelper" ? Current :
-            path.Contains("2024") ? new("missing") : new("readable", "2.9.0.0"));
+            IsYear(path, "2024") ? new("missing") : new("readable", "2.9.0.0"));
         Assert.Equal("mismatch", report.VersionAgreement);
         Assert.Equal("missing", report.Plugins["2024"].Status);
+    }
+
+    /// <summary>
+    /// The bundle root is a temp directory named by a random GUID, which contains "2024"
+    /// about once in 2 300 runs. A substring test then matched every year and this
+    /// class failed intermittently (seen 2026-10-14), so the year is read from the
+    /// directory that holds the DLL.
+    /// </summary>
+    [Fact]
+    public void YearIsReadFromTheDllDirectoryNotTheWholePath()
+    {
+        var root = Path.Combine(_directory, "bundle-2024-2025-2026-2027");
+        var report = DoctorCommand.Inspect("cursor", new("configured", @"C:\bin\NavisHelper.McpServer.exe"),
+            root, (path, name) => name != "NavisHelper" ? Current :
+                IsYear(path, "2024") ? new("missing") : new("readable", "2.9.0.0"), _ => true);
+        Assert.Equal("missing", report.Plugins["2024"].Status);
+        Assert.All(new[] { "2025", "2026", "2027" }, year => Assert.Equal("readable", report.Plugins[year].Status));
     }
 
     [Fact]
     public void PluginVersionDriftIsVisibleWhenServerIsMissing()
     {
         var report = Report((path, name) => name == "NavisHelper.McpServer" ? new("missing") :
-            path.Contains("2024") ? new("readable", "2.9.0.0") : Current);
+            IsYear(path, "2024") ? new("readable", "2.9.0.0") : Current);
         Assert.Equal("mismatch", report.VersionAgreement);
         Assert.Contains("RepairInstallation", report.NextActions);
     }
@@ -227,6 +244,9 @@ public sealed class DoctorCommandTests : IDisposable
     private DoctorReport Report(Func<string, string, AssemblyEvidence> read, bool exists = true) =>
         DoctorCommand.Inspect("cursor", new("configured", @"C:\bin\NavisHelper.McpServer.exe"),
             _directory, read, _ => exists);
+
+    private static bool IsYear(string dllPath, string year) =>
+        string.Equals(Path.GetFileName(Path.GetDirectoryName(dllPath)), year, StringComparison.Ordinal);
 
     public void Dispose() => Directory.Delete(_directory, true);
 }
