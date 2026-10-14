@@ -144,6 +144,25 @@ public sealed class ProtectedModePanelSupportTests : IDisposable
         Assert.Contains(".Changed", source);
     }
 
+    // #276: a long client name wrapped Deny onto its own line, away from Allow. A row
+    // now takes all of its buttons at once and keeps them in one horizontal container
+    // docked right; only the text beside them wraps.
+    [Fact]
+    public void RowButtonsShareOneContainerSeparateFromTheWrappingText()
+    {
+        var source = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "NavisHelper", "WPF", "ProtectedModeSection.cs"));
+        Assert.DoesNotContain("WrapPanel", source);
+        Assert.DoesNotMatch(new Regex(@"\.Children\.Add\(\s*ActionButton\("), source);
+        Assert.Matches(new Regex(
+            @"Row\([^;]*ActionButton\(""Settings_ProtectedMode_Allow""[^;]*ActionButton\(""Settings_ProtectedMode_Deny""[^;]*\);"),
+            source);
+        Assert.Matches(new Regex(@"Row\([^;]*ActionButton\(""Settings_ProtectedMode_Revoke""[^;]*\);"), source);
+        Assert.Matches(new Regex(@"new\s+DockPanel\b"), source);
+        Assert.Matches(new Regex(@"Orientation\s*=\s*Orientation\.Horizontal"), source);
+        Assert.Matches(new Regex(@"DockPanel\.SetDock\([^;]*Dock\.Right\s*\)"), source);
+        Assert.Matches(new Regex(@"TextWrapping\s*=\s*TextWrapping\.Wrap"), source);
+    }
+
     [Fact]
     public void SettingDefaultsToOffAndRoundTrips()
     {
