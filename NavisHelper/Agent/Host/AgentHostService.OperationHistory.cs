@@ -66,8 +66,9 @@ namespace NavisHelper.Agent.Host
                     {
                         await completionTask.ConfigureAwait(false);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Logger.Warn("Could not complete deferred request before releasing the request gate: " + ex.Message, "AgentHost");
                     }
                     finally
                     {
@@ -125,8 +126,9 @@ namespace NavisHelper.Agent.Host
                                     "AgentHost");
                             }
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            Logger.Warn("Could not check deferred request gate release: " + ex.Message, "AgentHost");
                         }
                     });
                 }

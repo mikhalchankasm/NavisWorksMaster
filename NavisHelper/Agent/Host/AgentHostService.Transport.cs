@@ -94,8 +94,9 @@ namespace NavisHelper.Agent.Host
                 {
                     server.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Logger.Warn("Could not dispose agent pipe connection: " + ex.Message, "AgentHost");
                 }
 
                 try
@@ -306,8 +307,9 @@ namespace NavisHelper.Agent.Host
                 if (File.Exists(filePath))
                     File.Delete(filePath);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not delete temporary agent host file: " + ex.Message, "AgentHost");
             }
         }
 

@@ -147,8 +147,9 @@ namespace NavisHelper.Agent.Host
                     result.Length = fileInfo.Length;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not read plugin assembly file metadata: " + ex.Message, "AgentHost");
             }
 
             return result;
@@ -170,6 +171,8 @@ namespace NavisHelper.Agent.Host
             }
         }
 
+        private static int _staleDiscoveryCleanupFailureLogged;
+
         private void CleanupOwnStaleDiscoveryFiles(int pid)
         {
             var directory = GetInstancesDirectory();
@@ -187,8 +190,11 @@ namespace NavisHelper.Agent.Host
                         File.Delete(filePath);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Log only the first failure per process; later failures are not logged.
+                    if (Interlocked.Exchange(ref _staleDiscoveryCleanupFailureLogged, 1) == 0)
+                        Logger.Warn("Could not remove a stale discovery file: " + ex.Message, "AgentHost");
                 }
             }
         }
@@ -272,8 +278,9 @@ namespace NavisHelper.Agent.Host
                 if (File.Exists(_discoveryFilePath))
                     File.Delete(_discoveryFilePath);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not delete agent discovery file: " + ex.Message, "AgentHost");
             }
         }
 
@@ -304,8 +311,9 @@ namespace NavisHelper.Agent.Host
                 if (match.Success)
                     return match.Groups[1].Value;
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not detect Navisworks version from the process executable: " + ex.Message, "AgentHost");
             }
 
             return "unknown";

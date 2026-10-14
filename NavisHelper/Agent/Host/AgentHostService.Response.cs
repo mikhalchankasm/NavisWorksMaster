@@ -175,8 +175,9 @@ namespace NavisHelper.Agent.Host
             {
                 WriteFrame(stream, response.ToString(Formatting.None));
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not write agent error response: " + ex.Message, "AgentHost");
             }
         }
 

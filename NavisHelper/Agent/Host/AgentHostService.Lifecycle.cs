@@ -105,6 +105,8 @@ namespace NavisHelper.Agent.Host
             }
         }
 
+        private static int _listenerDisposeFailureLogged;
+
         public void Stop()
         {
             lock (_listenerSync)
@@ -120,8 +122,11 @@ namespace NavisHelper.Agent.Host
                     {
                         listener.Dispose();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        // Log only the first failure per process; later failures are not logged.
+                        if (Interlocked.Exchange(ref _listenerDisposeFailureLogged, 1) == 0)
+                            Logger.Warn("Could not dispose agent pipe listener during shutdown: " + ex.Message, "AgentHost");
                     }
                 }
 

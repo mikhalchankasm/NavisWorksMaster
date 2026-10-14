@@ -99,8 +99,9 @@ namespace NavisHelper.Agent
                     {
                         hostService.Dispose();
                     }
-                    catch
+                    catch (Exception disposeEx)
                     {
+                        Logger.Warn("Could not dispose agent host after synchronization-context initialization failed: " + disposeEx.Message, "AgentHost");
                     }
 
                     Logger.Error("Failed to initialize AgentRuntime via SynchronizationContext: " + ex, "AgentHost");
@@ -137,8 +138,9 @@ namespace NavisHelper.Agent
                     {
                         hostService.Dispose();
                     }
-                    catch
+                    catch (Exception disposeEx)
                     {
+                        Logger.Warn("Could not dispose agent host after control initialization failed: " + disposeEx.Message, "AgentHost");
                     }
 
                     Logger.Error("Failed to initialize AgentRuntime via Control: " + ex, "AgentHost");
@@ -181,8 +183,9 @@ namespace NavisHelper.Agent
                     {
                         hostService.Dispose();
                     }
-                    catch
+                    catch (Exception disposeEx)
                     {
+                        Logger.Warn("Could not dispose agent host after background-control initialization failed: " + disposeEx.Message, "AgentHost");
                     }
 
                     Logger.Error("Failed to initialize AgentRuntime via background control: " + ex, "AgentHost");
@@ -206,8 +209,9 @@ namespace NavisHelper.Agent
                     {
                         _backgroundControl.Dispose();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Logger.Warn("Could not dispose agent background control: " + ex.Message, "AgentHost");
                     }
 
                     _backgroundControl = null;
