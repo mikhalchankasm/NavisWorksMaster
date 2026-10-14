@@ -134,6 +134,9 @@ Extension to `clash_generate_report`:
    prevent duplicate or partial cluster artifacts.**
 4. Add UI controls after MCP behavior is stable: grouping mode, distance slider, and expandable member table.
 
+Zones with bounding spheres, marker files and run-to-run comparison build on these
+clusters; see [CLASH_ZONES_PLAN.md](CLASH_ZONES_PLAN.md).
+
 ## Safety Notes
 
 - Keep clustering disabled by default until it has been tested on large real models.
