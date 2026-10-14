@@ -227,6 +227,7 @@ namespace NavisHelper.Agent.Contracts
     {
         public string TestHandle { get; set; }
         public List<string> ResultHandles { get; set; } = new List<string>();
+        public List<string> ResultNames { get; set; } = new List<string>();
         public string GroupName { get; set; }
         public bool? Apply { get; set; }
         public bool? OverwriteExisting { get; set; }
@@ -244,6 +245,8 @@ namespace NavisHelper.Agent.Contracts
         public bool ExistingGroupFound { get; set; }
         public string Message { get; set; }
         public List<string> MissingResultHandles { get; set; } = new List<string>();
+        public List<string> MissingResultNames { get; set; } = new List<string>();
+        public List<string> AmbiguousResultNames { get; set; } = new List<string>();
         public List<string> Warnings { get; set; } = new List<string>();
     }
 
@@ -281,6 +284,7 @@ namespace NavisHelper.Agent.Contracts
         public string Scope { get; set; }
         public string TestHandle { get; set; }
         public List<string> ResultHandles { get; set; } = new List<string>();
+        public List<string> ResultNames { get; set; } = new List<string>();
         public List<string> GroupHandles { get; set; } = new List<string>();
         public List<string> TestHandles { get; set; } = new List<string>();
         public string Status { get; set; }

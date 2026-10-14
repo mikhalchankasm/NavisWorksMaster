@@ -7,6 +7,7 @@ namespace NavisHelper.Agent.Contracts
     {
         public const string TestPrefix = "clash-test:";
         public const string ResultPrefix = "clash-result:";
+        public const string GroupPrefix = "clash-group:";
 
         public static string BuildTestHandle(int testIndex)
         {
@@ -25,6 +26,29 @@ namespace NavisHelper.Agent.Contracts
                 + testIndex.ToString(CultureInfo.InvariantCulture)
                 + ":"
                 + resultIndex.ToString(CultureInfo.InvariantCulture);
+        }
+
+        public static string BuildGroupHandle(int testIndex, int groupIndex)
+        {
+            if (testIndex < 1 || groupIndex < 1)
+                return string.Empty;
+
+            return GroupPrefix
+                + testIndex.ToString(CultureInfo.InvariantCulture)
+                + ":"
+                + groupIndex.ToString(CultureInfo.InvariantCulture);
+        }
+
+        public static bool TryParseGroupHandle(string handle, out int testIndex, out int groupIndex)
+        {
+            testIndex = 0;
+            groupIndex = 0;
+            var parts = (handle ?? string.Empty).Trim().Split(':');
+            return parts.Length == 3 &&
+                   string.Equals(parts[0] + ":", GroupPrefix, StringComparison.OrdinalIgnoreCase) &&
+                   int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out testIndex) &&
+                   int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out groupIndex) &&
+                   testIndex > 0 && groupIndex > 0;
         }
 
         public static bool TryParseTestHandle(string handle, out int testIndex)

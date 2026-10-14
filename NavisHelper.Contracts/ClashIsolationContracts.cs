@@ -6,6 +6,8 @@ namespace NavisHelper.Agent.Contracts
     public sealed class ClashIsolateResultRequest
     {
         public string ResultHandle { get; set; }
+        public string TestHandle { get; set; }
+        public string ResultName { get; set; }
         public string BoxMode { get; set; }
         public double? BoxOffsetMm { get; set; }
         public bool? UseSectionBox { get; set; }
