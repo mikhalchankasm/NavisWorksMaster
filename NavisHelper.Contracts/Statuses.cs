@@ -61,6 +61,7 @@ namespace NavisHelper.Agent.Contracts
         public const string ClashPairTestsCreate = "clash_pair_tests_create";
         public const string ClashCreateMatrixFromSelection = "clash_create_matrix_from_selection";
         public const string ClashTestsFromSets = "clash_tests_from_sets";
+        public const string ClashOneVsRest = "clash_one_vs_rest";
         public const string ClashTestsExport = "clash_tests_export";
         public const string ClashBatchtestImport = "clash_batchtest_import";
         public const string ClashRunBatch = "clash_run_batch";

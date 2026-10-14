@@ -15,6 +15,26 @@ namespace NavisHelper.Agent.Services
 {
     internal sealed partial class SearchService
     {
+        /// <summary>
+        /// Resolves exactly one model item the way list_item_children resolves its parent:
+        /// a match handle, or an exact path traversed segment by segment without a full scan.
+        /// </summary>
+        public ModelItem ResolveSingleItem(Document document, string matchHandle, string path, MatchSessionStore sessionStore)
+        {
+            return ResolveListChildrenParent(document, new ListItemChildrenRequest
+            {
+                ParentMatchHandle = matchHandle,
+                ParentPath = path,
+                Comparison = FindItemsComparisons.Equal,
+            }, sessionStore);
+        }
+
+        /// <summary>The printed path list_item_children reports for an item.</summary>
+        public static string PrintItemPath(ModelItem item)
+        {
+            return BuildItemPath(item);
+        }
+
         private ModelItem ResolveListChildrenParent(Document document, ListItemChildrenRequest request, MatchSessionStore sessionStore)
         {
             var parentMatchHandle = (request.ParentMatchHandle ?? string.Empty).Trim();
