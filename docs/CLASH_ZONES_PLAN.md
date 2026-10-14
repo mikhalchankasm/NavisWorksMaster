@@ -66,7 +66,7 @@ All members below were checked against the SDK reference assemblies for 2024 and
 | --- | --- | --- |
 | Tests and results | `DocumentClash.TestsData.Tests`, `ClashTest.Children` (`ClashResult` / `ClashResultGroup`, recursive) | Manage only; already wrapped by `ClashWorkflowService`. |
 | Clash point | `ClashResult.Center` (`Point3D`) | Document units, world space. Convert with the existing `DocUnitsToMm`; today's point export and cluster centroid do not. |
-| Penetration, status, identity | `Distance`, `Status`, `Guid`, `CreatedTime`, `ApprovedTime`, `BoundingBox` | `Guid` is expected to survive a re-run of the same test in the same document and not a re-import into a new NWD (**L3**, Q4). |
+| Penetration, status, identity | `Distance`, `Status`, `Guid`, `CreatedTime`, `ApprovedTime`, `BoundingBox` | `Guid` is expected to survive a re-run of the same test in the same document and not a re-import into a new NWD (**L3**). The matching rule in section 5 does not depend on it. |
 | Clashing items | `Item1`/`Item2`, `CompositeItem1`/`CompositeItem2` | The composite items honour the test's composite-object setting; either may be null for stale results. |
 | Ancestry | `ModelItem.Parent`, `Ancestors`, `ModelItem.Model` | Display-name paths are not identities ([navisworks-api-notes.md](research/navisworks-api-notes.md)). |
 | Run tests | `DocumentClashTests.TestsRunTest`, `TestsRunAllTests` | Already exposed: `clash_manage_tests operation=run`, `clash_run_batch` with status/resume/cancel. |
@@ -81,7 +81,7 @@ therefore not a workaround to be retired later; it is the only persistent path.
 
 Saving: appending turns the open NWD into a multi-model document. Saving as NWF keeps
 a reference to the marker file (refresh after it is re-written); saving as NWD embeds
-the markers. Which one the coordinator wants is an owner decision (Q5).
+the markers. The tools never save; the coordinator chooses when saving (section 7).
 
 ## 3. Marker file format
 
@@ -132,7 +132,7 @@ Navisworks, but per-point mode should use the 80-triangle sphere.
   association names). In Navisworks this is visible in Properties and usable in
   Search Sets, so "select all new zones" needs no plugin.
 - Colour and transparency per compare state are baked in with `IfcSurfaceStyle`
-  (red new, orange persisting, yellow moved; disappeared zones optionally grey from the
+  (red new, orange persisting, yellow moved, grey disappeared — carried over from the
   previous run). `OverridePermanentTransparency` on the root is the fallback if the
   reader drops the style.
 - Units are explicit (`IfcSIUnit` millimetre); coordinates are written in document
@@ -164,13 +164,12 @@ name) — the last one is what lets runs be compared at item level.
 ### Pipeline
 
 1. **Filter** by test, status and name exclusions — the existing request fields.
-2. **Partition** by association key. Two choices the owner must make (Q1):
-   - *pair key* `(ancestorA, ancestorB)` — today's `hybrid`: one zone per object pair;
-   - *object key* `ancestor` of one chosen side — "all clashes of this assembly with
-     anything", closer to "the internals of one object intersect".
-   The level: the existing nearest-named-parent resolver (default), a fixed number of
-   levels up as in `clash_group_results`, or the model root/source file. Keys with the
-   `id:` prefix (InstanceGuid) are what make a zone recognisable in the next NWD.
+2. **Partition** by the object-pair key `(ancestorA, ancestorB)` — today's `hybrid`,
+   one zone per object pair (decided, section 7). A per-object key of one side was
+   considered and rejected: one long object clashing many others would become one zone.
+   The level is the existing nearest-named-parent resolver; a fixed number of levels up
+   (as in `clash_group_results`) stays a later option. Keys with the `id:` prefix
+   (InstanceGuid) are what make a zone recognisable in the next NWD.
 3. **Split spatially** inside each partition: single linkage with distance `epsMm`
    (grid hash with cell `epsMm` plus union-find — what `clash_list_clusters` already
    does). This is DBSCAN with `minPts=1`; higher `minPts` would discard isolated clashes
@@ -181,17 +180,18 @@ name) — the last one is what lets runs be compared at item level.
 5. **Enclosing sphere**: exact minimum enclosing sphere of the member points
    (Welzl, move-to-front, expected linear), then `radius = max(minRadiusMm,
    mes + padMm)`. Seed the point order from the sorted member GUIDs so the output is
-   deterministic. Optionally include the corners of each result bounding box so a
-   zone of one long clash is not a dot.
+   deterministic. The sphere encloses the clash points only, not the clashing item
+   boxes; `minRadiusMm` keeps a one-clash zone visible.
 6. **Number** zones `Z-0001…` by partition key then centroid, so the same input gives
    the same ids.
 
-### Parameters for the owner
+### Parameters
 
-| Parameter | Proposed default | Meaning |
+Defaults accepted by the owner on 2026-10-14.
+
+| Parameter | Default | Meaning |
 | --- | --- | --- |
-| `zoneKey` | `pair` | `pair` or `object` (Q1). |
-| `associationMode` / level | `nearest_named_parent` | Which tree level is "one object". |
+| association level | nearest named parent | Which tree level is "one object". Not a request field in v1. |
 | `epsMm` | 300 | Max distance between neighbouring clash points in one zone. |
 | `maxZoneRadiusMm` | 3000 | Split chained zones above this. |
 | `minRadiusMm` | 150 | So a single-clash zone is visible. |
@@ -252,9 +252,8 @@ followed over many iterations by comparing each run with the previous one.
 
 ## 6. Proposed split
 
-Two new MCP tools, a third optional. Fewer tools keep `tools/list` small; compare is a
-parameter of the export rather than its own tool unless the owner wants to compare
-folders without Navisworks running (Q8).
+Two new MCP tools. Fewer tools keep `tools/list` small, so compare is a parameter of
+the export rather than its own tool.
 
 - `clash_zones_export` — host, effect `Files`, dry-run by default. Dry-run returns the
   zone summary (counts, largest zones, weak associations); `apply=true` writes the run
@@ -264,7 +263,6 @@ folders without Navisworks running (Q8).
 - `clash_zones_markers` — host, effect `Document`, dry-run by default.
   `operation=append|replace|remove|style`; finds its own model by file name, never
   touches other models; `style` sets colour/transparency on the marker root.
-- optional `clash_zones_compare` — server only, effect `Files`, compares two run folders.
 
 PRs in order. Sizes are against AGENTS.md §3; "new" means new self-contained code with
 its tests (≤ 800 lines, ≤ 5 files), "change" means existing code (≤ 400 lines, ≤ 10
@@ -279,36 +277,33 @@ files, tool guard edits excluded).
 | 5 | Run comparer in `Contracts` (matching, classification, `trackId`) over `zones.json`. | new | L0/L1. |
 | 6 | `clash_zones_export`: plugin `ClashZoneExportService`, contracts DTOs, `HostBridgeClient.ClashZones.cs`, tool type `NavisworksClashZoneTools`, guard edits. Adds `ClashResult.Guid` and item stable ids to the extracted rows. | new + guard edits | L1, L2, L3. |
 | 7 | `clash_zones_markers`: `AppendFile`/`RemoveFile`, find-by-file-name, permanent style. | new + guard edits | L1, L2, L3. |
-| 8 | Client guide workflow, skill section, optional `clash_zones_compare`. | change | L1. |
+| 8 | Client guide workflow and skill section. | change | L1. |
 
 PRs 1–5 need no Navisworks and can go to external executors with the brief template;
 2, 4 and 5 are independent of each other. 6 and 7 touch the plugin and need the
 live window.
 
-## 7. Open questions for the owner
+## 7. Decisions and open items
 
-1. **What is "one object"?** Zone key per object pair (`A`×`B`) or per object of one
-   side; and the tree level: nearest named parent, N levels up, or the whole source
-   model.
-2. **Numbers**: `epsMm` 300, `maxZoneRadiusMm` 3000, `minRadiusMm` 150, `padMm` 100 —
-   acceptable as defaults? Sphere around the clash points only, or around the clashing
-   item boxes too?
-3. **Statuses**: zones from New/Active/Reviewed only, with Approved/Resolved counted
-   but not drawn?
-4. **Iterations**: is every iteration a new NWD with tests imported
-   (`clash_tests_export` → `clash_batchtest_import`), or the same NWF with refreshed
-   source files? Which authoring sources (E3D/RVM, Revit, IFC)? This decides whether
-   clash `Guid` or only element ids and geometry can link runs.
-5. **Persistence**: after appending markers, save as NWF (markers stay a referenced
-   file) or as NWD (markers embedded)? Where do run folders live — next to the NWD or
-   in one fixed folder?
-6. **Format**: IFC instead of the suggested STEP, because IFC carries the zone
-   properties into Navisworks Properties and Search Sets? STEP stays the fallback.
-7. **Scale of per-point mode**: how many clashes per run in practice (1 000? 50 000?)
-   — sets the hard limit and whether per-point mode needs paging.
-8. **Comparison**: thresholds (`maxShiftMm` 2000, still `max(100 mm, 25 % r)`,
-   shrink/grow 20 %); draw disappeared zones grey from the previous run; compare only
-   inside `clash_zones_export` or also as a separate server-only tool.
-9. **Workbook language**: sheet and column names in Russian (as `clash_export_points`
-   does) or English?
-10. **Live window**: when, after the 2.10 release, for the format check in section 3.
+Decided by the owner on 2026-10-14: IFC markers, the object-pair zone key, and the
+proposed defaults for everything else. That fixes:
+
+| Topic | Decision |
+| --- | --- |
+| Marker format | IFC4 as in section 3; STEP only if the L3 check rejects IFC. |
+| Zone key | Object pair `(ancestorA, ancestorB)`, nearest named parent. |
+| Clustering numbers | `epsMm` 300, `maxZoneRadiusMm` 3000, `minRadiusMm` 150, `padMm` 100; sphere around the clash points only. |
+| Statuses | Zones from New/Active/Reviewed; Approved/Resolved counted, not drawn. |
+| Comparison | `maxShiftMm` 2000, still `max(100 mm, 25 % r)`, shrink/grow 20 %; disappeared zones written grey with `compareState=disappeared`, so a Search Set can hide them. |
+| Compare surface | A parameter of `clash_zones_export`; no separate `clash_zones_compare` until asked for. |
+| Persistence | The tools never save the document; the coordinator saves as NWF or NWD. Run folders go to `<NWD folder>\clash_zones\<runId>\` unless `outputDirectory` is given. |
+| Scale | At most 50 000 analysed results per run, the existing `maxResults` cap; per-point mode uses the 80-triangle sphere. |
+| Workbook language | Sheet and column titles from resources: English neutral, Russian in `Resources.ru.resx`, per the AGENTS.md language policy. `zones.json` field names stay English. |
+
+Still open, none of them blocks PRs 1–5:
+
+1. **Iteration workflow** — new NWD with imported tests, or the same NWF with refreshed
+   sources; which authoring tools. The matching rule works either way; the answer only
+   decides how often clash `Guid` evidence will be available, and which sample models
+   to use at L3.
+2. **Live window** after the 2.10 release, for the format check in section 3.
