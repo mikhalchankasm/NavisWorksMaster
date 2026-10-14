@@ -3,7 +3,7 @@ param(
     [switch]$SelfContained,
     # Reuse the plugin matrix already in NavisHelper.bundle (CI: the fixture matrix).
     [switch]$SkipBuild,
-    [string]$AppVersion = "2.11.0.0",
+    [string]$AppVersion = "2.12.0.0",
     [string]$PackageName = "",
     [string]$OutputRoot = ""
 )
