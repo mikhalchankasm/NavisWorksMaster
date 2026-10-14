@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -463,6 +464,8 @@ namespace NavisHelper.Agent.Services
             }
         }
 
+        private static int _dumpFrameItemDisposeFailureLogged;
+
         /// <summary>
         /// Releases the item wrapper a frame brought into the walk, once the row it
         /// fed is written and its children are queued.
@@ -484,8 +487,11 @@ namespace NavisHelper.Agent.Services
             {
                 frame.Item.Dispose();
             }
-            catch
+            catch (Exception ex)
             {
+                // Log only the first failure per process; later failures are not logged.
+                if (Interlocked.Exchange(ref _dumpFrameItemDisposeFailureLogged, 1) == 0)
+                    Logger.Warn("Could not dispose subtree dump model item wrapper: " + ex.Message, "SubtreeDumpMcp");
             }
         }
 

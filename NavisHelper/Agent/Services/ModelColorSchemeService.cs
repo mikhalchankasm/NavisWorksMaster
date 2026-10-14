@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -693,6 +694,8 @@ namespace NavisHelper.Agent.Services
             return result;
         }
 
+        private static int _ancestorPropertiesFailureLogged;
+
         private static ModelColorSchemeItemFacts BuildItemFacts(
             ModelItem item,
             out ModelColorSchemeItemPathHolder pathHolder,
@@ -798,8 +801,11 @@ namespace NavisHelper.Agent.Services
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Log only the first failure per process; later failures are not logged.
+                    if (Interlocked.Exchange(ref _ancestorPropertiesFailureLogged, 1) == 0)
+                        Logger.Warn("Could not read ancestor properties for model color scheme: " + ex.Message, "ModelColorScheme");
                 }
             }
             finally
@@ -858,6 +864,8 @@ namespace NavisHelper.Agent.Services
             }
             candidate.Count++;
         }
+
+        private static int _cachedPropertiesFailureLogged;
 
         private static ModelColorSchemeCachedPropertyFacts ReadCachedProperties(
             ModelItem item,
@@ -949,8 +957,11 @@ namespace NavisHelper.Agent.Services
                 if (findSourceFile && cached.SourceFile == null)
                     cached.SourceFile = string.Empty;
             }
-            catch
+            catch (Exception ex)
             {
+                // Log only the first failure per process; later failures are not logged.
+                if (Interlocked.Exchange(ref _cachedPropertiesFailureLogged, 1) == 0)
+                    Logger.Warn("Could not read cached model item properties for model color scheme: " + ex.Message, "ModelColorScheme");
             }
 
             if (item != null && cache != null)
@@ -1073,8 +1084,9 @@ namespace NavisHelper.Agent.Services
                 if (document != null && document.ActiveView != null)
                     document.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not request redraw after model color scheme update: " + ex.Message, "ModelColorScheme");
             }
         }
 
@@ -1112,8 +1124,9 @@ namespace NavisHelper.Agent.Services
                     result.CopyFrom(document.CurrentSelection.SelectedItems);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not snapshot selection before model color scheme update: " + ex.Message, "ModelColorScheme");
             }
             return result;
         }
@@ -1137,8 +1150,9 @@ namespace NavisHelper.Agent.Services
                     _selectionClearedByScheme = false;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not restore selection for model color scheme scope: " + ex.Message, "ModelColorScheme");
             }
         }
 
@@ -1321,6 +1335,8 @@ namespace NavisHelper.Agent.Services
             }
         }
 
+        private static int _sourceFilePropertiesFailureLogged;
+
         private static string GetSourceFileFromProperties(
             ModelItem item,
             Dictionary<ModelItem, string> cache)
@@ -1361,8 +1377,11 @@ namespace NavisHelper.Agent.Services
                         return found;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // Log only the first failure per process; later failures are not logged.
+                if (Interlocked.Exchange(ref _sourceFilePropertiesFailureLogged, 1) == 0)
+                    Logger.Warn("Could not read source file from model item properties: " + ex.Message, "ModelColorScheme");
             }
             return string.Empty;
         }

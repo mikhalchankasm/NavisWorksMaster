@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -141,6 +142,8 @@ namespace NavisHelper.Agent.Services
                 .FirstOrDefault();
         }
 
+        private static int _modelItemIdentityFailureLogged;
+
         private static string BuildModelItemIdentity(ModelItem item)
         {
             if (item == null)
@@ -155,8 +158,11 @@ namespace NavisHelper.Agent.Services
                     if (!string.IsNullOrWhiteSpace(text) && text != "0" && text != Guid.Empty.ToString("D"))
                         return propertyName + ":" + text.Trim();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Log only the first failure per process; later failures are not logged.
+                    if (Interlocked.Exchange(ref _modelItemIdentityFailureLogged, 1) == 0)
+                        Logger.Warn("Could not read clash model item identity property: " + ex.Message, "ClashMcp");
                 }
             }
 

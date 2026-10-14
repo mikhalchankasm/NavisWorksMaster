@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Navisworks.Api;
@@ -106,6 +107,8 @@ namespace NavisHelper.Agent.Services
             };
         }
 
+        private static int _markupBoundsFailureLogged;
+
         public static SelectionMarkupGeometry BuildGeometry(
             IEnumerable<ModelItem> items,
             Viewpoint viewpoint,
@@ -129,8 +132,11 @@ namespace NavisHelper.Agent.Services
                 {
                     box = item == null ? null : item.BoundingBox();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Log only the first failure per process; later failures are not logged.
+                    if (Interlocked.Exchange(ref _markupBoundsFailureLogged, 1) == 0)
+                        Logger.Warn("Could not read model item bounds for selection markup: " + ex.Message, "Markup");
                 }
 
                 if (box == null)
@@ -241,6 +247,8 @@ namespace NavisHelper.Agent.Services
             };
         }
 
+        private static int _groupingBoundsFailureLogged;
+
         public static void ValidateGroupingSafety(IEnumerable<ModelItem> items, SelectionMarkupStyle style)
         {
             if (style == null)
@@ -254,8 +262,11 @@ namespace NavisHelper.Agent.Services
                     if (box != null)
                         bounds.Add(ToFrameBounds(box));
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Log only the first failure per process; later failures are not logged.
+                    if (Interlocked.Exchange(ref _groupingBoundsFailureLogged, 1) == 0)
+                        Logger.Warn("Could not read model item bounds for markup grouping validation: " + ex.Message, "Markup");
                 }
             }
             MarkupFrameGroupingHelper.Group(
@@ -338,6 +349,8 @@ namespace NavisHelper.Agent.Services
                 new Point3D(bounds.MaxX, bounds.MaxY, bounds.MaxZ));
         }
 
+        private static int _markupProjectionFailureLogged;
+
         private static double[] WorldToRedline(Point3D point, Viewpoint viewpoint, Autodesk.Navisworks.Api.View fallbackView)
         {
             if (point == null || viewpoint == null)
@@ -382,8 +395,11 @@ namespace NavisHelper.Agent.Services
                             return new[] { camera.X, camera.Y };
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Log only the first failure per process; later failures are not logged.
+                    if (Interlocked.Exchange(ref _markupProjectionFailureLogged, 1) == 0)
+                        Logger.Warn("Could not project selection markup point through the fallback view: " + ex.Message, "Markup");
                 }
             }
 
@@ -423,6 +439,8 @@ namespace NavisHelper.Agent.Services
             return SectionBoxHelper.MmToDocUnits(style.HatchSpacingMm);
         }
 
+        private static int _cameraUnitsPerPixelFailureLogged;
+
         private static double[] GetCameraUnitsPerPixel(Autodesk.Navisworks.Api.View view)
         {
             try
@@ -439,12 +457,17 @@ namespace NavisHelper.Agent.Services
                 if (IsFinite(x) && IsFinite(y) && x > 1e-9 && y > 1e-9)
                     return new[] { x, y };
             }
-            catch
+            catch (Exception ex)
             {
+                // Log only the first failure per process; later failures are not logged.
+                if (Interlocked.Exchange(ref _cameraUnitsPerPixelFailureLogged, 1) == 0)
+                    Logger.Warn("Could not calculate camera units per pixel for selection markup: " + ex.Message, "Markup");
             }
 
             return new[] { 0.002, 0.002 };
         }
+
+        private static int _cameraFrameFailureLogged;
 
         private static double[] ResolveCameraFrame(
             Viewpoint viewpoint,
@@ -476,8 +499,11 @@ namespace NavisHelper.Agent.Services
                     return new[] { halfWidth, halfHeight };
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // Log only the first failure per process; later failures are not logged.
+                if (Interlocked.Exchange(ref _cameraFrameFailureLogged, 1) == 0)
+                    Logger.Warn("Could not resolve camera frame for selection markup: " + ex.Message, "Markup");
             }
 
             var pixelUnits = GetCameraUnitsPerPixel(view);

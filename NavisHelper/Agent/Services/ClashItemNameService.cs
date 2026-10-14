@@ -1,6 +1,8 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using Autodesk.Navisworks.Api;
+using NavisHelper.Core;
 
 namespace NavisHelper.Agent.Services
 {
@@ -45,6 +47,9 @@ namespace NavisHelper.Agent.Services
                 names.Add(name);
         }
 
+        private static int _descendantNameFailureLogged;
+        private static int _ancestorNameFailureLogged;
+
         private static string ResolveName(ModelItem item)
         {
             var direct = ReadDisplayName(item);
@@ -63,8 +68,11 @@ namespace NavisHelper.Agent.Services
                         return descendantName;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // Log only the first failure per process; later failures are not logged.
+                if (Interlocked.Exchange(ref _descendantNameFailureLogged, 1) == 0)
+                    Logger.Warn("Could not probe descendant clash item names: " + ex.Message, "ClashMcp");
             }
 
             try
@@ -78,8 +86,11 @@ namespace NavisHelper.Agent.Services
                     ancestor = ancestor.Parent;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // Log only the first failure per process; later failures are not logged.
+                if (Interlocked.Exchange(ref _ancestorNameFailureLogged, 1) == 0)
+                    Logger.Warn("Could not probe ancestor clash item names: " + ex.Message, "ClashMcp");
             }
 
             return string.Empty;

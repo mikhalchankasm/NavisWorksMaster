@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
@@ -158,6 +159,8 @@ namespace NavisHelper.Agent.Services
             image.Save(outputPath, ImageFormat.Bmp);
         }
 
+        private static int _screenshotCleanupFailureLogged;
+
         private static void TryDeleteFile(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -168,8 +171,11 @@ namespace NavisHelper.Agent.Services
                 if (File.Exists(path))
                     File.Delete(path);
             }
-            catch
+            catch (Exception ex)
             {
+                // Log only the first failure per process; later failures are not logged.
+                if (Interlocked.Exchange(ref _screenshotCleanupFailureLogged, 1) == 0)
+                    Logger.Warn("Could not remove temporary clash screenshot: " + ex.Message, "ClashMcp");
             }
         }
     }
