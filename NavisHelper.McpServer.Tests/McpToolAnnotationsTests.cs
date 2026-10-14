@@ -28,7 +28,7 @@ public sealed class McpToolAnnotationsTests
 
         McpToolAnnotations.Apply(tools);
 
-        Assert.Equal(114, tools.Count);
+        Assert.Equal(115, tools.Count);
         var mismatches = new List<string>();
         for (var index = 0; index < tools.Count; index++)
         {

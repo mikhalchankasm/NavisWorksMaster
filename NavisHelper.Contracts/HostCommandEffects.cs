@@ -53,6 +53,7 @@ namespace NavisHelper.Agent.Contracts
                 { HostCommandNames.ClashPairTestsCreate, true },
                 { HostCommandNames.ClashCreateMatrixFromSelection, true },
                 { HostCommandNames.ClashTestsFromSets, true },
+                { HostCommandNames.ClashOneVsRest, true },
                 { HostCommandNames.ClashTestsExport, true },
                 { HostCommandNames.ClashBatchtestImport, true },
                 { HostCommandNames.ClashRunBatch, true },

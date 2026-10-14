@@ -64,6 +64,7 @@ builder.Services
     .WithTools<NavisworksClashIsolationTools>()
     .WithTools<NavisworksClashRootMatrixTools>()
     .WithTools<NavisworksClashSetTools>()
+    .WithTools<NavisworksClashOneVsRestTools>()
     .WithTools<NavisworksClashTransferTools>()
     .WithTools<NavisworksScenarioTools>();
 
