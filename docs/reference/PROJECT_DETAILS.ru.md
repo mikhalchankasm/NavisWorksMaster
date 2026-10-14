@@ -1,0 +1,112 @@
+# NavisHelper: подробности о проекте
+
+**Русский** | [English](PROJECT_DETAILS.md) · Назад на [главную страницу](../../README.ru.md)
+
+Здесь собраны подробное описание продукта, сравнение с другими MCP-серверами и последний снимок проверки, которые раньше были на главной странице.
+
+## Требования
+
+| Требование | Текущий охват |
+|---|---|
+| Host | Autodesk Navisworks Manage 2024, 2025, 2026 или 2027 под Windows x64. |
+| Runtime | .NET 9 Runtime для framework-dependent MCP-сервера в текущем пакете. |
+| Установка | Профиль текущего пользователя; packaged installer не требует прав администратора. |
+| MCP client | Клиент, который умеет запускать локальный stdio MCP server. Поддерживаемые configurator-клиенты перечислены в distribution guide. |
+| Активная работа | Большинству model tools нужен запущенный Navisworks и открытая модель; view tools также требуют active view. |
+| Внешний AI | Для MCP не нужен. Отдельная OpenRouter-раскраска необязательна и использует ключ пользователя. |
+
+## Часть первая: набор плагинов
+
+Скомпилированные регистрации `[Plugin]` работают внутри Navisworks Manage и добавляют ribbon и панель NavisHelper. Их актуальный состав проверяет [source inventory guard](../../scripts/check_navishelper_compile.py). Основные сценарии:
+
+- поиск по модели, выделение, видимость, цветовые overrides и загрузка атрибутов из CSV;
+- selection/search sets, saved viewpoints, section-box виды и постоянная разметка;
+- экспорт свойств и имён из дерева модели;
+- запуск, группировка, изоляция, viewpoints, скриншоты и отчёты Clash Detective;
+- необязательная раскраска через OpenRouter и отдельная локальная палитра.
+
+Bundle manifest объявляет Windows x64 поддержку Navisworks Manage **2024–2027**. Navisworks Simulate не объявлен. Официальный [индекс системных требований Navisworks](https://www.autodesk.com/support/technical/article/caas/sfdcarticles/sfdcarticles/System-requirements-for-Autodesk-Navisworks-products.html) охватывает эти версии хоста; совместимость NavisHelper определяется manifest и build-конфигурацией этого репозитория, а не Autodesk.
+
+## Часть вторая: локальный MCP-сервер
+
+MCP-клиент запускает `NavisHelper.McpServer.exe` по stdio. Сервер находит хост внутри Navisworks и связывается с ним через локальный Windows named pipe; HTTP-порт не открывается.
+
+Текущее число инструментов и способ его проверки — на [главной странице](../../README.ru.md#для-разработчиков). [Ручные таблицы статусов](../NAVISWORKS_MCP_COMMAND_CATALOG.md) — неполная подборка с историческими отметками проверок и предложенными именами.
+
+### Семейства инструментов
+
+| Семейство | Типичные задачи |
+|---|---|
+| Диагностика и lifecycle | Найти экземпляры, проверить здоровье, посмотреть последние вызовы, запустить или закрыть Navisworks. |
+| Модель и иерархия | Прочитать контекст, корни, дочерние элементы, свойства, bounding boxes и результаты поиска. |
+| Выделение и видимость | Выбрать найденное, проверить selection, скрыть, показать, изолировать и приблизить вид. |
+| Наборы и viewpoints | Создать и управлять selection/search sets, viewpoints, папками, порядком и активацией. |
+| Разметка и сечения | Создать persistent redlines, live markers, section-box viewpoints и снимки вида. |
+| Отчёты, экспорт и цвет | Экспортировать свойства и имена, свести значения, preview/apply цветовых правил. |
+| Clash Detective | Читать, группировать, запускать, переименовывать, изолировать и экспортировать clash-данные. |
+| Сценарии | Проверять, сохранять, читать, разрешать и удалять согласованные многошаговые процессы. |
+
+Начните с [MCP quickstart](../NAVISWORKS_MCP_QUICKSTART.md). Практические процессы есть в [client guide](../MCP_CLIENT_GUIDE.md), а точные входы, выходы и ограничения — в [tool contracts](../MCP_TOOL_CONTRACTS.md).
+
+### Примеры запросов
+
+В [трёх полных сценариях](../USER_WORKFLOWS.md) описаны условия запуска, последовательности команд, проверка результата и ограничения.
+
+- «Найди элементы с `pump` в имени, выбери найденное и приблизь вид».
+- «Покажи preview экспорта свойств текущего выделения в XLSX».
+- «Покажи активные коллизии в `HVAC vs Structure`, затем preview изоляции первой».
+- «Создай saved section-box viewpoint вокруг текущего выделения».
+- «Покажи план цветовой схемы до применения permanent overrides».
+
+### Навык оператора для Codex
+
+Скопируйте папку [navishelper-operator](../../skills/navishelper-operator) целиком в
+`$CODEX_HOME/skills` или `%USERPROFILE%\.codex\skills`, если `CODEX_HOME` не задан;
+при необходимости создайте родительскую папку. Перед заменой существующего
+одноимённого навыка сохраните его копию. Перезапустите Codex для обнаружения
+`$navishelper-operator`. Навык использует настроенное подключение MCP и работает
+без локальной копии репозитория.
+
+## Модель безопасности
+
+Подробнее: [безопасность и совместимость](../SECURITY_AND_COMPATIBILITY.md) —
+локальный доступ, ограничения read-only, передача данных AI-провайдеру,
+действия после таймаута и границы выполненных проверок.
+
+- MCP-трафик остаётся в локальных stdio и named pipes; сетевой listener не открывается.
+- Работа с Autodesk API переводится в UI thread хоста и защищена от busy-state.
+- Большинство изменяющих инструментов сначала показывают preview и требуют apply; close/discard требует усиленного подтверждения.
+- Match handles и tree item IDs относятся только к текущим host, document и session.
+- OpenRouter-раскраска — отдельное opt-in действие плагина, не MCP-зависимость; оно отправляет display names под ключом пользователя.
+
+## Альтернативы для MCP
+
+Сравнение относится только к MCP-интеграции, не ко всему UI или BIM-функционалу. Утверждения взяты из связанных репозиториев; GitHub stars измерены **2026-08-08**.
+
+| Проект | Заявленный охват Navisworks | Связь MCP/host | Отличие от NavisHelper | Stars |
+|---|---|---|---|---:|
+| **NavisHelper** | Manage 2024–2027 | .NET stdio server → per-process named pipe; пользовательский installer | Curated Navisworks operations и dry-run-oriented writes; нет Simulate и других host-продуктов | 0 |
+| [Aitology/Navisworks_MCP](https://github.com/Aitology/Navisworks_MCP) | Заявлены Manage и Simulate 2025–2027 | Python stdio server → localhost HTTP add-in | Поддерживает Simulate; NavisHelper поддерживает 2024 и поставляет объединённый installer | 14 |
+| [General-Soju/BimOnMcp](https://github.com/General-Soju/BimOnMcp) | Заявлены Navisworks 2025–2027, Revit и AutoCAD | Self-contained stdio bridge → per-process named pipes | Несколько Autodesk hosts и выполнение скриптов; NavisHelper вместо этого даёт более широкий curated Navisworks surface и поддерживает 2024 | 8 |
+
+Первичные источники: [архитектура, prerequisites и tool list Aitology](https://github.com/Aitology/Navisworks_MCP#readme), а также [таблицы версий, архитектуры и MCP tools BimOn](https://github.com/General-Soju/BimOnMcp#readme). В default branch Aitology найдено **39** деклараций `Tool(name=...)`, хотя заголовок README говорит **40**, поэтому это число не используется здесь как подтверждённый tool count. В source и README BimOn разделены **11** Navisworks-specific и **6** общих script tools.
+
+## Снимок проверки
+
+Проверка выпуска `2.10.0.0` на основе commit `main` `0d98cc8` выполнена **2026-09-22**:
+
+- source inventory guard: passed; **215** tracked C# files, **213** реальных compile entries и **2** явных исключения;
+- MCP catalog guard: passed и покрывает все **104** зарегистрированных tools;
+- host router guard: passed; **87** command names и **80** typed routes;
+- guard'ы локализации панели, задокументированности флагов усечения, поверхности инструкций агента, арифметики покрытия базовой линии и согласованности версии продукта: все прошли;
+- automated MCP-server tests: **1 776 passed, 0 failed, 1 776 total**;
+- release build matrix: `Release2024`, `Release2025`, `Release2026` и `Release2027` для x64 прошли; все 12 обязательных bundle assemblies имеют version `2.10.0.0`;
+- distribution validation и ZIP fresh/reinstall/legacy-`v2.6.3.0`-upgrade smoke: прошли. Клиентские MCP-конфиги не изменялись — smoke пишет только в изолированную временную установку, проверено после прогона;
+- базовая линия задержек: **99 из 104** инструментов несут измеренное число по четырём живым окнам, остальные 5 названы с причиной;
+- живой стенд, Navisworks Manage 2027: присоединение к готовому хосту с запрошенным файлом — **66 мс** против примерно 15 500 мс на запуск; отсечение моделей в `find_items_by_bbox` сравнено со сборкой без отсечения по девяти запросам на документе, обход которого завершается — счётчики совпадений одинаковы, отсечение ничего не теряет.
+
+Не проверено и не заявляется: runtime smoke относится только к Navisworks Manage 2027; 2024–2026 проверены сборкой. Публичного installer-ассета на момент проверок не существовало, поэтому скачивание и сверка SHA-256 не выполнялись. Полный список — в [docs/releases/v2.10.0.0.md](../releases/v2.10.0.0.md).
+
+Эта runtime-проверка относится только к Navisworks Manage 2027. Targets 2024–2026 здесь проверены сборкой, но не runtime-smoke. Release assets этим изменением не заменялись.
+
+Automated helper tests не заменяют проверку внутри Autodesk Navisworks Manage. Большая часть host-поведения зависит от Autodesk runtime и пользовательской модели.
