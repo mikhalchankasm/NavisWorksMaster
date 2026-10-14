@@ -35,7 +35,7 @@ internal sealed class NavisworksClashListingTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Lists Clash Detective results from all tests or a named test. Read-only. Use after clash_list_tests to inspect statuses, assignees, and clashing item names.")]
+    [Description("Lists Clash Detective results from all tests or a named test. Read-only. Use after clash_list_tests to inspect statuses, assignees, and clashing item names. resultHandle and groupHandle are positions in the test's current tree and change after any grouping; name is stable and can select results in clash_group_custom, clash_set_status and clash_isolate_result.")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashListResultsResponse> ClashListResults(
         [Description("Optional test name. Empty means all tests. Exact match is preferred; otherwise contains-match is used.")] string testName = "",

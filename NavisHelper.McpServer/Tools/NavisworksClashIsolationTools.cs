@@ -12,10 +12,12 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Previews and optionally isolates one existing Clash Detective result by resultHandle. Can highlight A/B, clip around the clash point or item bounds, hide everything except the pair, choose a preset or custom camera, and optionally capture a screenshot. Defaults to dry-run.")]
+    [Description("Previews and optionally isolates one existing Clash Detective result by resultHandle, or by testHandle with resultName (stable across grouping changes; result handles are tree positions). Can highlight A/B, clip around the clash point or item bounds, hide everything except the pair, choose a preset or custom camera, and optionally capture a screenshot. Defaults to dry-run.")]
     [ToolCapabilities(ToolEffects.View | ToolEffects.Files | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashIsolateResultResponse> ClashIsolateResult(
-        [Description("Required resultHandle from clash_list_results, for example clash-result:1:1.")] string resultHandle,
+        [Description("resultHandle from clash_list_results, for example clash-result:1:1. Positional: valid until the next grouping change in its test. With resultName it is checked against that name.")] string resultHandle = "",
+        [Description("Test handle from clash_list_tests; required with resultName when resultHandle is empty.")] string testHandle = "",
+        [Description("Result name within the test, for example Clash3. Exact, case-insensitive, unique within the test.")] string resultName = "",
         [Description("Section-box mode: point creates a cube around the clash point; items uses the combined A/B bounds plus padding. Default is point.")] string boxMode = "point",
         [Description("For point mode, positive half-size of the box in millimeters. For items mode, non-negative padding around combined bounds; 0 uses exact A/B bounds. Default is 1000.")] double boxOffsetMm = 1000,
         [Description("Enable a temporary section box around the clash. Default is true.")] bool useSectionBox = true,
@@ -44,6 +46,8 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
         return _hostBridgeClient.ClashIsolateResultAsync(new ClashIsolateResultRequest
         {
             ResultHandle = resultHandle,
+            TestHandle = testHandle,
+            ResultName = resultName,
             BoxMode = boxMode,
             BoxOffsetMm = boxOffsetMm,
             UseSectionBox = useSectionBox,

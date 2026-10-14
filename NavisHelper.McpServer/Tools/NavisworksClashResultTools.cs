@@ -73,12 +73,13 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Creates or rebuilds one real ClashResultGroup from explicit result handles. All handles are validated before mutation. Dry-run by default.")]
+    [Description("Creates or rebuilds one real ClashResultGroup from explicit results, selected by resultNames (stable) or resultHandles. All selectors are validated before mutation. Result handles are positions in the test's tree: each applied grouping moves the new group to the top and renumbers the test's result and group handles, so for several groupings in one test from one listing use resultNames, or list results again after each call. Dry-run by default.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashGroupCustomResponse> ClashGroupCustom(
         [Description("Required test handle from clash_list_tests.")] string testHandle,
-        [Description("Required result handles from clash_list_results.")] List<string> resultHandles,
         [Description("Name of the target ClashResultGroup.")] string groupName,
+        [Description("Result handles from clash_list_results (clash-result:T:N, positional). Valid only until the next grouping change in this test.")] List<string> resultHandles = null,
+        [Description("Result names from clash_list_results, for example Clash3. Exact, case-insensitive; a name held by several results in the test is rejected. Stays valid across grouping changes.")] List<string> resultNames = null,
         [Description("False previews, true mutates the document. Default is false.")] bool apply = false,
         [Description("Rebuild an existing same-name group. Default is false.")] bool overwriteExisting = false,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
@@ -89,6 +90,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
         {
             TestHandle = testHandle,
             ResultHandles = resultHandles ?? new List<string>(),
+            ResultNames = resultNames ?? new List<string>(),
             GroupName = groupName,
             Apply = apply,
             OverwriteExisting = overwriteExisting,
@@ -96,7 +98,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Ungroups explicit ClashResultGroup handles or groups matching a name prefix within one test. Dry-run by default.")]
+    [Description("Ungroups explicit ClashResultGroup handles or groups matching a name prefix within one test. Group handles are tree positions and change after any grouping in the test; list results again before using them. Dry-run by default.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashUngroupResponse> ClashUngroup(
         [Description("Required test handle from clash_list_tests.")] string testHandle,
@@ -117,13 +119,14 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Sets status on explicit results, all results in groups, or whole tests. Group/test scopes cascade to individual results. Dry-run by default.")]
+    [Description("Sets status on explicit results, all results in groups, or whole tests. Group/test scopes cascade to individual results. Result and group handles are tree positions and change after any grouping in the test; resultNames stay valid. Dry-run by default.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashSetStatusResponse> ClashSetStatus(
         [Description("Required scope: results, group, or test.")] string scope,
         [Description("Target status: New, Active, Reviewed, Approved, or Resolved.")] string status,
         [Description("Test handle required for results/group scope; optional additional test handle for test scope.")] string testHandle = "",
-        [Description("Result handles for scope=results.")] List<string> resultHandles = null,
+        [Description("Result handles for scope=results (positional).")] List<string> resultHandles = null,
+        [Description("Result names for scope=results, for example Clash3. Exact, case-insensitive, unique within the test.")] List<string> resultNames = null,
         [Description("Group handles for scope=group.")] List<string> groupHandles = null,
         [Description("Test handles for scope=test.")] List<string> testHandles = null,
         [Description("Optional assignee applied to every affected result.")] string assignedTo = "",
@@ -140,6 +143,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
             Status = status,
             TestHandle = testHandle,
             ResultHandles = resultHandles ?? new List<string>(),
+            ResultNames = resultNames ?? new List<string>(),
             GroupHandles = groupHandles ?? new List<string>(),
             TestHandles = testHandles ?? new List<string>(),
             AssignedTo = assignedTo,

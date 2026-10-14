@@ -25,23 +25,46 @@ namespace NavisHelper.Agent.Services
             DiscardStaleState(document);
             request = request ?? new ClashIsolateResultRequest();
             var resultHandle = (request.ResultHandle ?? string.Empty).Trim();
+            var resultName = (request.ResultName ?? string.Empty).Trim();
             int testIndex;
             int resultIndex;
-            if (!ClashHandleHelper.TryParseResultHandle(resultHandle, out testIndex, out resultIndex))
-                throw new AgentCommandException(ErrorCodes.SchemaViolation, "resultHandle must be a clash result handle such as clash-result:1:1.");
+            if (resultHandle.Length == 0 && resultName.Length > 0)
+            {
+                if (!ClashHandleHelper.TryParseTestHandle(request.TestHandle, out testIndex))
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, "resultName requires testHandle, for example clash-test:1.");
+                resultIndex = 0;
+            }
+            else if (!ClashHandleHelper.TryParseResultHandle(resultHandle, out testIndex, out resultIndex))
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "resultHandle must be a clash result handle such as clash-result:1:1, or pass testHandle with resultName.");
 
             var clash = document.GetClash();
             if (clash == null)
                 throw new AgentCommandException(ErrorCodes.CommandFailed, "Clash Detective is not available for the active document.");
             var tests = ClashApiCompat.GetClashTests(clash).ToList();
             if (testIndex < 1 || testIndex > tests.Count)
-                throw new AgentCommandException(ErrorCodes.SchemaViolation, "Clash test was not found for resultHandle: " + resultHandle);
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "Clash test was not found for " + (resultIndex > 0 ? "resultHandle: " + resultHandle : "testHandle: " + request.TestHandle));
 
             var test = tests[testIndex - 1];
+            if (resultIndex == 0)
+            {
+                var selection = ClashResultNameSelector.Resolve(EnumerateResultNames(test), new[] { resultName });
+                if (!selection.IsComplete)
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, ClashResultNameSelector.DescribeProblems(selection));
+                resultIndex = selection.Positions[0] + 1;
+                resultHandle = ClashHandleHelper.BuildResultHandle(testIndex, resultIndex);
+            }
+
             string groupPath;
             var result = ResolveResult(test, resultIndex, out groupPath);
             if (result == null)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Clash result was not found for resultHandle: " + resultHandle);
+            if (resultName.Length > 0 && !string.Equals((result.DisplayName ?? string.Empty).Trim(), resultName, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new AgentCommandException(
+                    ErrorCodes.SchemaViolation,
+                    resultHandle + " is now '" + (result.DisplayName ?? string.Empty) + "', not '" + resultName +
+                    "'. Result handles are tree positions; list results again or pass testHandle with resultName only.");
+            }
 
             var boxMode = ClashIsolationOptionHelper.NormalizeBoxMode(request.BoxMode);
             if (boxMode == null)
@@ -352,6 +375,23 @@ namespace NavisHelper.Agent.Services
             _preview = null;
             _originalState = null;
             _hasActiveIsolation = false;
+        }
+
+        // Same flattened order as ResolveResult, so a name's position is its resultIndex.
+        private static List<string> EnumerateResultNames(GroupItem parent)
+        {
+            var names = new List<string>();
+            if (parent == null || parent.Children == null)
+                return names;
+            foreach (var child in parent.Children)
+            {
+                var result = child as ClashResult;
+                if (result != null)
+                    names.Add(result.DisplayName ?? string.Empty);
+                else if (child is ClashResultGroup)
+                    names.AddRange(EnumerateResultNames((ClashResultGroup)child));
+            }
+            return names;
         }
 
         private static ClashResult ResolveResult(ClashTest test, int requestedIndex, out string groupPath)

@@ -14,6 +14,9 @@ namespace NavisHelper.Agent.Services
     internal sealed partial class DocumentCommandService
     {
         private const int LargeClashStatusChangeThreshold = 500;
+        private const string PositionalHandlesChangedWarning =
+            "Result and group handles of this test are tree positions and changed with this grouping. " +
+            "List results again before using handles, or select results by resultNames.";
 
         public ClashGroupCustomResponse ClashGroupCustom(Document document, ClashGroupCustomRequest request)
         {
@@ -36,8 +39,11 @@ namespace NavisHelper.Agent.Services
             if (string.IsNullOrWhiteSpace(response.GroupName))
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "groupName is required.");
 
-            var requestedHandles = NormalizeRequiredHandles(request.ResultHandles, "resultHandles");
-            response.RequestedResultCount = requestedHandles.Count;
+            var requestedHandles = ClashResultNameSelector.NormalizeNames(request.ResultHandles);
+            var requestedNames = ClashResultNameSelector.NormalizeNames(request.ResultNames);
+            if (requestedHandles.Count == 0 && requestedNames.Count == 0)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "Specify resultHandles or resultNames.");
+            response.RequestedResultCount = requestedHandles.Count + requestedNames.Count;
             var indexedResults = BuildIndexedClashResults(test, testIndex);
             var resultByHandle = indexedResults.ToDictionary(item => item.Handle, item => item.Result, StringComparer.OrdinalIgnoreCase);
             var resolvedResults = new List<ClashResult>();
@@ -55,9 +61,16 @@ namespace NavisHelper.Agent.Services
                     resolvedResults.Add(result);
             }
 
-            if (response.MissingResultHandles.Count > 0)
+            var nameSelection = ResolveClashResultNames(indexedResults, requestedNames);
+            response.MissingResultNames.AddRange(nameSelection.MissingNames);
+            response.AmbiguousResultNames.AddRange(nameSelection.AmbiguousNames);
+            resolvedResults.AddRange(nameSelection.Positions.Select(position => indexedResults[position].Result));
+            resolvedResults = resolvedResults.Distinct().ToList();
+            if (response.MissingResultHandles.Count > 0 || !nameSelection.IsComplete)
             {
-                response.Message = "No changes were applied because one or more result handles were not found.";
+                if (!nameSelection.IsComplete)
+                    response.Warnings.Add(ClashResultNameSelector.DescribeProblems(nameSelection));
+                response.Message = "No changes were applied because one or more result handles or names were not resolved.";
                 return response;
             }
 
@@ -84,6 +97,7 @@ namespace NavisHelper.Agent.Services
             }
             response.Applied = true;
             response.GroupHandle = FindClashGroupHandle(test, testIndex, group);
+            response.Warnings.Add(PositionalHandlesChangedWarning);
             response.Message = "Grouped " + resolvedResults.Count.ToString(CultureInfo.InvariantCulture) + " clash result(s).";
             return response;
         }
@@ -675,6 +689,13 @@ namespace NavisHelper.Agent.Services
             return result;
         }
 
+        private static ClashResultNameSelection ResolveClashResultNames(IList<IndexedClashResult> indexedResults, IEnumerable<string> requestedNames)
+        {
+            return ClashResultNameSelector.Resolve(
+                indexedResults.Select(item => item.Result == null ? string.Empty : item.Result.DisplayName).ToList(),
+                requestedNames);
+        }
+
         private static Dictionary<string, string> BuildClashGroupHandleMap(ClashTest test, int testIndex)
         {
             return BuildIndexedClashGroups(test, testIndex)
@@ -714,19 +735,12 @@ namespace NavisHelper.Agent.Services
 
         private static string BuildClashGroupHandle(int testIndex, int groupIndex)
         {
-            return "clash-group:" + testIndex.ToString(CultureInfo.InvariantCulture) + ":" + groupIndex.ToString(CultureInfo.InvariantCulture);
+            return ClashHandleHelper.BuildGroupHandle(testIndex, groupIndex);
         }
 
         private static bool TryParseClashGroupHandle(string handle, out int testIndex, out int groupIndex)
         {
-            testIndex = 0;
-            groupIndex = 0;
-            var parts = (handle ?? string.Empty).Split(':');
-            return parts.Length == 3 &&
-                   string.Equals(parts[0], "clash-group", StringComparison.OrdinalIgnoreCase) &&
-                   int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out testIndex) &&
-                   int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out groupIndex) &&
-                   testIndex > 0 && groupIndex > 0;
+            return ClashHandleHelper.TryParseGroupHandle(handle, out testIndex, out groupIndex);
         }
 
         private static string FindClashGroupHandle(ClashTest test, int testIndex, ClashResultGroup target)
@@ -759,8 +773,17 @@ namespace NavisHelper.Agent.Services
             var selectedTest = ResolveRequiredClashTestHandle(tests, request.TestHandle, out selectedTestIndex);
             if (scope == "results")
             {
-                var map = BuildIndexedClashResults(selectedTest, selectedTestIndex).ToDictionary(item => item.Handle, item => item.Result, StringComparer.OrdinalIgnoreCase);
-                foreach (var handle in NormalizeRequiredHandles(request.ResultHandles, "resultHandles"))
+                var indexedResults = BuildIndexedClashResults(selectedTest, selectedTestIndex);
+                var map = indexedResults.ToDictionary(item => item.Handle, item => item.Result, StringComparer.OrdinalIgnoreCase);
+                var requestedHandles = ClashResultNameSelector.NormalizeNames(request.ResultHandles);
+                var requestedNames = ClashResultNameSelector.NormalizeNames(request.ResultNames);
+                if (requestedHandles.Count == 0 && requestedNames.Count == 0)
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, "scope=results requires resultHandles or resultNames.");
+                var nameSelection = ResolveClashResultNames(indexedResults, requestedNames);
+                if (!nameSelection.IsComplete)
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, ClashResultNameSelector.DescribeProblems(nameSelection));
+                targets.AddRange(nameSelection.Positions.Select(position => indexedResults[position].Result));
+                foreach (var handle in requestedHandles)
                 {
                     int handleTestIndex;
                     int ignoredResultIndex;
