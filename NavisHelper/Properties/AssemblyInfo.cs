@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("CBC")]
 [assembly: AssemblyProduct("NavisHelper")]
-[assembly: AssemblyCopyright("Copyright © 2019-2025")]
+[assembly: AssemblyCopyright("Copyright © 2019-2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

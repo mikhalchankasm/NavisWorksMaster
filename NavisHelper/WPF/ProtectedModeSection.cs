@@ -93,9 +93,9 @@ namespace NavisHelper.WPF
                 foreach (var request in pending)
                 {
                     var row = Row(ProtectedModeLabels.RequestRow(_localization, request,
-                        DocumentName(request.DocumentKey)));
-                    row.Children.Add(ActionButton("Settings_ProtectedMode_Allow", () => _approvals.Approve(request.Code)));
-                    row.Children.Add(ActionButton("Settings_ProtectedMode_Deny", () => _approvals.Deny(request.Code)));
+                        DocumentName(request.DocumentKey)),
+                        ActionButton("Settings_ProtectedMode_Allow", () => _approvals.Approve(request.Code)),
+                        ActionButton("Settings_ProtectedMode_Deny", () => _approvals.Deny(request.Code)));
                     _pending.Children.Add(row);
                 }
                 if (pending.Count == 0) AddEmpty(_pending);
@@ -104,9 +104,9 @@ namespace NavisHelper.WPF
                 foreach (var grant in approved)
                 {
                     var row = Row(ProtectedModeLabels.GrantRow(_localization, grant,
-                        DocumentName(grant.DocumentKey)));
-                    row.Children.Add(ActionButton("Settings_ProtectedMode_Revoke",
-                        () => _approvals.Revoke(grant.DocumentKey, grant.SessionId)));
+                        DocumentName(grant.DocumentKey)),
+                        ActionButton("Settings_ProtectedMode_Revoke",
+                            () => _approvals.Revoke(grant.DocumentKey, grant.SessionId)));
                     _approved.Children.Add(row);
                 }
                 if (approved.Count == 0) AddEmpty(_approved);
@@ -124,9 +124,19 @@ namespace NavisHelper.WPF
             catch (ArgumentException) { return documentKey; }
         }
 
-        private static WrapPanel Row(string details)
+        private static DockPanel Row(string details, params Button[] actions)
         {
-            var row = new WrapPanel { Margin = new Thickness(0, 0, 0, UiTheme.Gap) };
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, UiTheme.Gap) };
+            var buttons = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            // ToolButton already spaces buttons with its own right margin.
+            foreach (var action in actions)
+                buttons.Children.Add(action);
+            DockPanel.SetDock(buttons, Dock.Right);
+            row.Children.Add(buttons);
             row.Children.Add(new TextBlock
             {
                 Text = details,
