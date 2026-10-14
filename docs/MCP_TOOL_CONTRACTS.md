@@ -41,6 +41,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `clash_list_results` | None | Yes | Yes | No |
 | `clash_list_tests` | None | Yes | Yes | No |
 | `clash_manage_tests` | Document | Yes | Yes | Yes |
+| `clash_one_vs_rest` | Document, LocalState | Yes | Yes | Yes |
 | `clash_pair_tests_create` | Document | Yes | Yes | Yes |
 | `clash_renumber_results` | Document | Yes | Yes | Yes |
 | `clash_report_status` | None | Yes | No | No |
@@ -513,6 +514,45 @@ test.
 For ordinary new `set × set`, `root × set`, or `root × root` definitions, call
 `clash_tests_from_sets` directly. Model roots accept exact `rootName` and/or
 `sourceFile`; set sides remain live native Selection Sources.
+
+## `clash_one_vs_rest`
+
+Creates Clash Detective tests for one model tree node against its siblings, at
+any tree level: marks inside one RVM as well as appended file roots. Request:
+`NavisHelper.Contracts/ClashOneVsRestContracts.cs`; naming and filtering:
+`ClashOneVsRestPlanner`.
+
+- The target is `targetMatchHandle` (preferred for deep nodes) or the exact
+  printed `targetPath`, resolved like `list_item_children`'s parent. Only the
+  target and its parent's direct children are read; when the target is a model
+  root, the rest is every other model root. No whole-tree walk.
+- `mode=pairs` (default) plans one test per sibling; `mode=single` plans one
+  test against a set holding every included sibling.
+- The default call has no filters. `includeNameMasks` / `excludeNameMasks` are
+  case-insensitive `*`/`?` masks on the raw name or its label; an exclude wins.
+  `bboxPrefilter=true` skips siblings whose bounding box does not come within
+  `toleranceMm` of the target's, lists them in `bboxSkippedNames`, and keeps
+  nodes without a box (warning).
+- Each side is an explicit Selection Set written by `create_selection_set`'s
+  code into `setFolder` (default `Clash one vs rest/<target>`). Explicit, not a
+  Search Set, so tests over successive NWD iterations keep testing the same
+  items. Names are labels: the display name without `/`, so
+  `/12470-14-1400/PI` becomes `12470-14-1400 PI`; equal labels get ` (2)`.
+- Test names come from `pairNameTemplate` with `{a}`, `{b}` and `{index}`,
+  default `{a} vs {b}`. `testType` defaults to `hard` and `toleranceMm` to 1.
+  `pairOverrides=[{nameMask, testType, toleranceMm}]` gives a pair its own
+  type and tolerance; the first mask matching side B wins.
+- Dry-run is the default. Every pair has a `status`: `planned`, `created`,
+  `replaced`, `conflict` or `skipped`/`failed`, with a `reason`
+  (`set_exists`, `test_exists`, `set_failed`, or the creation error). Without
+  `overwriteExisting=true`, an existing same-name set or test is a conflict,
+  never silently reused.
+- `apply=true` writes the sets, then creates the tests through
+  `clash_tests_from_sets` with `continueOnError=true`. Tests are never run.
+  The default `limit` is 200 planned tests, maximum 500.
+- Composite-object merging is not set by this tool and stays at the Navisworks
+  default for a new test; batchtest import treats `merge_composites` as
+  unsupported for the same reason.
 
 ## Clash Test transfer between documents
 

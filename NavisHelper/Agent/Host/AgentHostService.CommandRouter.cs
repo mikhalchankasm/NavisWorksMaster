@@ -232,6 +232,13 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<ClashTestsFromSetsRequest>,
             (document, request) => CreateClashTestsFromSets(document, request));
 
+        router.Register<ClashOneVsRestRequest>(
+            HostCommandNames.ClashOneVsRest,
+            true,
+            DeserializePayload<ClashOneVsRestRequest>,
+            (document, request) => new ClashOneVsRestService(_searchService, _commandService, _clashTestsFromSetsService, _matchSessionStore)
+                .Execute(document, request));
+
         RegisterClashTransferCommands(router);
 
         router.Register<ClashRunBatchRequest>(
