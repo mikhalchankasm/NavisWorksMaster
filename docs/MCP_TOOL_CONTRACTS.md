@@ -34,6 +34,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `clash_generate_report` | View, Document, Files, LocalState | Yes | Yes | Yes |
 | `clash_group_by_proximity` | Document | Yes | Yes | Yes |
 | `clash_group_custom` | Document | Yes | Yes | Yes |
+| `clash_group_rename` | Document | Yes | Yes | Yes |
 | `clash_group_results` | Document | Yes | Yes | Yes |
 | `clash_ignore_rules` | Document | Yes | Yes | Yes |
 | `clash_isolate_result` | View, Files, LocalState | Yes | Yes | Yes |
@@ -1267,10 +1268,38 @@ selection-scoped calls after one.
 - **Result and group handles are positions.** `clash-result:T:N` is the result's position in test T's flattened tree and `clash-group:T:N` the group's position among the test's groups. Any grouping change renumbers them: an applied `clash_group_custom` inserts its group at the top and moves its results to positions 1..k; `clash_ungroup` leaves results where the group was. Handles from one `clash_list_results` listing are therefore valid only until the next grouping change in that test. To run several groupings from one listing, select results by name (`resultNames`, the `name` field of `clash_list_results`), or list again after each call. Names are matched exactly, ignoring case and surrounding spaces; a name held by more than one result in the test is rejected, never resolved to the first.
 - `clash_group_custom` takes `resultHandles`, `resultNames`, or both, and validates all of them against one `testHandle` before creating/rebuilding a group. Unresolved selectors are returned in `missingResultHandles`, `missingResultNames` and `ambiguousResultNames` and nothing is changed. An applied call adds a warning that the test's handles have changed.
 - `clash_ungroup` accepts explicit `groupHandles` or `groupNamePrefix`; both tools are dry-run by default.
+- `clash_group_rename` renames groups without moving anything; see [its section](#clash_group_rename).
 - `clash_set_status` supports `results`, `group`, and `test` scopes. `scope=results` takes `resultHandles`, `resultNames`, or both; an unresolved name fails the call. Group/test scopes always update individual child results. More than 500 results requires `confirmLargeStatusChange=true` for apply.
 - `clash_group_by_proximity` writes the same spatial/hybrid/object-pair clusters that `clash_list_clusters` previews. More than 1000 analyzed results requires `confirmLargeGrouping=true`.
 - `clash_ignore_rules` persists its JSON payload inside the Navisworks document under `__NavisHelper_Data`, approves matches with a reason comment, and re-applies after test runs.
 - `clash_export_points` writes `.csv` or `.xlsx`; XLSX includes collision rows, a level summary, and a grid-by-level matrix.
+
+## `clash_group_rename`
+
+Renames ClashResultGroup folders of one test. Only the display name changes: no result is moved and no status is touched. Dry-run is the default.
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `testHandle` | string | required | Test handle from `clash_list_tests`. |
+| `groupHandle` | string | `""` | Single mode: `clash-group:T:N` from `clash_list_results` or a grouping tool. |
+| `groupName` | string | `""` | Single mode: the group's exact current name in the test, used when `groupHandle` is empty. With `groupHandle` it is a check: a handle that now points at a differently named group is rejected. |
+| `newName` | string | `""` | Single mode: the new name. |
+| `renames` | array | `[]` | Batch mode instead of the three fields above: `{groupHandle or groupName, newName}` items. |
+| `apply` | bool | `false` | `true` renames. |
+
+Validation is all-or-nothing; apply renames only when every item is `planned` or `unchanged`. Item statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `planned` / `renamed` | Will be / was renamed. |
+| `unchanged` | `newName` equals the current name; skipped, does not block the batch. |
+| `not_found` | No group with that handle or name. |
+| `ambiguous` | Several groups (in any folder) carry that name; use `groupHandle`. |
+| `invalid` | Missing selector or `newName`, or `groupHandle` and `groupName` disagree. |
+| `duplicate_target` | The batch renames the same group twice. |
+| `name_conflict` | After the batch, two groups in the same folder would share a name (case ignored). Swapping two names inside one batch is allowed. |
+
+Renaming moves nothing, so the group handles of one listing stay valid for the whole batch and after it. The response carries `requestedRenameCount`, `plannedRenameCount`, `unchangedCount`, `renamedCount` and per-item `groupHandle`, `groupPath`, `oldName`, `newName`, `resultCount`, `status`, `errorMessage`.
 
 ## `clash_group_results`
 

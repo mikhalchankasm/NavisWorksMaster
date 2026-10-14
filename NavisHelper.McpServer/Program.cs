@@ -58,6 +58,7 @@ builder.Services
     .WithTools<NavisworksScenarioWorkflowTools>()
     .WithTools<NavisworksClashListingTools>()
     .WithTools<NavisworksClashResultTools>()
+    .WithTools<NavisworksClashGroupRenameTools>()
     .WithTools<NavisworksClashTestTools>()
     .WithTools<NavisworksClashReportTools>()
     .WithTools<NavisworksClashIsolationTools>()

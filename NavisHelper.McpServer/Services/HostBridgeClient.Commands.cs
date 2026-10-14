@@ -140,6 +140,11 @@ internal sealed partial class HostBridgeClient
         return CallHostAsync<ClashUngroupResponse>(HostCommandNames.ClashUngroup, request, cancellationToken, target, 600000);
     }
 
+    public Task<ClashGroupRenameResponse> ClashGroupRenameAsync(ClashGroupRenameRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    {
+        return CallHostAsync<ClashGroupRenameResponse>(HostCommandNames.ClashGroupRename, request, cancellationToken, target, 600000);
+    }
+
     public Task<ClashSetStatusResponse> ClashSetStatusAsync(ClashSetStatusRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
     {
         return CallHostAsync<ClashSetStatusResponse>(HostCommandNames.ClashSetStatus, request, cancellationToken, target, 600000);

@@ -44,6 +44,7 @@ namespace NavisHelper.Agent.Contracts
         public const string ClashRootMatrix = "clash_root_matrix";
         public const string ClashGroupCustom = "clash_group_custom";
         public const string ClashUngroup = "clash_ungroup";
+        public const string ClashGroupRename = "clash_group_rename";
         public const string ClashGroupByProximity = "clash_group_by_proximity";
         public const string ClashSetStatus = "clash_set_status";
         public const string ClashIgnoreRules = "clash_ignore_rules";

@@ -148,6 +148,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<ClashUngroupRequest>,
             (document, request) => _commandService.ClashUngroup(document, request));
 
+        router.Register<ClashGroupRenameRequest>(
+            HostCommandNames.ClashGroupRename,
+            true,
+            DeserializePayload<ClashGroupRenameRequest>,
+            (document, request) => new ClashGroupRenameService().Execute(document, request));
+
         router.Register<ClashSetStatusRequest>(
             HostCommandNames.ClashSetStatus,
             true,

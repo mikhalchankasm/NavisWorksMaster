@@ -26,6 +26,7 @@ clash_group_results
 clash_root_matrix
 clash_group_custom
 clash_ungroup
+clash_group_rename
 clash_group_by_proximity
 clash_set_status
 clash_ignore_rules
