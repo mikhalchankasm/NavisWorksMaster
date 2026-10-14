@@ -89,6 +89,11 @@ if ($AppVersion -ne $bundleVersion) {
 $validationScript = Join-Path $repoRoot "tools\validate_distribution.ps1"
 & $validationScript -PackagePath $sourceDir -ZipPath (Join-Path $distributionRoot ($PackageName + ".zip"))
 
+& python (Join-Path $repoRoot "scripts\build_mcpb.py") --server-dir "$sourceDir\McpServer" --output "$sourceDir\ClaudeDesktop\NavisHelper.mcpb" --version $AppVersion
+if ($LASTEXITCODE -ne 0) {
+    throw "Claude Desktop extension packaging failed with exit code $LASTEXITCODE."
+}
+
 New-Item -ItemType Directory -Force -Path $OutputRoot | Out-Null
 $iscc = Resolve-ISCC
 $script = Join-Path $repoRoot "installer\NavisHelper.iss"

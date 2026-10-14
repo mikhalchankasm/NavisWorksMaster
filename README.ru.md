@@ -10,7 +10,17 @@ NavisHelper — набор локальных инструментов и MCP-с
 
 ## Установка
 
-Текущий [GitHub Release](https://github.com/mikhalchankasm/NavisWorksMaster/releases/latest) содержит пользовательский Windows installer. Закройте Navisworks, откройте PowerShell и выполните три команды в одной сессии:
+Скачайте `NavisHelperSetup-<версия>.exe` из [последнего выпуска](https://github.com/mikhalchankasm/NavisWorksMaster/releases/latest) и запустите его. Сначала закройте Navisworks. Права администратора не нужны.
+
+1. Откройте Navisworks. На ленте появится вкладка NavisHelper, а кнопка NavisHelper на ней открывает панель.
+2. Перезапустите AI-программы, которыми пользуетесь (Claude Code, Codex, Cursor и другие). Если флажок на последней странице включён, NavisHelper подключится к ним после нажатия «Завершить».
+3. Claude Desktop: откройте Settings → Extensions, выберите установку расширения из файла и укажите `NavisHelper.mcpb`. Папку с ним открывает ярлык «Расширение NavisHelper для Claude Desktop» в меню «Пуск».
+
+Настройка клиентов на последней странице включена по умолчанию для `claude-code,codex,cursor,opencode,kimi,zcode`. Claude Desktop использует расширение `.mcpb` и пропускается, как и отсутствующие приложения и их каталоги конфигурации. Настройка позднее или намеренное создание каталогов с `--create-missing` описаны в разделе [Client Config](docs/MCP_DISTRIBUTION_PLAN.md#client-config). Другие варианты установки — в [руководстве по распространению](docs/MCP_DISTRIBUTION_PLAN.md) и [руководстве по установке агентом](docs/MCP_AGENT_SETUP.md).
+
+### Проверка файла
+
+Чтобы скачать, проверить и запустить установщик, откройте PowerShell и выполните три блока в одной сессии:
 
 ```powershell
 $release = Invoke-RestMethod `
@@ -47,8 +57,6 @@ if (Get-Process Roamer -ErrorAction SilentlyContinue) {
 }
 Start-Process $installer -Wait
 ```
-
-Installer всегда размещает плагин и MCP binaries в профиле текущего пользователя. Необязательное действие настройки MCP-клиентов на странице завершения по умолчанию выключено. Если его выбрать, installer может создать или обновить файл конфигурации в существующем пользовательском каталоге каждого обнаруженного клиента; отсутствующие приложения и их корневые каталоги конфигурации будут пропущены. Перезапускайте только тот клиент, конфигурация которого была изменена. Поздняя или намеренная настройка с `--create-missing` описана в разделе [Client Config](docs/MCP_DISTRIBUTION_PLAN.md#client-config). Другие варианты приведены в [distribution guide](docs/MCP_DISTRIBUTION_PLAN.md) и [agent setup guide](docs/MCP_AGENT_SETUP.md).
 
 ### Требования
 

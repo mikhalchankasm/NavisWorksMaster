@@ -53,6 +53,7 @@ Type: files; Name: "{group}\Обнаружить MCP-клиенты.lnk"
 #endif
 
 [Files]
+Source: "{#SourceDir}\ClaudeDesktop\NavisHelper.mcpb"; DestDir: "{app}\ClaudeDesktop"; Flags: ignoreversion
 Source: "{#SourceDir}\McpServer\*"; DestDir: "{app}\McpServerPayload"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceDir}\McpConfigurator\*"; DestDir: "{app}\McpConfigurator"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceDir}\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -69,13 +70,14 @@ Source: "{#SourceDir}\NavisHelper.bundle\*"; DestDir: "{#BundleInstallDir}"; Fla
 
 [Icons]
 #ifndef InstallerSmokeTest
-Name: "{group}\{cm:ConfigureMcpShortcut}"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients all --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
+Name: "{group}\{cm:ConfigureMcpShortcut}"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients claude-code,codex,cursor,opencode,kimi,zcode --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
 Name: "{group}\{cm:DetectMcpShortcut}"; Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--detect --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""
+Name: "{group}\{cm:ClaudeDesktopShortcut}"; Filename: "{app}\ClaudeDesktop"
 #endif
 
 [Run]
 #ifndef InstallerSmokeTest
-Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients all --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""; Description: "{cm:ConfigureMcpClients}"; Flags: postinstall unchecked skipifsilent
+Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "--configure --clients claude-code,codex,cursor,opencode,kimi,zcode --mcp-server ""{app}\McpServer\NavisHelper.McpServer.exe"""; Description: "{cm:ConfigureMcpClients}"; Flags: postinstall skipifsilent
 #endif
 
 [UninstallRun]
@@ -86,6 +88,7 @@ Filename: "{app}\McpConfigurator\NavisHelper.McpConfigurator.exe"; Parameters: "
 [UninstallDelete]
 Type: filesandordirs; Name: "{#BundleInstallDir}"
 Type: filesandordirs; Name: "{app}\versions"
+Type: filesandordirs; Name: "{app}\ClaudeDesktop"
 
 [Code]
 var
@@ -239,17 +242,25 @@ begin
 end;
 
 [CustomMessages]
-english.ConfigureMcpClients=Optional: configure detected MCP client configs
-english.ConfigureMcpShortcut=Configure detected MCP clients
-english.DetectMcpShortcut=Detect MCP clients
-english.McpServerActivationFailed=The NavisHelper MCP server could not be activated. Close running MCP clients (Claude, Codex, Cursor) and run this installer again. The previous server stays active; the new files are kept in {app}\McpServerPayload.
-english.CloseNavisworksBeforeInstall=Close Autodesk Navisworks before installing. The Navisworks process is still running.
-english.DotNet9RuntimeRequired=NavisHelper requires .NET 9 Runtime for its MCP server. Open the official Microsoft download page now? After installation, run this installer again. Choose No to cancel and install it later.
-english.LegacyMachineWideInstallDetected=A previous machine-wide NavisHelper installation was found in Program Files or ProgramData. This installer supports per-user folders only and cannot safely remove protected legacy files. From the release ZIP or repository, run tools\remove_machinewide_bundle.ps1 -Force in an elevated PowerShell, then run this installer again.
-russian.ConfigureMcpClients=Необязательно: настроить конфиги обнаруженных MCP-клиентов
-russian.ConfigureMcpShortcut=Настроить обнаруженные MCP-клиенты
-russian.DetectMcpShortcut=Обнаружить MCP-клиенты
-russian.McpServerActivationFailed=Не удалось активировать MCP-сервер NavisHelper. Закройте запущенные MCP-клиенты (Claude, Codex, Cursor) и запустите установщик ещё раз. Прежний сервер продолжает работать; новые файлы сохранены в {app}\McpServerPayload.
-russian.CloseNavisworksBeforeInstall=Перед установкой нужно закрыть Autodesk Navisworks. Сейчас процесс Navisworks ещё запущен.
-russian.DotNet9RuntimeRequired=Для MCP-сервера NavisHelper нужен .NET 9 Runtime. Открыть официальную страницу Microsoft для скачивания? После установки запустите этот installer заново. Нажмите «Нет», чтобы отменить установку и поставить Runtime позже.
-russian.LegacyMachineWideInstallDetected=Обнаружена предыдущая системная установка NavisHelper в Program Files или ProgramData. Этот installer поддерживает только пользовательские папки и не может безопасно удалить защищённые старые файлы. В elevated PowerShell из release ZIP или репозитория выполните tools\remove_machinewide_bundle.ps1 -Force, затем запустите installer ещё раз.
+english.ConfigureMcpClients=Connect NavisHelper to the AI apps on this computer (all except Claude Desktop)
+english.ConfigureMcpShortcut=Connect NavisHelper to AI apps
+english.DetectMcpShortcut=Show which AI apps were found
+english.ClaudeDesktopShortcut=NavisHelper extension for Claude Desktop
+english.McpServerActivationFailed=Could not switch your AI apps to the new NavisHelper version. Close your AI apps (Claude, Codex, Cursor and others) and run the setup again. The previous version keeps working; the new files are kept in {app}\McpServerPayload.
+english.CloseNavisworksBeforeInstall=Close Autodesk Navisworks and run the setup again.
+english.DotNet9RuntimeRequired=NavisHelper needs the free Microsoft .NET 9 Runtime to work with AI apps. Open the Microsoft download page? Install it, then run the NavisHelper setup again. Choose No to cancel.
+english.LegacyMachineWideInstallDetected=An old NavisHelper installation for all users was found in Program Files or ProgramData. The new version installs for your account only and cannot remove the old one. Ask your computer administrator to run tools\remove_machinewide_bundle.ps1 -Force from the NavisHelper ZIP in PowerShell opened as administrator, then run the setup again.
+russian.ConfigureMcpClients=Подключить NavisHelper к AI-программам на этом компьютере (кроме Claude Desktop)
+russian.ConfigureMcpShortcut=Подключить NavisHelper к AI-программам
+russian.DetectMcpShortcut=Показать найденные AI-программы
+russian.ClaudeDesktopShortcut=Расширение NavisHelper для Claude Desktop
+russian.McpServerActivationFailed=Не удалось переключить AI-программы на новую версию NavisHelper. Закройте AI-программы (Claude, Codex, Cursor и другие) и запустите установку ещё раз. Прежняя версия продолжает работать; новые файлы сохранены в {app}\McpServerPayload.
+russian.CloseNavisworksBeforeInstall=Закройте Autodesk Navisworks и запустите установку ещё раз.
+russian.DotNet9RuntimeRequired=Для работы NavisHelper с AI-программами нужен бесплатный компонент Microsoft .NET 9 Runtime. Открыть страницу загрузки Microsoft? Установите его и запустите установку NavisHelper ещё раз. «Нет» — отменить установку.
+russian.LegacyMachineWideInstallDetected=На компьютере осталась старая установка NavisHelper для всех пользователей (в Program Files или ProgramData). Новая версия ставится только для вашей учётной записи и не может удалить старую сама. Попросите администратора компьютера выполнить tools\remove_machinewide_bundle.ps1 -Force из ZIP-архива NavisHelper в PowerShell, запущенном от имени администратора, затем запустите установку ещё раз.
+
+[Messages]
+english.FinishedLabel=NavisHelper is installed. Next steps:%n%n1. Open Navisworks. The ribbon gets a NavisHelper tab; its NavisHelper button opens the panel.%n2. Restart the AI apps you use (Claude Code, Codex, Cursor and others). If the box below is checked, NavisHelper is connected to them when you click Finish.%n3. Claude Desktop: open Settings → Extensions, install an extension from a file and pick NavisHelper.mcpb. The Start-menu shortcut "NavisHelper extension for Claude Desktop" opens its folder.
+russian.FinishedLabel=NavisHelper установлен. Что дальше:%n%n1. Откройте Navisworks. На ленте появится вкладка NavisHelper, а кнопка NavisHelper на ней открывает панель.%n2. Перезапустите AI-программы, которыми пользуетесь (Claude Code, Codex, Cursor и другие). Если флажок ниже включён, NavisHelper подключится к ним после нажатия «Завершить».%n3. Claude Desktop: откройте Settings → Extensions, выберите установку расширения из файла и укажите NavisHelper.mcpb. Папку с ним открывает ярлык «Расширение NavisHelper для Claude Desktop» в меню «Пуск».
+english.FinishedLabelNoIcons=NavisHelper is installed. Next steps:%n%n1. Open Navisworks. The ribbon gets a NavisHelper tab; its NavisHelper button opens the panel.%n2. Restart the AI apps you use (Claude Code, Codex, Cursor and others). If the box below is checked, NavisHelper is connected to them when you click Finish.%n3. Claude Desktop: open Settings → Extensions, install an extension from a file and pick NavisHelper.mcpb from the ClaudeDesktop folder of the NavisHelper installation (by default %LOCALAPPDATA%\NavisHelper\ClaudeDesktop).
+russian.FinishedLabelNoIcons=NavisHelper установлен. Что дальше:%n%n1. Откройте Navisworks. На ленте появится вкладка NavisHelper, а кнопка NavisHelper на ней открывает панель.%n2. Перезапустите AI-программы, которыми пользуетесь (Claude Code, Codex, Cursor и другие). Если флажок ниже включён, NavisHelper подключится к ним после нажатия «Завершить».%n3. Claude Desktop: откройте Settings → Extensions, выберите установку расширения из файла и укажите NavisHelper.mcpb из папки ClaudeDesktop в папке установки NavisHelper (по умолчанию %LOCALAPPDATA%\NavisHelper\ClaudeDesktop).

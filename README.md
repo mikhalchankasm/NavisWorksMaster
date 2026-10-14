@@ -10,7 +10,17 @@ NavisHelper is a Windows plugin suite and local MCP server for Autodesk Naviswor
 
 ## Install
 
-The current [GitHub Release](https://github.com/mikhalchankasm/NavisWorksMaster/releases/latest) provides a per-user Windows installer. Close Navisworks, open PowerShell, and run these three commands in the same session:
+Download `NavisHelperSetup-<version>.exe` from the [latest release](https://github.com/mikhalchankasm/NavisWorksMaster/releases/latest) and run it. Close Navisworks first. Administrator rights are not required.
+
+1. Open Navisworks. The ribbon gets a NavisHelper tab; its NavisHelper button opens the panel.
+2. Restart the AI apps you use (Claude Code, Codex, Cursor and others). If the box on the last page is checked, NavisHelper connects to them when you click Finish.
+3. Claude Desktop: open Settings → Extensions, install an extension from a file and pick `NavisHelper.mcpb`. The Start-menu shortcut "NavisHelper extension for Claude Desktop" opens its folder.
+
+Client setup on the last page is on by default for `claude-code,codex,cursor,opencode,kimi,zcode`. It skips Claude Desktop, which uses the `.mcpb` extension, and missing apps and their config roots. For later setup or deliberate `--create-missing`, see [Client Config](docs/MCP_DISTRIBUTION_PLAN.md#client-config). Other installation options are in the [distribution guide](docs/MCP_DISTRIBUTION_PLAN.md) and [agent setup guide](docs/MCP_AGENT_SETUP.md).
+
+### Verify the download
+
+To download, verify and run the installer, open PowerShell and run these three blocks in the same session:
 
 ```powershell
 $release = Invoke-RestMethod `
@@ -47,8 +57,6 @@ if (Get-Process Roamer -ErrorAction SilentlyContinue) {
 }
 Start-Process $installer -Wait
 ```
-
-The installer always places the plugin and MCP binaries in the current user's profile. Its optional Finish-page action for MCP client configuration is unchecked by default. Selecting it may create or update a config file inside each detected client's existing user directory; missing client applications and their config roots are skipped. Restart only a client whose configuration was changed. For later or deliberate `--create-missing` setup, see [Client Config](docs/MCP_DISTRIBUTION_PLAN.md#client-config). Package, manual, and recovery paths are covered by the [distribution guide](docs/MCP_DISTRIBUTION_PLAN.md) and [agent setup guide](docs/MCP_AGENT_SETUP.md).
 
 ### Requirements
 

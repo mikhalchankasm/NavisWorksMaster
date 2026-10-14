@@ -214,6 +214,7 @@ function Invoke-Uninstaller([string]$AppRoot, [string]$Name) {
     Assert-OwnerInstallUnchanged $Name
     Assert-PathMissing (Join-Path $AppRoot "McpServer") "MCP server junction after uninstall"
     Assert-PathMissing (Join-Path $AppRoot "versions") "MCP version store after uninstall"
+    Assert-PathMissing (Join-Path $AppRoot "ClaudeDesktop") "Claude Desktop extension folder after uninstall"
     Assert-PathMissing $bundleRoot "Isolated bundle after uninstall"
     if ([System.IO.Directory]::Exists($AppRoot)) {
         $left = @([System.IO.Directory]::GetFileSystemEntries($AppRoot, '*', [System.IO.SearchOption]::AllDirectories))
@@ -232,6 +233,15 @@ function Assert-ActiveServer([string]$AppRoot, [string]$ExpectedVersionName) {
 }
 
 function Assert-BundleInstalled([string]$AppRoot) {
+    $installedExtension = Join-Path $AppRoot "ClaudeDesktop\NavisHelper.mcpb"
+    $sourceExtension = Join-Path $SourceDir "ClaudeDesktop\NavisHelper.mcpb"
+    Assert-File $installedExtension "Installed Claude Desktop extension"
+    Assert-File $sourceExtension "Source Claude Desktop extension"
+    $installedHash = (Get-FileHash -LiteralPath $installedExtension -Algorithm SHA256).Hash
+    $sourceHash = (Get-FileHash -LiteralPath $sourceExtension -Algorithm SHA256).Hash
+    if ($installedHash -ne $sourceHash) {
+        throw "Installed Claude Desktop extension SHA-256 does not match the source: $installedExtension"
+    }
     Assert-File (Join-Path $bundleRoot "PackageContents.xml") "Installed bundle manifest"
     Assert-File (Join-Path $bundleRoot "Contents\AiWorker\NavisHelper.AiWorker.exe") "Installed OpenRouter AI worker executable"
     Assert-File (Join-Path $bundleRoot "Contents\AiWorker\NavisHelper.AiWorker.runtimeconfig.json") "Installed OpenRouter AI worker runtime configuration"

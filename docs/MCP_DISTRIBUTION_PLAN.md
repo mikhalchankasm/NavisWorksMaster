@@ -64,12 +64,13 @@ powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1 -AppVersion 2
 This script:
 
 - builds a full distribution package;
-- compiles `installer\NavisHelper.iss`;
+- packages `NavisHelper.mcpb` from the distribution's MCP server and compiles `installer\NavisHelper.iss`;
 - installs the Autodesk bundle into `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle`;
 - stages MCP binaries in `{app}\McpServerPayload` and activates them through `McpConfigurator --install-server` in the selected installation root;
-- offers an unchecked Finish-page action to configure detected MCP clients for the current user.
+- offers a checked Finish-page action to connect detected AI apps for the current user, excluding Claude Desktop;
+- installs `NavisHelper.mcpb` in `{app}\ClaudeDesktop`; the `NavisHelper extension for Claude Desktop` Start-menu shortcut opens that folder for installation through Settings → Extensions.
 
-The plugin and MCP binaries are fully installed when that action remains unchecked. If the user selects it, the installer runs `McpConfigurator --configure --clients all` without `--create-missing`: it may create or update a config file inside each detected client's existing user directory, while missing client applications and their config roots are skipped. The same safe command is available later from the `Configure detected MCP clients` Start-menu shortcut. Creating missing client config roots requires this deliberate manual command:
+The plugin and MCP binaries are fully installed even if the user clears that action. When checked, it runs `McpConfigurator --configure --clients claude-code,codex,cursor,opencode,kimi,zcode` without `--create-missing`: it may create or update a config file inside each detected client's existing user directory, while missing client applications and their config roots are skipped. Claude Desktop uses the bundled `.mcpb` extension instead. The same explicit client list is available later from the `Connect NavisHelper to AI apps` Start-menu shortcut. Creating missing client config roots requires this deliberate manual command:
 
 ```powershell
 & "$env:LOCALAPPDATA\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe" --configure --clients all --create-missing
@@ -77,7 +78,7 @@ The plugin and MCP binaries are fully installed when that action remains uncheck
 
 Inno Setup 6 must be installed on the release machine. Longer term, a WiX/MSI package is still the better enterprise target, but Inno is the fastest native Windows `.exe` path for the first external users.
 
-The Inno uninstaller removes the `McpServer` junction itself before deleting `{app}\versions`, keeps the existing client-removal command, and removes `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle` wholesale. Do not place user-edited files inside that bundle directory.
+The Inno uninstaller removes the `McpServer` junction itself before deleting `{app}\versions`, removes `{app}\ClaudeDesktop`, keeps the existing client-removal command, and removes `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle` wholesale. Do not place user-edited files inside that bundle directory.
 
 Release-quality installer requirements:
 
