@@ -1,8 +1,8 @@
 # Clash Zones Plan
 
-Date: 2026-10-14. Status: design, nothing implemented. Evidence so far is the code, the
-SDK XML and reference assemblies, the installed loaders and an offline file-size spike;
-nothing ran in Navisworks. Every claim marked **L3** still needs a live window.
+Date: 2026-10-14. Status: design, nothing implemented. Evidence is the code, the SDK
+XML and reference assemblies, the installed loaders, an offline file-size spike and one
+L3 format check in Navisworks 2027 (section 3). Claims still marked **L3** are open.
 
 ## Goal
 
@@ -142,15 +142,25 @@ Navisworks, but per-point mode should use the 80-triangle sphere.
 Fallback: **STEP AP214 exact spheres** — smallest file, but no properties, so the zone
 id lives only in the solid name. Keep STL/OBJ out: no units, and STL has no names.
 
-**L3 checks before the writer is merged** (one window, files from the spike):
+### L3 result, 2026-10-14
 
-1. IFC4 `IfcTriangulatedFaceSet` and `IfcMappedItem` with a uniform `Scale` load in
-   2024–2027 and the spheres land at their coordinates (a known clash point checked
-   with `world_markers_set`).
-2. `IfcSurfaceStyleShading.Transparency` survives the reader.
-3. Load time and memory for 1 000 and 10 000 zones; same for the STEP fallback.
-4. Large coordinates: a project with survey-scale coordinates (≥ 10⁶ m) does not jitter.
-5. `RemoveFile` on a document opened from an NWD.
+Navisworks Manage 2027, plugin `main` 65e83e4, host model
+`GCC-NAG-PM-12470-3D-MOD-00003.nwd` (E3D RVM, document units metres, site about 2 km
+from the origin). Marker files were written by the spike from the 446 clash points
+of the project's own Clash Detective XML export (metres → mm), radius 300 mm, and
+appended through the UI Append command. The document was not saved.
+
+| Check | Result |
+| --- | --- |
+| IFC4 `IfcTriangulatedFaceSet` + `IfcMappedItem` with uniform `Scale` | Loads. `ZONE-00001` bounding box centre equals the clash point to 1 mm, size 0.600 m; the mapped item stays an instance with transform `Scale 300` and the clash point as translation. |
+| Units | `IfcSIUnit` millimetre converted to the metre document without any prompt. |
+| Tree and properties | `clashpts.ifc / Clash zones / Clash zones run / IfcBuildingElementProxy / ZONE-nnnnn`; category `NH_ClashZone` shows `ZoneId`, `ClashCount` (Int64), `RadiusMm` (Double), `CompareState`. |
+| Colour and transparency | Baked `IfcSurfaceStyleShading` red with transparency 0.6 renders red and see-through; no override needed. |
+| Load time | 446 zones under 2 s; 10 000 zones about 12 s. Process working set went from 1.2 to 2.0 GB over all three test appends together. |
+| STEP fallback | 446 exact spheres in about 5 s, named `ZONE-nnnnn`, same position (tessellated extent 0.598 m). |
+
+Not covered: 2024–2026 (only 2027 was run), survey-scale coordinates (≥ 10⁶ m), and
+`Document.RemoveFile` — no tool calls it yet; PR 7 must check it at L3.
 
 ## 4. Clustering design (option 2)
 
@@ -235,8 +245,10 @@ Zones are compared, not raw clashes, but the evidence is taken from the members:
 2. **Score**, strongest evidence first:
    - item overlap — Jaccard of the members' `(stableIdA, stableIdB)` pairs; survives a
      new NWD as long as element ids are stable;
-   - clash `Guid` overlap — only when both runs are re-runs of the same document;
    - geometry only — `1 − d / (rPrev + rCurr)`, with the same association key required.
+
+   Clash `Guid` is not used: every iteration is a new NWD (owner, 2026-10-14), so
+   result GUIDs do not carry over. `zones.json` still records them for diagnostics.
 3. **Assign** one-to-one, greedily by score, ties broken by zone id (deterministic).
    A previous zone overlapping several current zones keeps its `trackId` on the best
    one; the others are `new` with `splitFrom`. The mirror case is `mergedFrom`.
@@ -272,7 +284,7 @@ files, tool guard edits excluded).
 | --- | --- | --- | --- |
 | 1 | Move the grid + union-find clustering into `Contracts` on plain coordinates; `ClashClusterConstructionService` delegates; characterization tests pin today's output. | change | L0/L1, L2; no runtime change claimed. |
 | 2 | Zone geometry in `Contracts`: size cap with axis split, Welzl enclosing sphere, deterministic numbering. | new | L0/L1. |
-| 3 | IFC4 marker writer in `Contracts` (mapped unit sphere, property set, state styles). Starts only after the L3 format check in section 3 passed on the spike files. | new | L0/L1; L3 already done on spike output. |
+| 3 | IFC4 marker writer in `Contracts` (mapped unit sphere, property set, state styles). The format passed L3 on 2027 (section 3). | new | L0/L1. |
 | 4 | One multi-sheet XLSX writer with numeric cells in `Contracts`; existing writers migrate later, not here. | new | L0/L1. |
 | 5 | Run comparer in `Contracts` (matching, classification, `trackId`) over `zones.json`. | new | L0/L1. |
 | 6 | `clash_zones_export`: plugin `ClashZoneExportService`, contracts DTOs, `HostBridgeClient.ClashZones.cs`, tool type `NavisworksClashZoneTools`, guard edits. Adds `ClashResult.Guid` and item stable ids to the extracted rows. | new + guard edits | L1, L2, L3. |
@@ -294,16 +306,12 @@ proposed defaults for everything else. That fixes:
 | Zone key | Object pair `(ancestorA, ancestorB)`, nearest named parent. |
 | Clustering numbers | `epsMm` 300, `maxZoneRadiusMm` 3000, `minRadiusMm` 150, `padMm` 100; sphere around the clash points only. |
 | Statuses | Zones from New/Active/Reviewed; Approved/Resolved counted, not drawn. |
+| Iterations | Every iteration is a new NWD; runs are linked by element ids and geometry only. |
 | Comparison | `maxShiftMm` 2000, still `max(100 mm, 25 % r)`, shrink/grow 20 %; disappeared zones written grey with `compareState=disappeared`, so a Search Set can hide them. |
 | Compare surface | A parameter of `clash_zones_export`; no separate `clash_zones_compare` until asked for. |
 | Persistence | The tools never save the document; the coordinator saves as NWF or NWD. Run folders go to `<NWD folder>\clash_zones\<runId>\` unless `outputDirectory` is given. |
 | Scale | At most 50 000 analysed results per run, the existing `maxResults` cap; per-point mode uses the 80-triangle sphere. |
 | Workbook language | Sheet and column titles from resources: English neutral, Russian in `Resources.ru.resx`, per the AGENTS.md language policy. `zones.json` field names stay English. |
 
-Still open, none of them blocks PRs 1–5:
-
-1. **Iteration workflow** — new NWD with imported tests, or the same NWF with refreshed
-   sources; which authoring tools. The matching rule works either way; the answer only
-   decides how often clash `Guid` evidence will be available, and which sample models
-   to use at L3.
-2. **Live window** after the 2.10 release, for the format check in section 3.
+Still open: nothing blocks PRs 1–5. The format check passed on 2027 (section 3);
+2024–2026 and `RemoveFile` are checked with PRs 6–7.
