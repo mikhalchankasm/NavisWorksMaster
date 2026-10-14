@@ -152,7 +152,7 @@ public sealed class ClashGroupRenamePlannerTests
     [InlineData("clash-group:4:1", "", "")]
     [InlineData("", "", "X")]
     [InlineData(null, null, "  ")]
-    public void MissingSelectorOrNewName_IsInvalid(string? handle, string? name, string? newName)
+    public void MissingSelectorOrNewName_IsInvalid(string handle, string name, string newName)
     {
         var plan = ClashGroupRenamePlanner.Build(TopLevel("A"), new[] { Rename(handle, name, newName) });
 
@@ -176,9 +176,9 @@ public sealed class ClashGroupRenamePlannerTests
     [InlineData("clash-result:3:7", false, 0, 0)]
     [InlineData("clash-group:-3:7", false, 0, 0)]
     [InlineData(null, false, 0, 0)]
-    public void TryParseGroupHandle_AcceptsOnlyPositiveIndexes(string? value, bool expectedOk, int expectedTest, int expectedGroup)
+    public void TryParseGroupHandle_AcceptsOnlyPositiveIndexes(string value, bool expectedOk, int expectedTest, int expectedGroup)
     {
-        var ok = ClashHandleHelper.TryParseGroupHandle(value!, out var test, out var group);
+        var ok = ClashHandleHelper.TryParseGroupHandle(value, out var test, out var group);
 
         Assert.Equal(expectedOk, ok);
         if (ok)
@@ -198,8 +198,8 @@ public sealed class ClashGroupRenamePlannerTests
         return new ClashGroupRenameCandidate { Handle = handle, Name = name, Path = name, ParentKey = parentKey, ResultCount = resultCount };
     }
 
-    private static ClashGroupRenameItem Rename(string? handle = null, string? name = null, string? newName = null)
+    private static ClashGroupRenameItem Rename(string handle = null, string name = null, string newName = null)
     {
-        return new ClashGroupRenameItem { GroupHandle = handle!, GroupName = name!, NewName = newName! };
+        return new ClashGroupRenameItem { GroupHandle = handle, GroupName = name, NewName = newName };
     }
 }
