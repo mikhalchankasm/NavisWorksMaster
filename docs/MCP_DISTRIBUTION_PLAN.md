@@ -39,9 +39,9 @@ The ZIP package contains `Install-NavisHelperBundle.ps1`. It always installs for
 powershell -ExecutionPolicy Bypass -File .\Install-NavisHelperBundle.ps1 -ConfigureMcp
 ```
 
-That script installs the Autodesk bundle to `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle`, copies the MCP runtime to `%LOCALAPPDATA%\NavisHelper\McpServer-<version>`, and optionally runs `McpConfigurator` against that new per-user server path. Existing stdio processes remain on their previous version until their MCP client restarts or reloads.
+That script installs the Autodesk bundle to `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle` and runs `McpConfigurator --install-server` with an explicit `--install-root "%LOCALAPPDATA%\NavisHelper"`. The MCP runtime goes into `versions\<version>-<treehash8>` behind the `McpServer` junction. Optional client configuration and detection use `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe`, also printed as `MCP client path:`. Existing stdio processes remain on their previous version until their MCP client restarts or reloads.
 
-`package_distribution.ps1` runs `scripts\test_package_install.ps1` against the final ZIP. The smoke covers fresh install, same-version reinstall, and preservation of the unversioned MCP server used by older ZIPs or an EXE installation. The installer warns about this retained directory; reconfigure clients explicitly and keep it while the EXE installation needs it. The smoke skips while Navisworks is running; CI exercises it on a clean worker.
+`package_distribution.ps1` runs `scripts\test_package_install.ps1` against the final ZIP. The smoke covers fresh installation behind the junction and the `MCP client path:` line, same-version target reuse, preservation of older and package-version `McpServer-<version>` directories, migration of a legacy real `McpServer` directory with its files kept, and non-zero installer exit with that directory untouched while a legacy server runs. The smoke skips while Navisworks is running; CI exercises it on a clean worker.
 
 `-SkipBuild` requires `artifacts/plugin-matrix.json` from a successful full package build at the same commit, with all 12 plugin DLL hashes unchanged. Otherwise run without `-SkipBuild`. The receipt is included in the manifest; CI's marked placeholder receipt is accepted only for `ci-package-smoke` on GitHub Actions.
 
@@ -131,7 +131,7 @@ The framework-dependent server needs the **.NET 9 runtime** on Windows. Open the
 `.mcpb` in Claude Desktop to install it under **Settings > Extensions**. Configure
 read-only mode and the tool profile there (`all` by default; `core` or server
 tool set names are also supported). The bundled server is a separate copy from
-`%LOCALAPPDATA%\NavisHelper\McpServer-<version>`; update the extension by building
+`%LOCALAPPDATA%\NavisHelper\McpServer` junction; update the extension by building
 and installing a new bundle. Navisworks still needs its NavisHelper plugin.
 
 CI runs the fixture-only acceptance tests with
@@ -167,8 +167,9 @@ exit deletes the payload; failure displays a localized English/Russian error and
 retains it for retry. Finish-page configuration and Start-menu shortcuts keep the
 stable junction path. Existing stdio processes keep their loaded version until
 the MCP client restarts or reloads.
-The ZIP package flow still uses `McpServer-<version>`; migrating it and its package
-smoke is the next step.
+The ZIP package also installs through `--install-server` with an explicit
+`--install-root` and uses the same stable junction path for client configuration
+and detection. Old `McpServer-<version>` directories are preserved.
 A failed health check removes only a newly copied version and leaves activation
 unchanged. A legacy real `McpServer` directory is moved into the version store;
 if that move is blocked, close MCP clients and retry.
@@ -201,7 +202,7 @@ When editing JSON manually, use escaped Windows backslashes, for example `C:\\To
 
 The repository README also exposes Cursor/VS Code MCP install buttons. If using per-user ZIP/package install, configure clients to this server path:
 
-`%LOCALAPPDATA%\NavisHelper\McpServer-<version>\NavisHelper.McpServer.exe`
+`%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe`
 
 The package should include [MCP_TOOL_CONTRACTS.md](MCP_TOOL_CONTRACTS.md) so MCP clients can inspect stable input/output fields without reading C# DTOs.
 

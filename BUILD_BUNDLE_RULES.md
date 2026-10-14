@@ -83,9 +83,9 @@ python scripts/check_installed_bundle_drift.py
 
 ### MCP-сервер: `MCP SERVER DRIFT`
 
-Installer и dev-скрипт ставят сервер отдельно от bundle через `McpConfigurator --install-server`:
+Installer, ZIP и dev-скрипт ставят сервер отдельно от bundle через `McpConfigurator --install-server`:
 в `%LOCALAPPDATA%\NavisHelper\versions\<version>-<sha8>`, с junction `McpServer` на активную версию.
-ZIP пока использует `McpServer-<version>`; его перевод на version store — следующий этап.
+ZIP явно передаёт `--install-root` и прописывает клиентам `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe` через junction. Старые `McpServer-<version>` сохраняются; обычная legacy-папка `McpServer` переносится в version store с сохранением файлов. Если работающий legacy-сервер блокирует перенос, установка завершается с ненулевым кодом.
 Проверка дрейфа инвентаризирует стабильный путь `McpServer` и старые `McpServer-<version>`: версии читает из
 `NavisHelper.McpServer.deps.json`, а равенство проверяет по SHA-256 всего дерева файлов
 папки установленного сервера против дерева сборки чекаута `NavisHelper.McpServer/bin/Release/net9.0`.

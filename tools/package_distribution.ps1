@@ -438,58 +438,6 @@ function Get-PackageVersion {
     return $match.Groups[1].Value
 }
 
-function Get-ProcessesFromDirectory([string]$Directory) {
-    if (-not (Test-Path -LiteralPath $Directory)) {
-        return @()
-    }
-
-    $directoryFull = [System.IO.Path]::GetFullPath($Directory).TrimEnd('\') + '\'
-    return @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
-        try {
-            -not [string]::IsNullOrWhiteSpace($_.Path) -and
-                $_.Path.StartsWith($directoryFull, [System.StringComparison]::OrdinalIgnoreCase)
-        } catch {
-            $false
-        }
-    })
-}
-
-function Test-ManagedLegacyMcpServer([string]$Directory) {
-    $server = Join-Path $Directory "NavisHelper.McpServer.exe"
-    $deps = Join-Path $Directory "NavisHelper.McpServer.deps.json"
-    if (-not (Test-Path -LiteralPath $server -PathType Leaf) -or
-        -not (Test-Path -LiteralPath $deps -PathType Leaf)) {
-        return $false
-    }
-
-    try {
-        return (Get-Content -LiteralPath $deps -Raw) -match '"NavisHelper\.McpServer/'
-    } catch {
-        return $false
-    }
-}
-
-function Report-ManagedLegacyMcpServer([string]$InstallRoot) {
-    $legacyServer = Join-Path $InstallRoot "McpServer"
-    if (-not (Test-Path -LiteralPath $legacyServer -PathType Container)) {
-        return
-    }
-
-    if (-not (Test-ManagedLegacyMcpServer $legacyServer)) {
-        Write-Warning "Found an unversioned MCP server directory at '$legacyServer'. It was not removed because it could not be verified as a managed NavisHelper installation. Review it manually before deleting it."
-        return
-    }
-
-    $runningProcesses = Get-ProcessesFromDirectory $legacyServer
-    if ($runningProcesses.Count -gt 0) {
-        $ids = ($runningProcesses | Select-Object -ExpandProperty Id) -join ", "
-        Write-Warning "MCP server '$legacyServer' is running (PID: $ids). It was preserved and may belong to an EXE installation; keep it while that installation uses it."
-        return
-    }
-
-    Write-Warning "Preserved MCP server '$legacyServer': existing clients or an EXE installation may still use it. Reconfigure clients explicitly; keep this directory while an EXE installation uses it."
-}
-
 $InstallRoot = Join-Path $env:LOCALAPPDATA "NavisHelper"
 
 $sourceBundle = Join-Path $PSScriptRoot "NavisHelper.bundle"
@@ -500,9 +448,7 @@ $packageVersion = Get-PackageVersion
 if (-not $SkipMcp) {
     $sourceMcpServer = Join-Path $PSScriptRoot "McpServer"
     $sourceMcpConfigurator = Join-Path $PSScriptRoot "McpConfigurator"
-    $destinationMcpServer = Join-Path $InstallRoot ("McpServer-" + $packageVersion)
     $destinationMcpConfigurator = Join-Path $InstallRoot "McpConfigurator"
-    Assert-CopyDestinationSafe $sourceMcpServer $destinationMcpServer
     Assert-CopyDestinationSafe $sourceMcpConfigurator $destinationMcpConfigurator
 }
 
@@ -517,20 +463,16 @@ Assert-InstalledFile (Join-Path $destinationBundle "Contents\AiWorker\NavisHelpe
 Write-Host "Installed bundle to $destinationBundle"
 
 if (-not $SkipMcp) {
-    $runningServerProcesses = Get-ProcessesFromDirectory $destinationMcpServer
-    if ($runningServerProcesses.Count -gt 0) {
-        $ids = ($runningServerProcesses | Select-Object -ExpandProperty Id) -join ", "
-        Write-Warning "NavisHelper MCP server version $packageVersion is already running from '$destinationMcpServer' (PID: $ids). Keeping the active runtime unchanged; restart the MCP client before reinstalling this same version."
-    } else {
-        Copy-DirectoryFresh $sourceMcpServer $destinationMcpServer
-    }
     Copy-DirectoryFresh $sourceMcpConfigurator $destinationMcpConfigurator
-    $server = Join-Path $destinationMcpServer "NavisHelper.McpServer.exe"
     $configurator = Join-Path $destinationMcpConfigurator "NavisHelper.McpConfigurator.exe"
-    Assert-InstalledFile $server "MCP server executable"
     Assert-InstalledFile $configurator "MCP configurator executable"
-    Report-ManagedLegacyMcpServer $InstallRoot
-    Write-Host "Installed MCP server to $destinationMcpServer"
+    & $configurator --install-server $sourceMcpServer --install-root $InstallRoot
+    if ($LASTEXITCODE -ne 0) {
+        throw "MCP server installation failed with exit code $LASTEXITCODE."
+    }
+    $server = Join-Path $InstallRoot "McpServer\NavisHelper.McpServer.exe"
+    Assert-InstalledFile $server "MCP server executable"
+    Write-Host "MCP client path: $server"
     Write-Host "Installed MCP configurator to $destinationMcpConfigurator"
 
     if ($ConfigureMcp) {
@@ -544,7 +486,7 @@ if (-not $SkipMcp) {
         }
     }
 
-    Write-Host "Existing MCP stdio sessions are not stopped. Restart or reload each MCP client to use '$destinationMcpServer'."
+    Write-Host "Existing MCP stdio sessions are not stopped. Restart or reload each MCP client to use '$server'."
 }
 '@
 Set-Content -LiteralPath (Join-Path $packageDir "Install-NavisHelperBundle.ps1") -Value $installScript -Encoding UTF8
@@ -591,9 +533,11 @@ powershell -ExecutionPolicy Bypass -File .\Install-NavisHelperBundle.ps1 -Config
 This installs:
 
 - `NavisHelper.bundle` to `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle`.
-- `McpServer` to `%LOCALAPPDATA%\NavisHelper\McpServer-<package-version>`.
+- `McpServer` through `McpConfigurator --install-server` to `%LOCALAPPDATA%\NavisHelper\versions\<version>-<treehash8>`, with the `McpServer` junction pointing to the active version.
 - `McpConfigurator` to `%LOCALAPPDATA%\NavisHelper\McpConfigurator`.
 - MCP client config for supported clients when `-ConfigureMcp` is passed.
+
+MCP clients use `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe`, the junction path printed as `MCP client path:`. Identical versions are reused; old `McpServer-<version>` directories are kept, and a legacy real `McpServer` directory is migrated into the version store with its files preserved. If a running legacy server blocks migration, installation fails; close that MCP client and retry. Restart or reload MCP clients after updating.
 
 ## Agent install from this ZIP
 
@@ -612,7 +556,7 @@ The agent should not clone the repository or download GitHub Release assets when
 
 ## Configure MCP client
 
-Copy `mcp-client-config.example.json` into your MCP client configuration and replace `<UNPACKED_PACKAGE_DIR>` with this package folder.
+Copy `mcp-client-config.example.json` into your MCP client configuration and set `command` to the installed junction executable `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe`, expanding `%LOCALAPPDATA%` to its actual path. The example's `<UNPACKED_PACKAGE_DIR>` path is for running directly from the unpacked package.
 Use escaped backslashes in JSON paths, for example `C:\\Tools\\NavisHelper`, not `C:\Tools\NavisHelper`.
 
 Or run the configurator:

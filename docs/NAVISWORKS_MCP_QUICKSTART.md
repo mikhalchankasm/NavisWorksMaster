@@ -109,7 +109,7 @@ MCP-сервер хранит явно подтверждённые сценар
 
 MCP server:
 
-- packaged per-user install: `%LOCALAPPDATA%\NavisHelper\McpServer-<version>\NavisHelper.McpServer.exe`
+- packaged per-user install: `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe` (junction на активную версию в `versions\<version>-<treehash8>`)
 - developer build: `NavisHelper.McpServer\bin\Release\net9.0\NavisHelper.McpServer.exe`
 
 Пример `stdio`-конфига:

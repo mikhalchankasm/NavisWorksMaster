@@ -16,7 +16,7 @@ https://github.com/mikhalchankasm/NavisWorksMaster
 
 ШАГ 1. Определи текущую установку.
 Проверь:
-- %LOCALAPPDATA%\NavisHelper\McpServer-<версия>\NavisHelper.McpServer.exe
+- %LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe (junction на активную версию)
 - %LOCALAPPDATA%\NavisHelper\McpConfigurator\NavisHelper.McpConfigurator.exe
 - %APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle
 
@@ -28,8 +28,8 @@ https://github.com/mikhalchankasm/NavisWorksMaster
 - Если есть `NavisHelper-full-*.zip`, распакуй его в отдельную папку, перейди в распакованную папку и выполни без прав администратора:
   powershell -ExecutionPolicy Bypass -File .\Install-NavisHelperBundle.ps1 -ConfigureMcp
 - Если есть только `NavisHelperSetup-*.exe`, запусти его обычным способом без повышения прав.
-- После ZIP/package установки MCP config должен указывать на `%LOCALAPPDATA%\NavisHelper\McpServer-<версия>\NavisHelper.McpServer.exe`, а не на временную папку распаковки.
-- ZIP `v2.6.3.0` мог оставить устаревшую папку `%LOCALAPPDATA%\NavisHelper\McpServer` без версии. Новый ZIP удаляет её только если это подтверждённый неработающий runtime NavisHelper; неизвестную папку не удаляй, а сообщи пользователю предупреждение.
+- После ZIP/package установки MCP config должен указывать на `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe` через junction, а не на временную папку распаковки.
+- ZIP устанавливает сервер через `McpConfigurator --install-server` с явным `--install-root`: одинаковая версия используется повторно, старые `McpServer-<версия>` сохраняются, обычная legacy-папка `McpServer` переносится в version store с сохранением файлов. Если работающий legacy-сервер блокирует перенос, установка завершится с ненулевым кодом; попроси пользователя закрыть MCP-клиент и повтори установку.
 - Для private repo используй Git Credential Manager, `gh auth login` или GitHub device flow. Никогда не вставляй PAT, cookies или другие секреты в prompt, чат или лог.
 - Если installer/ZIP успешно установлен, переходи сразу к ШАГУ 5.
 
@@ -53,7 +53,7 @@ https://github.com/mikhalchankasm/NavisWorksMaster
 - Если используешь ZIP/package из этого репозитория, распакуй его и запусти без прав администратора:
   powershell -ExecutionPolicy Bypass -File .\Install-NavisHelperBundle.ps1 -ConfigureMcp
 - `NavisHelperSetup-*.exe` скачивай и запускай обычным способом: он устанавливает bundle и MCP-компоненты в пользовательские каталоги.
-- После ZIP/package установки MCP config должен указывать на `%LOCALAPPDATA%\NavisHelper\McpServer-<версия>\NavisHelper.McpServer.exe`, а не на временную папку распаковки. Не останавливай активный MCP process: новая версия ставится в соседнюю versioned directory, а клиент переключится после restart/reload.
+- После ZIP/package установки MCP config должен указывать на `%LOCALAPPDATA%\NavisHelper\McpServer\NavisHelper.McpServer.exe` через junction, а не на временную папку распаковки. Не останавливай активный MCP process: новая версия ставится в `versions\<версия>-<treehash8>`, junction переключается после проверки работоспособности, а клиент использует новую версию после restart/reload.
 
 Fallback для dev-установки без release:
 - собери:
