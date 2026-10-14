@@ -20,7 +20,7 @@ public sealed class ClashResultNameSelectorTests
     public void Resolve_ReportsMissingAndAmbiguousNamesInsteadOfGuessing()
     {
         var selection = ClashResultNameSelector.Resolve(
-            new[] { "Clash1", "Clash2", "clash2", "", null! },
+            new[] { "Clash1", "Clash2", "clash2", "", null },
             new[] { "Clash2", "Clash9", "Clash1", "" });
 
         Assert.False(selection.IsComplete);
