@@ -76,8 +76,42 @@ internal static partial class Program
 
             if (options.Configure)
             {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                var extensionsRoot = Path.Combine(appData, "Claude", "Claude Extensions");
                 foreach (var adapter in selected)
-                    hadErrors |= !Configure(adapter, mcpServerPath, options.DryRun, options.CreateMissing);
+                {
+                    try
+                    {
+                        if (adapter.Id == "claude-desktop" && ClaudeDesktopStaleEntry.ExtensionInstalled(extensionsRoot))
+                        {
+                            Console.WriteLine("claude-desktop: skipped - Claude Desktop uses the NavisHelper .mcpb extension.");
+                            continue;
+                        }
+                        hadErrors |= !Configure(adapter, mcpServerPath, options.DryRun, options.CreateMissing);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"{adapter.Id}: failed - {ex.Message}");
+                        hadErrors = true;
+                    }
+                }
+
+                try
+                {
+                    var result = ClaudeDesktopStaleEntry.RemoveIfExtensionInstalled(
+                        Path.Combine(appData, "Claude", "claude_desktop_config.json"), extensionsRoot, options.DryRun);
+                    if (result.Status is "removed" or "dry-run")
+                    {
+                        Console.WriteLine($"claude-desktop: {result.Status} - {result.Detail}");
+                        if (result.BackupPath != null)
+                            Console.WriteLine($"  backup: {result.BackupPath}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"claude-desktop: failed - {ex.Message}");
+                    hadErrors = true;
+                }
             }
 
             if (options.Remove)
