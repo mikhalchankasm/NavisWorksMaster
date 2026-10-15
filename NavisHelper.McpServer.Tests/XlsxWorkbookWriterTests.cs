@@ -131,7 +131,7 @@ public sealed class XlsxWorkbookWriterTests
         Assert.True(styleIndex > 0, "the header uses the default style");
         Assert.All(header, c => Assert.Equal((string)header[0].Attribute("s"), (string)c.Attribute("s")));
 
-        var styles = parts["xl/styles.xml"];
+        var styles = parts["xl/styles.xml"].Root;
         var xf = styles.Element(Main + "cellXfs").Elements(Main + "xf").ElementAt(styleIndex);
         var fontId = int.Parse((string)xf.Attribute("fontId"), CultureInfo.InvariantCulture);
         var font = styles.Element(Main + "fonts").Elements(Main + "font").ElementAt(fontId);
