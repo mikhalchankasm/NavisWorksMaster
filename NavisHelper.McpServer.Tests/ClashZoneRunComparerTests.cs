@@ -238,6 +238,19 @@ public sealed class ClashZoneRunComparerTests
         Assert.Throws<ArgumentException>(() => ClashZoneRunComparer.Compare(null, new[] { Zone("Z-0001", 0, 0, 0, -1) }, null));
     }
 
+    [Fact]
+    public void Compare_RejectsSharedPreviousTracksAndNonFiniteThresholds()
+    {
+        var current = new[] { Zone("Z-0001", 0, 0, 0, 300) };
+
+        Assert.Throws<ArgumentException>(() => ClashZoneRunComparer.Compare(
+            new[] { Zone("Z-0001", 0, 0, 0, 300, "T-0001"), Zone("Z-0002", 900, 0, 0, 300, "T-0001") }, current, null));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ClashZoneRunComparer.Compare(null, current, new ClashZoneCompareOptions { MaxShiftMm = double.NaN }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ClashZoneRunComparer.Compare(null, current, new ClashZoneCompareOptions { StillMinMm = double.NaN }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ClashZoneRunComparer.Compare(null, current, new ClashZoneCompareOptions { StillRadiusFraction = -1 }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ClashZoneRunComparer.Compare(null, current, new ClashZoneCompareOptions { ChangeFraction = 1 }));
+    }
+
     private static string Describe(ClashZoneComparison comparison)
     {
         return string.Join(";", comparison.Current.Concat(comparison.Disappeared).Select(e => string.Join(",",

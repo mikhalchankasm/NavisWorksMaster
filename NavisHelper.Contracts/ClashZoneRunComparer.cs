@@ -72,6 +72,7 @@ namespace NavisHelper.Agent.Contracts
         {
             if (current == null) throw new ArgumentNullException(nameof(current));
             options = options ?? new ClashZoneCompareOptions();
+            ValidateOptions(options);
             Validate(current, false, nameof(current));
             long next = Math.Max(1, options.MinimumNextTrackNumber);
             if (previous != null)
@@ -177,9 +178,23 @@ namespace NavisHelper.Agent.Contracts
             return result;
         }
 
+        private static void ValidateOptions(ClashZoneCompareOptions options)
+        {
+            // A NaN threshold would silently disable its comparison instead of failing.
+            if (!Finite(options.MaxShiftMm) || options.MaxShiftMm < 0)
+                throw new ArgumentOutOfRangeException(nameof(options.MaxShiftMm));
+            if (!Finite(options.StillMinMm) || options.StillMinMm < 0)
+                throw new ArgumentOutOfRangeException(nameof(options.StillMinMm));
+            if (!Finite(options.StillRadiusFraction) || options.StillRadiusFraction < 0)
+                throw new ArgumentOutOfRangeException(nameof(options.StillRadiusFraction));
+            if (!Finite(options.ChangeFraction) || options.ChangeFraction < 0 || options.ChangeFraction >= 1)
+                throw new ArgumentOutOfRangeException(nameof(options.ChangeFraction));
+        }
+
         private static long Validate(IList<ClashZoneRunZone> zones, bool requireTrack, string parameter)
         {
             var ids = new HashSet<string>(StringComparer.Ordinal);
+            var tracks = new HashSet<string>(StringComparer.Ordinal);
             long maximum = 0;
             foreach (var zone in zones)
             {
@@ -193,6 +208,8 @@ namespace NavisHelper.Agent.Contracts
                 if (zone.TrackId == null || !Regex.IsMatch(zone.TrackId, @"\AT-(\d+)\z") ||
                     !int.TryParse(zone.TrackId.Substring(2), NumberStyles.None, CultureInfo.InvariantCulture, out number))
                     throw new ArgumentException("Previous zones must have a numeric T- track identifier in range.", parameter);
+                if (!tracks.Add(zone.TrackId))
+                    throw new ArgumentException("Previous zones must not share a track identifier: " + zone.TrackId, parameter);
                 maximum = Math.Max(maximum, number);
             }
             return maximum;
