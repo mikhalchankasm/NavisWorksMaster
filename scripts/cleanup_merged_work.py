@@ -4,14 +4,19 @@
 Dry-run by default: it prints a plan with a reason per item. `--apply` removes
 only what the plan marks for removal, and never forces:
 
-- a local branch goes only when its pull request is merged and the branch tip is
-  exactly that PR's head, so nothing was added after the merge. The repository
-  squash-merges, so `git branch -d` cannot tell this; `git branch -D` is used
-  only after this check, and never on `main` or a branch checked out anywhere;
+- a local branch goes when its pull request is merged and the branch tip is
+  exactly that PR's head, or when every file it changed since its merge-base with
+  `origin/main` is, byte for byte, a version `origin/main` has held since then (its
+  work reached main through other PRs, as executor, restack and stacked branches
+  do). A branch with an open PR is
+  always kept. The repository squash-merges, so `git branch -d` cannot tell any
+  of this; `git branch -D` is used only after these checks, and never on `main`
+  or a branch checked out anywhere;
 - a linked worktree goes only when it is clean, is not the main checkout or the
-  one this runs from, is not kept by `--keep`, and its commit is in `origin/main`
-  or is the head of a merged pull request. `git worktree remove` runs without
-  `--force`, so git itself still refuses a dirty tree.
+  one this runs from, is not kept by `--keep`, and its commit is in `origin/main`,
+  is the head of a merged pull request, or carries only content already in
+  `origin/main`. `git worktree remove` runs without `--force`, so git itself still
+  refuses a dirty tree.
 
 Worktrees under another tool's folder (`.codex`) are always kept.
 
@@ -51,22 +56,30 @@ def normalize_path(path):
     return os.path.normcase(os.path.abspath(path)).replace("\\", "/")
 
 
-def branch_decision(name, tip, pull_request, checked_out):
-    """(action, reason) for one local branch; checked_out holds branch names any worktree has."""
+def branch_decision(name, tip, pull_request, checked_out, content_in_main=False):
+    """(action, reason) for one local branch.
+
+    checked_out holds branch names any worktree has; content_in_main says every
+    file the branch changed is a version origin/main has held.
+    """
     if name in PROTECTED_BRANCHES:
         return KEEP, "protected branch"
     if name in checked_out:
         return KEEP, "checked out in a worktree"
+    if pull_request is not None and pull_request.state == "OPEN":
+        return KEEP, "pull request is open"
+    if pull_request is not None and pull_request.state == "MERGED" and tip == pull_request.head_oid:
+        return REMOVE, "pull request merged and the branch tip is its head"
+    if content_in_main:
+        return REMOVE, "every file it changed is a version origin/main has held"
     if pull_request is None:
         return KEEP, "no pull request for this branch"
     if pull_request.state != "MERGED":
         return KEEP, "pull request is " + pull_request.state.lower()
-    if tip != pull_request.head_oid:
-        return KEEP, "branch has commits beyond the merged pull request"
-    return REMOVE, "pull request merged and the branch tip is its head"
+    return KEEP, "branch has commits beyond the merged pull request"
 
 
-def worktree_decision(worktree, keep_paths, commit_in_main, branch_removable):
+def worktree_decision(worktree, keep_paths, commit_in_main, branch_removable, content_in_main=False):
     """(action, reason) for one worktree; commit_in_main and branch_removable are booleans."""
     path = normalize_path(worktree.path)
     if worktree.is_main:
@@ -83,6 +96,8 @@ def worktree_decision(worktree, keep_paths, commit_in_main, branch_removable):
         return REMOVE, "clean, and its commit is in origin/main"
     if branch_removable:
         return REMOVE, "clean, and it sits on a merged pull request's head"
+    if content_in_main:
+        return REMOVE, "clean, and every file it changed is a version origin/main has held"
     return KEEP, "its commit is not in origin/main"
 
 
@@ -91,6 +106,34 @@ def git(repo, *args, check=True):
     if check and result.returncode != 0:
         raise RuntimeError("git " + " ".join(args) + ": " + result.stderr.strip())
     return result
+
+
+def blob(repo, commit, path):
+    """The blob id of path at commit, or "" when the path does not exist there."""
+    result = git(repo, "rev-parse", "--verify", "--quiet", commit + ":" + path, check=False)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def content_matches_main(repo, ref, main_ref="origin/main"):
+    """True when main_ref's history already holds ref's version of every file ref changed.
+
+    For each file ref changed since its merge-base with main_ref, ref's version (or
+    its absence) must equal main_ref's version at main_ref or at some commit after
+    the merge-base. Stacked PRs are squash-merged one by one, so an intermediate
+    branch matches an intermediate commit on main rather than its tip.
+    """
+    base = git(repo, "merge-base", ref, main_ref, check=False).stdout.strip()
+    if not base:
+        return False
+    files = [name for name in git(repo, "diff", "--name-only", base, ref).stdout.splitlines() if name]
+    for path in files:
+        wanted = blob(repo, ref, path)
+        if blob(repo, main_ref, path) == wanted:
+            continue
+        commits = git(repo, "log", "--format=%H", base + ".." + main_ref, "--", path).stdout.split()
+        if not any(blob(repo, commit, path) == wanted for commit in commits):
+            return False
+    return True
 
 
 def list_worktrees(repo, current):
@@ -144,7 +187,8 @@ def main(argv=None):
         # head, which is not in main's history; that head is still proof of merge.
         branch_ok = wt.head in merged_heads or (
             bool(wt.branch) and pr is not None and pr.state == "MERGED" and pr.head_oid == wt.head)
-        worktree_plan.append((wt, *worktree_decision(wt, args.keep, in_main, branch_ok)))
+        content_ok = not in_main and not branch_ok and bool(wt.head) and content_matches_main(repo, wt.head)
+        worktree_plan.append((wt, *worktree_decision(wt, args.keep, in_main, branch_ok, content_ok)))
 
     # A branch stays checked out unless its worktree is planned for removal. If that
     # removal then fails, git itself refuses to delete a branch that is checked out.
@@ -152,7 +196,8 @@ def main(argv=None):
     branch_plan = []
     for line in git(repo, "for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads").stdout.splitlines():
         name, tip = line.rsplit(" ", 1)
-        branch_plan.append((name, *branch_decision(name, tip, pull_requests.get(name), checked_out)))
+        branch_plan.append((name, *branch_decision(name, tip, pull_requests.get(name), checked_out,
+                                                   content_matches_main(repo, tip))))
 
     for wt, action, reason in worktree_plan:
         print(f"worktree {action:6} {wt.path}  ({reason})")
