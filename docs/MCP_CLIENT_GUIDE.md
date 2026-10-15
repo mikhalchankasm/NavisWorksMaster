@@ -397,6 +397,59 @@ Planned extensions:
 - Excel/XLSX export of clash rows and screenshot metadata.
 - More screenshot camera presets beyond normal/top view.
 
+### Clash zones: spheres at the clash locations
+
+Use `clash_zones_export` and `clash_zones_markers` when the user wants to see where
+the clashes are in the model, hand a coordinator a workbook, or follow the same
+problems from one model iteration to the next. The design note is
+[CLASH_ZONES_PLAN.md](CLASH_ZONES_PLAN.md).
+
+What a run is:
+
+- `clash_zones_export` reads saved Clash Detective results (it never runs tests;
+  use `clash_manage_tests operation=run` or `clash_run_batch` first when the user
+  asks for fresh results) and groups them into **zones**: one object pair, then
+  clash points closer than `epsMm` (300), split again above `maxZoneRadiusMm`
+  (3000). Each zone gets the smallest sphere around its clash points plus
+  `padMm` (100), at least `minRadiusMm` (150). `mode=points` draws one 50 mm
+  sphere per clash instead.
+- `apply=true` writes one run folder, by default
+  `<NWD folder>\clash_zones\<runId>\`: `zones.json` (the machine record),
+  `zones.xlsx` (sheets `Run`, `Zones`, `Clashes`) and `zones.ifc` (one named,
+  semi-transparent sphere per zone with the `NH_ClashZone` property set).
+- New, Active and Reviewed clashes are drawn by default; Approved and Resolved are
+  counted, not drawn.
+
+Safe workflow:
+
+1. `clash_list_tests` to confirm saved, non-empty results and pick the tests.
+2. `clash_zones_export` with `apply=false`: check `zoneCount`, `largestZones`,
+   `weakAssociationCount` and `files`. Weak associations mean the object pair
+   came from a coarse fallback; say so before treating a zone as one object pair.
+3. `clash_zones_export` with `apply=true`.
+4. `clash_zones_markers` with `operation=append`, `markerPath` = the run folder,
+   first `apply=false`, then `apply=true`. The spheres appear as a separate model
+   named `zones.ifc`; the user selects a zone in the tree or by the `ZoneId`
+   property.
+5. Neither tool saves the document. Saving is the user's decision: NWF keeps a
+   reference to `zones.ifc`, NWD embeds the spheres.
+
+Next iteration (a new NWD of the same project):
+
+- Export again with `previousRunPath` = the previous run folder. Each zone then
+  carries `trackId` and `compareState`: `new` (red), `persisting` (orange),
+  `moved` (yellow), and zones that vanished are drawn grey as `D<zoneId>` with
+  `compareState=disappeared`. A comparison workbook
+  `clash_zones_compare_<previous>_<current>.xlsx` lists matches, new and
+  disappeared zones.
+- Runs made with different parameters are refused unless
+  `allowParameterMismatch=true`, which records a warning.
+- Swap the loaded spheres with `clash_zones_markers operation=replace`; take them
+  out with `operation=remove`. Only models named `zones.ifc` are touched, and the
+  first model of the document is never removed.
+- `operation=style` with `transparency` (0..1) changes how see-through the
+  spheres are.
+
 ## Saved Items
 
 Use `list_selection_sets` and `list_saved_viewpoints` before referencing existing saved items.

@@ -1,6 +1,8 @@
 # Clash Zones Plan
 
-Date: 2026-10-14. Status: design, nothing implemented. Evidence is the code, the SDK
+Date: 2026-10-14. Status (2026-10-15): PRs 1–7 merged (#320–#330); the tools are
+`clash_zones_export` and `clash_zones_markers`, used as in the client guide's "Clash
+zones" section. L3 of the two tools is open (#326, #328). Evidence for the design is the code, the SDK
 XML and reference assemblies, the installed loaders, an offline file-size spike and one
 L3 format check in Navisworks 2027 (section 3). Claims still marked **L3** are open.
 
@@ -311,7 +313,7 @@ proposed defaults for everything else. That fixes:
 | Compare surface | A parameter of `clash_zones_export`; no separate `clash_zones_compare` until asked for. |
 | Persistence | The tools never save the document; the coordinator saves as NWF or NWD. Run folders go to `<NWD folder>\clash_zones\<runId>\` unless `outputDirectory` is given. |
 | Scale | At most 50 000 analysed results per run, the existing `maxResults` cap; per-point mode uses the 80-triangle sphere. |
-| Workbook language | Sheet and column titles from resources: English neutral, Russian in `Resources.ru.resx`, per the AGENTS.md language policy. `zones.json` field names stay English. |
+| Workbook language | Sheet names (`Run`, `Zones`, `Clashes`) and column titles are the camelCase `zones.json` field names: technical identifiers under the AGENTS.md language policy, so no resource strings (changed in #324). |
 
 Still open: nothing blocks PRs 1–5. The format check passed on 2027 (section 3);
 2024–2026 and `RemoveFile` are checked with PRs 6–7.

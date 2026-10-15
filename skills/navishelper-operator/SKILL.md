@@ -53,12 +53,13 @@ ID when available. With no request ID, verify that the returned most-recent
 command is the operation in question. A timeout does not prove rollback. Do not
 repeat an uncertain write; report uncertainty if its outcome cannot be resolved.
 
-## Three Starting Requests
+## Four Starting Requests
 
 | User request | Starting tools and profile | Result to verify |
 |---|---|---|
 | “Find the appended HVAC-DEMO.ifc file, select it and zoom to it.” | `core`: exact root search, `select_items`, `selected_items_preview`, `zoom_to_selection` | Actual selected roots and visible result; report ambiguous names. |
 | “Review saved New/Active clashes in HVAC vs Structure and preview a report of the first three.” | `core,clash`: `clash_list_tests`, `clash_list_results` with `limit=3`, then `clash_generate_report` with `limit=3`, `runTests=false`, `apply=false` | Unique test scope, bounded counts and planned paths; this request alone does not authorize report creation or a test rerun. |
+| “Show the saved clashes of PI vs CS as spheres in the model and give me a workbook.” | `core,clash`: `clash_list_tests`, `clash_zones_export` with `apply=false`, then `apply=true`, then `clash_zones_markers` `operation=append` preview/apply | Zone count and largest zones from the dry-run, the written run folder, the appended `zones.ifc` model; neither tool saves the NWD/NWF. |
 | “Save a section-box view of the selected node with 500 mm context and show it.” | `core,sections`: selection checks, `section_box_viewpoint` preview/apply, exact saved-view activation | Saved viewpoint and enabled clipping box; saving the NWD/NWF is a separate action. |
 
 These names are examples, not assumptions about the open model. For complete
