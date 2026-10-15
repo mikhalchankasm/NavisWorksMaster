@@ -112,6 +112,16 @@ jobs:
         shell: pwsh
         run: ./scripts/review/tests/check_codex_review_writeback.ps1
 
+      # #292: -Base origin/main and -Base <SHA> threw in Windows PowerShell 5.1.
+      # Fixture-only, against a throwaway repository; run under both shells.
+      - name: Check the Codex reviewer's base resolution (Windows PowerShell 5.1)
+        shell: powershell
+        run: ./scripts/review/tests/check_codex_review_base.ps1
+
+      - name: Check the Codex reviewer's base resolution (PowerShell 7)
+        shell: pwsh
+        run: ./scripts/review/tests/check_codex_review_base.ps1
+
       - name: Publish OpenRouter AI worker for distribution smoke
         shell: powershell
         run: |

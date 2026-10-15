@@ -243,9 +243,9 @@ string inside an event, so decode it twice); for Qwen, plain text at the end of
 5. **Commit, push, open the PR.** The curator commits the reviewed diff, states the
    provenance (provider, CLI version, record) and the acceptance result in the PR.
    Never force-push; to update a branch, merge `main` into it.
-6. **Review before merge:** `pwsh -File scripts/review/codex-review.ps1 -Base <origin/main SHA>`
-   (Windows PowerShell 5.1 fails on a SHA base, #292), green CI, and L2 on the
-   final SHA for plugin code (AGENTS.md section 4).
+6. **Review before merge:** `scripts/review/codex-review.ps1 -Base origin/main`
+   after a fetch (a bare `main` is the local branch and can be stale; the script
+   warns), green CI, and L2 on the final SHA for plugin code (AGENTS.md section 4).
 7. **Parallel tool PRs:** git merges identical count edits without a conflict and
    still leaves them wrong. After merging one into the other, set every count by
    hand.

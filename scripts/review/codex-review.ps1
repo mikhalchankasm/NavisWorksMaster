@@ -132,19 +132,27 @@ if ($Base) {
     #
     # So: the resolved commit is reported, a diverging remote-tracking ref of the same name
     # is named, and the working tree is appended to the committed range.
+    # --- base resolution (begin) ---
     # ^{commit}, not the bare name: `rev-parse --verify` is happy with a blob or tree
     # SHA too, and the triple-dot diff below then exits 128 for something that looked
     # like a valid base.
-    $baseSha = (& git rev-parse --short --verify ($Base + '^{commit}') 2>$null)
+    #
+    # --quiet, not `2>$null`: under $ErrorActionPreference = 'Stop', Windows PowerShell
+    # 5.1 turns any stderr line of a native command into a terminating error, even when
+    # redirected. The remote-tracking lookup below fails by design for `origin/main` or a
+    # SHA (there is no refs/remotes/origin/origin/main), so `-Base origin/main` -- the
+    # form the docs recommend -- threw "fatal: Needed a single revision" in 5.1 (#292).
+    $baseSha = (& git rev-parse --short --verify --quiet ($Base + '^{commit}'))
     if ($LASTEXITCODE -ne 0 -or -not $baseSha) {
         throw ("Base '" + $Base + "' does not resolve to a commit in this repository.")
     }
-    $remoteSha = (& git rev-parse --short --verify ("refs/remotes/origin/" + $Base) 2>$null)
+    $remoteSha = (& git rev-parse --short --verify --quiet ("refs/remotes/origin/" + $Base))
     if ($remoteSha -and $remoteSha -ne $baseSha) {
         Write-Warning ("Base '" + $Base + "' resolves to " + $baseSha + ", while origin/" + $Base +
             " is " + $remoteSha + ". Reviewing against the local ref as asked; pass -Base origin/" +
             $Base + " to compare against the remote instead.")
     }
+    # --- base resolution (end) ---
     $headSha = (& git rev-parse --short --verify HEAD)
     $scope = "changes against '$Base' ($baseSha), HEAD at $headSha, plus the working tree"
     $diff = @(('--- committed on this branch, ' + $Base + '...HEAD ---'), '')
