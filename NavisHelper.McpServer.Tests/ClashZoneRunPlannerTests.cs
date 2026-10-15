@@ -44,7 +44,7 @@ public sealed class ClashZoneRunPlannerTests
         Assert.Equal(new[] { "id-BEAM-7|id-PIPE-1" }, pair.ItemPairs);
         Assert.Equal("PIPE-1", pair.AssociationNameA);
         Assert.Equal("BEAM-7", pair.AssociationNameB);
-        Assert.Equal(-1.5, pair.MinDistanceMm, 6);
+        Assert.Equal(-1.5, pair.MinDistanceMm.Value, 6);
         Assert.Null(record.Clashes.SingleOrDefault(c => c.ResultGuid == "g5"));
         Assert.Empty(record.Disappeared);
     }
