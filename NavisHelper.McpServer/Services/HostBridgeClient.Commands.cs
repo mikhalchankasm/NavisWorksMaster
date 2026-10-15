@@ -125,6 +125,11 @@ internal sealed partial class HostBridgeClient
         return CallHostAsync<ClashZoneExportResponse>(HostCommandNames.ClashZonesExport, request, cancellationToken, target, 600000);
     }
 
+    public Task<ClashZoneMarkersResponse> ClashZonesMarkersAsync(ClashZoneMarkersRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    {
+        return CallHostAsync<ClashZoneMarkersResponse>(HostCommandNames.ClashZonesMarkers, request, cancellationToken, target, 600000);
+    }
+
     public Task<ClashGroupResultsResponse> ClashGroupResultsAsync(ClashGroupResultsRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
     {
         return CallHostAsync<ClashGroupResultsResponse>(HostCommandNames.ClashGroupResults, request, cancellationToken, target, 600000);

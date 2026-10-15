@@ -130,6 +130,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<ClashZoneExportRequest>,
             (document, request) => new ClashZoneExportService(_commandService).Execute(document, request));
 
+        router.Register<ClashZoneMarkersRequest>(
+            HostCommandNames.ClashZonesMarkers,
+            true,
+            DeserializePayload<ClashZoneMarkersRequest>,
+            (document, request) => new ClashZoneMarkerService().Execute(document, request));
+
         router.Register<ClashGroupResultsRequest>(
             HostCommandNames.ClashGroupResults,
             true,

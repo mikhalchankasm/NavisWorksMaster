@@ -57,6 +57,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `clash_tests_from_sets` | Document, LocalState | Yes | Yes | Yes |
 | `clash_ungroup` | Document | Yes | Yes | Yes |
 | `clash_zones_export` | Files | Yes | Yes | Yes |
+| `clash_zones_markers` | Document | Yes | Yes | Yes |
 | `close_navisworks` | Document, Files, Host | Yes | No | Yes |
 | `create_search_set` | Document | Yes | Yes | Yes |
 | `create_selection_set` | Document | Yes | Yes | Yes |
@@ -1351,6 +1352,34 @@ moved and disappeared zones. No markers are appended to the document.
 `warnings` and `message`. `resultsTruncated=true` means the input exceeded `maxResults`;
 the exported record and all summaries describe only the collected prefix. Results
 without a clash point are skipped with one count warning.
+
+## `clash_zones_markers`
+
+Changes only the loaded `zones.ifc` marker models in the open document. Host command:
+`clash_zones_markers`; effect: `Document`. Never saves the document.
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `operation` | string | required | Trimmed, case-insensitive `append`, `replace`, `remove` or `style`. |
+| `markerPath` | string | empty | Full or relative `zones.ifc` path, or a run folder resolved to `zones.ifc`. Required for append/replace; omitted for remove/style targets every marker model. |
+| `transparency` | number | null | Required for style; finite, from 0 (opaque) to 1 (transparent). |
+| `apply` | bool | false | Preview by default. True changes the marker models. |
+| `instanceId`, `navisworksVersion` | string | empty | Optional host targeting. |
+
+Marker identity uses either `FileName` or `SourceFileName`, case-insensitively.
+Append refuses an already loaded path and directs the caller to replace. Replace
+removes every marker model before appending the new file. Remove/style select the
+given run, or all markers without a path. Removal runs in descending model-index
+order and always preserves index 0 with a warning. Append/replace require an
+existing file named `zones.ifc`, including in dry-run. Invalid inputs return
+`schema_violation`; runtime failures return `command_failed` and can leave partial
+unsaved changes.
+
+`ClashZoneMarkersResponse` includes `operation`, `markerFilePath`, `applied`, the
+pre-operation `loadedMarkerModels`, `removedFiles`, `appended`, `appendedModelIndex`
+(-1 when no model was appended), `styledModelCount`, `warnings` and `message`.
+In dry-run, `removedFiles` and `styledModelCount` describe planned changes;
+`applied` and `appended` remain false. With apply, they describe completed changes.
 
 ## `clash_group_rename`
 

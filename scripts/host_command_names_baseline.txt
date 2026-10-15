@@ -23,6 +23,7 @@ clash_list_tests
 clash_list_results
 clash_list_clusters
 clash_zones_export
+clash_zones_markers
 clash_group_results
 clash_root_matrix
 clash_group_custom

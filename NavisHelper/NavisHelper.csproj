@@ -558,6 +558,7 @@
     <Compile Include="Agent\Services\ClashGroupMutationService.cs" />
     <Compile Include="Agent\Services\ClashGroupRenameService.cs" />
     <Compile Include="Agent\Services\ClashZoneExportService.cs" />
+    <Compile Include="Agent\Services\ClashZoneMarkerService.cs" />
     <Compile Include="Agent\Services\ClashWorkflowService.cs" />
     <Compile Include="Agent\Services\ClashRunPreservationService.cs" />
     <Compile Include="Agent\Services\ClashIgnoreRuleStore.cs" />

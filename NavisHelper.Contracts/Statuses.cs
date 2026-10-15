@@ -41,6 +41,7 @@ namespace NavisHelper.Agent.Contracts
         public const string ClashListResults = "clash_list_results";
         public const string ClashListClusters = "clash_list_clusters";
         public const string ClashZonesExport = "clash_zones_export";
+        public const string ClashZonesMarkers = "clash_zones_markers";
         public const string ClashGroupResults = "clash_group_results";
         public const string ClashRootMatrix = "clash_root_matrix";
         public const string ClashGroupCustom = "clash_group_custom";
