@@ -103,6 +103,24 @@ public sealed class ClashZoneGeometryTests
     }
 
     [Fact]
+    public void MinimumEnclosingSphere_RejectsCoordinatesThatWouldOverflow()
+    {
+        Assert.Throws<ArgumentException>(() => ClashZoneGeometry.MinimumEnclosingSphere(Points((0, 0, 0), (1e200, 0, 0))));
+        Assert.Throws<ArgumentException>(() => ClashZoneGeometry.MinimumEnclosingSphere(Points((0, double.NaN, 0))));
+    }
+
+    [Fact]
+    public void MinimumEnclosingSphere_LongOrderedChainIsExact()
+    {
+        // Sequential ids along a line: the input order that makes an unshuffled Welzl quadratic.
+        var points = Enumerable.Range(0, 50000).Select(i => Point("c" + i.ToString("D6"), i * 10.0, 0, 0)).ToList();
+
+        var sphere = ClashZoneGeometry.MinimumEnclosingSphere(points);
+
+        AssertSphere(sphere, 249995, 0, 0, 249995);
+    }
+
+    [Fact]
     public void BuildZones_SingleClash_GetsTheMinimumRadius()
     {
         var zones = ClashZoneGeometry.BuildZones(new[] { Cluster("A|B", (1200, 3400, 560)) }, null);

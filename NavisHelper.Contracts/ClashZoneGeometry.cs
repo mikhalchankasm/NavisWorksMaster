@@ -16,9 +16,9 @@ namespace NavisHelper.Agent.Contracts
             if (points.Count == 0)
                 throw new ArgumentException("At least one point is required.", nameof(points));
             foreach (var point in points)
-                if (point == null || !Finite(point.X) || !Finite(point.Y) || !Finite(point.Z))
-                    throw new ArgumentException("Points must have finite coordinates.", nameof(points));
-            var ordered = OrderPoints(points);
+                if (point == null || !InRange(point.X) || !InRange(point.Y) || !InRange(point.Z))
+                    throw new ArgumentException("Point coordinates must be finite and within +/-1e12 mm.", nameof(points));
+            var ordered = Shuffle(OrderPoints(points));
             return Solve(ordered, ordered.Count, new List<ClashZonePoint>(4));
         }
 
@@ -88,6 +88,25 @@ namespace NavisHelper.Agent.Contracts
         private static List<ClashZonePoint> OrderPoints(IEnumerable<ClashZonePoint> points) =>
             points.OrderBy(p => p.Id, StringComparer.Ordinal)
                 .ThenBy(p => p.X).ThenBy(p => p.Y).ThenBy(p => p.Z).ToList();
+
+        // Welzl is expected-linear only for a random order: a chain with sequential ids would cost
+        // n^2/2 containment checks. A fixed-seed permutation of the sorted points keeps the result
+        // independent of input order while restoring the expected bound.
+        private static List<ClashZonePoint> Shuffle(List<ClashZonePoint> ordered)
+        {
+            var state = 0x9E3779B97F4A7C15UL;
+            for (var i = ordered.Count - 1; i > 0; i--)
+            {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                var j = (int)(state % (ulong)(i + 1));
+                var swap = ordered[i];
+                ordered[i] = ordered[j];
+                ordered[j] = swap;
+            }
+            return ordered;
+        }
 
         // Welzl's move-to-front variant: recursion follows support points, not input size.
         private static ClashZoneSphere Solve(List<ClashZonePoint> points, int count,
@@ -186,6 +205,9 @@ namespace NavisHelper.Agent.Contracts
         }
 
         private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+
+        // 1e12 mm (a million kilometres) keeps every squared distance far from double overflow.
+        private static bool InRange(double value) => Finite(value) && Math.Abs(value) <= 1e12;
         private static double Dot(Vector u, Vector v) => u.X * v.X + u.Y * v.Y + u.Z * v.Z;
         private static Vector Cross(Vector u, Vector v) => new Vector(
             u.Y * v.Z - u.Z * v.Y, u.Z * v.X - u.X * v.Z, u.X * v.Y - u.Y * v.X);
