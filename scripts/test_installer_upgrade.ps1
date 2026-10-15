@@ -74,13 +74,22 @@ function Get-OwnerInstallSnapshot {
         (Join-Path $env:APPDATA 'NavisHelper'),
         (Join-Path $env:LOCALAPPDATA 'NavisHelper')
     )
+    # Runtime state, not installation: the cross-session MSBuild lock that the very build
+    # running this smoke holds open (scripts/build_lock.py), the MCP call log every running
+    # server appends to, and the live hosts' discovery records. A busy machine changed the
+    # log during the 2.13.0.0 asset build and failed the smoke for no install change.
+    $localRoot = Join-Path $env:LOCALAPPDATA 'NavisHelper'
+    $runtimeFiles = @((Join-Path $localRoot 'build.lock'), (Join-Path $localRoot 'build.lock.holder'))
+    $runtimeFolders = @((Join-Path $localRoot 'Mcp\logs\'), (Join-Path $localRoot 'Mcp\instances\'))
     foreach ($root in $roots) {
         $root + ':' + (Test-Path -LiteralPath $root)
         if (Test-Path -LiteralPath $root) {
-            # build.lock is the cross-session MSBuild lock (scripts/build_lock.py), held open by
-            # the very build that runs this smoke; it is not part of the installation.
             Get-ChildItem -LiteralPath $root -Recurse -File |
-                Where-Object { $_.Name -ne 'build.lock' -and $_.Name -ne 'build.lock.holder' } |
+                Where-Object {
+                    $path = $_.FullName
+                    ($runtimeFiles -notcontains $path) -and
+                        -not ($runtimeFolders | Where-Object { $path.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) })
+                } |
                 Sort-Object FullName | ForEach-Object {
                 $_.FullName + ':' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
             }
