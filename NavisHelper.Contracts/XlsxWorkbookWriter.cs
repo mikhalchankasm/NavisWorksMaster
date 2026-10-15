@@ -23,6 +23,7 @@ namespace NavisHelper.Agent.Contracts
         private static readonly XNamespace Rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
         private static readonly XNamespace PackageRel = "http://schemas.openxmlformats.org/package/2006/relationships";
         private static readonly XNamespace ContentTypes = "http://schemas.openxmlformats.org/package/2006/content-types";
+        private const int MaxCellText = 32767;
         private static readonly DateTimeOffset EntryTime = new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
         public static void Write(Stream output, IEnumerable<XlsxSheet> sheets)
@@ -183,6 +184,9 @@ namespace NavisHelper.Agent.Contracts
             if (value is string)
             {
                 text = CleanXml((string)value);
+                // Excel refuses a cell longer than 32767 characters and offers to repair the file.
+                if (text.Length > MaxCellText)
+                    text = text.Substring(0, char.IsHighSurrogate(text[MaxCellText - 1]) ? MaxCellText - 1 : MaxCellText);
                 type = "inlineStr";
             }
             else if (value is bool)

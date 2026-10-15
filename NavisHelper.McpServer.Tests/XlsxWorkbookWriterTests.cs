@@ -86,6 +86,14 @@ public sealed class XlsxWorkbookWriterTests
     }
 
     [Fact]
+    public void Write_TextLongerThanExcelsCellLimitIsCut()
+    {
+        var parts = Write(Sheet("Clashes", new object[] { new string('x', 40000) }));
+
+        Assert.Equal(32767, Row(parts, 1, 2)[0].Element(Main + "is").Element(Main + "t").Value.Length);
+    }
+
+    [Fact]
     public void Write_BooleansNullsAndWideRowsKeepTheirColumns()
     {
         var wide = new object[30];
