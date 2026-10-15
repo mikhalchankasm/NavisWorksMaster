@@ -21,6 +21,10 @@ public sealed class McpServerInstructionsTests
         Assert.InRange(instructions.Length, 300, 1500);
         foreach (var required in new[] { "`active_model_context`", "`list_navisworks_hosts`", "`save_document`", McpToolCatalogResources.CatalogUri })
             Assert.Contains(required, instructions, StringComparison.Ordinal);
+        // Tool schemas carry these two host-selection parameters without a description;
+        // the guide explains them once.
+        foreach (var parameter in new[] { "instanceId", "navisworksVersion" })
+            Assert.Contains(parameter, instructions, StringComparison.Ordinal);
 
         var tools = (await client.ListToolsAsync(cancellationToken: timeout.Token)).Select(tool => tool.Name).ToHashSet(StringComparer.Ordinal);
         var named = Regex.Matches(instructions, "`([^`]+)`").Select(match => match.Groups[1].Value)

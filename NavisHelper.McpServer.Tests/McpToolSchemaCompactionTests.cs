@@ -10,19 +10,35 @@ namespace NavisHelper.McpServer.Tests;
 
 // tools/list cost about 50k tokens per request. McpToolSchemaCompaction trims it at
 // startup without changing what a tool accepts: the boilerplate host-selection
-// descriptions shrink, null/empty defaults disappear, and a trailing
+// descriptions go (the server instructions explain instanceId and
+// navisworksVersion once), null/empty defaults disappear, and a trailing
 // "Default is X." sentence goes when the schema already says default X.
 // Everything else - names, types, required, other defaults, the rest of
 // every description - must survive byte for byte.
 public sealed class McpToolSchemaCompactionTests
 {
-    internal static readonly IReadOnlyDictionary<string, string> Rewrites = new Dictionary<string, string>
+    // Host-selection boilerplate, repeated on about a hundred tools. These exact
+    // texts lose their description; any other text on these two parameters (for
+    // example start_navisworks's version list) is tool-specific and stays.
+    internal static readonly IReadOnlyDictionary<string, string[]> RoutingDescriptions = new Dictionary<string, string[]>
     {
-        ["Optional explicit Navisworks host instance_id from list_navisworks_hosts."] = "Host instance_id from list_navisworks_hosts.",
-        ["Optional explicit Navisworks host instance_id."] = "Host instance_id from list_navisworks_hosts.",
-        ["Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running."] =
-            "Navisworks version, e.g. 2027, when one host of it runs.",
+        ["instanceId"] = new[]
+        {
+            "Optional explicit Navisworks host instance_id from list_navisworks_hosts.",
+            "Optional explicit Navisworks host instance_id.",
+            "Optional explicit Navisworks host instance_id from list_navisworks_hosts. Recommended when several versions/instances are running.",
+        },
+        ["navisworksVersion"] = new[]
+        {
+            "Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.",
+            "Optional Navisworks version.",
+            "Optional Navisworks version, when exactly one host of that version is running.",
+            "Optional Navisworks version, for example 2027.",
+        },
     };
+
+    private static bool IsRoutingDescription(string key, string text) =>
+        RoutingDescriptions.TryGetValue(key, out var texts) && texts.Contains(text, StringComparer.Ordinal);
 
     private static List<McpServerTool> CreateTools() => McpReadOnlyMode.RegisteredToolMethods()
         .Select(method => method.IsStatic
@@ -77,6 +93,11 @@ public sealed class McpToolSchemaCompactionTests
 
                 var oldText = oldProperty["description"]?.GetValue<string>() ?? "";
                 var newText = newProperty["description"]?.GetValue<string>() ?? "";
+                if (IsRoutingDescription(key, oldText))
+                {
+                    if (newProperty.ContainsKey("description")) problems.Add(where + " kept its host-selection description");
+                    continue;
+                }
                 if (newText.Length == 0) { problems.Add(where + " lost its description"); continue; }
                 if (!AllowedDescription(oldText, newText, emptyDefault ? null : oldDefault))
                     problems.Add(where + ": '" + oldText + "' -> '" + newText + "'");
@@ -86,13 +107,11 @@ public sealed class McpToolSchemaCompactionTests
         Assert.True(problems.Count == 0, problems.Count + " problems:\n" + string.Join("\n", problems.Take(40)));
     }
 
-    // The new text equals the old one, or the pinned rewrite, or the old one with
-    // its final "Default is X." / "Default is X/dry-run." sentence removed where
+    // The new text equals the old one, or the old one with its final "Default is X." / "Default is X/dry-run." sentence removed where
     // X is exactly the schema default.
     private static bool AllowedDescription(string oldText, string newText, JsonNode schemaDefault)
     {
         if (newText == oldText) return true;
-        if (Rewrites.TryGetValue(oldText, out var rewrite)) return newText == rewrite;
         var match = Regex.Match(oldText, @"^(?<rest>.*\S)\s+Default is (?<value>[^.\s/]+)(?:/dry-run)?\.$", RegexOptions.Singleline);
         if (!match.Success || schemaDefault == null) return false;
         var literal = schemaDefault.GetValueKind() == JsonValueKind.String ? schemaDefault.GetValue<string>() : schemaDefault.ToJsonString();
@@ -107,6 +126,22 @@ public sealed class McpToolSchemaCompactionTests
         await using var client = await McpCatalogResourceTests.ConnectAsync("all", false, timeout.Token);
         var tools = await client.ListToolsAsync(cancellationToken: timeout.Token);
         var host = JsonNode.Parse(tools.Single(tool => tool.Name == "host_status").ProtocolTool.InputSchema.GetRawText())!;
-        Assert.Equal("Host instance_id from list_navisworks_hosts.", host["properties"]!["instanceId"]!["description"]!.GetValue<string>());
+        var instanceId = host["properties"]!["instanceId"]!.AsObject();
+        Assert.Equal("string", instanceId["type"]!.GetValue<string>());
+        Assert.False(instanceId.ContainsKey("description"), "host_status.instanceId kept its description");
+
+        // The rule fires across the surface, and the tool-specific version texts survive.
+        var dropped = 0;
+        foreach (var tool in tools)
+        {
+            var properties = JsonNode.Parse(tool.ProtocolTool.InputSchema.GetRawText())!["properties"]?.AsObject();
+            foreach (var key in RoutingDescriptions.Keys)
+                if (properties?[key] is JsonObject property && !property.ContainsKey("description"))
+                    dropped++;
+        }
+        Assert.True(dropped >= 180, $"only {dropped} host-selection parameters lost their description");
+        var start = JsonNode.Parse(tools.Single(tool => tool.Name == "start_navisworks").ProtocolTool.InputSchema.GetRawText())!;
+        Assert.StartsWith("Optional Navisworks version: 2024, 2025, 2026, or 2027.",
+            start["properties"]!["navisworksVersion"]!["description"]!.GetValue<string>(), StringComparison.Ordinal);
     }
 }
