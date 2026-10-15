@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -24,6 +25,11 @@ namespace NavisHelper.Agent.Contracts
         private static readonly XNamespace PackageRel = "http://schemas.openxmlformats.org/package/2006/relationships";
         private static readonly XNamespace ContentTypes = "http://schemas.openxmlformats.org/package/2006/content-types";
         private const int MaxCellText = 32767;
+        private const int MaxRows = 1048576;
+        private const int MaxColumns = 16384;
+        // SpreadsheetML reads "_xHHHH_" in cell text as an escaped character; a literal one is
+        // written with its underscore escaped as "_x005F_".
+        private static readonly Regex EscapeLike = new Regex("_(x[0-9A-Fa-f]{4}_)", RegexOptions.CultureInvariant);
         private static readonly DateTimeOffset EntryTime = new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
         public static void Write(Stream output, IEnumerable<XlsxSheet> sheets)
@@ -37,8 +43,16 @@ namespace NavisHelper.Agent.Contracts
             {
                 if (sheet == null || string.IsNullOrEmpty(sheet.Name) || sheet.Name.Length > 31 ||
                     sheet.Name.IndexOfAny(new[] { '[', ']', ':', '*', '?', '/', '\\' }) >= 0 ||
+                    sheet.Name[0] == '\'' || sheet.Name[sheet.Name.Length - 1] == '\'' ||
+                    string.Equals(sheet.Name, "History", StringComparison.OrdinalIgnoreCase) ||
                     CleanXml(sheet.Name) != sheet.Name || !names.Add(sheet.Name))
                     throw new ArgumentException("Sheet names must be valid and unique ignoring case.", nameof(sheets));
+                var header = sheet.Columns != null && sheet.Columns.Count > 0 ? 1 : 0;
+                var rows = sheet.Rows == null ? 0 : sheet.Rows.Count;
+                var width = Math.Max(sheet.Columns == null ? 0 : sheet.Columns.Count,
+                    sheet.Rows == null ? 0 : sheet.Rows.Select(r => r == null ? 0 : r.Count).DefaultIfEmpty(0).Max());
+                if (header + rows > MaxRows || width > MaxColumns)
+                    throw new ArgumentException("Sheet " + sheet.Name + " exceeds Excel's 1048576 rows or 16384 columns.", nameof(sheets));
             }
 
             using (var archive = new ZipArchive(output, ZipArchiveMode.Create, true))
@@ -183,7 +197,7 @@ namespace NavisHelper.Agent.Contracts
             var type = string.Empty;
             if (value is string)
             {
-                text = CleanXml((string)value);
+                text = EscapeLike.Replace(CleanXml((string)value), "_x005F_$1");
                 // Excel refuses a cell longer than 32767 characters and offers to repair the file.
                 if (text.Length > MaxCellText)
                     text = text.Substring(0, char.IsHighSurrogate(text[MaxCellText - 1]) ? MaxCellText - 1 : MaxCellText);

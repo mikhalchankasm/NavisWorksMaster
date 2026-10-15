@@ -94,6 +94,22 @@ public sealed class XlsxWorkbookWriterTests
     }
 
     [Fact]
+    public void Write_LiteralSpreadsheetEscapesAreEscaped()
+    {
+        var parts = Write(Sheet("Clashes", new object[] { "part_x000D_name _X12AB_ _x00g_" }));
+
+        Assert.Equal("part_x005F_x000D_name _X12AB_ _x00g_", Row(parts, 1, 2)[0].Element(Main + "is").Element(Main + "t").Value);
+    }
+
+    [Fact]
+    public void Write_RejectsSheetsBeyondExcelsGrid()
+    {
+        var tooWide = new XlsxSheet { Name = "Wide", Columns = new List<string>(), Rows = new List<IList<object>> { new object[16385] } };
+
+        Assert.Throws<ArgumentException>(() => Bytes(tooWide));
+    }
+
+    [Fact]
     public void Write_BooleansNullsAndWideRowsKeepTheirColumns()
     {
         var wide = new object[30];
@@ -159,6 +175,9 @@ public sealed class XlsxWorkbookWriterTests
     [InlineData("a[1]")]
     [InlineData("what?")]
     [InlineData("1234567890123456789012345678901x")]
+    [InlineData("'Zones")]
+    [InlineData("Zones'")]
+    [InlineData("history")]
     public void Write_RejectsInvalidSheetNames(string name)
     {
         Assert.Throws<ArgumentException>(() => Bytes(Sheet(name)));
