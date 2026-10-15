@@ -16,8 +16,13 @@ namespace NavisHelper.Agent.Services
             ClashZoneMarkerPlan plan;
             try
             {
+                // An existing folder is a run folder even when its name has a dot ("run.1"), which
+                // the pure planner would read as a file extension.
+                var markerPath = request.MarkerPath;
+                if (!string.IsNullOrWhiteSpace(markerPath) && Directory.Exists(markerPath.Trim()))
+                    markerPath = Path.Combine(markerPath.Trim(), "zones.ifc");
                 plan = ClashZoneMarkerModelPlanner.Plan(Snapshot(document), request.Operation,
-                    request.MarkerPath, request.Transparency);
+                    markerPath, request.Transparency);
                 if (plan.Append)
                 {
                     // Only zones.ifc belongs to this service, including files being appended.
@@ -27,8 +32,9 @@ namespace NavisHelper.Agent.Services
                         throw new ArgumentException("Marker file does not exist: " + plan.MarkerFilePath);
                 }
             }
-            catch (ArgumentException ex)
+            catch (Exception ex) when (ex is ArgumentException || ex is PathTooLongException || ex is NotSupportedException)
             {
+                // Path.GetFullPath reports an over-long or unsupported path outside ArgumentException.
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, ex.Message);
             }
             var response = new ClashZoneMarkersResponse {
