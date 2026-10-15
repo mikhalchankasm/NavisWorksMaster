@@ -203,13 +203,17 @@ powershell -ExecutionPolicy Bypass -File tools\install_local_mcp_server.ps1
 ## Команды сборки
 
 ```powershell
-& 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe' NavisHelper.sln /p:Configuration=Release2024 /p:Platform=x64
-& 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe' NavisHelper.sln /p:Configuration=Release2025 /p:Platform=x64
-& 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe' NavisHelper.sln /p:Configuration=Release2026 /p:Platform=x64
-& 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe' NavisHelper.sln /p:Configuration=Release2027 /p:Platform=x64
+$msbuild = 'C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe'
+foreach ($year in 2024, 2025, 2026, 2027) {
+    python scripts/build_lock.py -- $msbuild NavisHelper.sln -restore /p:Configuration=Release$year /p:Platform=x64
+}
 ```
 
-Если `msbuild` не находится через `PATH`, использовать полный путь, как выше.
+На этой машине стоит Visual Studio 18; путь от VS 2022 подставлять только там, где
+установлена она. `scripts/build_lock.py` держит общую для всех сессий машины
+блокировку на время команды: две агентские сессии, собиравшие одновременно, однажды
+обрушили MSBuild с диалогом на экране владельца (#312). Через неё же запускаются
+`tools/build_installer.ps1` и лаунчер исполнителя (docs/EXECUTOR_SETUP.md, раздел 6).
 
 ## Проверка после изменений
 

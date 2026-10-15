@@ -167,7 +167,7 @@ resolves `scripts.*` from the current directory):
 
 ```bash
 S=C:/path/to/scratch            # outside every checkout
-( python -m scripts.external_worktree_executor \
+( python scripts/build_lock.py -- python -m scripts.external_worktree_executor \
     --provider codex \
     --worktree 'D:\GitHub\NH-i123' \
     --brief "$S/brief123.md" \
@@ -188,8 +188,11 @@ S=C:/path/to/scratch            # outside every checkout
 - A background job sends no notification; poll for the `.done` file.
 - During a run do not commit, pull, build or switch branches in the main checkout.
 - On one machine run at most one MSBuild-heavy job at a time (an executor that
-  builds, or an L2 run). Script-only tasks may run in parallel in separate
-  worktrees.
+  builds, an L2 run, an installer build), across all sessions: start each through
+  `python scripts/build_lock.py -- <command>`. The lock is machine-wide and Windows
+  releases it when its holder exits; a second job waits and says who holds it, and
+  gives up with exit 75 after `--timeout` seconds (default 3600). Script-only tasks
+  may skip it and run in parallel in separate worktrees.
 
 ### Exit codes
 
@@ -266,7 +269,7 @@ PR or widen the task. A same-account review is a report, not an approval.
 | dotnet's first run in a fresh home | It appended hundreds of dead entries to the real user `PATH`. | `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=0`; the host guard exits 6. |
 | Codex elevated sandbox | Its accounts got read access to the whole profile; a Windows profile was lost. | `sandbox = "unelevated"`, a redirected `TEMP`, and the host guard. |
 | MSBuild orphan nodes | 131 nodes, about 4 GB, slowed the PC. | Node reuse off; after each run the launcher stops this run's orphans. Never kill processes by image name. |
-| Parallel MSBuild | A crash dialog on the owner's screen. | One MSBuild-heavy job at a time. |
+| Parallel MSBuild | A crash dialog on the owner's screen; two sessions each built "one at a time". | `scripts/build_lock.py` serializes MSBuild-heavy jobs across sessions (#312). |
 | Stream overflow | Codex died at the old 256 KB cap. | The cap is 8 MB (exit 125); briefs ask for output tails only. |
 | A process stop from the executor | A stop by name can hit the owner's Navisworks. | The preamble forbids stops; `PROCESS_STOP_OUTSIDE_RUN` fails the run (EXTERNAL_EXECUTORS.md). |
 | A nested review | An executor started `scripts/review/*` inside its own run. | Every brief says "Do not run scripts/review/*". |
