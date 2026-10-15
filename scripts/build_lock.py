@@ -9,10 +9,12 @@ the sessions. Every MSBuild-heavy command goes through this wrapper instead:
 
 That covers the executor launcher (its run may build), an L2 MSBuild matrix and
 tools/build_installer.ps1. The lock is an exclusive OS byte-range lock on
-%LOCALAPPDATA%\\NavisHelper\\build.lock. Windows drops it when the holding process
-exits for any reason, so a crashed or killed session cannot leave a stale lock;
-the file staying behind means nothing. The handle is not inherited by the child,
-so a leftover MSBuild node cannot keep the lock either.
+%LOCALAPPDATA%\\NavisHelper\\build.lock, so it spans every session of one Windows
+account -- all agent sessions on this machine run under the owner's. Windows drops
+it when the holding process exits for any reason, so a crashed or killed session
+cannot leave a stale lock; the file staying behind means nothing. The command runs
+in a kill-on-close Job Object, so killing the wrapper ends the build with it rather
+than freeing the lock beside a build still running.
 
 A waiting run says who holds the lock (from build.lock.holder), polls, and after
 --timeout seconds exits 75 without running the command. Otherwise the command's
@@ -62,7 +64,8 @@ def acquire(lock_file: Path, timeout: float, poll: float):
     deadline = time.monotonic() + timeout
     announced = False
     while not try_lock(handle):
-        if time.monotonic() >= deadline:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
             handle.close()
             print(f"build_lock: timed out after {timeout:g} s; {holder_text(holder_file)} still holds {lock_file}",
                   file=sys.stderr)
@@ -70,8 +73,35 @@ def acquire(lock_file: Path, timeout: float, poll: float):
         if not announced:
             print(f"build_lock: waiting for the build lock held by {holder_text(holder_file)}", file=sys.stderr)
             announced = True
-        time.sleep(poll)
+        # Never sleep past the deadline: a long poll would otherwise take a lock freed
+        # after the timeout and run a command the caller had already given up on.
+        time.sleep(min(poll, remaining))
     return handle
+
+
+def run_in_job(command: list[str]) -> int:
+    """Run command in a kill-on-close Job Object, the launcher's own pair of helpers.
+
+    The OS drops the file lock the moment this process dies; without the Job, a
+    killed wrapper would leave its MSBuild running while the next build starts. The
+    child starts suspended and is resumed only once it is in the Job, so nothing it
+    spawns escapes. Closing the Job also ends whatever the command left behind.
+    """
+    from executor_primitives import _WindowsJob, _resume_windows_process
+
+    process = subprocess.Popen(command, creationflags=0x00000004)  # CREATE_SUSPENDED; subprocess has no name for it
+    job = _WindowsJob()
+    try:
+        try:
+            job.assign(process)
+            _resume_windows_process(process)
+        except BaseException:
+            process.kill()
+            process.wait()
+            raise
+        return process.wait()
+    finally:
+        job.close()
 
 
 def main(argv=None) -> int:
@@ -93,7 +123,7 @@ def main(argv=None) -> int:
     try:
         holder = f"pid {os.getpid()} since {datetime.now():%Y-%m-%d %H:%M:%S}: {' '.join(command)[:200]}"
         Path(str(lock_file) + ".holder").write_text(holder + "\n", encoding="utf-8")
-        return subprocess.run(command).returncode
+        return run_in_job(command)
     finally:
         handle.close()
 

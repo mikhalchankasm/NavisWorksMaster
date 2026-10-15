@@ -189,7 +189,8 @@ S=C:/path/to/scratch            # outside every checkout
 - During a run do not commit, pull, build or switch branches in the main checkout.
 - On one machine run at most one MSBuild-heavy job at a time (an executor that
   builds, an L2 run, an installer build), across all sessions: start each through
-  `python scripts/build_lock.py -- <command>`. The lock is machine-wide and Windows
+  `python scripts/build_lock.py -- <command>`. The lock spans every session of the Windows
+  account (all agent sessions here run under the owner's), and Windows
   releases it when its holder exits; a second job waits and says who holds it, and
   gives up with exit 75 after `--timeout` seconds (default 3600). Script-only tasks
   may skip it and run in parallel in separate worktrees.

@@ -19,6 +19,28 @@ SCRIPT = ROOT / "scripts" / "build_lock.py"
 TIMEOUT_EXIT = 75
 
 
+def process_alive(pid: int) -> bool:
+    """Without os.kill: on Windows os.kill(pid, 0) would terminate the process."""
+    import ctypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.restype = ctypes.c_void_p
+    handle = kernel32.OpenProcess(0x00100000, False, pid)  # SYNCHRONIZE
+    if not handle:
+        return False
+    try:
+        return kernel32.WaitForSingleObject(ctypes.c_void_p(handle), 0) == 0x00000102  # WAIT_TIMEOUT
+    finally:
+        kernel32.CloseHandle(ctypes.c_void_p(handle))
+
+
+def stop(process: subprocess.Popen) -> None:
+    """Kill and wait, so the lock file is closed before the temp folder is removed."""
+    if process.poll() is None:
+        process.kill()
+    process.wait(timeout=20)
+
+
 class BuildLockTests(unittest.TestCase):
     def setUp(self):
         folder = tempfile.TemporaryDirectory(prefix="build-lock-")
@@ -37,7 +59,7 @@ class BuildLockTests(unittest.TestCase):
     def start_holder(self, seconds: float) -> subprocess.Popen:
         holder = subprocess.Popen(self.args(sys.executable, "-c", f"import time; time.sleep({seconds})"),
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        self.addCleanup(lambda: holder.poll() is None and holder.kill())
+        self.addCleanup(stop, holder)
         deadline = time.monotonic() + 20
         while not self.holder_file.exists():
             self.assertLess(time.monotonic(), deadline, "the holder never took the lock")
@@ -74,6 +96,34 @@ class BuildLockTests(unittest.TestCase):
         result = self.run_locked(sys.executable, "-c", "print('ran')", timeout=5)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertNotIn("waiting", result.stderr)
+
+    def test_killing_the_holder_also_ends_the_command_it_runs(self):
+        # Otherwise the lock is free while the old build still runs, and a second
+        # build starts beside it: the very thing the lock exists to prevent.
+        pid_file = Path(str(self.lock) + ".child")
+        holder = subprocess.Popen(self.args(sys.executable, "-c",
+                                            f"import os, time; open(r'{pid_file}', 'w').write(str(os.getpid())); time.sleep(60)"),
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(stop, holder)
+        deadline = time.monotonic() + 20
+        while not (pid_file.exists() and pid_file.read_text()):
+            self.assertLess(time.monotonic(), deadline, "the command never started")
+            time.sleep(0.05)
+        child = int(pid_file.read_text())
+        holder.kill()
+        holder.wait(timeout=20)
+        deadline = time.monotonic() + 10
+        while process_alive(child):
+            self.assertLess(time.monotonic(), deadline, f"the command (pid {child}) outlived its killed holder")
+            time.sleep(0.1)
+
+    def test_a_long_poll_does_not_outlast_the_timeout(self):
+        self.start_holder(2)
+        result = subprocess.run([sys.executable, str(SCRIPT), "--lock-file", str(self.lock), "--timeout", "1",
+                                 "--poll", "5", "--", sys.executable, "-c", "print('ran')"],
+                                capture_output=True, encoding="utf-8", errors="replace", timeout=60)
+        self.assertEqual(TIMEOUT_EXIT, result.returncode, result.stderr)
+        self.assertNotIn("ran", result.stdout)
 
     def test_a_missing_command_is_a_usage_error(self):
         result = subprocess.run([sys.executable, str(SCRIPT), "--lock-file", str(self.lock)],
