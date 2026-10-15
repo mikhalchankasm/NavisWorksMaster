@@ -457,8 +457,9 @@ namespace NavisHelper.AI
             {
                 await predecessor.ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not await the preceding AI settings diagnostic: " + ex.Message, "OpenRouterSettings");
             }
 
             await Task.Run(() =>
@@ -467,8 +468,9 @@ namespace NavisHelper.AI
                 {
                     _diagnosticSink.Write(diagnostic);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Logger.Warn("Could not write an AI settings phase diagnostic: " + ex.Message, "OpenRouterSettings");
                 }
             }).ConfigureAwait(false);
         }

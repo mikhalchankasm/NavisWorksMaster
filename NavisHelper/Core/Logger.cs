@@ -81,6 +81,7 @@ namespace NavisHelper.Core
                     }
                     catch
                     {
+                        // Mutex cleanup failures must not escape logging; the logger cannot report itself.
                     }
                 }
             }
@@ -173,6 +174,7 @@ namespace NavisHelper.Core
             }
             catch
             {
+                // Rotation is best effort; reporting its failure through Logger would recurse.
             }
         }
 

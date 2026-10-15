@@ -120,6 +120,7 @@ namespace NavisHelper.AI
             }
             catch (ObjectDisposedException)
             {
+                // An already disposed cancellation source needs no further cancellation.
             }
             cancellation.Dispose();
         }

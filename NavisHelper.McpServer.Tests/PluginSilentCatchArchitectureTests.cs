@@ -17,14 +17,11 @@ public sealed class PluginSilentCatchArchitectureTests
     private static readonly IReadOnlyDictionary<string, (int Count, string Reason)> AllowedSilentCatches =
         new Dictionary<string, (int Count, string Reason)>(StringComparer.Ordinal)
         {
-            ["AIConfig.cs"] = (1, NotYetTriaged),
-            ["AI/AISettingsAsyncBoundary.cs"] = (2, NotYetTriaged),
-            ["AI/AISettingsInfrastructureExecutor.cs"] = (2, NotYetTriaged),
-            ["AI/AISettingsOperationLifetime.cs"] = (1, NotYetTriaged),
+            ["AIConfig.cs"] = (1, "AIConfigFilePersistence.Save logs the failure before rethrowing; the fire-and-forget persist only observes it"),
             ["ClashMarkerTool.cs"] = (3, NotYetTriaged),
             ["CopySelectedNames.cs"] = (1, NotYetTriaged),
-            ["Core/Localization/UiLocalizationBindingRegistry.cs"] = (1, NotYetTriaged),
-            ["Core/Logger.cs"] = (4, NotYetTriaged),
+            ["Core/Localization/UiLocalizationBindingRegistry.cs"] = (1, "guards the localization failure logger itself; logging its failure again would be circular"),
+            ["Core/Logger.cs"] = (4, "the logger cannot report its own failures"),
             ["ElevationGraphicsMarkerTool.cs"] = (3, NotYetTriaged),
             ["MarkupViewpoint.cs"] = (1, NotYetTriaged),
             ["SaveHierarhy.cs"] = (1, NotYetTriaged),
@@ -32,7 +29,6 @@ public sealed class PluginSilentCatchArchitectureTests
             ["SelectionHatchMarker.cs"] = (1, NotYetTriaged),
             ["WPF/NavisHelperPanel.Clash.cs"] = (1, NotYetTriaged),
             ["WPF/NavisHelperPanel.Clash.Operations.cs"] = (3, NotYetTriaged),
-            ["WPF/NavisHelperSettingsTabBuilder.cs"] = (5, NotYetTriaged),
         };
 
     private static readonly Regex CatchHeader = new(

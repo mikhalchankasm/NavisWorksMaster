@@ -1,3 +1,4 @@
+using NavisHelper.Core;
 using System;
 using System.Threading.Tasks;
 
@@ -37,10 +38,12 @@ namespace NavisHelper.AI
                 }
                 catch (OperationCanceledException)
                 {
+                    // Failure reporting was canceled during normal lifecycle shutdown.
                 }
-                catch
+                catch (Exception failureEx)
                 {
                     // An event boundary must never fault while reporting a fault.
+                    Logger.Warn("Could not report an AI settings operation failure: " + failureEx.Message, "AISettings");
                 }
             }
         }

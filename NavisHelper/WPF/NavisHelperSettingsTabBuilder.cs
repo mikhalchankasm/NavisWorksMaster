@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Navigation;
 using System.Windows.Threading;
+using NavisHelper.Core;
 using NavisHelper.AI;
 using NavisHelper.Core.Localization;
 
@@ -361,9 +362,10 @@ namespace NavisHelper.WPF
                     ConnectOpenRouterAsync,
                     ex => HandleUnexpectedConnectionErrorAsync(null, ex));
             }
-            catch
+            catch (Exception ex)
             {
                 // The WPF event boundary must never propagate an exception.
+                Logger.Warn("Could not complete the OpenRouter connection event: " + ex.Message, "NavisHelperSettingsTabBuilder.OpenRouterKeys");
             }
         }
 
@@ -398,9 +400,10 @@ namespace NavisHelper.WPF
                     VerifyExistingKeyAsync,
                     ex => HandleUnexpectedConnectionErrorAsync(null, ex));
             }
-            catch
+            catch (Exception ex)
             {
                 // ResumeAfterLoad must not launch an unobserved faulted Task.
+                Logger.Warn("Could not verify the existing OpenRouter key after loading: " + ex.Message, "NavisHelperSettingsTabBuilder.OpenRouterKeys");
             }
         }
 
@@ -712,9 +715,10 @@ namespace NavisHelper.WPF
                     RefreshModelsSafelyAsync,
                     ex => HandleUnexpectedCatalogErrorAsync(null, ex));
             }
-            catch
+            catch (Exception ex)
             {
                 // The WPF event boundary must never propagate an exception.
+                Logger.Warn("Could not complete the OpenRouter model refresh event: " + ex.Message, "NavisHelperSettingsTabBuilder.OpenRouterKeys");
             }
         }
 
@@ -788,9 +792,10 @@ namespace NavisHelper.WPF
                     DisconnectOpenRouterAsync,
                     ex => HandleUnexpectedConnectionErrorAsync(null, ex));
             }
-            catch
+            catch (Exception ex)
             {
                 // The WPF event boundary must never propagate an exception.
+                Logger.Warn("Could not complete the OpenRouter disconnection event: " + ex.Message, "NavisHelperSettingsTabBuilder.OpenRouterKeys");
             }
         }
 
@@ -843,9 +848,10 @@ namespace NavisHelper.WPF
                     CommitSelectedModelAsync,
                     ex => HandleUnexpectedCatalogErrorAsync(null, ex));
             }
-            catch
+            catch (Exception ex)
             {
                 // The WPF event boundary must never propagate an exception.
+                Logger.Warn("Could not complete the selected OpenRouter model commit event: " + ex.Message, "NavisHelperSettingsTabBuilder.OpenRouterKeys");
             }
         }
 
