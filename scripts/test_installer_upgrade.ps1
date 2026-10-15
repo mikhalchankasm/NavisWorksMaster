@@ -77,7 +77,11 @@ function Get-OwnerInstallSnapshot {
     foreach ($root in $roots) {
         $root + ':' + (Test-Path -LiteralPath $root)
         if (Test-Path -LiteralPath $root) {
-            Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName | ForEach-Object {
+            # build.lock is the cross-session MSBuild lock (scripts/build_lock.py), held open by
+            # the very build that runs this smoke; it is not part of the installation.
+            Get-ChildItem -LiteralPath $root -Recurse -File |
+                Where-Object { $_.Name -ne 'build.lock' -and $_.Name -ne 'build.lock.holder' } |
+                Sort-Object FullName | ForEach-Object {
                 $_.FullName + ':' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
             }
         }
