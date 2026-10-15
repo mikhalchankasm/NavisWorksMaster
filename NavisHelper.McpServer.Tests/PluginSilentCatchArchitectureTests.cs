@@ -42,7 +42,7 @@ public sealed class PluginSilentCatchArchitectureTests
         };
 
     private static readonly Regex CatchHeader = new(
-        @"\bcatch\b\s*(?:\(\s*(?<type>[\w.]+)(?:\s+(?<variable>\w+))?\s*\))?\s*(?:when\s*\((?<filter>(?>[^()]+|\((?<depth>)|\)(?<-depth>))*(?(depth)(?!)))\)\s*)?\{");
+        @"\bcatch\b\s*(?:\(\s*(?<type>[\w.:]+)(?:\s+(?<variable>\w+))?\s*\))?\s*(?:when\s*\((?<filter>(?>[^()]+|\((?<depth>)|\)(?<-depth>))*(?(depth)(?!)))\)\s*)?\{");
 
     [Fact]
     public void EverySilentCatchIsNarrowedAndJustifiedOrAllowlisted()
@@ -102,6 +102,9 @@ public sealed class PluginSilentCatchArchitectureTests
     [InlineData("try { } catch (Exception ex) when (ShouldIgnore(ex, Kind(ex))) { // Expected while closing.\n }", false)]
     [InlineData("var example = \"catch { }\"; // catch { }\n/* catch { } */", false)]
     [InlineData("try { } catch (Exception ex) { var s = $\"{ex.Message} }}\"; }", false)]
+    [InlineData("var text = $\"{Format(\"catch { }\")}\"; var other = @$\"{Format(@\"catch { }\")}\";", false)]
+    [InlineData("try { } catch (global::System.Exception) { }", true)]
+    [InlineData("try { } catch (global::System.IO.IOException) { // Expected when the pipe closes.\n }", false)]
     public void ClassifierRecognizesSilentCatches(string source, bool silent)
     {
         Assert.Equal(silent, FindSilentCatches(source).Count == 1);
@@ -123,6 +126,8 @@ public sealed class PluginSilentCatchArchitectureTests
                 continue;
 
             var type = match.Groups["type"].Success ? match.Groups["type"].Value : null;
+            if (type != null && type.StartsWith("global::", StringComparison.Ordinal))
+                type = type.Substring("global::".Length);
             var narrowed = match.Groups["filter"].Success ||
                 (type != null && type != "Exception" && type != "System.Exception");
             var empty = source.Substring(open + 1, close - open - 1).Trim().Length == 0;
@@ -168,23 +173,61 @@ public sealed class PluginSilentCatchArchitectureTests
             }
             else if (ch == '"' || ch == '\'')
             {
-                var verbatim = ch == '"' && index > 0 && (source[index - 1] == '@' ||
-                    (index > 1 && source[index - 1] == '$' && source[index - 2] == '@'));
-                var start = index;
-                for (index++; index < source.Length; index++)
-                {
-                    if (!verbatim && source[index] == '\\') { index++; continue; }
-                    if (source[index] == ch)
-                    {
-                        if (verbatim && index + 1 < source.Length && source[index + 1] == '"') { index++; continue; }
-                        break;
-                    }
-                }
-                Blank(start, index + 1);
+                var end = LiteralEnd(source, index);
+                Blank(index, end + 1);
+                index = end;
             }
         }
 
         return new string(masked);
+    }
+
+    // Returns the index of the quote that closes the literal opening at quoteIndex.
+    // An interpolation hole is code, so a string nested inside one is skipped whole
+    // instead of ending the outer literal.
+    private static int LiteralEnd(string source, int quoteIndex)
+    {
+        var quote = source[quoteIndex];
+        var prefixStart = quoteIndex;
+        while (quote == '"' && prefixStart > 0 && quoteIndex - prefixStart < 2 &&
+               (source[prefixStart - 1] == '@' || source[prefixStart - 1] == '$'))
+            prefixStart--;
+        var prefix = source.Substring(prefixStart, quoteIndex - prefixStart);
+        var verbatim = prefix.Contains('@');
+        var interpolated = prefix.Contains('$');
+
+        for (var index = quoteIndex + 1; index < source.Length; index++)
+        {
+            var ch = source[index];
+            if (!verbatim && ch == '\\') { index++; continue; }
+            if (interpolated && ch == '{')
+            {
+                if (index + 1 < source.Length && source[index + 1] == '{') { index++; continue; }
+                index = HoleEnd(source, index);
+                continue;
+            }
+            if (ch == quote)
+            {
+                if (verbatim && index + 1 < source.Length && source[index + 1] == '"') { index++; continue; }
+                return index;
+            }
+        }
+
+        return source.Length - 1;
+    }
+
+    private static int HoleEnd(string source, int braceIndex)
+    {
+        var depth = 0;
+        for (var index = braceIndex; index < source.Length; index++)
+        {
+            var ch = source[index];
+            if (ch == '"' || ch == '\'') { index = LiteralEnd(source, index); continue; }
+            if (ch == '{') depth++;
+            if (ch == '}' && --depth == 0) return index;
+        }
+
+        return source.Length - 1;
     }
 
     private static int MatchingBrace(string code, int openIndex)
