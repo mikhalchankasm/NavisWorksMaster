@@ -5,7 +5,7 @@ namespace NavisHelper.McpServer.Services;
 /// <summary>
 /// Selects which registered MCP tools are advertised in <c>tools/list</c>.
 ///
-/// The full surface is 115 tools and roughly 200 KB of JSON, which every client
+/// The full surface is 116 tools and roughly 200 KB of JSON, which every client
 /// carries in context on every request. A session that only queries the model
 /// does not need the Clash Detective surface, and vice versa. Selecting a subset
 /// removes that fixed cost without changing any tool contract: a tool is either
@@ -161,6 +161,7 @@ internal static class McpToolProfile
                 "clash_ignore_rules",
                 "clash_isolate_result",
                 "clash_list_clusters",
+                "clash_zones_export",
                 "clash_list_results",
                 "clash_list_tests",
                 "clash_manage_tests",

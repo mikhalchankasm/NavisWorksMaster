@@ -9,6 +9,15 @@ using NavisHelper.Core;
 
 namespace NavisHelper.Agent.Services
 {
+    internal sealed class ClashZoneExtraction
+    {
+        public List<ClashZoneRawClash> Rows = new List<ClashZoneRawClash>();
+        public int MatchedTestCount;
+        public bool ResultsTruncated;
+        public List<string> TestNames = new List<string>();
+        public List<string> Warnings = new List<string>();
+    }
+
     internal sealed partial class DocumentCommandService
     {
         public ClashListTestsResponse ClashListTests(Document document, ClashListTestsRequest request)
@@ -133,6 +142,67 @@ namespace NavisHelper.Agent.Services
 
             response.ReturnedResultCount = response.Results.Count;
             return response;
+        }
+
+        internal ClashZoneExtraction CollectClashZoneRows(Document document, ClashZoneExportRequest request)
+        {
+            var tests = ClashApiCompat.GetClashTests(document.GetClash()).ToList();
+            var matched = ResolveClashTests(tests, string.Empty, request.TestNames, request.TestHandles,
+                null, null, false, "testNames or testHandles", "clash_zones_export").ToList();
+            if ((request.TestNames == null || !request.TestNames.Any(n => !string.IsNullOrWhiteSpace(n))) &&
+                (request.TestHandles == null || !request.TestHandles.Any(h => !string.IsNullOrWhiteSpace(h))))
+                matched = tests;
+            var extraction = new ClashZoneExtraction {
+                MatchedTestCount = matched.Count, TestNames = matched.Select(t => t.DisplayName ?? string.Empty).ToList() };
+            var maximum = ClashZoneExportPolicy.ClampMaxResults(request.MaxResults);
+            var missingPointCount = 0;
+            foreach (var test in matched)
+            {
+                foreach (var workItem in EnumerateClashReportWorkItems(test, test.DisplayName ?? string.Empty, string.Empty))
+                {
+                    var result = workItem.Result;
+                    if (request.IncludeIgnored != true && ClashWorkflowService.IsIgnoredResult(result)) continue;
+                    if (extraction.Rows.Count >= maximum)
+                    {
+                        extraction.ResultsTruncated = true;
+                        break;
+                    }
+                    var row = BuildClashClusterRow(workItem);
+                    if (row.ClashPoint == null) { missingPointCount++; continue; }
+                    var path1 = row.Item1Path;
+                    var path2 = row.Item2Path;
+                    var id1 = TryGetModelItemStableId(result.Item1);
+                    var id2 = TryGetModelItemStableId(result.Item2);
+                    if (string.IsNullOrWhiteSpace(id1)) id1 = path1;
+                    if (string.IsNullOrWhiteSpace(id2)) id2 = path2;
+                    var side1 = ResolveClashAssociationSide(result.Selection1, result.Item1, "A");
+                    var swapped = !StringComparer.OrdinalIgnoreCase.Equals(side1.Key, row.Association.A.Key);
+                    // SDK versions may not expose a creation timestamp.
+                    var createdTime = SafeString(() =>
+                    {
+                        var createdProperty = result.GetType().GetProperty("CreatedTime");
+                        var created = createdProperty == null ? null : createdProperty.GetValue(result, null);
+                        return created is DateTime time ? time.ToString("o", CultureInfo.InvariantCulture) : null;
+                    });
+                    extraction.Rows.Add(new ClashZoneRawClash {
+                        ResultGuid = result.Guid.ToString("D"), ClashName = workItem.ResultName,
+                        TestName = test.DisplayName ?? string.Empty, Status = workItem.Status,
+                        X = DocUnitsToMm(row.ClashPoint.X), Y = DocUnitsToMm(row.ClashPoint.Y), Z = DocUnitsToMm(row.ClashPoint.Z),
+                        DistanceMm = DocUnitsToMm(result.Distance), CreatedTime = string.IsNullOrEmpty(createdTime) ? null : createdTime,
+                        AssociationKeyA = row.Association.A.Key, AssociationKeyB = row.Association.B.Key,
+                        AssociationNameA = row.Association.A.DisplayName, AssociationNameB = row.Association.B.DisplayName,
+                        WeakAssociation = row.Association.Weak,
+                        SourceFileA = row.Association.A.SourceFile, SourceFileB = row.Association.B.SourceFile,
+                        ItemPathA = swapped ? path2 : path1, ItemPathB = swapped ? path1 : path2,
+                        StableIdA = swapped ? id2 : id1, StableIdB = swapped ? id1 : id2 });
+                }
+                if (extraction.ResultsTruncated) break;
+            }
+            if (missingPointCount > 0)
+                extraction.Warnings.Add("Skipped " + missingPointCount.ToString(CultureInfo.InvariantCulture) + " clash results without a clash point.");
+            if (extraction.ResultsTruncated)
+                extraction.Warnings.Add("Clash results exceeded maxResults; only the first " + maximum.ToString(CultureInfo.InvariantCulture) + " results were analyzed.");
+            return extraction;
         }
 
         public ClashListClustersResponse ClashListClusters(Document document, ClashListClustersRequest request)

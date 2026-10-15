@@ -56,6 +56,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `clash_tests_export` | Files | Yes | Yes | Yes |
 | `clash_tests_from_sets` | Document, LocalState | Yes | Yes | Yes |
 | `clash_ungroup` | Document | Yes | Yes | Yes |
+| `clash_zones_export` | Files | Yes | Yes | Yes |
 | `close_navisworks` | Document, Files, Host | Yes | No | Yes |
 | `create_search_set` | Document | Yes | Yes | Yes |
 | `create_selection_set` | Document | Yes | Yes | Yes |
@@ -254,7 +255,7 @@ contract cannot skip that description.
 | `PreviousTestsPreviewTruncated` | `ClashCreateMatrixFromSelectionResponse` |
 | `PropertiesTruncated` | `ItemPropertiesHandleResult`, `ModelColorSchemeItemFacts`, `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
 | `ResponseTruncated` | `LastOperationStatusResponse` |
-| `ResultsTruncated` | `ClashGroupByProximityResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `FindItemsByBboxResponse` |
+| `ResultsTruncated` | `ClashGroupByProximityResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashZoneExportResponse`, `FindItemsByBboxResponse` |
 | `RootItemsTruncated` | `ClashBboxPairPlanResponse` |
 | `RowsTruncated` | `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
 | `TraversalTruncated` | `FindItemsByBboxResponse`, `IsolateByBoxResponse` |
@@ -1313,6 +1314,43 @@ selection-scoped calls after one.
 - `clash_group_by_proximity` writes the same spatial/hybrid/object-pair clusters that `clash_list_clusters` previews. More than 1000 analyzed results requires `confirmLargeGrouping=true`.
 - `clash_ignore_rules` persists its JSON payload inside the Navisworks document under `__NavisHelper_Data`, approves matches with a reason comment, and re-applies after test runs.
 - `clash_export_points` writes `.csv` or `.xlsx`; XLSX includes collision rows, a level summary, and a grid-by-level matrix.
+
+## `clash_zones_export`
+
+Builds clash zones from the open document's Clash Detective results. Reads results only;
+never changes or saves the document. Host command: `clash_zones_export`; effect: `Files`.
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `testNames`, `testHandles` | string arrays | empty | Same test resolution as clash reporting; no scope selects all tests. Handles come from `clash_list_tests`. |
+| `statuses` | string array | New, Active | Case-insensitive status filter applied by the run planner. |
+| `mode` | string | `zones` | `zones` clusters by association pair and proximity; `points` draws one sphere per clash. |
+| `epsMm` | number | 300 | Clustering distance in millimetres. |
+| `maxZoneRadiusMm` | number | 3000 | Maximum enclosing zone radius before padding. |
+| `minRadiusMm` | number | 150 | Minimum displayed zone radius. |
+| `padMm` | number | 100 | Display padding; finite and non-negative. Other distances must be finite and positive. |
+| `pointRadiusMm` | number | 50 | Sphere radius in points mode. |
+| `includeIgnored` | bool | false | Include results marked by ignore rules. |
+| `maxResults` | int | 50000 | Raw results cap; non-positive uses the default, larger values clamp to 50000. |
+| `outputDirectory` | string | beside document | Parent of the run folder; default `<document directory>/clash_zones`. Required without a document path. |
+| `runId` | string | local `yyyyMMdd-HHmmss` | Trimmed, 1-64 ASCII letters, digits, underscores or hyphens. |
+| `previousRunPath` | string | empty | Previous run folder or JSON record path. Missing or invalid records fail with `schema_violation`. |
+| `allowParameterMismatch` | bool | false | Permit differing run parameters with a warning. |
+| `apply` | bool | false | Preview only by default. True writes the run folder; an existing `zones.json` is refused. |
+| `instanceId`, `navisworksVersion` | string | empty | Optional host targeting. |
+
+The run folder contains UTF-8 `zones.json`, `zones.xlsx`, and ASCII `zones.ifc`
+with semi-transparent spheres in millimetres. A previous run adds
+`clash_zones_compare_<previousRunId>_<runId>.xlsx` and tracks new, persisting,
+moved and disappeared zones. No markers are appended to the document.
+
+`ClashZoneExportResponse` includes `runId`, `previousRunId`, `runDirectory`, `mode`,
+`applied`, `matchedTestCount`, `rawClashCount`, `drawnClashCount`, `excludedByStatusCount`,
+`zoneCount`, `disappearedCount`, `weakAssociationCount`, `stateCounts`, `largestZones`
+(ten largest by radius, then ordinal zone ID), full written or would-be `files`,
+`warnings` and `message`. `resultsTruncated=true` means the input exceeded `maxResults`;
+the exported record and all summaries describe only the collected prefix. Results
+without a clash point are skipped with one count warning.
 
 ## `clash_group_rename`
 

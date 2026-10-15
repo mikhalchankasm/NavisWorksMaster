@@ -59,6 +59,7 @@ builder.Services
     .WithTools<NavisworksClashListingTools>()
     .WithTools<NavisworksClashResultTools>()
     .WithTools<NavisworksClashGroupRenameTools>()
+    .WithTools<NavisworksClashZoneTools>()
     .WithTools<NavisworksClashTestTools>()
     .WithTools<NavisworksClashReportTools>()
     .WithTools<NavisworksClashIsolationTools>()
