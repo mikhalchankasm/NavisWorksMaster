@@ -131,6 +131,17 @@ class BuildLockTests(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertFalse(self.lock.exists())
 
+    def test_the_default_lock_stays_out_of_the_product_install_folder(self):
+        # The installer smoke hashes every file under %LOCALAPPDATA%\NavisHelper while
+        # the build that runs it holds this lock.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("build_lock", SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        path = module.default_lock_file()
+        self.assertEqual("NavisHelper-build", path.parent.name)
+        self.assertEqual("build.lock", path.name)
+
 
 if __name__ == "__main__":
     unittest.main()

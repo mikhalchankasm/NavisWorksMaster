@@ -9,7 +9,7 @@ the sessions. Every MSBuild-heavy command goes through this wrapper instead:
 
 That covers the executor launcher (its run may build), an L2 MSBuild matrix and
 tools/build_installer.ps1. The lock is an exclusive OS byte-range lock on
-%LOCALAPPDATA%\\NavisHelper\\build.lock, so it spans every session of one Windows
+%LOCALAPPDATA%\\NavisHelper-build\\build.lock, so it spans every session of one Windows
 account -- all agent sessions on this machine run under the owner's. Windows drops
 it when the holding process exits for any reason, so a crashed or killed session
 cannot leave a stale lock; the file staying behind means nothing. The command runs
@@ -36,7 +36,10 @@ TIMEOUT_EXIT = 75
 
 
 def default_lock_file() -> Path:
-    return Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "NavisHelper" / "build.lock"
+    # Not %LOCALAPPDATA%\NavisHelper: that is the product's install folder, and the
+    # installer smoke hashes every file in it. A lock held by the very build that runs
+    # the smoke could not be read, which failed the 2.13.0.0 asset build.
+    return Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "NavisHelper-build" / "build.lock"
 
 
 def try_lock(handle) -> bool:
