@@ -265,6 +265,8 @@ namespace NavisHelper.WPF
                 ToVirtualClashGroupSide(right.Side), right.Path, right.Label);
         }
 
+        private static int _clashTestCacheGuidFailureLogged;
+
         private static string GetClashTestCacheKey(ClashTest test)
         {
             if (test == null)
@@ -276,8 +278,11 @@ namespace NavisHelper.WPF
                 if (test.Guid != Guid.Empty)
                     testGuid = test.Guid;
             }
-            catch
+            catch (Exception ex)
             {
+                // Later failures are not logged to avoid flooding the log.
+                if (Interlocked.Exchange(ref _clashTestCacheGuidFailureLogged, 1) == 0)
+                    Logger.Warn("Could not read the clash test GUID for its cache key: " + ex.Message, "ClashUI");
             }
 
             if (testGuid != Guid.Empty)

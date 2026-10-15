@@ -557,6 +557,8 @@ namespace NavisHelper.WPF
             }
         }
 
+        private static int _clashResultSelectionRowFailureLogged;
+
         private bool RestoreClashResultSelection(ClashResultSelection selectedClash)
         {
             if (_clashGrid == null || _clashGrid.Items.Count == 0)
@@ -595,8 +597,11 @@ namespace NavisHelper.WPF
                     if (exact == null)
                         exact = item;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Later failures are not logged to avoid flooding the log.
+                    if (Interlocked.Exchange(ref _clashResultSelectionRowFailureLogged, 1) == 0)
+                        Logger.Warn("Could not inspect a clash result row while restoring selection: " + ex.Message, "ClashViewpoints");
                 }
             }
 
@@ -635,6 +640,8 @@ namespace NavisHelper.WPF
             return resolved;
         }
 
+        private static int _clashTestLocationGuidFailureLogged;
+
         private static bool TryResolveClashTestLocation(IList<ClashTestLocation> locations, ClashTest target, out ClashTestLocation location)
         {
             location = null;
@@ -659,8 +666,11 @@ namespace NavisHelper.WPF
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // Later failures are not logged to avoid flooding the log.
+                if (Interlocked.Exchange(ref _clashTestLocationGuidFailureLogged, 1) == 0)
+                    Logger.Warn("Could not resolve a clash test location by GUID: " + ex.Message, "ClashViewpoints");
             }
 
             var name = target.DisplayName ?? string.Empty;
@@ -892,6 +902,8 @@ namespace NavisHelper.WPF
             return rows;
         }
 
+        private static int _clashResultGridRowNameFailureLogged;
+
         private static void AddClashResultGridRow(ICollection<ClashResultGridRowInfo> rows, object rowObject)
         {
             if (rows == null || rowObject == null)
@@ -917,8 +929,11 @@ namespace NavisHelper.WPF
                         ? groupName
                         : row.Name as string;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Later failures are not logged to avoid flooding the log.
+                    if (Interlocked.Exchange(ref _clashResultGridRowNameFailureLogged, 1) == 0)
+                        Logger.Warn("Could not read a clash result grid row name: " + ex.Message, "ClashViewpoints");
                 }
 
                 rows.Add(new ClashResultGridRowInfo

@@ -157,8 +157,9 @@ namespace NavisHelper
                             initialText = clip;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Logger.Warn("Could not read a suggested viewpoint name from the clipboard: " + ex.Message, "MarkupViewpoint");
                 }
 
                 var label = new Label

@@ -1,8 +1,10 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
+using NavisHelper.Core;
 using NavisHelper.Core.Localization;
 using Application = Autodesk.Navisworks.Api.Application;
 
@@ -12,6 +14,8 @@ namespace NavisHelper
     [AddInPlugin(AddInLocation.None)]
     public sealed class SelectionCenterDotMarker : AddInPlugin
     {
+        private static int _selectionCenterDotBoundsFailureLogged;
+
         public override int Execute(params string[] parameters)
         {
             string title = UiLocalizationService.Current.GetString("SelectionCenterDotsTitle");
@@ -36,8 +40,11 @@ namespace NavisHelper
                     if (bounds != null)
                         visuals.Add(new ClashMarkerVisual(bounds.Center, null));
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Later failures are not logged to avoid flooding the log.
+                    if (Interlocked.Exchange(ref _selectionCenterDotBoundsFailureLogged, 1) == 0)
+                        Logger.Warn("Could not read a selected item bounding box for a center dot: " + ex.Message, "SelectionCenterDotMarker");
                 }
             }
 

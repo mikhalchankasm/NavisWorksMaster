@@ -1,9 +1,11 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
+using NavisHelper.Core;
 using NavisHelper.Core.Localization;
 using Application = Autodesk.Navisworks.Api.Application;
 using NavisHelper.Agent.Contracts;
@@ -17,6 +19,8 @@ namespace NavisHelper
         protected virtual bool UseObjectBoundingCorners => false;
         protected virtual string CommandTitle =>
             UiLocalizationService.Current.GetString("SelectionMarkerTitle");
+
+        private static int _selectionHatchBoundsFailureLogged;
 
         public override int Execute(params string[] parameters)
         {
@@ -66,8 +70,11 @@ namespace NavisHelper
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Later failures are not logged to avoid flooding the log.
+                    if (Interlocked.Exchange(ref _selectionHatchBoundsFailureLogged, 1) == 0)
+                        Logger.Warn("Could not read a selected item bounding box for a hatch marker: " + ex.Message, "SelectionHatchMarker");
                 }
             }
 

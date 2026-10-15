@@ -216,8 +216,9 @@ namespace NavisHelper
                 if (File.Exists(path))
                     File.Delete(path);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not delete the temporary hierarchy export file: " + ex.Message, "SaveHierarhy");
             }
         }
 

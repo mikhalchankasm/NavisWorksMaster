@@ -1,8 +1,10 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
+using NavisHelper.Core;
 using NavisHelper.Agent.Contracts;
 using Application = Autodesk.Navisworks.Api.Application;
 
@@ -124,8 +126,9 @@ namespace NavisHelper
                 _previousTool = null;
                 RequestRedraw();
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn("Could not restore the previous tool after hiding clash markers: " + ex.Message, "ClashMarker");
             }
         }
 
@@ -138,6 +141,8 @@ namespace NavisHelper
         {
             return false;
         }
+
+        private static int _clashMarkerOverlayFailureLogged;
 
         public override void OverlayRender(View view, Graphics graphics)
         {
@@ -167,8 +172,11 @@ namespace NavisHelper
                     else
                         DrawTarget(graphics, center, MarkerRadius);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Later failures are not logged to avoid flooding the log.
+                    if (Interlocked.Exchange(ref _clashMarkerOverlayFailureLogged, 1) == 0)
+                        Logger.Warn("Could not render a clash marker overlay: " + ex.Message, "ClashMarker");
                 }
             }
         }
@@ -416,14 +424,19 @@ namespace NavisHelper
             return MarkupRedlineJsonBuilder.NormalizeStyle(style);
         }
 
+        private static int _clashMarkerRedrawFailureLogged;
+
         private static void RequestRedraw()
         {
             try
             {
                 Application.ActiveDocument.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All);
             }
-            catch
+            catch (Exception ex)
             {
+                // Later failures are not logged to avoid flooding the log.
+                if (Interlocked.Exchange(ref _clashMarkerRedrawFailureLogged, 1) == 0)
+                    Logger.Warn("Could not request a clash marker redraw: " + ex.Message, "ClashMarker");
             }
         }
     }

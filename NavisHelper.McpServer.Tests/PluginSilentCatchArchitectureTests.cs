@@ -7,28 +7,18 @@ namespace NavisHelper.McpServer.Tests;
 // Across NavisHelper/ that is allowed only when the catch narrows to the failure it
 // expects (a specific exception type, or a when-filter) and a comment says why
 // ignoring it is correct. Empty bodies, and comment-only bodies on catch or
-// catch (Exception), hide failures (#291). Files that still need one are listed in
-// AllowedSilentCatches with their exact count and reason; the count is exact, so
-// fixing a catch forces the entry down with it.
+// catch (Exception), hide failures (#291). The few files that must still swallow
+// every exception are listed in AllowedSilentCatches with their exact count and
+// reason, and even those catches must carry a comment; the count is exact, so a
+// new silent catch fails the test and removing one forces the entry down with it.
 public sealed class PluginSilentCatchArchitectureTests
 {
-    private const string NotYetTriaged = "#291 baseline: not yet triaged";
-
     private static readonly IReadOnlyDictionary<string, (int Count, string Reason)> AllowedSilentCatches =
         new Dictionary<string, (int Count, string Reason)>(StringComparer.Ordinal)
         {
             ["AIConfig.cs"] = (1, "AIConfigFilePersistence.Save logs the failure before rethrowing; the fire-and-forget persist only observes it"),
-            ["ClashMarkerTool.cs"] = (3, NotYetTriaged),
-            ["CopySelectedNames.cs"] = (1, NotYetTriaged),
             ["Core/Localization/UiLocalizationBindingRegistry.cs"] = (1, "guards the localization failure logger itself; logging its failure again would be circular"),
             ["Core/Logger.cs"] = (4, "the logger cannot report its own failures"),
-            ["ElevationGraphicsMarkerTool.cs"] = (3, NotYetTriaged),
-            ["MarkupViewpoint.cs"] = (1, NotYetTriaged),
-            ["SaveHierarhy.cs"] = (1, NotYetTriaged),
-            ["SelectionCenterDotMarker.cs"] = (1, NotYetTriaged),
-            ["SelectionHatchMarker.cs"] = (1, NotYetTriaged),
-            ["WPF/NavisHelperPanel.Clash.cs"] = (1, NotYetTriaged),
-            ["WPF/NavisHelperPanel.Clash.Operations.cs"] = (3, NotYetTriaged),
         };
 
     private static readonly Regex CatchHeader = new(
@@ -63,9 +53,8 @@ public sealed class PluginSilentCatchArchitectureTests
             if (silent.Count != allowed.Count)
                 violations.Add(file + ": " + silent.Count + " silent catches, allowlist says " + allowed.Count +
                     " (lines " + string.Join(", ", silent.Select(c => c.Line)) + ")");
-            if (allowed.Reason != NotYetTriaged)
-                violations.AddRange(silent.Where(c => c.Empty).Select(c =>
-                    file + ":" + c.Line + " allowlisted catch must still say why in a comment"));
+            violations.AddRange(silent.Where(c => c.Empty).Select(c =>
+                file + ":" + c.Line + " allowlisted catch must still say why in a comment"));
         }
 
         foreach (var file in AllowedSilentCatches.Keys.Where(file => !silentByFile.ContainsKey(file)))

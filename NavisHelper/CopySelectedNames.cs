@@ -16,6 +16,8 @@ namespace NavisHelper
     [AddInPlugin(AddInLocation.None)]
     public class CopySelectedNames : AddInPlugin
     {
+        private static int _selectedNamesClipboardClearFailureLogged;
+
         public override int Execute(params string[] parameters)
         {
             // Максимально безопасная версия с дополнительными проверками
@@ -218,7 +220,12 @@ namespace NavisHelper
                             {
                                 Clipboard.Clear();
                             }
-                            catch (Exception) { /* Игнорируем ошибки очистки */ }
+                            catch (Exception ex)
+                            {
+                                // Later failures are not logged to avoid flooding the log.
+                                if (Interlocked.Exchange(ref _selectedNamesClipboardClearFailureLogged, 1) == 0)
+                                    Logger.Warn("Could not clear the clipboard before copying selected names: " + ex.Message, "CopySelectedNames");
+                            }
                         }
 
                         Clipboard.SetText(clipboardText);

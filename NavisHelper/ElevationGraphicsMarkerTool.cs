@@ -1,8 +1,10 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
+using NavisHelper.Core;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Agent.Services;
 using Application = Autodesk.Navisworks.Api.Application;
@@ -165,6 +167,8 @@ namespace NavisHelper
             return false;
         }
 
+        private static int _elevationMarkerOverlayFailureLogged;
+
         public override void OverlayRender(View view, Graphics graphics)
         {
             ElevationGraphicsMarkerVisual[] markers;
@@ -205,8 +209,11 @@ namespace NavisHelper
                             graphics.Text2D(font, marker.Label, labelOrigin, 0, 0);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        // Later failures are not logged to avoid flooding the log.
+                        if (Interlocked.Exchange(ref _elevationMarkerOverlayFailureLogged, 1) == 0)
+                            Logger.Warn("Could not render an elevation marker overlay: " + ex.Message, "ElevationGraphicsMarker");
                     }
                 }
             }
@@ -334,6 +341,8 @@ namespace NavisHelper
             RequestRedraw();
         }
 
+        private static int _elevationMarkerDeactivationFailureLogged;
+
         private static void CompleteInvalidMarkerDeactivation()
         {
             lock (Sync)
@@ -348,8 +357,11 @@ namespace NavisHelper
                 if (IsThisToolActive())
                     Application.MainDocument.Tool.Value = Tool.Select;
             }
-            catch
+            catch (Exception ex)
             {
+                // Later failures are not logged to avoid flooding the log.
+                if (Interlocked.Exchange(ref _elevationMarkerDeactivationFailureLogged, 1) == 0)
+                    Logger.Warn("Could not restore the selection tool after deactivating elevation markers: " + ex.Message, "ElevationGraphicsMarker");
             }
             RequestRedraw();
         }
@@ -381,6 +393,8 @@ namespace NavisHelper
             return roots;
         }
 
+        private static int _elevationMarkerRedrawFailureLogged;
+
         private static void RequestRedraw()
         {
             try
@@ -388,8 +402,11 @@ namespace NavisHelper
                 Application.MainDocument?.ActiveView?.RequestDelayedRedraw(
                     ViewRedrawRequests.All);
             }
-            catch
+            catch (Exception ex)
             {
+                // Later failures are not logged to avoid flooding the log.
+                if (Interlocked.Exchange(ref _elevationMarkerRedrawFailureLogged, 1) == 0)
+                    Logger.Warn("Could not request an elevation marker redraw: " + ex.Message, "ElevationGraphicsMarker");
             }
         }
 
