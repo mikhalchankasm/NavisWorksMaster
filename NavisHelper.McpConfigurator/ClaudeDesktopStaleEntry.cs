@@ -5,9 +5,13 @@ namespace NavisHelper.McpConfigurator;
 
 internal static class ClaudeDesktopStaleEntry
 {
+    // Only NavisHelper's own folders are looked into; other vendors' are skipped by name.
+    // The server executable is required because removal is justified only by a working
+    // extension, not by an empty or broken folder.
     internal static bool ExtensionInstalled(string extensionsRoot) =>
         Directory.Exists(extensionsRoot) && Directory.EnumerateDirectories(extensionsRoot)
-            .Any(directory => Path.GetFileName(directory).Contains("navishelper", StringComparison.OrdinalIgnoreCase));
+            .Where(directory => Path.GetFileName(directory).Contains("navishelper", StringComparison.OrdinalIgnoreCase))
+            .Any(directory => File.Exists(Path.Combine(directory, "server", "NavisHelper.McpServer.exe")));
 
     internal static StaleEntryResult RemoveIfExtensionInstalled(string configPath, string extensionsRoot, bool dryRun)
     {

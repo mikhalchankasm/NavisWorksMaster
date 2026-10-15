@@ -29,7 +29,11 @@ public sealed class ClaudeDesktopStaleEntryTests : IDisposable
         catch (IOException) { /* A leftover temp folder does not fail the test. */ }
     }
 
-    private void InstallExtension(string name) => Directory.CreateDirectory(Path.Combine(_extensions, name));
+    private void InstallExtension(string name)
+    {
+        var server = Directory.CreateDirectory(Path.Combine(_extensions, name, "server")).FullName;
+        File.WriteAllText(Path.Combine(server, "NavisHelper.McpServer.exe"), "stub");
+    }
 
     private string[] Backups() => Directory.GetFiles(_root, "claude_desktop_config.json.bak_navishelper_*");
 
@@ -41,6 +45,21 @@ public sealed class ClaudeDesktopStaleEntryTests : IDisposable
         Assert.False(ClaudeDesktopStaleEntry.ExtensionInstalled(_extensions));
         InstallExtension("local.mcpb.navishelper-contributors.NavisHelper");
         Assert.True(ClaudeDesktopStaleEntry.ExtensionInstalled(_extensions));
+    }
+
+    [Fact]
+    public void ANavisHelperFolderWithoutItsServerIsNotAnInstalledExtension()
+    {
+        // Removal is justified only by a working extension: an empty or broken
+        // folder must not cost the user the config entry that still works.
+        Directory.CreateDirectory(Path.Combine(_extensions, "navishelper-backup"));
+        Directory.CreateDirectory(Path.Combine(_extensions, "local.mcpb.navishelper-contributors.navishelper", "server"));
+        File.WriteAllText(_configPath, Config);
+
+        Assert.False(ClaudeDesktopStaleEntry.ExtensionInstalled(_extensions));
+        var result = ClaudeDesktopStaleEntry.RemoveIfExtensionInstalled(_configPath, _extensions, dryRun: false);
+        Assert.Equal("no-extension", result.Status);
+        Assert.Equal(Config, File.ReadAllText(_configPath));
     }
 
     [Fact]
