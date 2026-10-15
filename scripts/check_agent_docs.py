@@ -259,6 +259,18 @@ def check_permissions(root: Path, failures: list[str]) -> None:
         if rule not in deny:
             failures.append(f"the deny list is missing {rule!r}")
 
+    # Publishing is the owner's word, delegated one prompt at a time (owner,
+    # 2026-10-15). An ask rule prompts in every mode, bypassPermissions included,
+    # where an empty list would let a release go out unasked and a deny would make
+    # the owner type the command. Reading a release (list, view, download) asks
+    # nothing.
+    ask = permissions.get("ask") or []
+    for shell in ("Bash", "PowerShell"):
+        for subcommand in ("create", "edit", "delete", "upload"):
+            rule = f"{shell}(gh release {subcommand}*)"
+            if rule not in ask:
+                failures.append(f"the ask list is missing {rule!r}; publishing must prompt the owner")
+
     # Every live-system script must be denied, and the guard has to be able to see
     # it in order to say so. Relying on the allowlist simply not matching is how a
     # live run gets auto-approved by a wider rule added later.
