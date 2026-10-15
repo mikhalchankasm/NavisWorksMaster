@@ -102,4 +102,7 @@ try {
 }
 
 Write-Output ('PowerShell ' + $PSVersionTable.PSVersion + ': ' + $failures + ' failure(s)')
+# Explicit: CI dot-sources this file and then exits with $LASTEXITCODE, which the
+# deliberately failing `rev-parse` of the missing-base case left at 1.
 if ($failures -ne 0) { exit 1 }
+exit 0
