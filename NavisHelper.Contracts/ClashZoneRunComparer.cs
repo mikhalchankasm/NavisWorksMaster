@@ -97,10 +97,9 @@ namespace NavisHelper.Agent.Contracts
                     bool items = shared > 0;
                     if (!items && !string.Equals(a.PartitionKey, b.PartitionKey, StringComparison.Ordinal))
                         continue;
-                    double radius = Math.Max(a.RadiusMm, b.RadiusMm);
                     double score = items
-                        ? (double)shared / ((double)previousItems[p].Count + currentItems[c].Count - shared)
-                        : 1 - (distance / radius) / (a.RadiusMm / radius + b.RadiusMm / radius);
+                        ? (double)shared / (previousItems[p].Count + currentItems[c].Count - shared)
+                        : 1 - distance / (a.RadiusMm + b.RadiusMm);
                     candidates.Add(new Candidate { Previous = p, Current = c,
                         Distance = distance, Items = items, Score = score });
                 }
