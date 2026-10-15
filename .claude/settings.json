@@ -58,10 +58,8 @@
       "PowerShell(git push --delete*)",
       "PowerShell(git push origin main*)",
       "Bash(git branch -D*)",
-      "Bash(git branch -d*)",
       "Bash(git branch -M*)",
       "PowerShell(git branch -D*)",
-      "PowerShell(git branch -d*)",
       "Bash(git reset --hard*)",
       "PowerShell(git reset --hard*)",
       "Bash(git clean*)",
@@ -73,9 +71,7 @@
       "Bash(git stash*)",
       "PowerShell(git stash*)",
       "Bash(git worktree remove*)",
-      "Bash(git worktree prune*)",
       "PowerShell(git worktree remove*)",
-      "PowerShell(git worktree prune*)",
       "Bash(git rebase*)",
       "PowerShell(git rebase*)",
       "Bash(git filter-branch*)",
@@ -84,9 +80,7 @@
       "Bash(git tag -d*)",
       "Bash(git remote remove*)",
       "Bash(git remote set-url*)",
-      "Bash(gh release*)",
       "Bash(gh repo delete*)",
-      "PowerShell(gh release*)",
       "Bash(python scripts/navishelper_mcp_smoke.py*)",
       "Bash(python scripts/navishelper_mcp_failure_modes.py*)",
       "Bash(python scripts/navishelper_mcp_mixed_stress.py*)",
@@ -183,6 +177,18 @@
       "Bash(git push origin HEAD:refs/heads/main*)",
       "PowerShell(git push origin refs/heads/main*)",
       "PowerShell(git push origin HEAD:refs/heads/main*)"
+    ],
+    "ask": [
+      "Bash(gh release create*)",
+      "Bash(gh release edit*)",
+      "Bash(gh release delete*)",
+      "Bash(gh release upload*)",
+      "Bash(gh release delete-asset*)",
+      "PowerShell(gh release create*)",
+      "PowerShell(gh release edit*)",
+      "PowerShell(gh release delete*)",
+      "PowerShell(gh release upload*)",
+      "PowerShell(gh release delete-asset*)"
     ]
   }
 }

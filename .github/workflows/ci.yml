@@ -103,6 +103,7 @@ jobs:
           scripts.tests.test_executor_event_journal
           scripts.tests.test_executor_escape_guard
           scripts.tests.test_build_mcpb
+          scripts.tests.test_cleanup_merged_work
 
       # Fixture-only: no Codex, no network, no credential. It guards the write-back
       # that carries a rotated Codex token out of the reviewer's disposable home,
