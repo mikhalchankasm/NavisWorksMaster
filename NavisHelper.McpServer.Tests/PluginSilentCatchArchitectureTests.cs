@@ -42,7 +42,7 @@ public sealed class PluginSilentCatchArchitectureTests
         };
 
     private static readonly Regex CatchHeader = new(
-        @"\bcatch\b\s*(?:\(\s*(?<type>[\w.]+)(?:\s+(?<variable>\w+))?\s*\))?\s*(?:when\s*\((?<filter>[^)]*)\)\s*)?\{");
+        @"\bcatch\b\s*(?:\(\s*(?<type>[\w.]+)(?:\s+(?<variable>\w+))?\s*\))?\s*(?:when\s*\((?<filter>(?>[^()]+|\((?<depth>)|\)(?<-depth>))*(?(depth)(?!)))\)\s*)?\{");
 
     [Fact]
     public void EverySilentCatchIsNarrowedAndJustifiedOrAllowlisted()
@@ -98,6 +98,10 @@ public sealed class PluginSilentCatchArchitectureTests
     [InlineData("try { } catch (Exception ex) { failures.Record(ex); }", false)]
     [InlineData("try { } catch (IOException) { // Don't care: the \"pipe\" closed.\n }", false)]
     [InlineData("try { } catch { var url = \"http://x\"; }", false)]
+    [InlineData("try { } catch (Exception ex) when (ShouldIgnore(ex)) { }", true)]
+    [InlineData("try { } catch (Exception ex) when (ShouldIgnore(ex, Kind(ex))) { // Expected while closing.\n }", false)]
+    [InlineData("var example = \"catch { }\"; // catch { }\n/* catch { } */", false)]
+    [InlineData("try { } catch (Exception ex) { var s = $\"{ex.Message} }}\"; }", false)]
     public void ClassifierRecognizesSilentCatches(string source, bool silent)
     {
         Assert.Equal(silent, FindSilentCatches(source).Count == 1);
@@ -105,17 +109,23 @@ public sealed class PluginSilentCatchArchitectureTests
 
     private static List<SilentCatch> FindSilentCatches(string source)
     {
+        // Headers and braces are matched on a copy with comments and literals blanked,
+        // so "catch { }" inside a string or comment is not a handler and a brace in
+        // "// don't }" does not close one. Bodies are cut from the original to read
+        // their comments.
+        var code = MaskCommentsAndLiterals(source);
         var result = new List<SilentCatch>();
-        foreach (Match match in CatchHeader.Matches(source))
+        foreach (Match match in CatchHeader.Matches(code))
         {
-            var body = BlockBody(source, match.Index + match.Length - 1);
-            if (StripComments(body).Trim().Length > 0)
+            var open = match.Index + match.Length - 1;
+            var close = MatchingBrace(code, open);
+            if (code.Substring(open + 1, close - open - 1).Trim().Length > 0)
                 continue;
 
             var type = match.Groups["type"].Success ? match.Groups["type"].Value : null;
             var narrowed = match.Groups["filter"].Success ||
                 (type != null && type != "Exception" && type != "System.Exception");
-            var empty = body.Trim().Length == 0;
+            var empty = source.Substring(open + 1, close - open - 1).Trim().Length == 0;
             if (narrowed && !empty)
                 continue;
 
@@ -126,39 +136,41 @@ public sealed class PluginSilentCatchArchitectureTests
         return result;
     }
 
-    private static string StripComments(string body)
+    // Returns source with every comment and string or character literal replaced by
+    // spaces, keeping line breaks so indexes and line numbers still match.
+    private static string MaskCommentsAndLiterals(string source)
     {
-        var withoutBlock = Regex.Replace(body, @"/\*.*?\*/", "", RegexOptions.Singleline);
-        return Regex.Replace(withoutBlock, @"//[^\n]*", "");
-    }
+        var masked = source.ToCharArray();
+        void Blank(int from, int to)
+        {
+            for (var i = from; i < to && i < masked.Length; i++)
+                if (masked[i] != '\n' && masked[i] != '\r')
+                    masked[i] = ' ';
+        }
 
-    // Returns the text between the brace at openIndex and its matching close brace,
-    // skipping braces inside comments and string and character literals. Comments
-    // must be skipped too: an apostrophe in "// don't" would otherwise open a
-    // character literal and swallow the closing brace.
-    private static string BlockBody(string source, int openIndex)
-    {
-        var depth = 0;
-        for (var index = openIndex; index < source.Length; index++)
+        for (var index = 0; index < source.Length; index++)
         {
             var ch = source[index];
-            if (ch == '/' && index + 1 < source.Length && source[index + 1] == '/')
+            var next = index + 1 < source.Length ? source[index + 1] : '\0';
+            if (ch == '/' && next == '/')
             {
                 var end = source.IndexOf('\n', index);
-                index = end < 0 ? source.Length : end;
-                continue;
+                end = end < 0 ? source.Length : end;
+                Blank(index, end);
+                index = end;
             }
-
-            if (ch == '/' && index + 1 < source.Length && source[index + 1] == '*')
+            else if (ch == '/' && next == '*')
             {
                 var end = source.IndexOf("*/", index + 2, StringComparison.Ordinal);
-                index = end < 0 ? source.Length : end + 1;
-                continue;
+                end = end < 0 ? source.Length : end + 2;
+                Blank(index, end);
+                index = end - 1;
             }
-
-            if (ch == '"' || ch == '\'')
+            else if (ch == '"' || ch == '\'')
             {
-                var verbatim = ch == '"' && index > 0 && source[index - 1] == '@';
+                var verbatim = ch == '"' && index > 0 && (source[index - 1] == '@' ||
+                    (index > 1 && source[index - 1] == '$' && source[index - 2] == '@'));
+                var start = index;
                 for (index++; index < source.Length; index++)
                 {
                     if (!verbatim && source[index] == '\\') { index++; continue; }
@@ -168,12 +180,21 @@ public sealed class PluginSilentCatchArchitectureTests
                         break;
                     }
                 }
-                continue;
+                Blank(start, index + 1);
             }
+        }
 
-            if (ch == '{') depth++;
-            if (ch == '}' && --depth == 0)
-                return source.Substring(openIndex + 1, index - openIndex - 1);
+        return new string(masked);
+    }
+
+    private static int MatchingBrace(string code, int openIndex)
+    {
+        var depth = 0;
+        for (var index = openIndex; index < code.Length; index++)
+        {
+            if (code[index] == '{') depth++;
+            if (code[index] == '}' && --depth == 0)
+                return index;
         }
 
         throw new InvalidOperationException("Unbalanced braces after index " + openIndex);
