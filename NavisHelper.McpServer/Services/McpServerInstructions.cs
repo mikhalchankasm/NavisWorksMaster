@@ -4,8 +4,10 @@ internal static class McpServerInstructions
 {
     public const string Text = """
         Start with `active_model_context` for the host, open document and search guidance.
-        If several Navisworks instances are running, pick one with `list_navisworks_hosts`;
-        if none is running, use `start_navisworks`.
+        If several Navisworks instances are running, pass instanceId, the host id from
+        `list_navisworks_hosts`; alternatively, use navisworksVersion (e.g. 2027) only
+        when exactly one host of that version is running.
+        Omit both when one host is running; if none is running, use `start_navisworks`.
         Full tool schemas are in the resources navishelper://catalog/tools and
         navishelper://catalog/tools/{name}. Tool annotations identify read-only tools
         and tools that change the document.

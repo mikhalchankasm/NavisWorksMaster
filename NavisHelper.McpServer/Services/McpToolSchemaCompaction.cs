@@ -7,12 +7,21 @@ namespace NavisHelper.McpServer.Services;
 
 internal static class McpToolSchemaCompaction
 {
-    private static readonly IReadOnlyDictionary<string, string> Rewrites = new Dictionary<string, string>(StringComparer.Ordinal)
+    private static readonly IReadOnlyDictionary<string, string[]> RoutingDescriptions = new Dictionary<string, string[]>(StringComparer.Ordinal)
     {
-        ["Optional explicit Navisworks host instance_id from list_navisworks_hosts."] = "Host instance_id from list_navisworks_hosts.",
-        ["Optional explicit Navisworks host instance_id."] = "Host instance_id from list_navisworks_hosts.",
-        ["Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running."] =
-            "Navisworks version, e.g. 2027, when one host of it runs.",
+        ["instanceId"] = new[]
+        {
+            "Optional explicit Navisworks host instance_id from list_navisworks_hosts.",
+            "Optional explicit Navisworks host instance_id.",
+            "Optional explicit Navisworks host instance_id from list_navisworks_hosts. Recommended when several versions/instances are running.",
+        },
+        ["navisworksVersion"] = new[]
+        {
+            "Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.",
+            "Optional Navisworks version.",
+            "Optional Navisworks version, when exactly one host of that version is running.",
+            "Optional Navisworks version, for example 2027.",
+        },
     };
 
     private static readonly Regex DefaultSentence = new(
@@ -28,8 +37,11 @@ internal static class McpToolSchemaCompaction
                 continue;
 
             // Only parameter annotations change; nested schemas and validation keywords stay intact.
-            foreach (var property in properties.Select(entry => entry.Value).OfType<JsonObject>())
+            foreach (var (key, node) in properties)
             {
+                if (node is not JsonObject property)
+                    continue;
+
                 var hasDefault = property.TryGetPropertyValue("default", out var schemaDefault);
                 if (hasDefault && (schemaDefault is null ||
                     (schemaDefault.GetValueKind() == JsonValueKind.String && schemaDefault.GetValue<string>() == "")))
@@ -42,9 +54,9 @@ internal static class McpToolSchemaCompaction
                     !description.TryGetValue<string>(out var text))
                     continue;
 
-                if (Rewrites.TryGetValue(text, out var rewrite))
+                if (RoutingDescriptions.TryGetValue(key, out var texts) && texts.Contains(text, StringComparer.Ordinal))
                 {
-                    property["description"] = rewrite;
+                    property.Remove("description");
                     continue;
                 }
 
