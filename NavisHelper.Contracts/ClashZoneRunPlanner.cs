@@ -166,7 +166,9 @@ namespace NavisHelper.Agent.Contracts
                     throw new ArgumentException("Clashes must have finite coordinates.", nameof(clashes));
                 if (!statuses.Contains(row.Status)) continue;
                 rows.Add(new Member { Row = row, Point = new ClashZonePoint {
-                    Id = string.IsNullOrEmpty(row.ResultGuid) ? row.TestName + "#" + i.ToString(CultureInfo.InvariantCulture) : row.ResultGuid,
+                    // Without a GUID the id comes from the row's content, never its position, so the
+                    // output cannot depend on input order.
+                    Id = string.IsNullOrEmpty(row.ResultGuid) ? "#" + RawTieKey(row) : row.ResultGuid,
                     X = row.X, Y = row.Y, Z = row.Z } });
             }
             // Canonicalize before clustering, including ties in identifiers and coordinates.
@@ -175,7 +177,7 @@ namespace NavisHelper.Agent.Contracts
                 .ThenBy(m => RawTieKey(m.Row), StringComparer.Ordinal).ToList();
             bool points = effective.Mode == "points";
             var clusters = points ? rows.Select(m => new List<Member> { m }).ToList()
-                : ClashClusterBuilder.Build(rows, "hybrid", effective.EpsMm, m => Partition(m.Row),
+                : ClashClusterBuilder.Build(rows, "hybrid", effective.EpsMm, m => PairKey(m.Row.AssociationKeyA, m.Row.AssociationKeyB),
                     m => new ClashClusterPoint(m.Row.X, m.Row.Y, m.Row.Z));
             var geometry = ClashZoneGeometry.BuildZones(clusters.Select(c => new ClashZoneInputCluster {
                 PartitionKey = Partition(c[0].Row), Points = c.Select(m => m.Point).ToList()
@@ -205,7 +207,14 @@ namespace NavisHelper.Agent.Contracts
             foreach (var entry in comparison.Disappeared)
             {
                 var copy = CopyZone(previous.Zones.Single(z => z.ZoneId == entry.PreviousZoneId));
+                // The copy describes this comparison, not the one that produced the previous run.
                 copy.CompareState = ClashZoneCompareStates.Disappeared;
+                copy.PreviousZoneId = entry.PreviousZoneId;
+                copy.SplitFrom = null;
+                copy.MergedFrom = new List<string>();
+                copy.ShiftMm = 0;
+                copy.Shrunk = false;
+                copy.Grew = false;
                 disappeared.Add(copy);
             }
             var record = new ClashZoneRunRecord {
@@ -228,6 +237,11 @@ namespace NavisHelper.Agent.Contracts
 
         private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
         private static string Partition(ClashZoneRawClash row) => row.AssociationKeyA + "|" + row.AssociationKeyB;
+
+        // Display keys join with "|", which may also occur inside a key; grouping and matching use
+        // a length-prefixed form so ("A|B", "C") and ("A", "B|C") stay apart.
+        private static string PairKey(string a, string b) =>
+            (a ?? string.Empty).Length.ToString(CultureInfo.InvariantCulture) + ":" + a + "|" + b;
         private static List<string> Sorted(IEnumerable<string> values) => (values ?? new string[0])
             .Where(s => !string.IsNullOrEmpty(s)).Distinct(StringComparer.Ordinal).OrderBy(s => s, StringComparer.Ordinal).ToList();
 
@@ -290,7 +304,7 @@ namespace NavisHelper.Agent.Contracts
         }
 
         private static ClashZoneRunZone CompareZone(ClashZoneRecord z) => new ClashZoneRunZone {
-            ZoneId = z.ZoneId, TrackId = z.TrackId, PartitionKey = z.PartitionKey, X = z.CenterX, Y = z.CenterY,
+            ZoneId = z.ZoneId, TrackId = z.TrackId, PartitionKey = PairKey(z.AssociationKeyA, z.AssociationKeyB), X = z.CenterX, Y = z.CenterY,
             Z = z.CenterZ, RadiusMm = z.RadiusMm, ClashCount = z.ClashCount, ItemPairs = z.ItemPairs };
 
         private static void ApplyComparison(ClashZoneRecord zone, ClashZoneComparisonEntry entry)

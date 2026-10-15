@@ -116,6 +116,9 @@ public sealed class ClashZoneRunPlannerTests
 
         var gone = Assert.Single(second.Record.Disappeared);
         Assert.Equal(ClashZoneCompareStates.Disappeared, gone.CompareState);
+        Assert.Equal(gone.ZoneId, gone.PreviousZoneId);
+        Assert.Equal(0, gone.ShiftMm);
+        Assert.Empty(gone.MergedFrom);
         Assert.Equal(20000, gone.CenterX, 6);
         var greyMarker = second.Markers.Markers.Single(m => m.StyleKey == ClashZoneCompareStates.Disappeared);
         Assert.Equal("D" + gone.ZoneId, greyMarker.Name);
@@ -197,6 +200,32 @@ public sealed class ClashZoneRunPlannerTests
         Assert.Throws<ArgumentNullException>(() => ClashZoneRunPlanner.Plan(clashes, null, null, null));
         Assert.Throws<ArgumentException>(() => ClashZoneRunPlanner.Plan(clashes, Run("run-1"), new ClashZoneRunOptions { Mode = "cubes" }, null));
         Assert.Throws<ArgumentException>(() => ClashZoneRunPlanner.Plan(new List<ClashZoneRawClash> { Clash("g1", "A", "B", double.NaN, 0, 0) }, Run("run-1"), null, null));
+    }
+
+    [Fact]
+    public void Plan_KeepsAssociationPairsApartWhenTheSeparatorOccursInAKey()
+    {
+        var plan = ClashZoneRunPlanner.Plan(new List<ClashZoneRawClash>
+        {
+            Clash("g1", "A|B", "C", 0, 0, 0),
+            Clash("g2", "A", "B|C", 10, 0, 0),
+        }, Run("run-1"), null, null);
+
+        Assert.Equal(2, plan.Record.Zones.Count);
+    }
+
+    [Fact]
+    public void Plan_WithoutResultGuidsDoesNotDependOnInputOrder()
+    {
+        var first = Clash("", "A", "B", 0, 0, 0);
+        first.ClashName = "Clash 1";
+        var second = Clash("", "A", "B", 0, 0, 0);
+        second.ClashName = "Clash 2";
+
+        var a = JsonConvert.SerializeObject(ClashZoneRunPlanner.Plan(new List<ClashZoneRawClash> { first, second }, Run("run-1"), null, null).Record);
+        var b = JsonConvert.SerializeObject(ClashZoneRunPlanner.Plan(new List<ClashZoneRawClash> { second, first }, Run("run-1"), null, null).Record);
+
+        Assert.Equal(a, b);
     }
 
     private static ClashZoneRunRecord RoundTrip(ClashZoneRunRecord record)
