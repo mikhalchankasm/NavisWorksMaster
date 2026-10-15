@@ -36,6 +36,7 @@ namespace NavisHelper.Agent.Contracts
                 { HostCommandNames.ClashGroupCustom, true },
                 { HostCommandNames.ClashUngroup, true },
                 { HostCommandNames.ClashGroupRename, true },
+                { HostCommandNames.ClashZonesExport, true },
                 { HostCommandNames.ClashGroupByProximity, true },
                 { HostCommandNames.ClashSetStatus, true },
                 { HostCommandNames.ClashIgnoreRules, true },

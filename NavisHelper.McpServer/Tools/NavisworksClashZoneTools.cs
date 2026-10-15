@@ -14,7 +14,7 @@ internal sealed class NavisworksClashZoneTools : NavisworksToolBase
     public Task<ClashZoneExportResponse> ClashZonesExport(
         [Description("Optional test names. Empty with testHandles empty means all tests.")] List<string> testNames = null,
         [Description("Optional test handles from clash_list_tests.")] List<string> testHandles = null,
-        [Description("Clash statuses to draw. Empty defaults to New and Active.")] List<string> statuses = null,
+        [Description("Clash statuses to draw. Empty defaults to New, Active and Reviewed.")] List<string> statuses = null,
         [Description("zones clusters clashes; points draws one sphere per clash.")] string mode = "zones",
         [Description("Clustering distance in millimetres. Default 300; finite and positive.")] double? epsMm = null,
         [Description("Maximum enclosing zone radius in millimetres. Default 3000; finite and positive.")] double? maxZoneRadiusMm = null,

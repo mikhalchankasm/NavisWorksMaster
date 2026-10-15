@@ -124,6 +124,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<ClashListClustersRequest>,
             (document, request) => _commandService.ClashListClusters(document, request));
 
+        router.Register<ClashZoneExportRequest>(
+            HostCommandNames.ClashZonesExport,
+            true,
+            DeserializePayload<ClashZoneExportRequest>,
+            (document, request) => new ClashZoneExportService(_commandService).Execute(document, request));
+
         router.Register<ClashGroupResultsRequest>(
             HostCommandNames.ClashGroupResults,
             true,
