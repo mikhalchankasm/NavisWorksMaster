@@ -73,13 +73,14 @@ namespace NavisHelper.Agent.Services
                 var json = JsonConvert.SerializeObject(plan.Record, Formatting.Indented);
                 var ifc = ClashZoneIfcWriter.Write(plan.Markers);
                 Directory.CreateDirectory(directory);
-                // CreateNew also protects a record created after the existence check.
-                using (var stream = new FileStream(response.Files[0], FileMode.CreateNew, FileAccess.Write))
-                using (var writer = new StreamWriter(stream, new UTF8Encoding(false))) writer.Write(json);
                 using (var stream = File.Create(response.Files[1])) XlsxWorkbookWriter.Write(stream, plan.Workbook);
                 File.WriteAllText(response.Files[2], ifc, Encoding.ASCII);
                 if (previous != null)
                     using (var stream = File.Create(response.Files[3])) XlsxWorkbookWriter.Write(stream, plan.ComparisonWorkbook);
+                // zones.json goes last: it marks a complete run, so a failed write above leaves the
+                // run id free to retry. CreateNew also protects a record created after the check.
+                using (var stream = new FileStream(response.Files[0], FileMode.CreateNew, FileAccess.Write))
+                using (var writer = new StreamWriter(stream, new UTF8Encoding(false))) writer.Write(json);
                 response.Applied = true;
                 response.Message = "Clash zone run folder written.";
                 return response;

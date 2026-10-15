@@ -1323,7 +1323,7 @@ never changes or saves the document. Host command: `clash_zones_export`; effect:
 | Parameter | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `testNames`, `testHandles` | string arrays | empty | Same test resolution as clash reporting; no scope selects all tests. Handles come from `clash_list_tests`. |
-| `statuses` | string array | New, Active | Case-insensitive status filter applied by the run planner. |
+| `statuses` | string array | New, Active, Reviewed | Case-insensitive status filter applied by the run planner. |
 | `mode` | string | `zones` | `zones` clusters by association pair and proximity; `points` draws one sphere per clash. |
 | `epsMm` | number | 300 | Clustering distance in millimetres. |
 | `maxZoneRadiusMm` | number | 3000 | Maximum enclosing zone radius before padding. |

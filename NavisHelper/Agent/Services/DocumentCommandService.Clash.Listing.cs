@@ -156,17 +156,20 @@ namespace NavisHelper.Agent.Services
                 MatchedTestCount = matched.Count, TestNames = matched.Select(t => t.DisplayName ?? string.Empty).ToList() };
             var maximum = ClashZoneExportPolicy.ClampMaxResults(request.MaxResults);
             var missingPointCount = 0;
+            var examined = 0;
             foreach (var test in matched)
             {
                 foreach (var workItem in EnumerateClashReportWorkItems(test, test.DisplayName ?? string.Empty, string.Empty))
                 {
                     var result = workItem.Result;
                     if (request.IncludeIgnored != true && ClashWorkflowService.IsIgnoredResult(result)) continue;
-                    if (extraction.Rows.Count >= maximum)
+                    // maxResults caps the raw results examined, including ones without a clash point.
+                    if (examined >= maximum)
                     {
                         extraction.ResultsTruncated = true;
                         break;
                     }
+                    examined++;
                     var row = BuildClashClusterRow(workItem);
                     if (row.ClashPoint == null) { missingPointCount++; continue; }
                     var path1 = row.Item1Path;
