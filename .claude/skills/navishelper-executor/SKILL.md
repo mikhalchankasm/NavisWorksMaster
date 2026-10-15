@@ -1,6 +1,6 @@
 ---
 name: navishelper-executor
-description: Use when a NavisHelper code task with an Issue brief is handed to an external executor (Codex, Qwen) through scripts/external_worktree_executor.py, or when the owner says to run, launch or delegate to Codex or the executor. Not for changes to the launcher itself, security guards, docs-only tasks or reviews through scripts/review/*, which the curator does directly.
+description: Use for any NavisHelper code task that has an Issue brief and that the curator can delegate to an external executor (Codex, Qwen) through scripts/external_worktree_executor.py, and whenever the owner says to run, launch or delegate to Codex or the executor. Not for changes to the launcher itself, security guards, docs-only tasks or reviews through scripts/review/*, which the curator does directly.
 ---
 
 # Run a NavisHelper task through the external executor
