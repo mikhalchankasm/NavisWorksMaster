@@ -220,6 +220,20 @@ public sealed class ClashZoneIfcWriterTests
     }
 
     [Fact]
+    public void Write_MarkerWithoutPropertyValuesGetsNoEmptyPropertySet()
+    {
+        var bare = Marker("Z-0001", 0, 0, 0, 150, "new");
+        bare.Properties = new List<ClashZoneMarkerProperty> { new ClashZoneMarkerProperty { Name = "Skipped", Value = null } };
+
+        var model = StepModel.Parse(ClashZoneIfcWriter.Write(Document(bare, Marker("Z-0002", 900, 0, 0, 150, "new"))));
+
+        Assert.Equal(2, model.OfType("IFCBUILDINGELEMENTPROXY").Count);
+        var set = Assert.Single(model.OfType("IFCPROPERTYSET"));
+        Assert.Single(StepModel.Items(set.Args[4]));
+        Assert.Single(model.OfType("IFCRELDEFINESBYPROPERTIES"));
+    }
+
+    [Fact]
     public void Write_RejectsInvalidInput()
     {
         Assert.Throws<ArgumentNullException>(() => ClashZoneIfcWriter.Write(null));

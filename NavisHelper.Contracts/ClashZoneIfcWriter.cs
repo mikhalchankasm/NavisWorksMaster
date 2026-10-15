@@ -278,6 +278,9 @@ namespace NavisHelper.Agent.Contracts
                     foreach (var property in marker.Properties)
                         if (property != null && property.Value != null)
                             properties.Add(Entity("IFCPROPERTYSINGLEVALUE", Text(property.Name), "$", PropertyValue(property.Value), "$"));
+                // IFC4 requires at least one property in a property set; a marker without values gets none.
+                if (properties.Count == 0)
+                    return proxy;
                 var set = Entity("IFCPROPERTYSET", GlobalId("IFCPROPERTYSET", index), "$", Text(document.PropertySetName), "$", Tuple(properties.ToArray()));
                 Entity("IFCRELDEFINESBYPROPERTIES", GlobalId("IFCRELDEFINESBYPROPERTIES", index), "$", "$", "$", Tuple(proxy), set);
                 return proxy;
