@@ -223,7 +223,7 @@ public sealed class ClashZoneRunComparerTests
         Assert.Equal(Describe(a), Describe(b));
         Assert.Equal(30, a.Current.Count);
         Assert.Equal(30, a.Current.Count(e => e.CompareState == ClashZoneCompareStates.New) + a.Current.Count(e => e.PreviousZoneId != null));
-        Assert.Equal(a.Current.Count(e => e.PreviousZoneId != null) + a.Disappeared.Count, 30);
+        Assert.Equal(30, a.Current.Count(e => e.PreviousZoneId != null) + a.Disappeared.Count);
     }
 
     [Fact]

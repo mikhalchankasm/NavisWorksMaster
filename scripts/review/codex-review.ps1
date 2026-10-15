@@ -119,6 +119,13 @@ if (-not (Test-Path -LiteralPath $operatorAuth -PathType Leaf)) {
 }
 
 # --- the bundle: what the reviewer sees, and the only thing it sees ----------------
+# git writes UTF-8, and PowerShell decodes a native command's output with
+# [Console]::OutputEncoding -- the OEM or ANSI code page on this machine -- so every
+# Cyrillic line of a diff reached the reviewer as mojibake, and the review then reported
+# the garbled text as a defect (#317). Collect with UTF-8 and put the console back after.
+$collectEncoding = [Console]::OutputEncoding
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+try {
 if ($Base) {
     # Two traps, both found by running this against a stale base and getting a review of
     # months-old code back:
@@ -198,7 +205,7 @@ if ($Base) {
         $diff += @('', '--- untracked files, absent from every diff above ---')
         foreach ($path in $untracked) {
             if (Test-Path -LiteralPath $path -PathType Leaf) {
-                $diff += @('', ('=== ' + $path), (Get-Content -LiteralPath $path -Raw))
+                $diff += @('', ('=== ' + $path), (Get-Content -LiteralPath $path -Raw -Encoding UTF8))
             } else {
                 Write-Warning ('Untracked path could not be read, so it is listed without contents: ' + $path)
                 $diff += @('', ('=== ' + $path + '   [CONTENTS UNAVAILABLE - not reviewed]'))
@@ -224,7 +231,7 @@ if ($Base) {
         $diff += @('', '--- untracked files, absent from the diff above ---')
         foreach ($path in $untracked) {
             if (Test-Path -LiteralPath $path -PathType Leaf) {
-                $diff += @('', ('=== ' + $path), (Get-Content -LiteralPath $path -Raw))
+                $diff += @('', ('=== ' + $path), (Get-Content -LiteralPath $path -Raw -Encoding UTF8))
             } else {
                 # Loud, not silent: a named file with no contents would be reviewed as
                 # an empty change, and the reviewer could not tell.
@@ -233,6 +240,9 @@ if ($Base) {
             }
         }
     }
+}
+} finally {
+    [Console]::OutputEncoding = $collectEncoding
 }
 # For -Commit and the working-tree default this is still the first check after their
 # git calls. The -Base path checks each command as it runs, above, because the commands
