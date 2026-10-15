@@ -253,7 +253,7 @@ namespace NavisHelper.Agent.Contracts
                     var last = 2 + (latitudes - 2) * longitudes;
                     faces.Add(Face(points.Count, last + next, last + longitude));
                 }
-                var pointList = Entity("IFCCARTESIANPOINTLIST3D", Tuple(points.ToArray()), "$");
+                var pointList = Entity("IFCCARTESIANPOINTLIST3D", Tuple(points.ToArray()));
                 var faceSet = Entity("IFCTRIANGULATEDFACESET", pointList, "$", ".T.", Tuple(faces.ToArray()), "$");
                 var representation = Entity("IFCSHAPEREPRESENTATION", body, "'Body'", "'Tessellation'", Tuple(faceSet));
                 return Entity("IFCREPRESENTATIONMAP", axis, representation);

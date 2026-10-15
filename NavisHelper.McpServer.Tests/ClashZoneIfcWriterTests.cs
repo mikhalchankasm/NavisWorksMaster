@@ -105,7 +105,9 @@ public sealed class ClashZoneIfcWriterTests
 
         var faceSet = Assert.Single(model.OfType("IFCTRIANGULATEDFACESET"));
         Assert.Equal(".T.", faceSet.Args[2]);
-        var points = StepModel.Tuples(model.Deref(faceSet.Args[0]).Args[0]);
+        var pointList = model.Deref(faceSet.Args[0]);
+        Assert.Single(pointList.Args); // IFC4 IfcCartesianPointList3D has only CoordList; TagList is IFC4.3.
+        var points = StepModel.Tuples(pointList.Args[0]);
         var faces = StepModel.Tuples(faceSet.Args[3]);
         Assert.Equal(vertices, points.Count);
         Assert.Equal(triangles, faces.Count);
