@@ -358,6 +358,7 @@ namespace NavisHelper.Agent.Services
             response.RestoredItemCount = _originalStates.Count;
             ClearSession();
             response.CanReset = false;
+            response.ActiveSchemeItemCount = 0;
             response.Message = "Overrides changed by the active MCP model color scheme were restored.";
             return response;
         }
