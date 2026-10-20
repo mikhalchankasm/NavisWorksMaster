@@ -69,3 +69,83 @@ NavisHelper по очереди запускал внутреннюю коман
 
 Песочницы для такого выполнения нет. Произвольное выполнение C# из агента
 не включается в план развития.
+
+## Идеи из блога разработчиков Autodesk по Navisworks
+
+Статус: разобрано 2026-10-20. Источник — категория Navisworks блога
+[blog.autodesk.io](https://blog.autodesk.io/category/navisworks/): 160 статей за 2012–2026 годы.
+Ниже только то, чего в NavisHelper ещё нет или что меняет уже принятые решения. Каждый
+приём перед использованием проверяется на Navisworks 2024–2027: статьи написаны под одну
+версию.
+
+### В ближайший релиз
+
+- **Профиль Appearance Profiler одним вызовом** (#339). Начиная с Navisworks 2023
+  встроенный плагин применяет сохранённый `.dat` профайлера:
+  `Application.Plugins.ExecuteAddInPlugin("AutoAppearanceLoader.Navisworks", datPath)`
+  ([статья, 2022](https://blog.autodesk.io/setting-appearance-profiler-dat-file-via-navisworks-api/)).
+  Navisworks сам ищет и красит, без обхода листьев. Это прямой путь к
+  `appearance_profile_apply`. Проверить заранее:
+  - принимает ли плагин XML, который сохраняет профайлер;
+  - как отменять такую покраску: `model_color_scheme reset` её не захватывает;
+  - что получает вызывающий код при ошибке в файле.
+- **Одна транзакция на пакет изменений.** `Document.BeginTransaction(name)` объединяет
+  серию переопределений в один шаг отмены и откладывает внутренние уведомления
+  ([статья, 2012](https://blog.autodesk.io/group-a-series-of-operations/)).
+  `ModelColorSchemeService` красит по корзинам правил без транзакции. Оборачивание даст
+  одну отмену Ctrl+Z на вызов и, возможно, ускорит большие порции. Измерить до и после.
+- **Типы примитивов в тестах коллизий.** `ClashTest.SelectionA/B.PrimitiveTypes`
+  (`Triangles | Lines | Points`) задаётся через копию теста и `TestsEditTestFromCopy`
+  ([статья, 2024](https://blog.autodesk.io/setting-multiple-primitivetypes-for-clash-testing-via-navisworks-api/)).
+  Нужно для моделей RVM и облаков точек, где коллизии ищутся по линиям или точкам.
+  Параметр `primitiveTypesA/B` для `clash_tests_from_sets` и `clash_manage_tests`.
+
+### В следующие релизы
+
+- **Оси и уровни у зон коллизий и в отчётах.** `GridSystem.ClosestIntersection(point)`
+  возвращает ближайшее пересечение осей с уровнем
+  ([статья, 2014](https://blog.autodesk.io/closest-grid-point-intersection-to-an-object/);
+  [оси и уровни, 2024](https://blog.autodesk.io/navisworks-api-working-with-grids-and-levels/)).
+  Колонка «Оси / уровень» в `zones.xlsx` и в `clash_generate_report` делает место коллизии
+  понятным без модели: «А-3 / +6.000» вместо координат.
+- **Экспорт NWD только с видимым** (Navisworks 2026+). `Document.TryExportToNwd(path,
+  new NwdExportOptions { ExcludeHiddenItems, PreventObjectPropertyExport, FileVersion,
+  EmbedXrefs })`
+  ([статья, 2025](https://blog.autodesk.io/navisworks-api-introducing-nwdexportoptions-in-navisworks-2026/)).
+  Инструмент `export_nwd`: изолировать зону или систему и отдать подрядчику лёгкую NWD
+  без лишних объектов и, по желанию, без свойств. В 2024–2025 честно отказывать.
+- **Метаданные NavisHelper внутри документа.** База данных документа (`Document.Database`,
+  SQL-таблицы, невидимые пользователю) хранит данные расширений прямо в NWD
+  ([часть 1](https://blog.autodesk.io/document-database-part-1/),
+  [часть 2](https://blog.autodesk.io/document-database-part-2/), 2013). Так снимается
+  ограничение 2.14: журнал исходных цветов `model_color_scheme` теряется при перезапуске,
+  и `reset` становится недоступен. Там же можно хранить идентификаторы прогонов зон
+  коллизий.
+- **Экспорт в FBX выбранного.** Встроенный плагин
+  `NativeExportPluginAdaptor_LcFbxExporterPlugin_Export.Navisworks` экспортирует
+  видимое: скрыть лишнее, вызвать, вернуть видимость
+  ([статья, 2017](https://blog.autodesk.io/navisworks-api-export-model-or-model-items-to-fbx/)).
+- **Гиперссылки и свои свойства у элементов.** Через COM (`InwURL2`,
+  `InwOaPropertyVec`) можно записать элементам коллизии номер зоны или ссылку на замечание.
+  Тогда они видны в окне свойств и в поиске
+  ([гиперссылки](https://blog.autodesk.io/create-hyperlinks-for-model-objects-using-net-api/),
+  [свойства, 2012](https://blog.autodesk.io/create-attributes-and-properties-for-model-objects-using-net-api/)).
+  Свойства на всё поддерево придётся добавлять каждому потомку отдельно.
+
+### Уточнения к принятым решениям
+
+- **`InstanceGuid` есть не у всех форматов.** Стабильный GUID Navisworks строит для IFC,
+  AutoCAD и Revit, но не для PDMS/RVM, CATIA и Intergraph
+  ([статья, 2018](https://blog.autodesk.io/persistent-item-id-of-navisworks-objects-update/)).
+  Это подтверждает решение зон коллизий не опираться на GUID. Для моделей RVM вроде 12470
+  сопоставление элементов должно идти через свойства источника.
+- **Снимки в цикле и перерисовка.** Экран обновляется только когда цикл сообщений UI
+  доставит событие отрисовки. Долгий цикл «изменить вид → снять» показывает на экране
+  старое состояние, хотя файл снимка верный
+  ([статья, 2013](https://blog.autodesk.io/capture-view-image-and-force-screen-refresh-continuously/)).
+  Если на снимках `clash_generate_report` появятся устаревшие цвета, лечится разбиением
+  работы через `Application.Idle`.
+- **Поиск Navisworks быстрее обхода.** `Search` выполняется в нативном коде, группы
+  условий дают «ИЛИ» между группами и «И» внутри группы
+  ([статья, 2012](https://blog.autodesk.io/search-by-or/)). Это основа для правил
+  `#339` по имени узла вместо сопоставления путей в цикле по листьям.
