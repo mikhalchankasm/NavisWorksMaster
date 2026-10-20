@@ -112,7 +112,7 @@ class RunTests(unittest.TestCase):
         [f"{name}   stable   false" for name in (
             "apps", "browser_use", "browser_use_external", "browser_use_full_cdp_access", "computer_use", "plugins",
             "remote_plugin", "plugin_sharing", "in_app_browser", "image_generation", "skill_mcp_dependency_install",
-            "tool_suggest", "browser_annotation_api")]
+            "tool_suggest", "browser_annotation_api", "api_key_cyber_access_programs", "cli_daybreak")]
         + ["in_app_chat   stable   true"]
     )
 
@@ -124,9 +124,9 @@ class RunTests(unittest.TestCase):
         return runner
 
     def test_an_unreviewed_codex_version_refuses_the_run(self) -> None:
-        # 0.163.0 stands for any minor not yet reviewed; a pre-release or a foreign line of a reviewed minor is not a
+        # 0.164.0 stands for any minor not yet reviewed; a pre-release or a foreign line of a reviewed minor is not a
         # plain patch release, so it needs the review too.
-        for version in (ProcessResult(0, "codex-cli 0.163.0", "", 0.1), ProcessResult(1, "", "boom", 0.1),
+        for version in (ProcessResult(0, "codex-cli 0.164.0", "", 0.1), ProcessResult(1, "", "boom", 0.1),
                         ProcessResult(0, "codex-cli 0.159.3-alpha.1", "", 0.1),
                         ProcessResult(0, "codex-cli 0.15.9", "", 0.1), ProcessResult(0, "codex 0.159.3", "", 0.1),
                         ProcessResult(0, "codex-cli 1.159.0", "", 0.1)):
@@ -136,7 +136,7 @@ class RunTests(unittest.TestCase):
             self.assertIn("not a reviewed executor version", str(raised.exception))
 
     def test_every_reviewed_codex_version_passes_the_version_check(self) -> None:
-        for text in ("codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1"):
+        for text in ("codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0"):
             with self.subTest(version=text):
                 self.check(ProcessResult(0, self.FEATURES_CLEAN, "", 1.0), ProcessResult(0, text, "", 0.1))
 

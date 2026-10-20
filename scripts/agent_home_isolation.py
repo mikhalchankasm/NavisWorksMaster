@@ -159,6 +159,8 @@ CODEX_DISABLED_FEATURES = (
     "skill_mcp_dependency_install",
     "tool_suggest",
     "browser_annotation_api",
+    "api_key_cyber_access_programs",
+    "cli_daybreak",
 )
 
 # Every feature codex 0.158.0 still reports enabled in the isolated home with the switches above, reviewed on
@@ -174,7 +176,10 @@ CODEX_DISABLED_FEATURES = (
 # browser_annotation_api, a browser surface, is switched off above.
 # 0.162.1 (2026-10-10): newly enabled instant_interrupt (turn interruption) and ultrafast_mode (faster serving
 # for the same model) reviewed harmless: no account, browser, connector, plugin or web surface.
-CODEX_REVIEWED_VERSIONS = frozenset({"codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1"})
+# 0.163.0 (2026-10-17): newly enabled code_mode_interrupt reviewed harmless (interrupts code_mode, which stays off);
+# api_key_cyber_access_programs (account-level API key programme) and cli_daybreak (undocumented) are switched off
+# above because neither could be shown harmless. unified_exec_zsh_fork is now reported as removed.
+CODEX_REVIEWED_VERSIONS = frozenset({"codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0"})
 
 _CODEX_RELEASE = re.compile(r"codex-cli (\d+\.\d+)\.(\d+)")
 
@@ -200,7 +205,7 @@ def codex_version_is_reviewed(version_line: str) -> bool:
     return bool(reviewed_patches) and int(release.group(2)) >= min(reviewed_patches)
 
 CODEX_REVIEWED_ENABLED_FEATURES = frozenset({
-    "api_key_model_discovery", "auth_elicitation", "code_mode_host", "collaboration_modes", "compaction_image_budget", "content_item_kinds",
+    "api_key_model_discovery", "auth_elicitation", "code_mode_host", "code_mode_interrupt", "collaboration_modes", "compaction_image_budget", "content_item_kinds",
     "daemon_auto_start", "enable_request_compression", "fast_mode", "goals", "guardian_approval",
     "guardian_reuse_parent_compaction", "hooks", "in_app_chat", "in_app_dictation", "in_app_local_automation",
     "in_app_updates", "in_app_voice", "instant_interrupt", "item_ids", "mentions_v2", "multi_agent", "realtime_conversation", "resize_all_images",

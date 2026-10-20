@@ -267,7 +267,8 @@ class AgentHomeIsolationTests(unittest.TestCase):
             "[features]\napps = false\nbrowser_use = false\nbrowser_use_external = false\n"
             "browser_use_full_cdp_access = false\ncomputer_use = false\nplugins = false\nremote_plugin = false\n"
             "plugin_sharing = false\nin_app_browser = false\nimage_generation = false\n"
-            "skill_mcp_dependency_install = false\ntool_suggest = false\nbrowser_annotation_api = false\n",
+            "skill_mcp_dependency_install = false\ntool_suggest = false\nbrowser_annotation_api = false\n"
+            "api_key_cyber_access_programs = false\ncli_daybreak = false\n",
         )
 
     def test_the_codex_advisor_configuration_carries_its_own_route(self) -> None:

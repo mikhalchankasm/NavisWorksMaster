@@ -72,7 +72,9 @@ reviewed. In one PR:
    Avox when it already exists there (EXTERNAL_EXECUTORS.md, "Origin and updates").
 
 Reviewed here: 0.158.0, 0.159.0, 0.159.2, 0.160.0, 0.161.0, 0.162.1 (copied
-from Avox with the launcher).
+from Avox with the launcher); 0.163.0 (2026-10-20, ported from Avox `3bda6b8f`):
+`code_mode_interrupt` reviewed harmless (`code_mode` stays off),
+`api_key_cyber_access_programs` and `cli_daybreak` switched off.
 
 ### Qwen Code (`qwen`)
 
