@@ -29,9 +29,7 @@ namespace NavisHelper.Agent.Services
             {
                 if (new FileInfo(request.ProfilePath).Length > MaximumFileBytes)
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "Appearance Profiler profile exceeds 10 MB.");
-                profileBytes = File.ReadAllBytes(request.ProfilePath);
-                if (profileBytes.Length > MaximumFileBytes)
-                    throw new AgentCommandException(ErrorCodes.SchemaViolation, "Appearance Profiler profile exceeds 10 MB.");
+                profileBytes = ReadBounded(request.ProfilePath);
                 // From the bytes, so the XML declaration decides the encoding, not a default reader.
                 string xml;
                 try
@@ -119,6 +117,25 @@ namespace NavisHelper.Agent.Services
             }
             response.ElapsedMs = timer.ElapsedMilliseconds;
             return response;
+        }
+
+        // Reads at most the limit plus one byte, so a file that grew after the size check is
+        // refused without loading it whole into the Navisworks process.
+        private static byte[] ReadBounded(string path)
+        {
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var buffer = new MemoryStream())
+            {
+                var chunk = new byte[81920];
+                int read;
+                while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
+                {
+                    buffer.Write(chunk, 0, read);
+                    if (buffer.Length > MaximumFileBytes)
+                        throw new AgentCommandException(ErrorCodes.SchemaViolation, "Appearance Profiler profile exceeds 10 MB.");
+                }
+                return buffer.ToArray();
+            }
         }
 
         private static void EnsureProfilerPaneLoaded(AppearanceProfileApplyResponse response)

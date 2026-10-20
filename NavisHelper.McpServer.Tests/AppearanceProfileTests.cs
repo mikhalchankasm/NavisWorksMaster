@@ -140,6 +140,8 @@ public sealed class AppearanceProfileTests
         var profile = AppearanceProfileFile.Parse(text);
         Assert.Equal("unknown", profile.Rules[2].Kind);
         Assert.Contains(profile.Warnings, warning => warning.Contains("PersistedItemAppearanceProfileFutureRuleV9", StringComparison.Ordinal));
+        // Review finding: one rule Navisworks may not read can drop the whole profile, so apply is blocked.
+        Assert.Contains(profile.Errors, error => error.StartsWith("rule 3: ", StringComparison.Ordinal));
     }
 
     [Theory]

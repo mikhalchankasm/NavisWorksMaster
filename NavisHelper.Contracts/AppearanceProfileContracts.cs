@@ -86,7 +86,12 @@ namespace NavisHelper.Agent.Contracts
                         summary.SetRuleCount++;
                     }
                     else
+                    {
+                        // Navisworks' reader may reject the whole file for one rule it cannot read.
                         summary.Warnings.Add("Unknown Appearance Profiler rule type: " + type);
+                        summary.Errors.Add(errorPrefix + "rule type " + type +
+                            " is not one NavisHelper knows Navisworks can read; it may drop the whole profile");
+                    }
 
                     var color = element.Element("Color");
                     if (color != null)
