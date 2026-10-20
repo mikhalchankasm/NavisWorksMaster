@@ -25,7 +25,8 @@ namespace NavisHelper.Agent.Services
         private const int MaximumWorkBudgetSeconds = 45;
 
         private ModelColorSchemeDocumentIdentity _sessionIdentity;
-        private List<ModelColorSchemeOriginalState> _originalStates;
+        private readonly ModelColorSchemeLedger<ModelItem, ModelColorSchemeOriginalState> _originalStates =
+            new ModelColorSchemeLedger<ModelItem, ModelColorSchemeOriginalState>();
         private ModelItemCollection _selectionBeforeApply;
         private bool _selectionClearedByScheme;
         private bool _hasActiveScheme;
@@ -41,13 +42,18 @@ namespace NavisHelper.Agent.Services
             var operation = NormalizeOperation(request.Operation);
             var scope = NormalizeScope(request.Scope);
             var apply = request.Apply == true;
+            ModelColorSchemeApplyMode mode;
+            if (!ModelColorSchemeApplyModes.TryParse(request.Mode, out mode))
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "mode must be replace or accumulate.");
             var response = new ModelColorSchemeResponse
             {
                 Operation = operation,
                 Scope = scope,
                 Apply = apply,
+                Mode = ModelColorSchemeApplyModes.ToWire(mode),
                 HadActiveScheme = HasActiveSchemeFor(document),
                 CanReset = HasActiveSchemeFor(document),
+                ActiveSchemeItemCount = HasActiveSchemeFor(document) ? _originalStates.Count : 0,
             };
 
             if (operation == "reset")
@@ -238,6 +244,12 @@ namespace NavisHelper.Agent.Services
 
                 if (!apply)
                 {
+                    if (response.HadActiveScheme && mode == ModelColorSchemeApplyMode.Replace)
+                    {
+                        response.Warnings.Add(
+                            "apply=true would first restore the " + _originalStates.Count +
+                            " items of the active model color scheme; pass mode=accumulate to add to it instead.");
+                    }
                     response.Message = "Dry-run only. Review rule coverage, then pass apply=true to apply the model color scheme.";
                     applySucceeded = true;
                     return response;
@@ -275,6 +287,7 @@ namespace NavisHelper.Agent.Services
                     document,
                     ruleBuckets,
                     request.ClearSelectionAfterApply.GetValueOrDefault(true),
+                    mode,
                     response);
                 phases.Add("apply", Stopwatch.GetTimestamp() - applyStarted);
                 applySucceeded = true;
@@ -341,7 +354,8 @@ namespace NavisHelper.Agent.Services
             }
 
             response.Reset = true;
-            response.ColoredItemCount = _originalStates == null ? 0 : _originalStates.Count;
+            response.ColoredItemCount = _originalStates.Count;
+            response.RestoredItemCount = _originalStates.Count;
             ClearSession();
             response.CanReset = false;
             response.Message = "Overrides changed by the active MCP model color scheme were restored.";
@@ -459,10 +473,14 @@ namespace NavisHelper.Agent.Services
             Document document,
             List<ModelColorSchemeRuleBucket> ruleBuckets,
             bool clearSelectionAfterApply,
+            ModelColorSchemeApplyMode mode,
             ModelColorSchemeResponse response)
         {
-            if (HasActiveSchemeFor(document))
+            // #338: replace used to restore the active scheme silently, so batch applies undid each other.
+            var accumulate = mode == ModelColorSchemeApplyMode.Accumulate && HasActiveSchemeFor(document);
+            if (HasActiveSchemeFor(document) && !accumulate)
             {
+                var restoredCount = _originalStates.Count;
                 RestoreOriginalStates(document, response.Warnings);
                 RestoreSelectionIfSafe(document, response);
                 RequestRedraw(document);
@@ -473,31 +491,39 @@ namespace NavisHelper.Agent.Services
                         "The previous model color scheme could not be fully restored; the new scheme was not applied.");
                 }
                 ClearSession();
+                response.PreviousSchemeRestored = true;
+                response.RestoredItemCount = restoredCount;
+                response.Warnings.Add(
+                    "The previous model color scheme (" + restoredCount +
+                    " items) was restored before this apply; pass mode=accumulate to add to it instead.");
             }
 
             if (ruleBuckets.All(bucket => bucket.Items.Count == 0))
             {
                 response.Applied = true;
-                response.CanReset = false;
-                response.Message = "The scheme matched no items; no material overrides were changed.";
+                response.CanReset = accumulate;
+                response.ActiveSchemeItemCount = accumulate ? _originalStates.Count : 0;
+                response.Message = accumulate
+                    ? "The scheme matched no items; the active model color scheme is unchanged."
+                    : "The scheme matched no items; no material overrides were changed.";
                 return;
             }
 
-            var statesByItem = new Dictionary<ModelItem, ModelColorSchemeOriginalState>();
+            if (!accumulate)
+            {
+                ClearSession();
+                _sessionIdentity = ModelColorSchemeDocumentIdentity.Capture(document);
+                _selectionBeforeApply = SnapshotSelection(document);
+            }
+
+            // Capture every original state before the first override; items an earlier
+            // accumulated batch already captured keep that pre-scheme state.
+            _hasActiveScheme = true;
             foreach (var bucket in ruleBuckets)
             {
                 foreach (var item in bucket.Items)
-                {
-                    if (!statesByItem.ContainsKey(item))
-                        statesByItem[item] = CaptureOriginalState(item);
-                }
+                    _originalStates.TryCapture(item, CaptureOriginalState);
             }
-
-            _sessionIdentity = ModelColorSchemeDocumentIdentity.Capture(document);
-            _originalStates = new List<ModelColorSchemeOriginalState>();
-            _selectionBeforeApply = SnapshotSelection(document);
-            _selectionClearedByScheme = false;
-            _hasActiveScheme = true;
             var verificationSamples =
                 new List<Tuple<ModelItem, Autodesk.Navisworks.Api.Color>>();
 
@@ -508,8 +534,6 @@ namespace NavisHelper.Agent.Services
                     if (bucket.Items.Count == 0)
                         continue;
 
-                    foreach (var item in bucket.Items)
-                        _originalStates.Add(statesByItem[item]);
                     document.Models.OverridePermanentColor(bucket.Items, bucket.Rule.Color);
                     if (bucket.Rule.Rule.Transparency.HasValue)
                     {
@@ -541,26 +565,33 @@ namespace NavisHelper.Agent.Services
             }
             catch (Exception ex)
             {
-                RestoreOriginalStates(document, response.Warnings);
+                // A separate list: response.Warnings may already carry the replace notice.
+                var restoreWarnings = new List<string>();
+                RestoreOriginalStates(document, restoreWarnings);
                 RestoreSelectionIfSafe(document, response);
                 RequestRedraw(document);
-                if (response.Warnings.Count == 0)
+                if (restoreWarnings.Count == 0)
                     ClearSession();
                 else
-                    Logger.Error(string.Join(" | ", response.Warnings), "ModelColorScheme");
+                    Logger.Error(string.Join(" | ", restoreWarnings), "ModelColorScheme");
                 throw new AgentCommandException(
                     ErrorCodes.CommandFailed,
                     "Model color scheme apply failed: " + ex.Message +
-                    (response.Warnings.Count == 0
-                        ? " Applied changes were restored."
+                    (restoreWarnings.Count == 0
+                        ? (accumulate
+                            ? " The whole active scheme, earlier accumulated batches included, was restored."
+                            : " Applied changes were restored.")
                         : " Automatic restore was incomplete; reset remains available."));
             }
 
             response.Applied = true;
             response.CanReset = true;
+            response.ActiveSchemeItemCount = _originalStates.Count;
             RequestRedraw(document);
-            response.Message =
-                "Model color scheme applied. Reset is available only in this Navisworks host session and document.";
+            response.Message = accumulate
+                ? "Model color scheme added to the active scheme (" + _originalStates.Count +
+                  " items in total); reset restores all of them. Reset is available only in this Navisworks host session and document."
+                : "Model color scheme applied. Reset is available only in this Navisworks host session and document.";
         }
 
         private static List<ModelColorSchemePreparedRule> PrepareRules(List<ModelColorSchemeRule> rules)
@@ -1017,7 +1048,7 @@ namespace NavisHelper.Agent.Services
 
         private void RestoreOriginalStates(Document document, List<string> warnings)
         {
-            var states = _originalStates ?? new List<ModelColorSchemeOriginalState>();
+            var states = _originalStates.States;
             try
             {
                 document.Models.ResetPermanentMaterials(
@@ -1106,7 +1137,7 @@ namespace NavisHelper.Agent.Services
         private void ClearSession()
         {
             _sessionIdentity = null;
-            _originalStates = null;
+            _originalStates.Clear();
             _selectionBeforeApply = null;
             _selectionClearedByScheme = false;
             _hasActiveScheme = false;

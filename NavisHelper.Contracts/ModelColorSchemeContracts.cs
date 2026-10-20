@@ -17,6 +17,7 @@ namespace NavisHelper.Agent.Contracts
         public bool? ClearSelectionAfterApply { get; set; }
         public int? WorkBudgetSeconds { get; set; }
         public string Verbosity { get; set; }
+        public string Mode { get; set; }
         public List<string> AnalysisCategoryFilters { get; set; } = new List<string>();
         public List<string> AnalysisPropertyFilters { get; set; } = new List<string>();
         public List<ModelColorSchemeRule> Rules { get; set; } = new List<ModelColorSchemeRule>();
@@ -44,6 +45,10 @@ namespace NavisHelper.Agent.Contracts
         public bool Applied { get; set; }
         public bool Reset { get; set; }
         public bool HadActiveScheme { get; set; }
+        public string Mode { get; set; }
+        public bool PreviousSchemeRestored { get; set; }
+        public int RestoredItemCount { get; set; }
+        public int ActiveSchemeItemCount { get; set; }
         public bool CanReset { get; set; }
         public int TraversedItemCount { get; set; }
         public int EligibleItemCount { get; set; }

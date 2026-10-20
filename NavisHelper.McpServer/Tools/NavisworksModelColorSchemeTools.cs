@@ -12,12 +12,13 @@ internal sealed class NavisworksModelColorSchemeTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Analyzes model naming/property patterns or applies an explicit ordered color-classification scheme. Rules use first-match-wins priority. Mutations require apply=true; reset restores only overrides captured by the active runtime scheme.")]
+    [Description("Analyzes model naming/property patterns or applies an explicit ordered color-classification scheme. Rules use first-match-wins priority. Mutations require apply=true; reset restores only overrides captured by the active runtime scheme. A second apply replaces the active scheme, restoring its overrides first and reporting previousSchemeRestored, unless mode=accumulate.")]
     [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ModelColorSchemeResponse> ModelColorScheme(
         [Description("Operation: analyze, apply, or reset. analyze is read-only. operation=apply with apply=false returns a dry-run plan. Default is analyze.")] string operation = "analyze",
         [Description("Item scope: model (all loaded models) or selection (selected items and descendants). Default is model.")] string scope = "model",
         [Description("False keeps apply/reset read-only; true applies colors or restores the active scheme. Default is false.")] bool apply = false,
+        [Description("How apply treats an active runtime scheme: replace restores its overrides first (reported as previousSchemeRestored and restoredItemCount); accumulate keeps them, so batches add up and one reset restores all of them.")] string mode = "replace",
         [Description("Maximum traversed model items, from 1 to 2000000. Default is 100000. apply=true rejects truncated scopes. Prefer selection scope for very large models.")] int maxItems = 100000,
         [Description("Maximum analysis candidates returned, from 1 to 5000. Default is 100.")] int candidateLimit = 100,
         [Description("Maximum non-empty properties read per eligible item, from 1 to 1000. Default is 50.")] int maxPropertiesPerItem = 50,
@@ -38,6 +39,7 @@ internal sealed class NavisworksModelColorSchemeTools : NavisworksToolBase
             Operation = operation,
             Scope = scope,
             Apply = apply,
+            Mode = mode,
             MaxItems = maxItems,
             CandidateLimit = candidateLimit,
             MaxPropertiesPerItem = maxPropertiesPerItem,
