@@ -134,7 +134,8 @@ namespace NavisHelper.Agent.Services
                     comments.Add(new ClashCommentInfo
                     {
                         Body = SafeString(() => comment.Body),
-                        Author = SafeString(() => comment.Author),
+                        // Author is a string up to 2026 and an Assignee in 2027.
+                        Author = SafeString(() => GetClashAssignee(comment.Author)),
                         Status = SafeString(() => comment.Status.ToString()),
                         CreatedUtc = SafeString(() => comment.CreationDate.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture))
                     });
