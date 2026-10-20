@@ -589,6 +589,10 @@
     <Compile Include="Agent\Services\ClashIsolationDocumentIdentity.cs" />
     <Compile Include="Agent\Services\ClashItemNameService.cs" />
     <Compile Include="Agent\Services\ModelColorSchemeService.cs" />
+    <Compile Include="Agent\Services\ModelColorSchemeService.Analysis.cs" />
+    <Compile Include="Agent\Services\ModelColorSchemeService.Apply.cs" />
+    <Compile Include="Agent\Services\ModelColorSchemeService.Items.cs" />
+    <Compile Include="Agent\Services\ModelColorSchemeService.Types.cs" />
     <Compile Include="Agent\Services\CurrentViewScreenshotService.cs" />
     <Compile Include="Agent\Services\ClashSavedViewpointCreationService.cs" />
     <Compile Include="Agent\Services\ElevationMarkerService.cs" />
