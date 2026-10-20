@@ -55,7 +55,7 @@ JSON-RPC response bytes, decimal KB = 1000 bytes; token counts use the approxima
 
 | Spec | Tools | `tools/list` | Approx. tokens |
 |---|---:|---:|---:|
-| unset, or `all` | 118 | 186.2 KB | ~55,200 |
+| unset, or `all` | 118 | 186.4 KB | ~55,200 |
 | `core,clash` | 81 | 118.2 KB | ~35,000 |
 | `core` | 48 | 53.8 KB | **~15,900** |
 
