@@ -100,6 +100,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<SelectionColorByPropertyRequest>,
             (document, request) => _commandService.SelectionColorByProperty(document, request));
 
+        router.Register<AppearanceProfileApplyRequest>(
+            HostCommandNames.AppearanceProfileApply,
+            true,
+            DeserializePayload<AppearanceProfileApplyRequest>,
+            (document, request) => _appearanceProfileService.Execute(document, request));
+
         router.Register<ModelColorSchemeRequest>(
             HostCommandNames.ModelColorScheme,
             true,

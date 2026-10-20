@@ -37,6 +37,7 @@ namespace NavisHelper.Agent.Contracts
         public const string SelectionDistinctPropertyValues = "selection_distinct_property_values";
         public const string SelectionColorByProperty = "selection_color_by_property";
         public const string ModelColorScheme = "model_color_scheme";
+        public const string AppearanceProfileApply = "appearance_profile_apply";
         public const string ClashListTests = "clash_list_tests";
         public const string ClashListResults = "clash_list_results";
         public const string ClashListClusters = "clash_list_clusters";

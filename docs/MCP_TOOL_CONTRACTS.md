@@ -22,6 +22,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | --- | --- | --- | --- | --- |
 | `activate_saved_viewpoint` | View | Yes | Yes | Yes |
 | `active_model_context` | None | Yes | Yes | No |
+| `appearance_profile_apply` | Document | Yes | Yes | Yes |
 | `build_mtr_viewpoints` | View, Document | Yes | Yes | Yes |
 | `cancel_clash_report` | LocalState | Yes | No | No |
 | `cancel_clash_run` | LocalState | Yes | No | No |
@@ -221,6 +222,7 @@ the human-readable sample beside them:
 
 | flag | on |
 | --- | --- |
+| `rulesTruncated` | `appearance_profile_apply`: first 200 rules returned; full-profile counts and native application remain complete |
 | `previewTruncated` | `find_items` and other match previews |
 | `affectedRootSummariesTruncated` | the visibility tools. Only the `affectedRootSummaries` sample is short: `affectedRootCount` is taken from the full root count and stays complete |
 | `affectedItemsPreviewTruncated` | `hide_selected`, `hide_unselected`, `unhide_selected`, `reveal_selected`, `isolate_selected`, `show_all`, `isolate_by_box` |
@@ -261,6 +263,7 @@ contract cannot skip that description.
 | `ResultsTruncated` | `ClashGroupByProximityResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashZoneExportResponse`, `FindItemsByBboxResponse` |
 | `RootItemsTruncated` | `ClashBboxPairPlanResponse` |
 | `RowsTruncated` | `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
+| `RulesTruncated` | `AppearanceProfileApplyResponse` |
 | `TraversalTruncated` | `FindItemsByBboxResponse`, `IsolateByBoxResponse` |
 | `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
 | `ValuesTruncated` | `SelectionDistinctPropertyValuesResponse` |
@@ -1140,6 +1143,33 @@ Outputs:
 Association fields are explanatory, not authoritative BIM classification. Treat `associationLevelA/B=source_root`, `leaf_path`, `unknown`, or `mixed` as low-confidence grouping.
 
 `verbosity=compact` is the default and clears long `item1Path`/`item2Path` values from preview rows. Use `verbosity=full` only when full model paths are needed.
+
+## `appearance_profile_apply`
+
+Reads a saved Appearance Profiler profile (.xml/.dat) on the Navisworks host. With
+`apply=false` (default), lists its rules without invoking the loader. With `apply=true`,
+calls Navisworks' own `AutoAppearanceLoader.Navisworks` add-in. Requires an open document.
+The tool never saves the document.
+
+Inputs: required `profilePath` (rooted path, existing file, at most 10 MB), optional
+`apply=false`, `instanceId=""`, and `navisworksVersion=""`.
+
+Returns `profilePath`, `apply`, `applied`, `profile`, `rulesTruncated`, `pluginResult`,
+`elapsedMs`, `message`, and `warnings`. `profile` contains `name`, `version`, ordered
+`rules`, full-profile `setRuleCount` and `hiddenRuleCount`, and parser `warnings`.
+Each rule reports `kind` (`property`, `set`, or `unknown`), `category`, `property`,
+`condition`, `value`, `setName`, `setPath`, uppercase `colorHex`, numeric `transparency`,
+and `forceVisibility`. Fields that do not apply are null. Unknown rule types are
+retained and named in warnings. `rulesTruncated=true` means only the first 200 rules
+are returned; the native loader still receives the complete file.
+
+`pluginResult` is null for dry-run and the native integer result after invocation.
+`applied=true` reports that the loader completed, not visual verification. Invalid
+paths, oversized files, and invalid profiles produce `SchemaViolation`; loader
+exceptions produce `CommandFailed`.
+
+Overrides are permanent. `model_color_scheme reset` does not undo them. Use Navisworks
+Reset Appearance, or reopen without saving. Native runtime behavior awaits an agreed L3 window.
 
 ## `model_color_scheme`
 

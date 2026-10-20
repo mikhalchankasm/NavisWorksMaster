@@ -19,6 +19,7 @@ selection_export_properties
 selection_distinct_property_values
 selection_color_by_property
 model_color_scheme
+appearance_profile_apply
 clash_list_tests
 clash_list_results
 clash_list_clusters
