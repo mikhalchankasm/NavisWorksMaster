@@ -59,6 +59,10 @@ namespace NavisHelper.Agent.Services
             response.Warnings.Add("Appearance Profiler overrides are permanent; model_color_scheme reset does not undo them. Use Navisworks Reset Appearance, or reopen without saving.");
             if (response.Apply)
             {
+                // The native loader silently returns 0 unless the Appearance Profiler dock pane
+                // plugin is enabled and loaded (it calls TryLoadPlugin itself and gives up quietly).
+                // Load it first and report its state, so a silent no-op becomes visible.
+                EnsureProfilerPaneLoaded(response);
                 try
                 {
                     response.PluginResult = Autodesk.Navisworks.Api.Application.Plugins.ExecuteAddInPlugin(
@@ -82,6 +86,32 @@ namespace NavisHelper.Agent.Services
             }
             response.ElapsedMs = timer.ElapsedMilliseconds;
             return response;
+        }
+
+        private static void EnsureProfilerPaneLoaded(AppearanceProfileApplyResponse response)
+        {
+            try
+            {
+                var record = Autodesk.Navisworks.Api.Application.Plugins.FindPlugin("AutoAppearanceDockPane.Navisworks");
+                if (record == null)
+                {
+                    response.Warnings.Add("Appearance Profiler pane plugin not found; the native loader will do nothing.");
+                    return;
+                }
+                var state = "pane plugin: type " + record.GetType().Name + ", enabled " + record.IsEnabled + ", loaded " + record.IsLoaded;
+                if (record.IsEnabled && !record.IsLoaded)
+                {
+                    record.LoadPlugin();
+                    state += " -> loaded " + record.IsLoaded;
+                }
+                var pane = record.LoadedPlugin as Autodesk.Navisworks.Api.Plugins.DockPanePlugin;
+                state += ", dock pane " + (pane == null ? "missing" : "ready");
+                response.Warnings.Add("Appearance Profiler " + state + ".");
+            }
+            catch (Exception exception)
+            {
+                response.Warnings.Add("Could not prepare the Appearance Profiler pane: " + exception.Message);
+            }
         }
     }
 }
