@@ -394,16 +394,86 @@ class AgentHomeIsolationTests(unittest.TestCase):
         those files, yet they are part of the home the provider receives."""
         original = subject._redirect_home
 
-        def redirect_and_plant_skills(home: Path, root: Path) -> dict[str, str]:
-            overrides = original(home, root)
-            (home / "skills").mkdir(exist_ok=True)
+        def redirect_and_plant_skills(home: Path, root: Path, work: Path | None = None) -> dict[str, str]:
+            overrides = original(home, root, work)
+            ((work or home) / "skills").mkdir(exist_ok=True)
             return overrides
 
-        with mock.patch.object(subject, "_redirect_home", redirect_and_plant_skills):
-            with self.assertRaises(ExecutorError) as raised:
-                self.prepare("claude")
-        self.assertEqual(raised.exception.category, "SANDBOX_UNSAFE")
-        self.assertIn("skills", str(raised.exception))
+        # Codex's profile lives beside its home (#1274), and is checked the same way.
+        for provider in ("claude", "codex"):
+            with self.subTest(provider=provider):
+                with mock.patch.object(subject, "_redirect_home", redirect_and_plant_skills):
+                    with self.assertRaises(ExecutorError) as raised:
+                        subject.prepare_isolated_home(provider, self.root / f"runtime-{provider}", dict(self.env))
+                self.assertEqual(raised.exception.category, "SANDBOX_UNSAFE")
+                self.assertIn("skills", str(raised.exception))
+
+    def test_the_codex_profile_lives_beside_its_home_with_temp_as_its_root(self) -> None:
+        """Only TEMP is a sandbox writable root, so everything the run writes sits below it (#1274)."""
+        home = self.prepare("codex")
+        work = self.runtime / "codex-work"
+        profile = work / "userprofile"
+        expected = {
+            "TEMP": work, "TMP": work, "HOME": profile, "USERPROFILE": profile,
+            "APPDATA": profile / "AppData" / "Roaming", "LOCALAPPDATA": profile / "AppData" / "Local",
+            "DOTNET_CLI_HOME": profile / ".dotnet", "NUGET_PACKAGES": profile / ".nuget" / "packages",
+            "NUGET_HTTP_CACHE_PATH": profile / ".nuget" / "http-cache",
+            "NUGET_PLUGINS_CACHE_PATH": profile / ".nuget" / "plugins-cache",
+            "NUGET_SCRATCH": profile / ".nuget" / "scratch",
+        }
+        for variable, directory in expected.items():
+            with self.subTest(variable=variable):
+                self.assertEqual(home.env[variable], str(directory))
+                self.assertTrue(directory.is_dir())
+        self.assertEqual(home.env["CODEX_HOME"], str(home.path))
+        self.assertTrue((home.path / "auth.json").is_file())
+        self.assertFalse(any(path.name == "auth.json" for path in work.rglob("*")))
+
+    def test_the_operators_tmpdir_never_reaches_a_codex_home(self) -> None:
+        """Codex makes TMPDIR a sandbox root and refuses every command when it is the operator's 8.3 TEMP (#1283)."""
+        operator_temp = str(self.operator / "AppData" / "Local" / "Temp")
+        for provider in ("codex", "codex-plan"):
+            with self.subTest(provider=provider):
+                home = subject.prepare_isolated_home(
+                    provider, self.root / f"runtime-tmpdir-{provider}", {**self.env, "TMPDIR": operator_temp})
+                self.assertNotIn("TMPDIR", home.env)
+                self.assertEqual(home.env["TEMP"], str(self.root / f"runtime-tmpdir-{provider}" / f"{provider}-work"))
+
+    def test_the_codex_nuget_config_is_generated_offline_never_copied(self) -> None:
+        """No package source; the operator's package folder only as a read-only fallback."""
+        (self.operator / "AppData" / "Roaming" / "NuGet").mkdir(parents=True)
+        (self.operator / "AppData" / "Roaming" / "NuGet" / "NuGet.Config").write_text(
+            '<configuration><packageSourceCredentials><feed><add key="ClearTextPassword" value="s3cret" />'
+            "</feed></packageSourceCredentials></configuration>", encoding="utf-8")
+        packages = self.operator / ".nuget" / "packages"
+        packages.mkdir(parents=True)
+        with mock.patch.dict(subject.os.environ, {"NUGET_PACKAGES": ""}):
+            home = self.prepare("codex")
+        config = (Path(home.env["APPDATA"]) / "NuGet" / "NuGet.Config").read_text(encoding="utf-8")
+        self.assertIn("<packageSources>\n    <clear />\n  </packageSources>", config)
+        self.assertIn(f'<add key="operator" value="{packages}" />', config)
+        self.assertNotIn("s3cret", config)
+        self.assertNotIn("packageSourceCredentials", config)
+
+    def test_a_missing_operator_package_folder_leaves_no_fallback(self) -> None:
+        with mock.patch.dict(subject.os.environ, {"NUGET_PACKAGES": ""}):
+            config = subject._nuget_config(self.root / "nobody")
+        self.assertIn("<clear />", config)
+        self.assertNotIn("fallbackPackageFolders", config)
+
+    @unittest.skipUnless(subject.os.name == "nt", "a real DACL")
+    def test_the_codex_profile_inherits_the_operator_grant_and_its_home_does_not(self) -> None:
+        from scripts.executor_worktree_acl import WindowsAcl
+
+        home = self.prepare("codex")
+        acl = WindowsAcl()
+        ace = f"(A;OICI;0x1301bf;;;{acl.operator_sid()})"
+        work = self.runtime / "codex-work"
+        self.assertIn(ace, acl.read(work))
+        dotnet = acl.read(Path(home.env["DOTNET_CLI_HOME"]))
+        self.assertNotIn("D:P", dotnet)
+        self.assertIn(f"(A;ID;0x1301bf;;;{acl.operator_sid()})", dotnet.replace("OICIID", "ID"))
+        self.assertNotIn(acl.operator_sid(), acl.read(home.path))
 
     def test_a_missing_credential_fails_as_auth_missing(self) -> None:
         (self.operator / ".claude" / ".credentials.json").unlink()

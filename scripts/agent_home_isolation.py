@@ -29,8 +29,12 @@ import subprocess
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from xml.sax.saxutils import escape as xml_escape
+
+from scripts.executor_worktree_acl import grant_runtime_access
 
 from scripts.executor_primitives import (
+    CODEX_PROVIDERS,
     EXPECTED_PROFILES,
     GLM_CREDENTIAL_ENV_NAMES,
     GLM_PROVIDERS,
@@ -581,7 +585,28 @@ def _git_identity(root: Path) -> str:
     return "[user]\n" + "\n".join(fields) + "\n"
 
 
-def _redirect_home(home: Path, root: Path) -> dict[str, str]:
+NUGET_CONFIG_TEMPLATE = (
+    '<?xml version="1.0" encoding="utf-8"?>\n<configuration>\n'
+    "  <packageSources>\n    <clear />\n  </packageSources>\n{fallback}</configuration>\n"
+)
+
+
+def _nuget_config(operator_root: Path) -> str:
+    """No package source, and the operator's package folder as a read-only fallback (#1274).
+
+    The sandbox has no network, so restore must find every package locally. The file is generated, never copied:
+    the operator's own NuGet.Config may carry sources with credentials.
+    """
+    folder = Path(os.environ.get("NUGET_PACKAGES") or operator_root / ".nuget" / "packages")
+    if not folder.is_dir():
+        return NUGET_CONFIG_TEMPLATE.format(fallback="")
+    value = xml_escape(str(folder), {'"': "&quot;"})
+    return NUGET_CONFIG_TEMPLATE.format(
+        fallback=f'  <fallbackPackageFolders>\n    <add key="operator" value="{value}" />\n  </fallbackPackageFolders>\n'
+    )
+
+
+def _redirect_home(home: Path, root: Path, work: Path | None = None) -> dict[str, str]:
     """Point the run's HOME at a fresh directory, so nothing is found by convention.
 
     The per-provider variables move a CLI's own config. They do not move what a
@@ -593,9 +618,25 @@ def _redirect_home(home: Path, root: Path) -> dict[str, str]:
     executor's legitimate working material.
 
     git config is copied in, or the executor cannot make a commit.
+
+    For Codex (#1274) the profile moves out of CODEX_HOME into `work`, a sibling that is TEMP itself. The
+    sandbox makes TEMP a writable root and its ACE is inherited by everything below; a folder outside a
+    writable root - DOTNET_CLI_HOME, the NuGet caches, APPDATA with NuGet.Config - stays denied however it
+    is granted. `work` also carries an explicit Modify ACE for the operator, which the token's ordinary
+    SIDs need (see executor_worktree_acl). Its subfolders are created without mode 0o700: on Windows that
+    mode writes a protected DACL and would cut them off from both ACEs. CODEX_HOME, with the credential,
+    gets neither and stays unreadable from the sandbox.
     """
-    redirected = home / "userprofile"
-    redirected.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if work is None:
+        redirected = home / "userprofile"
+        redirected.mkdir(mode=0o700, parents=True, exist_ok=True)
+        mode = 0o700
+    else:
+        work.mkdir(mode=0o700)
+        grant_runtime_access(work)
+        redirected = work / "userprofile"
+        redirected.mkdir()
+        mode = 0o777
     identity = _git_identity(root)
     if identity:
         _write(redirected / ".gitconfig", identity, label="Executor git identity")
@@ -607,7 +648,7 @@ def _redirect_home(home: Path, root: Path) -> dict[str, str]:
     # TEMP and TMP writable roots and grants them an inheritable write ACE for
     # a capability SID minted per CODEX_HOME. With the operator's TEMP that
     # left a new orphaned ACE on the real AppData\Local\Temp every run.
-    temp = local_appdata / "Temp"
+    temp = local_appdata / "Temp" if work is None else work
     cache_paths = {
         "APPDATA": appdata,
         "LOCALAPPDATA": local_appdata,
@@ -620,7 +661,11 @@ def _redirect_home(home: Path, root: Path) -> dict[str, str]:
         "NUGET_SCRATCH": nuget_home / "scratch",
     }
     for path in cache_paths.values():
-        path.mkdir(mode=0o700, parents=True, exist_ok=True)
+        path.mkdir(mode=mode, parents=True, exist_ok=True)
+    if work is not None:
+        # Created here first: _write would make a missing parent with mode 0o700, cut off from the sandbox's ACE.
+        (appdata / "NuGet").mkdir(exist_ok=True)
+        _write(appdata / "NuGet" / "NuGet.Config", _nuget_config(root), label="Executor NuGet configuration")
     overrides = {
         "HOME": str(redirected),
         "USERPROFILE": str(redirected),
@@ -750,13 +795,16 @@ def prepare_isolated_home(
         environment.update(_BUILDERS[provider](home, source, environment))
     if provider in GLM_PROVIDERS:
         environment["OPENCODE_DISABLE_AUTOUPDATE"] = "1"
+    work = runtime_dir / f"{provider}-work" if provider in CODEX_PROVIDERS else None
     if provider != "qwen":
-        environment.update(_redirect_home(home, user_root(environment)))
+        environment.update(_redirect_home(home, user_root(environment), work))
     # The check runs on the finished home: the redirect writes .gitconfig and
     # the cache directories into it, and that is the home the provider
     # receives. HOME resolves inside the home by then, so the operator's home
     # is passed explicitly rather than derived from the environment.
     assert_isolated(provider, home, environment, operator=source)
+    if work is not None:
+        assert_isolated(provider, work, environment, operator=source)
     return IsolatedHome(
         provider=provider,
         path=home,

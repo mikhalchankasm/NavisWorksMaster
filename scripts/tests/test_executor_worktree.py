@@ -229,9 +229,17 @@ class BriefTests(unittest.TestCase):
         self.assertNotIn("acceptance criterion", prompt)
 
     def test_every_non_advisor_prompt_keeps_the_executor_preamble(self) -> None:
-        for provider in ("claude", "kimi", "glm", "glm-flash", "codex"):
+        for provider in ("claude", "kimi", "glm", "glm-flash"):
             with self.subTest(provider=provider):
                 self.assertEqual(subject.build_prompt(provider, "BRIEF"), subject.PREAMBLE + "BRIEF")
+
+    def test_the_codex_prompt_pins_the_one_msbuild_mode_its_sandbox_runs(self) -> None:
+        """Default MSBuild nodes fail restore silently in the unelevated sandbox; -m:1 is the proved mode (#1274)."""
+        prompt = subject.build_prompt("codex", "BRIEF")
+        self.assertEqual(prompt, subject.PREAMBLE.replace("BRIEF:\n", subject.CODEX_SANDBOX_NOTE + "BRIEF:\n") + "BRIEF")
+        for phrase in ("-m:1", "no network", "Do not set TEMP", "Do not commit", "Do not run dotnet --info"):
+            self.assertIn(phrase, prompt)
+        self.assertTrue(prompt.endswith("BRIEF:\nBRIEF"))
 
 
 class ArgvTests(unittest.TestCase):
