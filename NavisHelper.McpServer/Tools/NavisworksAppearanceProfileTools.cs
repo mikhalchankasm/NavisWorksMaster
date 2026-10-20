@@ -9,7 +9,7 @@ internal sealed class NavisworksAppearanceProfileTools : NavisworksToolBase
     public NavisworksAppearanceProfileTools(NavisworksToolContext context) : base(context) { }
 
     [McpServerTool]
-    [Description("Applies a saved Appearance Profiler profile (.xml/.dat) with Navisworks' own loader. Dry-run lists the rules. The overrides are permanent and model_color_scheme reset does not undo them; use Navisworks Reset Appearance, or reopen without saving.")]
+    [Description("Applies a saved Appearance Profiler profile (.xml/.dat) with Navisworks' own loader as one undo step (Ctrl+Z in Navisworks). Unmatched items are greyed as in the profiler. Navisworks silently ignores a profile it cannot read, so check errors in the dry-run, which lists the rules and blocking errors; apply refuses profiles with errors. The overrides are permanent and model_color_scheme reset does not undo them; use Ctrl+Z, or reopen without saving.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<AppearanceProfileApplyResponse> AppearanceProfileApply(
         [Description("Rooted path to a saved Appearance Profiler .xml or .dat file on the Navisworks host; maximum 10 MB.")] string profilePath,

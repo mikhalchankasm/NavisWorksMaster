@@ -46,6 +46,10 @@ namespace NavisHelper.Agent.Services
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Cannot read Appearance Profiler profile: " + exception.Message);
             }
 
+            if (request.Apply == true && profile.Errors.Count > 0)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation,
+                    "Appearance Profiler profile cannot be applied: " + string.Join("; ", profile.Errors.Take(5)));
+
             var response = new AppearanceProfileApplyResponse
             {
                 ProfilePath = request.ProfilePath,
@@ -56,7 +60,7 @@ namespace NavisHelper.Agent.Services
             };
             profile.Rules = profile.Rules.Take(MaximumReturnedRules).ToList();
             response.Warnings.AddRange(profile.Warnings);
-            response.Warnings.Add("Appearance Profiler overrides are permanent; model_color_scheme reset does not undo them. Use Navisworks Reset Appearance, or reopen without saving.");
+            response.Warnings.Add("Appearance Profiler overrides apply as one undo step (Ctrl+Z in Navisworks); model_color_scheme reset does not undo them. Use Ctrl+Z, or reopen without saving. Unmatched items are greyed as in the profiler.");
             if (response.Apply)
             {
                 // The native loader silently returns 0 unless the Appearance Profiler dock pane

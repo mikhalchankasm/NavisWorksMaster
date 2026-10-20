@@ -18,7 +18,7 @@ namespace NavisHelper.Agent.Contracts
         public string SetName { get; set; }
         public string SetPath { get; set; }
         public string ColorHex { get; set; }
-        public double Transparency { get; set; }
+        public int Transparency { get; set; }
         public string ForceVisibility { get; set; }
     }
 
@@ -29,6 +29,7 @@ namespace NavisHelper.Agent.Contracts
         public List<AppearanceProfileRuleInfo> Rules { get; set; } = new List<AppearanceProfileRuleInfo>();
         public int SetRuleCount { get; set; }
         public int HiddenRuleCount { get; set; }
+        public List<string> Errors { get; set; } = new List<string>();
         public List<string> Warnings { get; set; } = new List<string>();
     }
 
@@ -58,12 +59,13 @@ namespace NavisHelper.Agent.Contracts
                 XNamespace xsi = "http://www.w3.org/2001/XMLSchema-instance";
                 foreach (var element in profile.Elements("PersistedItemAppearanceProfileRuleV3"))
                 {
+                    var errorPrefix = "rule " + (summary.Rules.Count + 1).ToString(CultureInfo.InvariantCulture) + ": ";
                     var type = (string)element.Attribute(xsi + "type") ?? "(missing)";
                     var rule = new AppearanceProfileRuleInfo
                     {
                         Kind = "unknown",
                         ForceVisibility = Text(element, "ForceVisibility"),
-                        Transparency = Number(element, "Transparency"),
+                        Transparency = Transparency(element, summary.Errors, errorPrefix),
                     };
                     if (type.EndsWith("PropertyRuleV3", StringComparison.Ordinal))
                     {
@@ -88,7 +90,11 @@ namespace NavisHelper.Agent.Contracts
 
                     var color = element.Element("Color");
                     if (color != null)
+                    {
                         rule.ColorHex = "#" + ColorByte(color, "R") + ColorByte(color, "G") + ColorByte(color, "B");
+                        if (!ScRgbAgrees(color, "R") || !ScRgbAgrees(color, "G") || !ScRgbAgrees(color, "B"))
+                            summary.Errors.Add(errorPrefix + "scRGB colour disagrees with R/G/B; Navisworks would use the scRGB values");
+                    }
                     if (string.Equals(rule.ForceVisibility, "Hidden", StringComparison.OrdinalIgnoreCase))
                         summary.HiddenRuleCount++;
                     summary.Rules.Add(rule);
@@ -124,13 +130,32 @@ namespace NavisHelper.Agent.Contracts
             return (string)element.Element(name);
         }
 
-        private static double Number(XElement element, string name)
+        private static int Transparency(XElement element, List<string> errors, string errorPrefix)
         {
-            var text = Text(element, name);
-            var value = string.IsNullOrEmpty(text) ? 0 : double.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
-            if (double.IsNaN(value) || double.IsInfinity(value))
-                throw new FormatException("Non-finite " + name + ".");
+            var text = Text(element, "Transparency");
+            if (text == null)
+                return 0;
+            int value;
+            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) || value < 0 || value > 100)
+            {
+                errors.Add(errorPrefix + "transparency '" + text + "' must be a whole number 0-100; Navisworks drops the whole profile otherwise");
+                return 0;
+            }
             return value;
+        }
+
+        private static bool ScRgbAgrees(XElement color, string channel)
+        {
+            var text = Text(color, "Sc" + channel);
+            if (text == null)
+                return true;
+            double scRgb;
+            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out scRgb) ||
+                double.IsNaN(scRgb) || double.IsInfinity(scRgb))
+                return false;
+            var srgb = byte.Parse(Text(color, channel), CultureInfo.InvariantCulture) / 255.0;
+            var linear = srgb <= 0.04045 ? srgb / 12.92 : Math.Pow((srgb + 0.055) / 1.055, 2.4);
+            return Math.Abs(scRgb - linear) <= 0.002;
         }
 
         private static string ColorByte(XElement color, string name)
