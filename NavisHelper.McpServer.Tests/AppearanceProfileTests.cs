@@ -30,7 +30,7 @@ public sealed class AppearanceProfileTests
                 <Condition>DisplayStringWildcard</Condition>
               </PersistedItemAppearanceProfileRuleV3>
               <PersistedItemAppearanceProfileRuleV3 xsi:type="PersistedItemAppearanceProfilePropertyRuleV3">
-                <Transparency>0.5</Transparency>
+                <Transparency>50</Transparency>
                 <Color><A>255</A><R>0</R><G>128</G><B>255</B></Color>
                 <ForceVisibility>Hidden</ForceVisibility>
                 <Category Internal="LcOaNode">Item</Category>
@@ -70,12 +70,12 @@ public sealed class AppearanceProfileTests
         Assert.Equal("DisplayStringWildcard", first.Condition);
         Assert.Equal("*/PIPE", first.Value);
         Assert.Equal("#AAB4BE", first.ColorHex);
-        Assert.Equal(0d, first.Transparency);
+        Assert.Equal(0, first.Transparency);
         Assert.Equal("Unchanged", first.ForceVisibility);
 
         var hidden = profile.Rules[1];
         Assert.Equal("Hidden", hidden.ForceVisibility);
-        Assert.Equal(0.5d, hidden.Transparency);
+        Assert.Equal(50, hidden.Transparency);
         Assert.Equal("#0080FF", hidden.ColorHex);
 
         var set = profile.Rules[2];
@@ -83,6 +83,44 @@ public sealed class AppearanceProfileTests
         Assert.Equal("TRAY 01", set.SetName);
         Assert.Equal("Profiles/TRAY 01", set.SetPath);
         Assert.Equal("#123456", set.ColorHex);
+        Assert.Empty(profile.Errors);
+    }
+
+    // Live finding (#339): Navisworks' own reader drops the whole profile, silently, when one
+    // rule cannot be deserialised, and its scRGB fields overwrite R/G/B. The dry-run must say so
+    // before apply, because the native loader reports nothing.
+    [Theory]
+    [InlineData("<Transparency>0.3</Transparency>", "transparency")]
+    [InlineData("<Transparency>101</Transparency>", "transparency")]
+    [InlineData("<Transparency>-1</Transparency>", "transparency")]
+    public void FractionalOrOutOfRangeTransparencyIsABlockingError(string transparency, string expected)
+    {
+        var text = ReplaceFirst(Sample, "<Transparency>0</Transparency>", transparency);
+        var profile = AppearanceProfileFile.Parse(text);
+        Assert.Single(profile.Errors);
+        Assert.Contains(expected, profile.Errors[0], StringComparison.Ordinal);
+        Assert.Contains("rule 1", profile.Errors[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ScRgbThatDisagreesWithRgbIsABlockingError()
+    {
+        // R=170 G=180 B=190 is about scRGB 0.402, 0.456, 0.515; zeros would paint the rule black.
+        var zeros = ReplaceFirst(Sample, "<B>190</B></Color>", "<B>190</B><ScA>1</ScA><ScR>0</ScR><ScG>0</ScG><ScB>0</ScB></Color>");
+        var profile = AppearanceProfileFile.Parse(zeros);
+        Assert.Single(profile.Errors);
+        Assert.Contains("scRGB", profile.Errors[0], StringComparison.Ordinal);
+
+        var consistent = ReplaceFirst(Sample, "<B>190</B></Color>",
+            "<B>190</B><ScA>1</ScA><ScR>0.4019778</ScR><ScG>0.456411034</ScG><ScB>0.5149177</ScB></Color>");
+        Assert.Empty(AppearanceProfileFile.Parse(consistent).Errors);
+    }
+
+    private static string ReplaceFirst(string text, string oldValue, string newValue)
+    {
+        var index = text.IndexOf(oldValue, StringComparison.Ordinal);
+        Assert.True(index >= 0, oldValue + " not found");
+        return text.Substring(0, index) + newValue + text.Substring(index + oldValue.Length);
     }
 
     [Theory]
@@ -125,6 +163,8 @@ public sealed class AppearanceProfileTests
         var description = tool.ProtocolTool.Description ?? "";
         Assert.Contains("Appearance Profiler", description, StringComparison.Ordinal);
         Assert.Contains("model_color_scheme", description, StringComparison.Ordinal);
+        Assert.Contains("undo", description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("grey", description, StringComparison.OrdinalIgnoreCase);
 
         var schema = JsonNode.Parse(tool.ProtocolTool.InputSchema.GetRawText())!;
         Assert.Contains("profilePath", schema["required"]!.AsArray().Select(node => node!.GetValue<string>()));
