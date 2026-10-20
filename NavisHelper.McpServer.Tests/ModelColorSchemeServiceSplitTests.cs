@@ -93,11 +93,29 @@ public sealed class ModelColorSchemeServiceSplitTests
         Assert.Equal(Declarations.OrderBy(text => text, StringComparer.Ordinal), found);
     }
 
+    // SHA-256 of the sorted, trimmed code lines of the single file before the split
+    // (2c49c02), leaving out blank lines, lone braces, usings, the namespace line and the
+    // class header, which every part repeats. Equal hashes mean every line moved and
+    // none changed: a flipped operator changes the hash even when lengths match.
+    private const string OriginalLinesSha256 = "EEFA8C3C9FBBAA1314C3C6081D280BB1BD6DAD19B9EFBF6D459742EFD3FFBAD7";
+
     [Fact]
     public void TheCodeOnlyMoves()
     {
         var total = Parts().Sum(part => Regex.Replace(File.ReadAllText(part), @"\s", "").Length);
         // Each extra file repeats its usings, namespace and class header.
         Assert.InRange(total, OriginalNonWhitespace, OriginalNonWhitespace + 3000);
+
+        var lines = Parts()
+            .SelectMany(part => File.ReadAllText(part).Split('\n'))
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && line != "{" && line != "}" &&
+                           !line.StartsWith("using ", StringComparison.Ordinal) &&
+                           !line.StartsWith("namespace ", StringComparison.Ordinal) &&
+                           !Regex.IsMatch(line, @"^internal sealed (partial )?class ModelColorSchemeService$"))
+            .OrderBy(line => line, StringComparer.Ordinal);
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(string.Join("\n", lines))));
+        Assert.Equal(OriginalLinesSha256, hash);
     }
 }
