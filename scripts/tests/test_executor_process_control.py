@@ -83,6 +83,8 @@ class ProcessControlInTheRecord(unittest.TestCase):
             mock.patch.object(launcher, "check_codex_isolation", return_value=None),
             mock.patch.object(launcher, "_run_process", return_value=process),
             mock.patch.object(launcher, "persist_rotated_credentials", return_value=[]),
+            # The worktree grant (#1275) has its own tests; these runs use a stub worktree.
+            mock.patch.object(launcher, "grant_worktree_access", return_value=None),
             mock.patch.object(launcher, "_remove_runtime", return_value=(True, "")),
         ):
             code = launcher.main(["--provider", "codex", "--worktree", str(self.worktree), "--brief",

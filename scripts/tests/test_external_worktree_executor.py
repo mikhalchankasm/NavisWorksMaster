@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
@@ -404,10 +405,86 @@ class RunTests(unittest.TestCase):
             mock.patch.object(subject, "check_codex_isolation", return_value=None),
             mock.patch.object(subject, "_run_process", return_value=ProcessResult(0, stdout, "", 1.0)),
             mock.patch.object(subject, "persist_rotated_credentials", return_value=[]),
+            # A temporary folder's real DACL is not this helper's business; execute_granted covers the grant.
+            mock.patch.object(subject, "grant_worktree_access", return_value=None),
         ):
             # A record path keeps the event journal (#1069) inside this test's directory.
             return subject.run("codex", self.worktree, self.brief, runtime_root=self.root,
                                record_path=self.root / "records" / "run.json")
+
+    GRANT = {"path": "wt", "sid": "S-1-5-21-1", "before": "D:AI", "added": "A;OICI;0x1301bf;;;S-1-5-21-1"}
+
+    def execute_granted(self, process: ProcessResult | BaseException, restored: dict[str, object]) -> dict[str, object]:
+        """A codex run with the worktree grant (#1275) observed rather than applied."""
+        complete = "\n".join(json.dumps(event) for event in (
+            {"type": "thread.started"}, {"type": "turn.started"}, {"type": "turn.completed", "usage": {}}))
+        calls: list[str] = []
+
+        def provider(*_args: object, **_kwargs: object) -> ProcessResult:
+            calls.append("provider")
+            if isinstance(process, BaseException):
+                raise process
+            return replace(process, stdout=complete) if process.stdout == "" else process
+
+        def grant(*_args: object) -> dict[str, object]:
+            calls.append("grant")
+            return dict(self.GRANT)
+
+        def restore(state: dict[str, object], sids: set[str]) -> dict[str, object]:
+            calls.append("restore")
+            self.assertEqual(state, self.GRANT)
+            self.assertEqual(sids, {"S-1-5-21-7"})
+            return {**state, **restored}
+
+        self.grant_calls = calls
+        with (
+            mock.patch.object(subject, "resolve_worktree", return_value=self.worktree),
+            mock.patch.object(subject, "main_checkout", return_value=self.owner),
+            mock.patch.object(subject, "fingerprint", side_effect=["a", "a"]),
+            mock.patch.object(subject, "_resolve_executable", return_value=Path("codex")),
+            mock.patch.object(subject, "prepare_isolated_home", return_value=self.home),
+            mock.patch.object(subject, "build_argv", return_value=(["codex"], None)),
+            mock.patch.object(subject, "check_codex_isolation", return_value=None),
+            mock.patch.object(subject, "_run_process", side_effect=provider),
+            mock.patch.object(subject, "persist_rotated_credentials", return_value=[]),
+            mock.patch.object(subject, "grant_worktree_access", side_effect=grant),
+            mock.patch.object(subject, "restore_worktree_access", side_effect=restore),
+            mock.patch.object(subject, "sandbox_sids", return_value={"S-1-5-21-7"}),
+        ):
+            return subject.run("codex", self.worktree, self.brief, runtime_root=self.root,
+                               record_path=self.root / "records" / "run.json")
+
+    def test_the_worktree_grant_wraps_the_provider_and_its_restore_is_recorded(self) -> None:
+        restored = {"restored": True, "missing": [], "unexpected": [], "after": "D:AI"}
+        record = self.execute_granted(ProcessResult(0, "", "", 1.0), restored)
+        self.assertEqual(self.grant_calls, ["grant", "provider", "restore"])
+        self.assertTrue(record["host"]["worktreeAclGrant"]["restored"])
+        self.assertNotIn("hostViolations", record)
+
+    def test_a_timed_out_run_still_restores_the_worktree_acl(self) -> None:
+        restored = {"restored": True, "missing": [], "unexpected": []}
+        record = self.execute_granted(ProcessResult(1, "", "", 1.0, timed_out=True), restored)
+        self.assertEqual(self.grant_calls, ["grant", "provider", "restore"])
+        self.assertTrue(record["host"]["worktreeAclGrant"]["restored"])
+
+    def test_an_unrestored_worktree_acl_fails_the_run_and_names_what_is_left(self) -> None:
+        left = {"restored": False, "missing": [], "unexpected": ["A;OICI;FA;;;S-1-5-21-9"]}
+        record = self.execute_granted(ProcessResult(0, "", "", 1.0), left)
+        self.assertEqual(record["failure"], "WORKTREE_ACL_NOT_RESTORED")
+        self.assertEqual(record["host"]["worktreeAclGrant"]["unexpected"], ["A;OICI;FA;;;S-1-5-21-9"])
+
+    def test_an_interrupted_run_restores_the_worktree_acl_in_finally(self) -> None:
+        with self.assertRaises(KeyboardInterrupt):
+            self.execute_granted(KeyboardInterrupt(), {"restored": True})
+        self.assertEqual(self.grant_calls, ["grant", "provider", "restore"])
+
+    def test_an_interrupted_run_whose_acl_was_not_restored_refuses_with_the_details(self) -> None:
+        left = {"restored": False, "missing": ["A;OICI;0x1200a9;;;S-1-5-21-1"], "unexpected": []}
+        with self.assertRaises(ExecutorError) as raised:
+            self.execute_granted(KeyboardInterrupt(), left)
+        self.assertEqual(raised.exception.category, "WORKTREE_ACL_NOT_RESTORED")
+        self.assertEqual(raised.exception.exit_code, 6)
+        self.assertIn("0x1200a9", str(raised.exception))
 
     def test_a_codex_run_without_a_complete_event_stream_fails(self) -> None:
         """Exit 0 and no events looks like success in every other field."""

@@ -67,6 +67,16 @@ QUESTION:
 
 PREAMBLES = {"executor": PREAMBLE, "advisor": ADVISOR_PREAMBLE}
 
+# The one MSBuild mode proved inside the unelevated sandbox (#1274): with the default worker nodes restore stops
+# with no error; with one node it restores offline, builds and tests. dotnet --info is not proved either.
+CODEX_SANDBOX_NOTE = """In this sandbox there is no network and MSBuild works with one node only: pass
+-m:1 to every dotnet build and dotnet test (restore is offline, from a read-only
+package folder). Do not run dotnet --info. Do not set TEMP, DOTNET_CLI_HOME,
+NUGET_* or any other environment variable to get past a failure - report it.
+Do not commit: leave your changes in the tree, the coordinator commits.
+
+"""
+
 PROTECTED_BRANCHES = frozenset({"master", "main", "HEAD"})
 
 # git status -z terminates each record with this instead of quoting the path.
@@ -290,6 +300,8 @@ def build_prompt(provider: str, brief: str) -> str:
         preamble = PREAMBLES[mode]
     except KeyError as exc:
         raise ExecutorError("CONFIG_INVALID", f"Unknown executor profile mode: {mode}") from exc
+    if provider == "codex":
+        preamble = preamble.replace("BRIEF:\n", CODEX_SANDBOX_NOTE + "BRIEF:\n")
     return preamble + brief
 
 

@@ -63,7 +63,9 @@ from scripts.executor_host_guard import (
 )
 from scripts.executor_msbuild_nodes import RUN_MARKER, clean_orphan_msbuild_nodes
 from scripts.executor_process_control import scan
+from scripts.executor_worktree_acl import grant_worktree_access, restore_worktree_access, sandbox_sids
 from scripts.executor_worktree import (
+    _git,
     build_argv,
     codex_isolation_arguments,
     unsafe_codex_features,
@@ -261,10 +263,15 @@ def run(
     provider_started = False
     window_started_ms: int | None = None
     window_finished_ms: int | None = None
+    home_path: Path | None = None
+    worktree_grant: dict[str, object] | None = None
+    acl_result: dict[str, object] | None = None
+    unrestored: dict[str, object] | None = None
     try:
         # The resolved CLI is passed as the shim: if the operator PATH has to
         # be reduced for cmd.exe, the directory the shim lives in survives it.
         home = prepare_isolated_home(provider, root, shim=executable)
+        home_path = home.path
         env = dict(home.env)
         if provider == "claude":
             # Claude Code ignores workspace settings in an untrusted directory.
@@ -277,6 +284,10 @@ def run(
         argv, stdin_text = build_argv(provider, executable, prompt, env)
         if provider in ("codex", "codex-plan"):
             check_codex_isolation(executable, env, target, root)
+        if provider == "codex":
+            # The sandbox token's ordinary SIDs need an ACE of their own to write the worktree (#1275).
+            worktree_grant = grant_worktree_access(target, owner_checkout, lambda: Path(
+                _git("-C", str(target), "rev-parse", "--path-format=absolute", "--show-toplevel")))
         # MSBuild workers inherit it, which is how the cleanup below tells this run's nodes from others (#576).
         env[RUN_MARKER] = run_id
         # Snapshotted here: after the trust file and the provider configuration
@@ -300,6 +311,9 @@ def run(
             max_output_bytes=MAX_WORKTREE_STREAM_BYTES,
         )
         window_finished_ms = int(time.time() * 1000)
+        if worktree_grant is not None:
+            # Success, provider failure and timeout all return here; an exception is handled in finally.
+            acl_result = restore_worktree_access(worktree_grant, sandbox_sids(home.path))
         contaminated = fingerprint(owner_checkout) != owner_before
         host_after = take_snapshot()
         # Before the home is destroyed: a refresh inside it consumed the
@@ -312,6 +326,8 @@ def run(
         secrets |= _secret_values(home.path, env, only=[name for name, _ in launched.inventory])
         redacted_stdout = _scrub_whole(process.stdout, secrets)
         host = _host_changes(provider, home.path, target, root, host_before, host_after, secrets)
+        if acl_result is not None:
+            host["worktreeAclGrant"] = acl_result
         if provider == "codex":
             host["processControl"] = scan(process.stdout, process.process_tree_pids, secrets)
             # Read from the whole stream before the record's tail is cut; only problem codes are kept.
@@ -401,6 +417,11 @@ def run(
                 restore["worktreeRestoreProblem"] = _redact(str(restore["worktreeRestoreProblem"]))
             if record is not None:
                 record.update(restore)
+        if worktree_grant is not None and acl_result is None:
+            # An interrupted run. Still before the home goes: its cap_sid names this run's sandbox SIDs.
+            acl_result = restore_worktree_access(worktree_grant, sandbox_sids(home_path) if home_path else set())
+            if not acl_result.get("restored"):
+                unrestored = acl_result
         if runtime_root is None:
             removed, problem = _remove_runtime(root)
             if record is not None:
@@ -408,6 +429,9 @@ def run(
                 if not removed:
                     record["runtimeDirectory"] = str(root)
                     record["runtimeDirectoryProblem"] = _redact(problem)
+        if unrestored is not None:
+            # There is no record to carry it, so the refusal itself names what is left on the worktree.
+            raise ExecutorError("WORKTREE_ACL_NOT_RESTORED", json.dumps(unrestored), exit_code=6)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -474,7 +498,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     except ExecutorError as exc:
         print(json.dumps({"schemaVersion": RUN_SCHEMA, "error": exc.category, "message": str(exc)}), file=sys.stderr)
-        return 2
+        return exc.exit_code
     text = json.dumps(record, indent=2)
     if args.record:
         args.record.write_text(text, encoding="utf-8", newline="\n")

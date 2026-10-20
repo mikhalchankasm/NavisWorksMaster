@@ -28,6 +28,7 @@ SANDBOX_ACCOUNTS_CREATED = "SANDBOX_ACCOUNTS_CREATED"
 SANDBOX_PROFILE_GRANT = "SANDBOX_PROFILE_GRANT"
 EXECUTOR_TELEMETRY_INCOMPLETE = "EXECUTOR_TELEMETRY_INCOMPLETE"
 PROCESS_STOP_OUTSIDE_RUN = "PROCESS_STOP_OUTSIDE_RUN"
+WORKTREE_ACL_NOT_RESTORED = "WORKTREE_ACL_NOT_RESTORED"
 
 # `codex exec --json` event types listed in the installed 0.161 binary (2026-10-08). Anything else is
 # reported, not ignored: a renamed event in a new release must not read as a quiet run.
@@ -384,6 +385,10 @@ def violations(host: dict[str, object], *, windows: bool | None = None) -> list[
     """
     windows = os.name == "nt" if windows is None else windows
     found: list[str] = []
+    # The launcher's own grant (#1275) is the one allowed change; anything left of it, or added beside it, is not.
+    grant = host.get("worktreeAclGrant")
+    if isinstance(grant, dict) and grant.get("restored") is not True:
+        found.append(WORKTREE_ACL_NOT_RESTORED)
     log = host.get("sandboxLog")
     if isinstance(log, dict) and log.get("profileGrants"):
         found.append(SANDBOX_PROFILE_GRANT)

@@ -52,6 +52,21 @@ adapted to this repository.
   feature from `CODEX_DISABLED_FEATURES` is missing or enabled, if an enabled
   feature is outside `CODEX_REVIEWED_ENABLED_FEATURES`, or if the version is not in
   `CODEX_REVIEWED_VERSIONS` (all in `scripts/agent_home_isolation.py`).
+- **Worktree write access (#1275, from Avox).** Inside the unelevated sandbox
+  Administrators is deny-only, so a worktree that inherits only Administrators F,
+  SYSTEM F and Users RX refuses every write. For a `codex` run the launcher adds one
+  separate `(OI)(CI)` Modify ACE for its own token's SID on the worktree root, removes
+  exactly that ACE when the provider exits (any outcome) and compares the DACL with the
+  one before. Anything else left is `WORKTREE_ACL_NOT_RESTORED` (exit 6).
+- **dotnet and NuGet in the sandbox (#1274, from Avox).** The redirected profile (TEMP,
+  APPDATA, LOCALAPPDATA, `DOTNET_CLI_HOME`, `NUGET_*`) lives in `codex-work`, a sibling
+  of `codex-home` that is TEMP itself, so the sandbox can write it; `codex-home` with
+  the credential stays unreadable. NuGet is offline: a generated `NuGet.Config` with no
+  package source and the operator's package folder as a read-only fallback. Only
+  `-m:1` is proven, so Codex runs `dotnet build|test -m:1` (#1278); the brief preamble
+  tells it so. Codex never gets the operator's `TMPDIR` (#1283).
+- **No commits by Codex.** `.git` is outside the sandbox's writable roots; the curator
+  reviews and commits.
 - **Patch releases** of a reviewed minor run without a review; the feature check
   still applies to them.
 
@@ -120,7 +135,7 @@ launch form, in English (Cyrillic doubles the byte count):
 - At most <N> changed lines and <M> files.
 **Measured on the unchanged tree:** <result and why it fails>
 ## Verify
-<one filtered dotnet test command>
+<one filtered dotnet test command; for Codex with -m:1>
 ## Deliver
 Leave the change uncommitted; the curator commits. Do not run scripts/review/*.
 Print only the tails of build and test output.

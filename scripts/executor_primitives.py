@@ -92,6 +92,13 @@ BASE_ENV_NAMES = frozenset(
     }
 )
 GLM_CREDENTIAL_ENV_NAMES = frozenset({"ZAI_API_KEY", "ZHIPU_API_KEY"})
+# Never forwarded to a Codex route (#1283). Codex makes $TMPDIR a sandbox writable root twice - raw in its legacy
+# projection, canonicalized in its split policy - and the unelevated Windows sandbox refuses every command when the
+# two differ ("cannot enforce split writable root sets", codex 0.162.1 sandboxing/src/windows.rs:133). Git Bash
+# exports TMPDIR as the operator's real TEMP in 8.3 form, which canonicalizes to the long form; in the long form it
+# would instead make the operator's real TEMP writable. The run's own TEMP/TMP are redirected for Codex anyway.
+CODEX_PROVIDERS = frozenset({"codex", "codex-plan"})
+CODEX_WITHHELD_ENV_NAMES = frozenset({"TMPDIR"})
 # Fixed values, never forwarded from the operator. Redirecting USERPROFILE moves
 # dotnet's files but not the registry: on first run in a fresh home dotnet
 # appended <home>\.dotnet\tools to the real HKCU\Environment\Path, and on the
@@ -274,6 +281,8 @@ def _sanitize_environment(
 ) -> tuple[dict[str, str], ChildPath | None]:
     source_env = source if source is not None else os.environ
     allowed = BASE_ENV_NAMES | (GLM_CREDENTIAL_ENV_NAMES if provider in GLM_PROVIDERS else frozenset())
+    if provider in CODEX_PROVIDERS:
+        allowed = allowed - CODEX_WITHHELD_ENV_NAMES
     if os.name == "nt":
         normalized_source = {name.upper(): value for name, value in source_env.items()}
         env = {name: normalized_source[name] for name in allowed if name in normalized_source}
