@@ -158,9 +158,13 @@ namespace NavisHelper.Agent.Contracts
             if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out scRgb) ||
                 double.IsNaN(scRgb) || double.IsInfinity(scRgb))
                 return false;
-            var srgb = byte.Parse(Text(color, channel), CultureInfo.InvariantCulture) / 255.0;
-            var linear = srgb <= 0.04045 ? srgb / 12.92 : Math.Pow((srgb + 0.055) / 1.055, 2.4);
-            return Math.Abs(scRgb - linear) <= 0.002;
+            // Compare in sRGB bytes, the colour Navisworks will paint: a fixed linear tolerance is
+            // too loose near zero (ScR 0.002 is already byte 07).
+            var linear = Math.Max(0.0, Math.Min(1.0, scRgb));
+            var srgb = linear <= 0.0031308 ? linear * 12.92 : 1.055 * Math.Pow(linear, 1.0 / 2.4) - 0.055;
+            var painted = (int)Math.Round(srgb * 255.0, MidpointRounding.AwayFromZero);
+            var declared = byte.Parse(Text(color, channel), CultureInfo.InvariantCulture);
+            return Math.Abs(painted - declared) <= 1;
         }
 
         private static string ColorByte(XElement color, string name)

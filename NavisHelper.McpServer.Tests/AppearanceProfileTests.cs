@@ -114,6 +114,11 @@ public sealed class AppearanceProfileTests
         var consistent = ReplaceFirst(Sample, "<B>190</B></Color>",
             "<B>190</B><ScA>1</ScA><ScR>0.4019778</ScR><ScG>0.456411034</ScG><ScB>0.5149177</ScB></Color>");
         Assert.Empty(AppearanceProfileFile.Parse(consistent).Errors);
+
+        // Review finding: near zero a linear tolerance hid a visible difference (ScR 0.002 is byte 07).
+        var nearZero = ReplaceFirst(Sample, "<R>0</R><G>128</G><B>255</B></Color>",
+            "<R>0</R><G>128</G><B>255</B><ScA>1</ScA><ScR>0.002</ScR><ScG>0.2158605</ScG><ScB>1</ScB></Color>");
+        Assert.Single(AppearanceProfileFile.Parse(nearZero).Errors);
     }
 
     private static string ReplaceFirst(string text, string oldValue, string newValue)
