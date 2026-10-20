@@ -51,6 +51,20 @@ public sealed class ModelColorSchemeAppearanceRuleTests
         Assert.True(ModelColorSchemeRuleMatcher.MatchesPrepared(ModelColorSchemeRuleMatcher.NormalizeRule(rule), item));
     }
 
+    // Review finding: RVM node names may contain " / " themselves; a filter copied from
+    // such a name must keep matching as written.
+    [Theory]
+    [InlineData("Supply / Return")]
+    [InlineData("/Supply / Return/")]
+    public void PathContainsKeepsNodeNamesWithSpacedSlashes(string filter)
+    {
+        var rule = new ModelColorSchemeRule { PathContains = [filter] };
+        var item = new ModelColorSchemeItemFacts { PathFactory = () => "demo.nwd/Supply / Return/Part" };
+
+        Assert.True(ModelColorSchemeRuleMatcher.Matches(rule, item));
+        Assert.True(ModelColorSchemeRuleMatcher.MatchesPrepared(ModelColorSchemeRuleMatcher.NormalizeRule(rule), item));
+    }
+
     [Fact]
     public void PathContainsStillRejectsOtherNodes()
     {

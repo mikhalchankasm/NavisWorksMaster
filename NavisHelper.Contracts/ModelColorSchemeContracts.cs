@@ -223,8 +223,7 @@ namespace NavisHelper.Agent.Contracts
                 Transparency = rule.Transparency,
                 MatchAll = rule.MatchAll,
                 NameContains = NormalizeValues(rule.NameContains),
-                PathContains = NormalizeValues(
-                    (rule.PathContains ?? Enumerable.Empty<string>()).Select(NormalizePathFilter)),
+                PathContains = NormalizeValues(rule.PathContains),
                 SourceFileContains = NormalizeValues(rule.SourceFileContains),
                 CategoryContains = NormalizeValues(rule.CategoryContains),
                 PropertyContains = NormalizeValues(rule.PropertyContains),
@@ -246,10 +245,13 @@ namespace NavisHelper.Agent.Contracts
                 return true;
 
             var text = value ?? string.Empty;
+            // A path filter matches as written first: node names may themselves contain
+            // " / ". Only then is it retried with the separators collapsed to "/".
             return filters.Any(filter =>
                 !string.IsNullOrWhiteSpace(filter) &&
-                text.IndexOf(normalizePath ? NormalizePathFilter(filter) : filter.Trim(),
-                    StringComparison.OrdinalIgnoreCase) >= 0);
+                (text.IndexOf(filter.Trim(), StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 (normalizePath &&
+                  text.IndexOf(NormalizePathFilter(filter), StringComparison.OrdinalIgnoreCase) >= 0)));
         }
 
         private static bool HasValues(IEnumerable<string> values)
