@@ -542,19 +542,22 @@ namespace NavisHelper.Agent.Services
                     if (bucket.Items.Count == 0)
                         continue;
 
-                    document.Models.OverridePermanentColor(bucket.Items, bucket.Rule.Color);
+                    if (bucket.Rule.Color != null)
+                    {
+                        document.Models.OverridePermanentColor(bucket.Items, bucket.Rule.Color);
+                        foreach (var item in bucket.Items)
+                        {
+                            if (verificationSamples.Count >= 100)
+                                break;
+                            verificationSamples.Add(
+                                Tuple.Create(item, bucket.Rule.Color));
+                        }
+                    }
                     if (bucket.Rule.Rule.Transparency.HasValue)
                     {
                         document.Models.OverridePermanentTransparency(
                             bucket.Items,
                             bucket.Rule.Rule.Transparency.Value);
-                    }
-                    foreach (var item in bucket.Items)
-                    {
-                        if (verificationSamples.Count >= 100)
-                            break;
-                        verificationSamples.Add(
-                            Tuple.Create(item, bucket.Rule.Color));
                     }
                     response.ColoredItemCount += bucket.Items.Count;
                 }
@@ -624,40 +627,38 @@ namespace NavisHelper.Agent.Services
                         ErrorCodes.SchemaViolation,
                         "Rule " + (index + 1) + " must contain at least one matcher.");
                 }
-                if (string.IsNullOrWhiteSpace(rule.ColorHex))
+                var appearanceError = ModelColorSchemeRuleMatcher.DescribeAppearanceError(rule);
+                if (appearanceError != null)
                 {
                     throw new AgentCommandException(
                         ErrorCodes.SchemaViolation,
-                        "Rule " + (index + 1) + " requires colorHex.");
-                }
-                if (rule.Transparency.HasValue &&
-                    (float.IsNaN(rule.Transparency.Value) ||
-                     float.IsInfinity(rule.Transparency.Value) ||
-                     rule.Transparency.Value < 0 ||
-                     rule.Transparency.Value > 1))
-                {
-                    throw new AgentCommandException(
-                        ErrorCodes.SchemaViolation,
-                        "Rule " + (index + 1) + " transparency must be between 0 and 1.");
+                        "Rule " + (index + 1) + " " + appearanceError);
                 }
 
-                System.Drawing.Color parsed;
-                try
+                var colorHex = string.Empty;
+                Autodesk.Navisworks.Api.Color color = null;
+                if (!string.IsNullOrWhiteSpace(rule.ColorHex))
                 {
-                    parsed = ColorParser.ParseColor(rule.ColorHex);
-                }
-                catch (Exception ex)
-                {
-                    throw new AgentCommandException(
-                        ErrorCodes.SchemaViolation,
-                        "Rule " + (index + 1) + " colorHex is invalid: " + ex.Message);
-                }
-                if (parsed.A != 255)
-                {
-                    throw new AgentCommandException(
-                        ErrorCodes.SchemaViolation,
-                        "Rule " + (index + 1) +
-                        " colorHex alpha is not supported; use the separate transparency field.");
+                    System.Drawing.Color parsed;
+                    try
+                    {
+                        parsed = ColorParser.ParseColor(rule.ColorHex);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new AgentCommandException(
+                            ErrorCodes.SchemaViolation,
+                            "Rule " + (index + 1) + " colorHex is invalid: " + ex.Message);
+                    }
+                    if (parsed.A != 255)
+                    {
+                        throw new AgentCommandException(
+                            ErrorCodes.SchemaViolation,
+                            "Rule " + (index + 1) +
+                            " colorHex alpha is not supported; use the separate transparency field.");
+                    }
+                    colorHex = "#" + parsed.R.ToString("X2") + parsed.G.ToString("X2") + parsed.B.ToString("X2");
+                    color = Autodesk.Navisworks.Api.Color.FromByteRGB(parsed.R, parsed.G, parsed.B);
                 }
 
                 prepared.Add(new ModelColorSchemePreparedRule
@@ -666,8 +667,8 @@ namespace NavisHelper.Agent.Services
                     Name = string.IsNullOrWhiteSpace(rule.Name)
                         ? "Rule " + (index + 1)
                         : rule.Name.Trim(),
-                    ColorHex = "#" + parsed.R.ToString("X2") + parsed.G.ToString("X2") + parsed.B.ToString("X2"),
-                    Color = Autodesk.Navisworks.Api.Color.FromByteRGB(parsed.R, parsed.G, parsed.B),
+                    ColorHex = colorHex,
+                    Color = color,
                 });
             }
 
