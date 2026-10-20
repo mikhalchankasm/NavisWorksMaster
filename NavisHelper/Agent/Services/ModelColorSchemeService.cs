@@ -510,21 +510,28 @@ namespace NavisHelper.Agent.Services
                 return;
             }
 
+            // Read every new original state before the session changes, so a failed read
+            // leaves the active scheme as it was. Items an earlier accumulated batch already
+            // captured keep that pre-scheme state.
+            var staged = new ModelColorSchemeLedger<ModelItem, ModelColorSchemeOriginalState>();
+            foreach (var bucket in ruleBuckets)
+            {
+                foreach (var item in bucket.Items)
+                {
+                    if (!accumulate || !_originalStates.Contains(item))
+                        staged.TryCapture(item, CaptureOriginalState);
+                }
+            }
+
             if (!accumulate)
             {
                 ClearSession();
                 _sessionIdentity = ModelColorSchemeDocumentIdentity.Capture(document);
                 _selectionBeforeApply = SnapshotSelection(document);
             }
-
-            // Capture every original state before the first override; items an earlier
-            // accumulated batch already captured keep that pre-scheme state.
             _hasActiveScheme = true;
-            foreach (var bucket in ruleBuckets)
-            {
-                foreach (var item in bucket.Items)
-                    _originalStates.TryCapture(item, CaptureOriginalState);
-            }
+            foreach (var state in staged.States)
+                _originalStates.TryCapture(state.Item, item => state);
             var verificationSamples =
                 new List<Tuple<ModelItem, Autodesk.Navisworks.Api.Color>>();
 
