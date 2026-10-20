@@ -208,6 +208,7 @@ a new truncation flag appears on a contract without being documented.
 | `truncated` | every paged listing -- `list_root_items`, `list_item_children`, `list_selection_sets`, `list_saved_viewpoints`, `selection_copy_names`, `selected_items_preview`/`_ancestry`/`_tree`, the clash listings and reports, viewpoint build and import | fewer rows returned than exist. `dump_subtree_names` does **not** have this flag: its job status reports state and progress counts instead |
 | `itemsTruncated`, `resultsTruncated`, `rowsTruncated` | `selection_property_report`, `selection_export_properties`, clash listings and reports | fewer rows than exist. `selection_export_properties` writes a file, so a truncated export is a report short of rows |
 | `propertiesTruncated` | `item_properties_by_handle`, `selection_property_report`, `selection_export_properties`, `model_color_scheme` item facts | fewer properties per item than the item has |
+| `commentsTruncated` | `clash_list_results` result summaries | fewer comments returned than `commentCount`, or a returned comment body was shortened |
 | `valuesTruncated` | `selection_distinct_property_values` | fewer distinct values than exist, so the set is not the full domain |
 | `depthTruncated` | `selected_items_tree` | the tree was cut at `maxDepth`; deeper nodes exist and are absent |
 | `deadlineTruncated` | `selected_items_tree` | the walk over the selection stopped at the request deadline; more selected items exist and are absent, and what was built so far is returned |
@@ -243,6 +244,7 @@ contract cannot skip that description.
 | `AnalysisTruncated` | `ModelColorSchemeResponse` |
 | `CandidatePairsTruncated` | `ClashBboxPairPlanResponse` |
 | `ClassificationTruncated` | `ModelColorSchemeResponse` |
+| `CommentsTruncated` | `ClashResultSummary` |
 | `DeadlineTruncated` | `SelectedItemsTreeResponse` |
 | `DepthTruncated` | `SelectedItemsTreeResponse` |
 | `GroupsTruncated` | `ClashGroupResultsResponse`, `SelectionColorByPropertyResponse` |
@@ -260,7 +262,7 @@ contract cannot skip that description.
 | `RootItemsTruncated` | `ClashBboxPairPlanResponse` |
 | `RowsTruncated` | `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
 | `TraversalTruncated` | `FindItemsByBboxResponse`, `IsolateByBoxResponse` |
-| `Truncated` | `BuildMtrViewpointsResponse`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
+| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
 | `ValuesTruncated` | `SelectionDistinctPropertyValuesResponse` |
 
 <!-- END GENERATED TRUNCATION FLAG INVENTORY -->
@@ -508,6 +510,10 @@ test.
   limit is 200 and the hard maximum is 500.
 - `overwriteExisting=true` replaces a same-name test. `pairNameTemplate` uses
   the same tokens/transforms as matrix creation.
+- `primitiveTypesA` and `primitiveTypesB` select the primitive types checked on
+  each side for every pair: `triangles`, `lines`, `points` (case-insensitive,
+  combined as flags). Empty or all-blank lists keep the Navisworks default;
+  unknown values fail validation before any tests are changed.
 - `runAfterCreate=true` returns `runOperationId` and starts the asynchronous
   runner using `runBatchSize` and `perTestTimeoutSeconds`.
 - `continueOnError=false` enables operation-level rollback of tests created or
@@ -1072,6 +1078,7 @@ Inputs:
 | `resultOffset` | int | `0` | Zero-based offset for paging through sorted filtered results. |
 | `includeItemNames` | bool | `true` | Include side A/B display names. |
 | `includeAssignedTo` | bool | `true` | Include assignee. |
+| `includeComments` | bool | `false` | Include up to 20 newest comments per result, excluding NavisHelper ignore markers. |
 | `instanceId` | string | `""` | Optional explicit Navisworks host. |
 | `navisworksVersion` | string | `""` | Optional version filter. |
 
@@ -1088,6 +1095,9 @@ Outputs:
 | `truncated` | bool | `true` when more result rows remain after this page. |
 | `warnings[]` | string[] | Non-fatal contract/offset warnings. |
 | `results[]` | array | Includes `resultHandle`, `groupHandle`, `clashPoint`, `distanceMm`, `groupPath`, `status`, `assignedTo`, short item names, and `ignored`. |
+| `results[].comments[]` | array | `body`, `author`, `status`, `createdUtc` (ISO 8601 UTC); last 20 nonblank, non-marker comments in stored order. Bodies over 1000 characters become their first 999 characters plus `:`. Empty when comments are not requested. |
+| `results[].commentCount` | int | Total nonblank, non-marker comments before truncation; zero when comments are not requested. |
+| `results[].commentsTruncated` | bool | A count or body limit cut the returned comments; false when comments are not requested. |
 
 Ignored results are excluded by default. Pass `includeIgnored=true` to include results tagged by `clash_ignore_rules`.
 
@@ -1142,6 +1152,10 @@ Operations:
 - `apply` with `apply=true`: applies permanent color/transparency overrides.
 - `reset` with `apply=false`: reports whether the current host session can restore the scheme.
 - `reset` with `apply=true`: resets touched materials, then restores their captured effective permanent color/transparency in batches.
+
+The apply override loop and each material restore use one committed Navisworks
+transaction apiece. The existing automatic restore after an apply failure remains
+available; no document save is performed.
 
 **`reset` restores only what `model_color_scheme` itself applied.** It works from a captured
 scheme, so `hadActiveScheme: false` means there is nothing for it to undo — and colour

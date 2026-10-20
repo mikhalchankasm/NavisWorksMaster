@@ -33,6 +33,8 @@ namespace NavisHelper.Agent.Contracts
         public string TestType { get; set; }
         public double? ToleranceMm { get; set; }
         public string PairNameTemplate { get; set; }
+        public List<string> PrimitiveTypesA { get; set; }
+        public List<string> PrimitiveTypesB { get; set; }
         public int? PairNameStartIndex { get; set; }
         public bool? OverwriteExisting { get; set; }
         public bool? RunAfterCreate { get; set; }

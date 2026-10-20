@@ -43,6 +43,7 @@ namespace NavisHelper.Agent.Contracts
         public int? ResultOffset { get; set; }
         public bool? IncludeItemNames { get; set; }
         public bool? IncludeAssignedTo { get; set; }
+        public bool? IncludeComments { get; set; }
         public bool? IncludeIgnored { get; set; }
         public List<string> StatusFilters { get; set; } = new List<string>();
         public bool? IncludeAllStatuses { get; set; }
@@ -86,6 +87,64 @@ namespace NavisHelper.Agent.Contracts
         public Point3Info ClashPoint { get; set; }
         public double? DistanceMm { get; set; }
         public bool Ignored { get; set; }
+        public int CommentCount { get; set; }
+        public bool CommentsTruncated { get; set; }
+        public List<ClashCommentInfo> Comments { get; set; } = new List<ClashCommentInfo>();
+    }
+
+    public sealed class ClashCommentInfo
+    {
+        public string Body { get; set; }
+        public string Author { get; set; }
+        public string Status { get; set; }
+        public string CreatedUtc { get; set; }
+    }
+
+    public sealed class ClashCommentSelectionResult
+    {
+        public List<ClashCommentInfo> Comments { get; set; } = new List<ClashCommentInfo>();
+        public int TotalCount { get; set; }
+        public bool Truncated { get; set; }
+    }
+
+    public static class ClashCommentSelection
+    {
+        public static ClashCommentSelectionResult Select(IList<ClashCommentInfo> comments,
+            string internalPrefix, int maxComments, int maxBodyChars)
+        {
+            if (maxComments < 0)
+                throw new ArgumentOutOfRangeException(nameof(maxComments));
+            if (maxBodyChars < 1)
+                throw new ArgumentOutOfRangeException(nameof(maxBodyChars));
+            var result = new ClashCommentSelectionResult();
+            var visible = new List<ClashCommentInfo>();
+            foreach (var comment in comments ?? new List<ClashCommentInfo>())
+            {
+                if (comment == null || string.IsNullOrWhiteSpace(comment.Body) ||
+                    (!string.IsNullOrEmpty(internalPrefix) &&
+                     comment.Body.StartsWith(internalPrefix, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                visible.Add(comment);
+            }
+            result.TotalCount = visible.Count;
+            var start = Math.Max(0, visible.Count - maxComments);
+            result.Truncated = start > 0;
+            for (var index = start; index < visible.Count; index++)
+            {
+                var comment = visible[index];
+                var body = comment.Body;
+                if (body.Length > maxBodyChars)
+                {
+                    body = body.Substring(0, maxBodyChars - 1) + ":";
+                    result.Truncated = true;
+                }
+                result.Comments.Add(new ClashCommentInfo
+                {
+                    Body = body, Author = comment.Author, Status = comment.Status, CreatedUtc = comment.CreatedUtc
+                });
+            }
+            return result;
+        }
     }
 
     public sealed class ClashListClustersRequest

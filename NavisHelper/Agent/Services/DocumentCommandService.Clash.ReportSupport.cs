@@ -549,12 +549,12 @@ namespace NavisHelper.Agent.Services
             return ClashHandleHelper.BuildResultHandle(testIndex, resultIndex);
         }
 
-        private static IEnumerable<ClashResultSummary> EnumerateClashResultSummaries(ClashTest test, bool includeItemNames, bool includeAssignedTo)
+        private static IEnumerable<ClashResultSummary> EnumerateClashResultSummaries(ClashTest test, bool includeItemNames, bool includeAssignedTo, bool includeComments = false)
         {
             if (test == null)
                 yield break;
 
-            foreach (var row in EnumerateClashResultSummaries(test.Children, test.DisplayName ?? string.Empty, string.Empty, includeItemNames, includeAssignedTo))
+            foreach (var row in EnumerateClashResultSummaries(test.Children, test.DisplayName ?? string.Empty, string.Empty, includeItemNames, includeAssignedTo, includeComments))
                 yield return row;
         }
 

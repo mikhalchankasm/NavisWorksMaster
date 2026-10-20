@@ -79,29 +79,33 @@ namespace NavisHelper.Agent.Services
 
             try
             {
-                foreach (var bucket in ruleBuckets)
+                using (var transaction = document.BeginTransaction("NavisHelper model color scheme apply"))
                 {
-                    if (bucket.Items.Count == 0)
-                        continue;
+                    foreach (var bucket in ruleBuckets)
+                    {
+                        if (bucket.Items.Count == 0)
+                            continue;
 
-                    if (bucket.Rule.Color != null)
-                    {
-                        document.Models.OverridePermanentColor(bucket.Items, bucket.Rule.Color);
-                        foreach (var item in bucket.Items)
+                        if (bucket.Rule.Color != null)
                         {
-                            if (verificationSamples.Count >= 100)
-                                break;
-                            verificationSamples.Add(
-                                Tuple.Create(item, bucket.Rule.Color));
+                            document.Models.OverridePermanentColor(bucket.Items, bucket.Rule.Color);
+                            foreach (var item in bucket.Items)
+                            {
+                                if (verificationSamples.Count >= 100)
+                                    break;
+                                verificationSamples.Add(
+                                    Tuple.Create(item, bucket.Rule.Color));
+                            }
                         }
+                        if (bucket.Rule.Rule.Transparency.HasValue)
+                        {
+                            document.Models.OverridePermanentTransparency(
+                                bucket.Items,
+                                bucket.Rule.Rule.Transparency.Value);
+                        }
+                        response.ColoredItemCount += bucket.Items.Count;
                     }
-                    if (bucket.Rule.Rule.Transparency.HasValue)
-                    {
-                        document.Models.OverridePermanentTransparency(
-                            bucket.Items,
-                            bucket.Rule.Rule.Transparency.Value);
-                    }
-                    response.ColoredItemCount += bucket.Items.Count;
+                    transaction.Commit();
                 }
 
                 if (clearSelectionAfterApply &&
@@ -242,22 +246,26 @@ namespace NavisHelper.Agent.Services
             var states = _originalStates.States;
             try
             {
-                document.Models.ResetPermanentMaterials(
-                    ToModelItemCollection(states.Select(state => state.Item)));
-                foreach (var colorGroup in states
-                    .Where(state => state.HadMaterialOverride)
-                    .GroupBy(state => ColorKey(state.Color)))
+                using (var transaction = document.BeginTransaction("NavisHelper model color scheme restore"))
                 {
-                    var items = ToModelItemCollection(colorGroup.Select(state => state.Item));
-                    document.Models.OverridePermanentColor(items, colorGroup.First().Color);
-                }
-                foreach (var transparencyGroup in states
-                    .Where(state => state.HadMaterialOverride)
-                    .GroupBy(state => state.Transparency))
-                {
+                    document.Models.ResetPermanentMaterials(
+                        ToModelItemCollection(states.Select(state => state.Item)));
+                    foreach (var colorGroup in states
+                        .Where(state => state.HadMaterialOverride)
+                        .GroupBy(state => ColorKey(state.Color)))
+                    {
+                        var items = ToModelItemCollection(colorGroup.Select(state => state.Item));
+                        document.Models.OverridePermanentColor(items, colorGroup.First().Color);
+                    }
+                    foreach (var transparencyGroup in states
+                        .Where(state => state.HadMaterialOverride)
+                        .GroupBy(state => state.Transparency))
+                    {
                         document.Models.OverridePermanentTransparency(
-                        ToModelItemCollection(transparencyGroup.Select(state => state.Item)),
-                        transparencyGroup.Key);
+                            ToModelItemCollection(transparencyGroup.Select(state => state.Item)),
+                            transparencyGroup.Key);
+                    }
+                    transaction.Commit();
                 }
             }
             catch (Exception ex)

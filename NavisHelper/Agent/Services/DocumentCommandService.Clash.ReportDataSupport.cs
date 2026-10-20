@@ -70,7 +70,7 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private static IEnumerable<ClashResultSummary> EnumerateClashResultSummaries(IEnumerable<SavedItem> children, string testName, string groupPath, bool includeItemNames, bool includeAssignedTo)
+        private static IEnumerable<ClashResultSummary> EnumerateClashResultSummaries(IEnumerable<SavedItem> children, string testName, string groupPath, bool includeItemNames, bool includeAssignedTo, bool includeComments = false)
         {
             if (children == null)
                 yield break;
@@ -82,7 +82,7 @@ namespace NavisHelper.Agent.Services
                 {
                     var item1Names = includeItemNames ? GetClashItemNames(result.Selection1, result.Item1, 10) : new List<string>();
                     var item2Names = includeItemNames ? GetClashItemNames(result.Selection2, result.Item2, 10) : new List<string>();
-                    yield return new ClashResultSummary
+                    var summary = new ClashResultSummary
                     {
                         TestName = testName,
                         GroupPath = groupPath,
@@ -99,6 +99,14 @@ namespace NavisHelper.Agent.Services
                         DistanceMm = DocUnitsToMm(SafeDouble(() => result.Distance)),
                         Ignored = ClashWorkflowService.IsIgnoredResult(result),
                     };
+                    if (includeComments)
+                    {
+                        var selection = ReadClashComments(result);
+                        summary.Comments = selection.Comments;
+                        summary.CommentCount = selection.TotalCount;
+                        summary.CommentsTruncated = selection.Truncated;
+                    }
+                    yield return summary;
                     continue;
                 }
 
@@ -109,9 +117,34 @@ namespace NavisHelper.Agent.Services
                 var nextPath = string.IsNullOrEmpty(groupPath)
                     ? group.DisplayName ?? string.Empty
                     : groupPath + " / " + (group.DisplayName ?? string.Empty);
-                foreach (var row in EnumerateClashResultSummaries(group.Children, testName, nextPath, includeItemNames, includeAssignedTo))
+                foreach (var row in EnumerateClashResultSummaries(group.Children, testName, nextPath, includeItemNames, includeAssignedTo, includeComments))
                     yield return row;
             }
+        }
+
+        private static ClashCommentSelectionResult ReadClashComments(ClashResult result)
+        {
+            var comments = new List<ClashCommentInfo>();
+            try
+            {
+                foreach (var comment in result.Comments)
+                {
+                    if (comment == null)
+                        continue;
+                    comments.Add(new ClashCommentInfo
+                    {
+                        Body = SafeString(() => comment.Body),
+                        Author = SafeString(() => comment.Author),
+                        Status = SafeString(() => comment.Status.ToString()),
+                        CreatedUtc = SafeString(() => comment.CreationDate.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture))
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn("Could not read clash result comments: " + ex.Message, "ClashListResults");
+            }
+            return ClashCommentSelection.Select(comments, ClashWorkflowService.IgnoreCommentPrefix, 20, 1000);
         }
 
         private static bool MatchesClashStatusFilter(List<string> statusFilters, string status)

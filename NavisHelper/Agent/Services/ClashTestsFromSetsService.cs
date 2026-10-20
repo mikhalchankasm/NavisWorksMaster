@@ -24,6 +24,12 @@ namespace NavisHelper.Agent.Services
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
             request = request ?? new ClashTestsFromSetsRequest();
+            ClashPrimitiveKinds primitiveTypesA, primitiveTypesB;
+            string primitiveError;
+            if (!ClashPrimitiveTypesParser.TryParse(request.PrimitiveTypesA, out primitiveTypesA, out primitiveError))
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "primitiveTypesA: " + primitiveError);
+            if (!ClashPrimitiveTypesParser.TryParse(request.PrimitiveTypesB, out primitiveTypesB, out primitiveError))
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "primitiveTypesB: " + primitiveError);
             var apply = request.Apply == true;
             var limit = Math.Max(1, Math.Min(MaximumLimit, request.Limit.GetValueOrDefault(DefaultLimit)));
             List<string> inputWarnings;
@@ -158,7 +164,7 @@ namespace NavisHelper.Agent.Services
 
                     var previousCopy = previous == null ? null : previous.CreateCopy() as ClashTest;
                     var creationName = previous == null ? item.TestName : item.TestName + " [replacement " + Guid.NewGuid().ToString("N").Substring(0, 8) + "]";
-                    var test = BuildTest(document, creationName, a, b, testType, toleranceMm, ignoreRules, aSelfIntersect, bSelfIntersect);
+                    var test = BuildTest(document, creationName, a, b, testType, toleranceMm, ignoreRules, aSelfIntersect, bSelfIntersect, primitiveTypesA, primitiveTypesB);
                     ClashTest created;
                     try
                     {
@@ -242,7 +248,7 @@ namespace NavisHelper.Agent.Services
             return response;
         }
 
-        private static ClashTest BuildTest(Document document, string name, ResolvedSelectionSetReference a, ResolvedSelectionSetReference b, ClashTestType type, double? toleranceMm, ClashNativeIgnoreRules ignoreRules, bool aSelfIntersect, bool bSelfIntersect)
+        private static ClashTest BuildTest(Document document, string name, ResolvedSelectionSetReference a, ResolvedSelectionSetReference b, ClashTestType type, double? toleranceMm, ClashNativeIgnoreRules ignoreRules, bool aSelfIntersect, bool bSelfIntersect, ClashPrimitiveKinds primitiveTypesA, ClashPrimitiveKinds primitiveTypesB)
         {
             var test = new ClashTest { DisplayName = name, TestType = type, Guid = Guid.Empty };
             if (toleranceMm.HasValue)
@@ -251,8 +257,21 @@ namespace NavisHelper.Agent.Services
             test.SelectionA.SelfIntersect = aSelfIntersect;
             BindSelection(document, test.SelectionB.Selection, b);
             test.SelectionB.SelfIntersect = bSelfIntersect;
+            if (primitiveTypesA != ClashPrimitiveKinds.None)
+                test.SelectionA.PrimitiveTypes = ToPrimitiveTypes(primitiveTypesA);
+            if (primitiveTypesB != ClashPrimitiveKinds.None)
+                test.SelectionB.PrimitiveTypes = ToPrimitiveTypes(primitiveTypesB);
             ClashNativeIgnoreRuleService.Apply(document, test, ignoreRules);
             return test;
+        }
+
+        private static PrimitiveTypes ToPrimitiveTypes(ClashPrimitiveKinds kinds)
+        {
+            var types = (PrimitiveTypes)0;
+            if ((kinds & ClashPrimitiveKinds.Triangles) != 0) types |= PrimitiveTypes.Triangles;
+            if ((kinds & ClashPrimitiveKinds.Lines) != 0) types |= PrimitiveTypes.Lines;
+            if ((kinds & ClashPrimitiveKinds.Points) != 0) types |= PrimitiveTypes.Points;
+            return types;
         }
 
         private static void BindSelection(Document document, Selection target, ResolvedSelectionSetReference source)

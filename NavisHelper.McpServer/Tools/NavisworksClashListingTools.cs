@@ -45,6 +45,7 @@ internal sealed class NavisworksClashListingTools : NavisworksToolBase
         [Description("Sorted filtered result offset, zero-based; page: nextResultOffset/hasMoreResults.")] int resultOffset = 0,
         [Description("Include Item1/Item2 display names. Default is true.")] bool includeItemNames = true,
         [Description("Include AssignedTo. Default is true.")] bool includeAssignedTo = true,
+        [Description("Include up to 20 newest comments per result (NavisHelper markers left out).")] bool includeComments = false,
         [Description("Include results marked by NavisHelper ignore rules. Default is false.")] bool includeIgnored = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
@@ -59,6 +60,7 @@ internal sealed class NavisworksClashListingTools : NavisworksToolBase
             ResultOffset = resultOffset,
             IncludeItemNames = includeItemNames,
             IncludeAssignedTo = includeAssignedTo,
+            IncludeComments = includeComments,
             IncludeIgnored = includeIgnored,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
     }

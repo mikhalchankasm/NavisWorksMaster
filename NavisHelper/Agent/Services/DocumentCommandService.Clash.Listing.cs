@@ -102,7 +102,7 @@ namespace NavisHelper.Agent.Services
                 var testHandle = BuildClashTestHandle(testIndex);
                 var groupHandles = BuildClashGroupHandleMap(test, testIndex);
                 var resultIndex = 0;
-                foreach (var row in EnumerateClashResultSummaries(test, includeItemNames, includeAssignedTo))
+                foreach (var row in EnumerateClashResultSummaries(test, includeItemNames, includeAssignedTo, request.IncludeComments == true))
                 {
                     resultIndex++;
                     row.TestIndex = testIndex;
