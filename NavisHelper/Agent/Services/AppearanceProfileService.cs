@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.Core;
 
 namespace NavisHelper.Agent.Services
 {
@@ -23,15 +24,26 @@ namespace NavisHelper.Agent.Services
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Appearance Profiler profile file does not exist.");
 
             AppearanceProfileSummary profile;
+            byte[] profileBytes;
             try
             {
-                using (var stream = File.OpenRead(request.ProfilePath))
+                if (new FileInfo(request.ProfilePath).Length > MaximumFileBytes)
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, "Appearance Profiler profile exceeds 10 MB.");
+                profileBytes = File.ReadAllBytes(request.ProfilePath);
+                if (profileBytes.Length > MaximumFileBytes)
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, "Appearance Profiler profile exceeds 10 MB.");
+                // From the bytes, so the XML declaration decides the encoding, not a default reader.
+                string xml;
+                try
                 {
-                    if (stream.Length > MaximumFileBytes)
-                        throw new AgentCommandException(ErrorCodes.SchemaViolation, "Appearance Profiler profile exceeds 10 MB.");
-                    using (var reader = new StreamReader(stream))
-                        profile = AppearanceProfileFile.Parse(reader.ReadToEnd());
+                    using (var stream = new MemoryStream(profileBytes, false))
+                        xml = System.Xml.Linq.XDocument.Load(stream).ToString();
                 }
+                catch (System.Xml.XmlException exception)
+                {
+                    throw new FormatException("Not an Appearance Profiler profile: " + exception.Message, exception);
+                }
+                profile = AppearanceProfileFile.Parse(xml);
             }
             catch (FormatException exception)
             {
@@ -67,14 +79,31 @@ namespace NavisHelper.Agent.Services
                 // plugin is enabled and loaded (it calls TryLoadPlugin itself and gives up quietly).
                 // Load it first and report its state, so a silent no-op becomes visible.
                 EnsureProfilerPaneLoaded(response);
+                // The loader reads the exact bytes that were validated: a private .xml copy, so a
+                // file replaced after validation cannot reach Navisworks unchecked.
+                var snapshot = Path.Combine(Path.GetTempPath(), "NavisHelper", "AppearanceProfiles",
+                    Guid.NewGuid().ToString("N") + ".xml");
                 try
                 {
+                    Directory.CreateDirectory(Path.GetDirectoryName(snapshot));
+                    File.WriteAllBytes(snapshot, profileBytes);
                     response.PluginResult = Autodesk.Navisworks.Api.Application.Plugins.ExecuteAddInPlugin(
-                        "AutoAppearanceLoader.Navisworks", request.ProfilePath);
+                        "AutoAppearanceLoader.Navisworks", snapshot);
                 }
                 catch (Exception exception)
                 {
                     throw new AgentCommandException(ErrorCodes.CommandFailed, "Appearance Profiler loader failed: " + exception.Message);
+                }
+                finally
+                {
+                    try
+                    {
+                        File.Delete(snapshot);
+                    }
+                    catch (Exception exception)
+                    {
+                        Logger.Warn("Could not delete the profile snapshot " + snapshot + ": " + exception.Message, "AppearanceProfile");
+                    }
                 }
                 response.Applied = true;
                 response.Message = "Appearance Profiler loader completed; inspect the view to verify the overrides.";
