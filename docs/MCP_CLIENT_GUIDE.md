@@ -36,7 +36,7 @@ If `NAVISHELPER_INSTANCE_ID` is set, the MCP server treats it as a strict target
 
 ## Narrowing the Advertised Tool Surface
 
-The full surface is 117 tools and 185 KB of JSON in `tools/list`, roughly 54,700
+The full surface is 117 tools and 185 KB of JSON in `tools/list`, roughly 54,900
 tokens by the estimate below. How much of this reaches the model, and how often,
 depends on the client's caching and tool discovery. A session that only
 queries and navigates the model does not need the Clash Detective surface, and a
@@ -50,13 +50,13 @@ Set `NAVISHELPER_MCP_TOOLS` in the MCP client configuration, or pass
 present. The default is the full surface, so an existing configuration keeps
 behaving exactly as before.
 
-Measured 2026-10-20 after the `clash_*` descriptions were shortened (compact UTF-8
+Measured 2026-10-21 for 2.15 (clash primitive types and comments) (compact UTF-8
 JSON-RPC response bytes, decimal KB = 1000 bytes; token counts use the approximate 3.375 bytes/token ratio):
 
 | Spec | Tools | `tools/list` | Approx. tokens |
 |---|---:|---:|---:|
-| unset, or `all` | 117 | 184.7 KB | ~54,700 |
-| `core,clash` | 81 | 117.7 KB | ~34,900 |
+| unset, or `all` | 117 | 185.2 KB | ~54,900 |
+| `core,clash` | 81 | 118.2 KB | ~35,000 |
 | `core` | 48 | 53.8 KB | **~15,900** |
 
 Sets: `meta`, `query`, `selection`, `view`, `sets`, `viewpoints`, `markup`,
@@ -183,6 +183,22 @@ Use generic `find_items` only for property/category searches. Prefer display `ca
 
 Navisworks search conditions do not support parentheses, and AND binds more strongly than OR. Therefore `A OR B OR C AND D` means `A OR B OR (C AND D)`. To express `(A OR B OR C) AND D`, distribute the shared condition: `(A AND D) OR (B AND D) OR (C AND D)`. Use the per-condition `logicalOperator` flags to encode those branches; do not rely on `combineOperator=any` as a grouping mechanism.
 
+## Colouring the Model
+
+Use `model_color_scheme` to colour the model by ordered rules, like Appearance Profiler, and to undo it later. It never saves the document.
+
+1. Dry-run first: `operation=apply`, `apply=false`, and the `rules`. Review `ruleResults` and `matchedItemCount`.
+2. Apply with `apply=true`. The response reports `activeSchemeItemCount`.
+3. Undo with `operation=reset`, `apply=true`. It restores the colours and transparency the scheme changed, in this Navisworks session and document only.
+
+Rules:
+
+- A rule needs `colorHex`, `transparency` (0..1), or both. `transparency` alone keeps each item's colour: use it to make insulation, clearances or other context see-through without recolouring them. For example, `{"name": "Clearance", "transparency": 0.7, "propertyContains": ["Material"], "propertyValueContains": ["Clearance"]}`.
+- `pathContains` matches the item path of node names joined by `/`. The ` / ` that `find_items` previews show is accepted too.
+- The first matching rule wins; a final `matchAll` rule colours everything that is left.
+
+Large models: colour in batches with `scope=selection` and `mode=accumulate`. Each batch adds to the active scheme, and one `reset` undoes all of them. The default `mode=replace` restores the previous scheme first and says so in `previousSchemeRestored`. Every apply and every reset runs as one Navisworks transaction.
+
 ## Selection-set viewpoint batches
 
 Use `selection_sets_build_viewpoints` for new batch workflows. Supply a required `folderPrefix`, a `nameTemplate` containing `{set}` and `{step}`, and independently configured `overview`, `markup`, or `sectionBox` steps. Use `whenItemCountMin`/`whenItemCountMax` to give large and small sets different recipes in one call. Count clustering accepts either approximate `clusterTargetSize` or exact `clusterCount`. `verbosity="summary"` is the default and omits per-cluster item previews; request `full` only for diagnostics. `maxClusters` reports `droppedClusterCount` and `uncoveredItemCount` and never overrides an explicit `arrowCallout=false`. Set `overwrite=true` on a step to update matching viewpoints in place. Start with `apply=false`.
@@ -224,6 +240,12 @@ Default behavior:
 Use `clash_list_results` after `clash_list_tests` when the user needs individual clash rows. Pass `testName` for a specific test or leave it empty for all tests, and use `statusFilters` for statuses such as `New` or `Active`.
 
 `TotalResultCount` is the total number of results in the matched test scope before status filtering. `MatchedResultCount` is the count after `statusFilters`. `Item1Names` and `Item2Names` return up to 10 display names per clash side; `Item1ItemCount` and `Item2ItemCount` keep the full side counts.
+
+Pass `includeComments=true` to `clash_list_results` to read the comments of each result: up to 20 newest per result, with author, status and UTC time, long bodies shortened. NavisHelper's own ignore markers are left out. In the Navisworks interface only the latest comment of a result is easy to see.
+
+To run only some tests, use `clash_run_batch` or `clash_manage_tests operation=run` with `testNames`. The Clash Detective interface gets a per-test run only in Navisworks 2027; these tools do it in 2024–2027.
+
+`clash_tests_from_sets` takes `primitiveTypesA` and `primitiveTypesB` (`triangles`, `lines`, `points`) to choose what each side checks. Lines or points matter for RVM pipe centrelines and point clouds; empty keeps the Navisworks default.
 
 `TestHandle` and `ResultHandle` are traversal handles for the current Clash Detective tree order. Use `TestHandle` values from `clash_list_tests` for selected-test write operations in the same document/session.
 

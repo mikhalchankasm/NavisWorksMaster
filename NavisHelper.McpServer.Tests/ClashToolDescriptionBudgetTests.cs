@@ -33,8 +33,10 @@ public sealed class ClashToolDescriptionBudgetTests
     }
 
     // SHA-256 of every clash_* input schema with all "description" members removed,
-    // tools ordered by name. A rewrite of descriptions must leave it unchanged.
-    private const string SchemaShapeSha256 = "828D486927DCAA25B6954629FD81DCA7D381EF91B59539F2FB6521AA6A4ED1F1";
+    // tools ordered by name. A rewrite of descriptions must leave it unchanged; a
+    // deliberate parameter change updates it. Last updated for 2.15: primitiveTypesA/B
+    // on clash_tests_from_sets and includeComments on clash_list_results.
+    private const string SchemaShapeSha256 = "68ADAB79BCEA863B09E891B488EEEA975F6963E1C65C68189E64E3F5475CF144";
 
     [Fact]
     public async Task RewriteChangesDescriptionsOnly()
@@ -52,7 +54,7 @@ public sealed class ClashToolDescriptionBudgetTests
         }
 
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(shapes.ToJsonString())));
-        Assert.True(SchemaShapeSha256 == hash, "shape hash " + hash);
+        Assert.True(SchemaShapeSha256 == hash, "clash_* schema shape changed (hash " + hash + "). If a parameter was added or changed on purpose, update SchemaShapeSha256.");
     }
 
     private static void StripDescriptions(JsonNode? node)

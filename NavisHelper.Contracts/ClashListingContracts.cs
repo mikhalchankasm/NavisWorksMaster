@@ -135,7 +135,7 @@ namespace NavisHelper.Agent.Contracts
                 var body = comment.Body;
                 if (body.Length > maxBodyChars)
                 {
-                    body = body.Substring(0, maxBodyChars - 1) + ":";
+                    body = body.Substring(0, maxBodyChars - 1) + "…";
                     result.Truncated = true;
                 }
                 result.Comments.Add(new ClashCommentInfo
