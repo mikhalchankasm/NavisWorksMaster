@@ -78,7 +78,7 @@ public sealed class ModelColorSchemeServiceSplitTests
         {
             var text = File.ReadAllText(part);
             Assert.True(new FileInfo(part).Length <= 32 * 1024, Path.GetFileName(part) + " is over 32 KB");
-            Assert.Matches(@"internal\s+sealed\s+partial\s+class\s+ModelColorSchemeService|sealed\s+partial\s+class\s+ModelColorSchemeService", text);
+            Assert.Matches(@"\bsealed\s+partial\s+class\s+ModelColorSchemeService\b", text);
         }
     }
 
