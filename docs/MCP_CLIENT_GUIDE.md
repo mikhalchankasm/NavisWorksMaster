@@ -50,12 +50,12 @@ Set `NAVISHELPER_MCP_TOOLS` in the MCP client configuration, or pass
 present. The default is the full surface, so an existing configuration keeps
 behaving exactly as before.
 
-Measured 2026-10-20 after `model_color_scheme` gained `mode` (#338) (compact UTF-8
+Measured 2026-10-20 after `model_color_scheme` accepted transparency-only rules (#339) (compact UTF-8
 JSON-RPC response bytes, decimal KB = 1000 bytes; token counts use the approximate 3.375 bytes/token ratio):
 
 | Spec | Tools | `tools/list` | Approx. tokens |
 |---|---:|---:|---:|
-| unset, or `all` | 117 | 196.7 KB | ~58,300 |
+| unset, or `all` | 117 | 196.9 KB | ~58,300 |
 | `core,clash` | 81 | 129.9 KB | ~38,500 |
 | `core` | 48 | 53.9 KB | **~16,000** |
 
