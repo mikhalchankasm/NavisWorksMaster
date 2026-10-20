@@ -12,33 +12,33 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Previews and optionally isolates one existing Clash Detective result by resultHandle, or by testHandle with resultName (stable across grouping changes; result handles are tree positions). Can highlight A/B, clip around the clash point or item bounds, hide everything except the pair, choose a preset or custom camera, and optionally capture a screenshot. Defaults to dry-run.")]
+    [Description("Isolates existing result in transient view: A/B highlighting, clipping, visibility, camera, screenshot. Dry-run. Select by positional resultHandle or stable testHandle + resultName.")]
     [ToolCapabilities(ToolEffects.View | ToolEffects.Files | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashIsolateResultResponse> ClashIsolateResult(
-        [Description("resultHandle from clash_list_results, for example clash-result:1:1. Positional: valid until the next grouping change in its test. With resultName it is checked against that name.")] string resultHandle = "",
+        [Description("clash_list_results: clash-result:1:1; stale after grouping. If resultName supplied, check handle against name.")] string resultHandle = "",
         [Description("Test handle from clash_list_tests; required with resultName when resultHandle is empty.")] string testHandle = "",
         [Description("Result name within the test, for example Clash3. Exact, case-insensitive, unique within the test.")] string resultName = "",
-        [Description("Section-box mode: point creates a cube around the clash point; items uses the combined A/B bounds plus padding. Default is point.")] string boxMode = "point",
-        [Description("For point mode, positive half-size of the box in millimeters. For items mode, non-negative padding around combined bounds; 0 uses exact A/B bounds. Default is 1000.")] double boxOffsetMm = 1000,
+        [Description("point: clash-centered cube; items: A/B bounds plus padding.")] string boxMode = "point",
+        [Description("mm: point positive half-size; items non-negative padding (0=exact A/B bounds).")] double boxOffsetMm = 1000,
         [Description("Enable a temporary section box around the clash. Default is true.")] bool useSectionBox = true,
-        [Description("Temporarily hide model branches outside clash sides A and B. Original hidden state is restored by clash_reset_isolation. Default is false.")] bool isolatePair = false,
+        [Description("Hide branches outside A/B; clash_reset_isolation restores hidden state.")] bool isolatePair = false,
         [Description("Apply transparency to nearby context while keeping A/B opaque. Default is false.")] bool useContextTransparency = false,
         [Description("Context transparency from 0 to 1. Default is 0.7.")] double contextTransparency = 0.7,
         [Description("Optional A-side color in #RRGGBB, RAL, or R,G,B form. Default is red #FF2626.")] string colorAHex = "",
         [Description("Optional B-side color in #RRGGBB, RAL, or R,G,B form. Default is blue #2666FF.")] string colorBHex = "",
-        [Description("Camera: current, iso, iso_opposite, top, front, back, left, right, or custom. Current preserves orientation and zooms to the box. Default is current.")] string cameraMode = "current",
+        [Description("current (keep orientation, zoom to box), iso, iso_opposite, top, front, back, left, right, custom.")] string cameraMode = "current",
         [Description("Required for cameraMode=custom. Exact camera position in document coordinates.")] Point3Info cameraPosition = null,
-        [Description("Optional camera target in document coordinates. Defaults to the clash point.")] Point3Info cameraTarget = null,
+        [Description("Camera target in document coordinates; empty=clash point.")] Point3Info cameraTarget = null,
         [Description("Optional custom camera up vector. Defaults to global +Z.")] Point3Info cameraUp = null,
-        [Description("Projection: current, orthographic, or perspective. With current, iso/custom preserve the active projection while top/front/back/left/right use orthographic.")] string projection = "current",
-        [Description("Optional absolute .png/.jpg/.jpeg/.bmp path. When supplied with apply=true, captures the isolated view after the camera is applied.")] string screenshotPath = "",
+        [Description("current, orthographic, perspective. current: iso/custom keep projection; top/front/back/left/right=orthographic.")] string projection = "current",
+        [Description("Absolute .png/.jpg/.jpeg/.bmp path; apply=true captures after camera setup.")] string screenshotPath = "",
         [Description("Screenshot profile: compact, fullhd, large, or source. Default is compact.")] string screenshotProfile = "compact",
         [Description("Optional screenshot format override: jpg, png, or bmp. Empty infers from screenshotPath.")] string screenshotFormat = "",
         [Description("Optional maximum screenshot width. 0 keeps source width.")] int? screenshotMaxWidth = null,
         [Description("Optional maximum screenshot height. 0 keeps source height.")] int? screenshotMaxHeight = null,
         [Description("JPEG quality from 1 to 100.")] int? screenshotJpegQuality = null,
         [Description("Allow replacing an existing screenshot file. Default is false.")] bool overwriteScreenshot = false,
-        [Description("False previews the resolved result and settings; true changes the transient Navisworks view. Default is false.")] bool apply = false,
+        [Description("False previews; true changes transient view.")] bool apply = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -73,7 +73,7 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Restores the viewpoint, section box, appearance overrides, and temporary visibility changed by clash_isolate_result in the active document. Defaults to dry-run.")]
+    [Description("Resets clash_isolate_result viewpoint, section box, appearance overrides and temporary visibility in active document. Dry-run.")]
     [ToolCapabilities(ToolEffects.View | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashResetIsolationResponse> ClashResetIsolation(
         [Description("False reports whether an MCP isolation can be reset; true restores it. Default is false.")] bool apply = false,
@@ -88,7 +88,7 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Captures the current Navisworks view exactly as displayed. Use after clash_isolate_result or after manually choosing any camera angle. Defaults to dry-run.")]
+    [Description("Captures view as displayed after isolation or manual camera setup. Dry-run.")]
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<CaptureCurrentViewResponse> CaptureCurrentView(
         [Description("Required absolute output path ending in .png, .jpg, .jpeg, or .bmp.")] string outputPath,

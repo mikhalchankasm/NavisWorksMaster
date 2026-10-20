@@ -9,12 +9,12 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
     public NavisworksClashSetTools(NavisworksToolContext context) : base(context) { }
 
     [McpServerTool]
-    [Description("Creates one Clash Detective test per Selection Set/Search Set or model-root pair. Set sides use native live Navisworks SelectionSource bindings, so dynamic Search Sets are re-evaluated. Dry-run by default. Inline references accept document-local itemId, exact full path, unique name, rootName, or sourceFile. planPath also accepts navishelper.clash-test-transfer v1; there itemId is diagnostic-only and exact full set path is the portable identity.")]
+    [Description("Creates tests per Selection/Search Set or root pair; dry-run. Live SelectionSource bindings re-evaluate Search Sets. Inline: local itemId/exact path/unique name/rootName/sourceFile. planPath: navishelper.clash-test-transfer v1; itemId diagnostic-only, exact full set path portable.")]
     [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashTestsFromSetsResponse> ClashTestsFromSets(
-        [Description("False previews names, resolved set paths, current member counts, conflicts, and warnings. True creates/replaces tests.")] bool apply = false,
-        [Description("Inline pairs. Each a/b reference accepts Selection Set itemId/path/name or a direct model rootName/sourceFile; optional pair name overrides the template. Use either pairs or planPath.")] List<ClashSetPair> pairs = null,
-        [Description("Optional local JSON file containing a legacy pair array, {\"pairs\":[...]}, or navishelper.clash-test-transfer v1. Use instead of inline pairs for large plans or JSON round-trip transfer.")] string planPath = "",
+        [Description("False previews names/set paths/counts/conflicts/warnings; true creates/replaces tests.")] bool apply = false,
+        [Description("a/b: Set itemId/path/name or rootName/sourceFile; pair name overrides template. Use pairs or planPath.")] List<ClashSetPair> pairs = null,
+        [Description("Local JSON: pair array, {\"pairs\":[...]}, navishelper.clash-test-transfer v1. Instead of pairs for large plans/round-trip.")] string planPath = "",
         [Description("Clash type: hard, hard_conservative, clearance, or duplicate. Default hard.")] string testType = "hard",
         [Description("Tolerance in millimeters. A negative value leaves the Navisworks default unchanged.")] double toleranceMm = -1,
         [Description("Name template used when pair.name is empty. Default: {index|zeroPad:3} ИЗОЛ {aName}-{bName}.")] string pairNameTemplate = "{index|zeroPad:3} ИЗОЛ {aName}-{bName}",
@@ -23,9 +23,9 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
         [Description("Start an asynchronous batch run for newly created tests. Default false.")] bool runAfterCreate = false,
         [Description("Maximum accepted pair count. Default 200, maximum 500.")] int limit = 200,
         [Description("Tests per asynchronous run batch when runAfterCreate=true.")] int runBatchSize = 10,
-        [Description("Advisory per-test timebox in seconds. Navisworks cannot safely interrupt a single synchronous test; overruns are reported after that test returns.")] int perTestTimeoutSeconds = 300,
-        [Description("Native Clash Detective ignore rules. Set {\"sameFile\":true} to prevent clashes within the same appended source model during calculation.")] ClashNativeIgnoreRules ignoreRules = null,
-        [Description("Continue after per-test errors. Default true preserves legacy behavior. False rolls back earlier changes from this call when possible.")] bool continueOnError = true,
+        [Description("Advisory timebox, seconds; cannot safely interrupt synchronous test. Overrun reported after return.")] int perTestTimeoutSeconds = 300,
+        [Description("Native rules: {\"sameFile\":true} prevents intra-source-model clashes during calculation.")] ClashNativeIgnoreRules ignoreRules = null,
+        [Description("Continue per-test errors; false rolls back earlier call changes when possible.")] bool continueOnError = true,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -50,16 +50,16 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Starts an asynchronous Clash Detective run and returns immediately with operationId. Runs one Navisworks test per UI callback, pauses after batchSize, and keeps clash_run_status/cancel_clash_run available even while a test is calculating. Dry-run by default.")]
+    [Description("Starts async run, returns operationId. One test/UI callback; pauses after batchSize. clash_run_status/cancel_clash_run available during calculation. Dry-run.")]
     [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashRunBatchResponse> ClashRunBatch(
         [Description("False previews the resolved run scope; true starts it.")] bool apply = false,
         [Description("Exact test names.")] List<string> testNames = null,
-        [Description("Test handles from clash_list_tests. Handles are validated only when starting and can become stale after test mutations.")] List<string> testHandles = null,
+        [Description("clash_list_tests handles; validated only at start, stale after mutations.")] List<string> testHandles = null,
         [Description("Optional test-name prefix.")] string namePrefix = "",
         [Description("Optional maximum number of matched tests.")] int firstN = 0,
         [Description("Tests to process before pausing. Default 10.")] int batchSize = 10,
-        [Description("Advisory per-test timebox. An overrun is reported after Navisworks returns; a single synchronous test cannot be force-aborted safely.")] int perTestTimeoutSeconds = 300,
+        [Description("Advisory timebox, seconds; overrun after return, no safe force-abort of synchronous test.")] int perTestTimeoutSeconds = 300,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -89,7 +89,7 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Returns progress and per-test outcomes for an asynchronous clash run. Read-only and bypasses host_busy.")]
+    [Description("Read-only async run progress/per-test outcomes; bypasses host_busy.")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = false)]
     public Task<ClashRunBatchResponse> ClashRunStatus(
         [Description("Operation id returned by clash_run_batch or clash_tests_from_sets.")] string operationId,
@@ -104,7 +104,7 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Requests cooperative cancellation of an asynchronous clash run. It bypasses host_busy. A currently executing native Navisworks test finishes first; no later test is started.")]
+    [Description("Cooperative async-run cancellation; bypasses host_busy. Current test finishes; no later test starts.")]
     [ToolCapabilities(ToolEffects.LocalState, RequiresHost = true, RequiresDocument = false)]
     public Task<ClashRunBatchResponse> CancelClashRun(
         [Description("Operation id returned by clash_run_batch or clash_tests_from_sets.")] string operationId,

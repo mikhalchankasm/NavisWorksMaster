@@ -12,32 +12,32 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Creates real Clash Detective result groups from existing clash results by formula. The groups array is paged and reports plannedGroupCount, returnedGroupCount, groupsTruncated, and nextGroupOffset. Defaults to dry-run.")]
+    [Description("Creates real groups by formula; dry-run. Paged groups: plannedGroupCount, returnedGroupCount, groupsTruncated, nextGroupOffset.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashGroupResultsResponse> ClashGroupResults(
-        [Description("False previews planned ClashResultGroup folders, true creates/updates real groups in Clash Detective. Default is false/dry-run.")] bool apply = false,
+        [Description("False previews; true creates/updates groups.")] bool apply = false,
         [Description("Required test name. Exact match is preferred; otherwise contains-match is used.")] string testName = "",
         [Description("Optional list of test names. Use when grouping several explicit tests.")] List<string> testNames = null,
-        [Description("Optional test handles from clash_list_tests, for example clash-test:3.")] List<string> testHandles = null,
-        [Description("Optional clash status filters. Default when omitted is New and Active. Use includeAllStatuses=true for all statuses.")] List<string> statusFilters = null,
-        [Description("Include all clash statuses instead of the default New/Active filter. Default is false.")] bool includeAllStatuses = false,
+        [Description("Test handles from clash_list_tests.")] List<string> testHandles = null,
+        [Description("Statuses; omitted=New/Active; all: includeAllStatuses=true.")] List<string> statusFilters = null,
+        [Description("Include all statuses instead of New/Active.")] bool includeAllStatuses = false,
         [Description("Clash side used for grouping: A or B. Default is B.")] string groupBySide = "B",
-        [Description("Grouping boundary: ancestor (default), root (the appended model root), or source_file. root is independent of model-tree depth.")] string groupBy = "ancestor",
-        [Description("How many model-tree parent levels to move upward from the clashing side item before grouping. Default is 1. Use 0 for the exact clashing item.")] int ancestorLevelsUp = 1,
-        [Description("Group naming/grouping mode: owner_name (default) or owner_path. owner_path avoids merging owners with the same visible name.")] string groupNameMode = "owner_name",
+        [Description("ancestor, root (appended model, depth-independent), source_file.")] string groupBy = "ancestor",
+        [Description("Parent levels above clash item; 0=item itself.")] int ancestorLevelsUp = 1,
+        [Description("owner_name or owner_path (separates same-name owners).")] string groupNameMode = "owner_name",
         [Description("Optional prefix added to each generated ClashResultGroup name.")] string groupNamePrefix = "",
-        [Description("Append NavisHelper side tag [NH:A]/[NH:B] so the UI can detect the grouping side. Default is true.")] bool includeNavisHelperSideTag = true,
-        [Description("When false, existing group-name conflicts are skipped. When true, matching existing groups are rebuilt to the new target results. Default is false.")] bool overwriteExisting = false,
-        [Description("Before applying, ungroup existing NavisHelper groups for the selected side and optional prefix. Use carefully. Default is false.")] bool ungroupExistingFirst = false,
+        [Description("Append [NH:A]/[NH:B] for UI side detection.")] bool includeNavisHelperSideTag = true,
+        [Description("False skips name conflicts; true rebuilds groups with target results.")] bool overwriteExisting = false,
+        [Description("Ungroup NavisHelper groups for side/prefix before apply. Use carefully.")] bool ungroupExistingFirst = false,
         [Description("Minimum clash result count required to create a group. Default is 2.")] int minGroupSize = 2,
         [Description("Maximum filtered raw results to analyze before truncating. Default is 500, maximum is 50000.")] int maxResults = 500,
         [Description("Preview rows per planned group. Default is 5, maximum is 50.")] int previewRowsPerGroup = 5,
         [Description("Zero-based offset in the planned groups array. Default is 0.")] int groupOffset = 0,
         [Description("Maximum groups returned in this page. Default is 500, maximum is 5000.")] int groupLimit = 500,
         [Description("Return group aggregates without preview rows. Recommended for large matrices.")] bool aggregateOnly = false,
-        [Description("Required for apply=true when the grouping scope exceeds 1000 results. The agent should ask the user before setting this true. Default is false.")] bool confirmLargeGrouping = false,
-        [Description("Optional text filters. If either clashing item name/path contains any text, that clash is excluded before grouping.")] List<string> excludeItemNameContains = null,
-        [Description("Response detail: compact (default) omits long item paths from previewRows; full includes them.")] string verbosity = "compact",
+        [Description("On apply above 1000 results: required; ask user first.")] bool confirmLargeGrouping = false,
+        [Description("Exclude if either item name/path contains any value.")] List<string> excludeItemNameContains = null,
+        [Description("compact omits long previewRows paths; full includes them.")] string verbosity = "compact",
         [Description("Include results marked by NavisHelper ignore rules. Default is false.")] bool includeIgnored = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
@@ -73,13 +73,13 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Creates or rebuilds one real ClashResultGroup from explicit results, selected by resultNames (stable) or resultHandles. All selectors are validated before mutation. Result handles are positions in the test's tree: each applied grouping moves the new group to the top and renumbers the test's result and group handles, so for several groupings in one test from one listing use resultNames, or list results again after each call. Dry-run by default.")]
+    [Description("Groups explicit results into one real group; validates all selectors before mutation. Grouping prepends group and renumbers result/group handles: use stable resultNames or relist. Dry-run.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashGroupCustomResponse> ClashGroupCustom(
         [Description("Required test handle from clash_list_tests.")] string testHandle,
         [Description("Name of the target ClashResultGroup.")] string groupName,
-        [Description("Result handles from clash_list_results (clash-result:T:N, positional). Valid only until the next grouping change in this test.")] List<string> resultHandles = null,
-        [Description("Result names from clash_list_results, for example Clash3. Exact, case-insensitive; a name held by several results in the test is rejected. Stays valid across grouping changes.")] List<string> resultNames = null,
+        [Description("clash_list_results: clash-result:T:N; stale after grouping in test.")] List<string> resultHandles = null,
+        [Description("clash_list_results names: exact, case-insensitive, unique in test; grouping-stable.")] List<string> resultNames = null,
         [Description("False previews, true mutates the document. Default is false.")] bool apply = false,
         [Description("Rebuild an existing same-name group. Default is false.")] bool overwriteExisting = false,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
@@ -98,7 +98,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Ungroups explicit ClashResultGroup handles or groups matching a name prefix within one test. Group handles are tree positions and change after any grouping in the test; list results again before using them. Dry-run by default.")]
+    [Description("Ungroups handles/name-prefix groups in one test. Handles are tree positions; relist after any grouping. Dry-run.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashUngroupResponse> ClashUngroup(
         [Description("Required test handle from clash_list_tests.")] string testHandle,
@@ -119,14 +119,14 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Sets status on explicit results, all results in groups, or whole tests. Group/test scopes cascade to individual results. Result and group handles are tree positions and change after any grouping in the test; resultNames stay valid. Dry-run by default.")]
+    [Description("Sets result status by results/groups/tests; group/test scopes cascade to results. Grouping invalidates result/group handles; resultNames stable. Dry-run.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashSetStatusResponse> ClashSetStatus(
         [Description("Required scope: results, group, or test.")] string scope,
         [Description("Target status: New, Active, Reviewed, Approved, or Resolved.")] string status,
-        [Description("Test handle required for results/group scope; optional additional test handle for test scope.")] string testHandle = "",
+        [Description("Required test handle for results/group; additional handle for test scope.")] string testHandle = "",
         [Description("Result handles for scope=results (positional).")] List<string> resultHandles = null,
-        [Description("Result names for scope=results, for example Clash3. Exact, case-insensitive, unique within the test.")] List<string> resultNames = null,
+        [Description("scope=results: exact case-insensitive names, unique in test.")] List<string> resultNames = null,
         [Description("Group handles for scope=group.")] List<string> groupHandles = null,
         [Description("Test handles for scope=test.")] List<string> testHandles = null,
         [Description("Optional assignee applied to every affected result.")] string assignedTo = "",
@@ -154,7 +154,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Clusters clash points and writes real ClashResultGroup folders per test. Supports spatial, hybrid, and object_pair modes. Dry-run by default.")]
+    [Description("Creates per-test groups by clash-point clustering: spatial, hybrid, object_pair. Dry-run.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashGroupByProximityResponse> ClashGroupByProximity(
         [Description("Optional single test name.")] string testName = "",
@@ -199,7 +199,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Lists, adds, or removes document-persistent clash ignore rules. Added rules approve matching results with a reason comment and are re-applied after test runs. Dry-run for add/remove by default.")]
+    [Description("Lists/adds/removes document-persistent ignore rules. Added rules approve matches with reason comment; reapplied after test runs. Add/remove: dry-run.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashIgnoreRulesResponse> ClashIgnoreRules(
         [Description("Action: list, add, or remove.")] string action,
@@ -220,7 +220,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Exports clash points to CSV or XLSX with global/local coordinates, level assignment, grid cells, and XLSX summary sheets. Dry-run by default.")]
+    [Description("Exports CSV/XLSX clash points: global/local coordinates, levels, grid cells, XLSX summaries. Dry-run.")]
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashExportPointsResponse> ClashExportPoints(
         [Description("Output .csv or .xlsx path.")] string outputPath,
@@ -251,26 +251,26 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Renumbers Clash Detective groups and/or individual clash results inside selected tests. Defaults to dry-run and top-level scope, so existing groups and ungrouped results are numbered as the user sees them in the standard form. Pass apply=true and confirmRename=true only after reviewing the plan.")]
+    [Description("Renumbers selected test groups/results; dry-run. top_level numbers visible groups/ungrouped results. Review plan before apply=true + confirmRename=true.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashRenumberResultsResponse> ClashRenumberResults(
-        [Description("False previews renames, true renames Clash Detective groups/results. Default is false/dry-run.")] bool apply = false,
-        [Description("Required test name unless testNames/testHandles are provided. Exact match is preferred; otherwise contains-match is used.")] string testName = "",
+        [Description("False previews; true renames groups/results.")] bool apply = false,
+        [Description("Test name: exact, else contains; required unless testNames/testHandles supplied.")] string testName = "",
         [Description("Optional list of test names.")] List<string> testNames = null,
-        [Description("Optional test handles from clash_list_tests, for example clash-test:3.")] List<string> testHandles = null,
-        [Description("Renumber scope: top_level (default) numbers only direct test children: groups and ungrouped results; recursive also numbers nested results/groups inside groups.")] string scope = "top_level",
-        [Description("Order for assigning numbers: current (default, Clash Detective tree order) or name (natural display-name order).")] string orderBy = "current",
+        [Description("Test handles from clash_list_tests.")] List<string> testHandles = null,
+        [Description("top_level: direct groups/ungrouped results; recursive: includes nested groups/results.")] string scope = "top_level",
+        [Description("current: tree order; name: natural name order.")] string orderBy = "current",
         [Description("First number. Default is 1.")] int startNumber = 1,
-        [Description("Minimum number width with leading zeroes. Default is 4, so 1 becomes 0001. Larger numbers expand naturally.")] int numberWidth = 4,
-        [Description("Text between the generated number and the preserved old name. Default is ' - '.")] string separator = " - ",
+        [Description("Minimum zero-padded width; expands for larger numbers.")] int numberWidth = 4,
+        [Description("Between number and preserved old name.")] string separator = " - ",
         [Description("Optional text before the number, for example 'C-'.")] string prefix = "",
         [Description("Optional text after the number, before the old name.")] string suffix = "",
-        [Description("When true, keep the old clean name after the generated number. Default is true.")] bool preserveExistingName = true,
-        [Description("When true, remove an existing leading number from the old name before adding the new number. Default is true.")] bool stripExistingNumber = true,
+        [Description("Keep old clean name after number.")] bool preserveExistingName = true,
+        [Description("Strip old leading number before adding new one.")] bool stripExistingNumber = true,
         [Description("Include ClashResultGroup folders. Default is true.")] bool includeGroups = true,
         [Description("Include individual ClashResult rows. Default is true.")] bool includeResults = true,
         [Description("Include empty groups. Default is false.")] bool includeEmptyGroups = false,
-        [Description("Required with apply=true because renaming is a document mutation. Default is false.")] bool confirmRename = false,
+        [Description("Required with apply=true to confirm document renames.")] bool confirmRename = false,
         [Description("Maximum items to plan/rename. Default is 5000, maximum is 50000.")] int limit = 5000,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
