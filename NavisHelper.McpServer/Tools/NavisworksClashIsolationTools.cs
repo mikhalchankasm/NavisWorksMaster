@@ -99,6 +99,7 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
         [Description("JPEG quality from 1 to 100.")] int? screenshotJpegQuality = null,
         [Description("Allow replacing an existing output file. Default is false.")] bool overwrite = false,
         [Description("False validates and previews the output; true writes the screenshot. Default is false.")] bool apply = false,
+        [Description("True clears the selection highlight for the capture and restores the selection afterwards. Default is false.")] bool hideSelectionHighlight = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -106,6 +107,7 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
         return _hostBridgeClient.CaptureCurrentViewAsync(new CaptureCurrentViewRequest
         {
             OutputPath = outputPath,
+            HideSelectionHighlight = hideSelectionHighlight,
             ScreenshotProfile = screenshotProfile,
             ScreenshotFormat = screenshotFormat,
             ScreenshotMaxWidth = screenshotMaxWidth,

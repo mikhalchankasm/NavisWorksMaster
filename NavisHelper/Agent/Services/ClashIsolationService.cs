@@ -332,9 +332,34 @@ namespace NavisHelper.Agent.Services
                 return response;
             }
 
-            string warning;
-            if (!TryCaptureImageAtomically(document, outputPath, options, request.Overwrite == true, out warning))
-                throw new AgentCommandException(ErrorCodes.CommandFailed, "Current view screenshot failed: " + warning);
+            ModelItemCollection selectionSnapshot = null;
+            if (request.HideSelectionHighlight == true && document.CurrentSelection.SelectedItems.Count > 0)
+            {
+                selectionSnapshot = new ModelItemCollection();
+                selectionSnapshot.AddRange(document.CurrentSelection.SelectedItems);
+            }
+
+            try
+            {
+                if (selectionSnapshot != null)
+                {
+                    document.CurrentSelection.Clear();
+                    document.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All);
+                    response.SelectionHighlightHidden = true;
+                }
+
+                string warning;
+                if (!TryCaptureImageAtomically(document, outputPath, options, request.Overwrite == true, out warning))
+                    throw new AgentCommandException(ErrorCodes.CommandFailed, "Current view screenshot failed: " + warning);
+            }
+            finally
+            {
+                if (selectionSnapshot != null)
+                {
+                    document.CurrentSelection.CopyFrom(selectionSnapshot);
+                    document.ActiveView?.RequestDelayedRedraw(ViewRedrawRequests.All);
+                }
+            }
 
             response.Captured = true;
             response.FileSizeBytes = new FileInfo(outputPath).Length;

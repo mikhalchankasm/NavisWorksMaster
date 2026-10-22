@@ -91,6 +91,7 @@ namespace NavisHelper.Agent.Services
             if (selectedItems == null || selectedItems.Count == 0)
                 throw new AgentCommandException(ErrorCodes.NoSelection, "There is no active selection.");
             var selectedCount = selectedItems.Count;
+            var selectionSnapshot = SnapshotSelection(selectedItems);
 
             var seenItems = new HashSet<ModelItem>();
             var itemsToHide = new List<ModelItem>();
@@ -111,7 +112,7 @@ namespace NavisHelper.Agent.Services
 
             if (apply)
             {
-                ClearSelection(document);
+                RestoreSelection(document, selectionSnapshot);
 
                 if (document.ActiveView != null)
                     document.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.All);

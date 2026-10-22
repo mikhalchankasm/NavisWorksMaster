@@ -30,7 +30,7 @@ internal sealed class NavisworksVisibilityTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Hides the current Navisworks selection. Dry-run returns affected root/source-file scope summaries before applying.")]
+    [Description("Hides the current Navisworks selection. Dry-run returns affected root/source-file scope summaries before applying. The selection is kept, so unhide_selected can show it again.")]
     [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<HideSelectedResponse> HideSelected(
         [Description("False previews the action, true applies it. Default is false/dry-run.")] bool apply = false,

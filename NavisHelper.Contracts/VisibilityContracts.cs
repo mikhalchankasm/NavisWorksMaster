@@ -6,14 +6,33 @@ namespace NavisHelper.Agent.Contracts
     public sealed class SelectItemsRequest
     {
         public List<string> MatchHandles { get; set; } = new List<string>();
+        public bool Clear { get; set; }
     }
 
     public sealed class SelectItemsResponse
     {
+        public bool Cleared { get; set; }
         public bool Partial { get; set; }
         public List<SelectItemsHandleResult> Results { get; set; } = new List<SelectItemsHandleResult>();
         public int SelectedHandleCount { get; set; }
         public int SelectedItemCount { get; set; }
+    }
+
+    public static class SelectItemsRules
+    {
+        public static string DescribeError(SelectItemsRequest request)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            var hasHandles = request.MatchHandles != null &&
+                request.MatchHandles.Exists(handle => !string.IsNullOrWhiteSpace(handle));
+            if (request.Clear && hasHandles)
+                return "clear=true clears the selection and takes no matchHandles.";
+            if (!request.Clear && !hasHandles)
+                return "At least one match handle is required. Pass clear=true to clear the selection.";
+            return null;
+        }
     }
 
     public sealed class SelectItemsHandleResult

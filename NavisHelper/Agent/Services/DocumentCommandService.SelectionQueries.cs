@@ -20,8 +20,15 @@ namespace NavisHelper.Agent.Services
                 throw new ArgumentNullException(nameof(request));
             if (sessionStore == null)
                 throw new ArgumentNullException(nameof(sessionStore));
-            if (request.MatchHandles == null || request.MatchHandles.Count == 0)
-                throw new AgentCommandException(ErrorCodes.EmptyMatchHandles, "At least one match handle is required.");
+            var error = SelectItemsRules.DescribeError(request);
+            if (error != null)
+                throw new AgentCommandException(request.Clear ? ErrorCodes.SchemaViolation : ErrorCodes.EmptyMatchHandles, error);
+
+            if (request.Clear)
+            {
+                document.CurrentSelection.Clear();
+                return new SelectItemsResponse { Cleared = true };
+            }
 
             var response = new SelectItemsResponse();
             var itemsToSelect = new List<ModelItem>();

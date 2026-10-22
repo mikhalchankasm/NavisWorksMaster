@@ -76,6 +76,7 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class CaptureCurrentViewRequest
     {
+        public bool? HideSelectionHighlight { get; set; }
         public string OutputPath { get; set; }
         public string ScreenshotProfile { get; set; }
         public string ScreenshotFormat { get; set; }
@@ -88,6 +89,7 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class CaptureCurrentViewResponse
     {
+        public bool SelectionHighlightHidden { get; set; }
         public bool Apply { get; set; }
         public string OutputPath { get; set; }
         public string ScreenshotProfile { get; set; }

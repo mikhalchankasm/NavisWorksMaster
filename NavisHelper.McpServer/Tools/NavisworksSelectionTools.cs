@@ -102,10 +102,11 @@ internal sealed class NavisworksSelectionTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Selects previously matched Navisworks items by opaque match handles.")]
+    [Description("Selects previously matched Navisworks items by opaque match handles. Pass clear=true without matchHandles to clear the current selection.")]
     [ToolCapabilities(ToolEffects.View, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectItemsResponse> SelectItems(
-        [Description("Opaque match handles returned by find_items.")] List<string> matchHandles,
+        [Description("Opaque match handles returned by find_items.")] List<string> matchHandles = null,
+        [Description("True clears the current selection; pass no matchHandles. Default is false.")] bool clear = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -113,6 +114,7 @@ internal sealed class NavisworksSelectionTools : NavisworksToolBase
         return _hostBridgeClient.SelectItemsAsync(new SelectItemsRequest
         {
             MatchHandles = matchHandles ?? new List<string>(),
+            Clear = clear,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
     }
 
