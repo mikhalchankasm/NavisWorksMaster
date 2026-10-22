@@ -402,7 +402,7 @@ namespace NavisHelper.Agent.Services
             else
                 roots = FindNamedScopeNodes(document, name);
             if (roots.Count != 1)
-                throw new AgentCommandException(ErrorCodes.SchemaViolation, "Named search scope must resolve to exactly one node; resolved " + roots.Count.ToString(CultureInfo.InvariantCulture) + ".");
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "Named search scope must resolve to exactly one node; resolved " + roots.Count.ToString(CultureInfo.InvariantCulture) + ". " + FindItemsPathSegments.SlashPathHint);
             return roots;
         }
 

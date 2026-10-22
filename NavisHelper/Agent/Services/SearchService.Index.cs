@@ -101,8 +101,9 @@ namespace NavisHelper.Agent.Services
                 matches = ResolveListChildrenParentsFromRootIndex(document, parentName, sourceFile, comparison);
             }
 
+            var pathHint = string.IsNullOrWhiteSpace(parentPath) ? string.Empty : " " + FindItemsPathSegments.SlashPathHint;
             if (matches.Count == 0)
-                throw new AgentCommandException(ErrorCodes.CommandFailed, "Parent item was not found by fast path. For nested/ambiguous nodes, first call find_items and pass parentMatchHandle.");
+                throw new AgentCommandException(ErrorCodes.CommandFailed, "Parent item was not found by fast path. For nested/ambiguous nodes, first call find_items and pass parentMatchHandle." + pathHint);
 
             if (matches.Count > 1)
             {
@@ -124,10 +125,10 @@ namespace NavisHelper.Agent.Services
                         " distinct nodes that print identically, so it does not identify one parent. A more specific " +
                         "parentPath does not exist for these nodes and a match handle holds them together. List the " +
                         "children of a node above them and work down by index, or scope a find_items search under the " +
-                        "one you want.");
+                        "one you want." + pathHint);
                 }
 
-                throw new AgentCommandException(ErrorCodes.CommandFailed, "More than one parent item matched. Use a more specific parentPath or pass parentMatchHandle from find_items. Matches: " + preview);
+                throw new AgentCommandException(ErrorCodes.CommandFailed, "More than one parent item matched. Use a more specific parentPath or pass parentMatchHandle from find_items. Matches: " + preview + pathHint);
             }
 
             return matches[0];
@@ -154,18 +155,19 @@ namespace NavisHelper.Agent.Services
                 return result;
 
             var seen = new HashSet<ModelItem>();
+            var slashMatches = new List<KeyValuePair<ModelItem, PathSegmentMatch>>();
             var budget = new[] { MaxPrintedPathNodesVisited };
             foreach (Model model in document.Models)
             {
                 if (model == null || model.RootItem == null)
                     continue;
 
-                ResolveFrom(result, seen, model.RootItem, printed, segments, budget);
+                ResolveFrom(result, seen, model.RootItem, printed, segments, budget, slashMatches);
                 foreach (ModelItem child in model.RootItem.Children)
-                    ResolveFrom(result, seen, child, printed, segments, budget);
+                    ResolveFrom(result, seen, child, printed, segments, budget, slashMatches);
             }
 
-            return result;
+            return segments == null ? result : FindItemsPathSegments.KeepBestMatches(slashMatches).Distinct().ToList();
         }
 
         private List<ModelItem> ResolveListChildrenParentsFromRootIndex(Document document, string parentName, string sourceFile, string comparison)
@@ -215,7 +217,8 @@ namespace NavisHelper.Agent.Services
             ModelItem start,
             string printedPath,
             IList<string> segments,
-            int[] budget)
+            int[] budget,
+            ICollection<KeyValuePair<ModelItem, PathSegmentMatch>> slashMatches)
         {
             if (segments == null)
             {
@@ -227,7 +230,10 @@ namespace NavisHelper.Agent.Services
             // segments were chosen by the caller rather than printed by a tool, so it
             // does not carry the same "this text was printed for exactly one node"
             // promise that the ambiguity check exists to protect.
-            AddResolvedPathCandidate(result, seen, TryResolveChildPath(start, segments, 0));
+            PathSegmentMatch grade;
+            var resolved = TryResolveChildPath(start, segments, 0, out grade);
+            if (resolved != null)
+                slashMatches.Add(new KeyValuePair<ModelItem, PathSegmentMatch>(resolved, grade));
         }
 
         /// <summary>
@@ -311,34 +317,42 @@ namespace NavisHelper.Agent.Services
             yield return GetRootCandidateFileName(item.DisplayName, sourceFile);
         }
 
-        private static ModelItem TryResolveChildPath(ModelItem start, IList<string> segments, int segmentIndex)
+        private static ModelItem TryResolveChildPath(ModelItem start, IList<string> segments, int segmentIndex, out PathSegmentMatch grade)
         {
+            grade = PathSegmentMatch.None;
             if (start == null || segments == null || segmentIndex >= segments.Count)
                 return null;
-            if (!ItemNameMatchesSegment(start, segments[segmentIndex]))
+            var segmentGrade = ItemNameMatchesSegment(start, segments[segmentIndex]);
+            if (segmentGrade == PathSegmentMatch.None)
                 return null;
             if (segmentIndex == segments.Count - 1)
+            {
+                grade = segmentGrade;
                 return start;
+            }
 
             foreach (ModelItem child in start.Children)
             {
-                var resolved = TryResolveChildPath(child, segments, segmentIndex + 1);
+                PathSegmentMatch childGrade;
+                var resolved = TryResolveChildPath(child, segments, segmentIndex + 1, out childGrade);
                 if (resolved != null)
+                {
+                    grade = FindItemsPathSegments.CombineSegments(new[] { segmentGrade, childGrade });
                     return resolved;
+                }
             }
 
             return null;
         }
 
-        private static bool ItemNameMatchesSegment(ModelItem item, string segment)
+        private static PathSegmentMatch ItemNameMatchesSegment(ModelItem item, string segment)
         {
             if (item == null || string.IsNullOrWhiteSpace(segment))
-                return false;
+                return PathSegmentMatch.None;
 
-            return string.Equals(item.DisplayName ?? string.Empty, segment, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(item.ClassDisplayName ?? string.Empty, segment, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(TryGetSourceFile(item) ?? string.Empty, segment, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(GetRootCandidateFileName(item.DisplayName, TryGetSourceFile(item)), segment, StringComparison.OrdinalIgnoreCase);
+            var sourceFile = TryGetSourceFile(item);
+            return FindItemsPathSegments.MatchSegment(segment, item.DisplayName, item.ClassDisplayName,
+                sourceFile, GetRootCandidateFileName(item.DisplayName, sourceFile));
         }
 
         // Dedup by item identity. ResolveListChildrenParent already reports more

@@ -4,6 +4,20 @@ using System.Collections.Generic;
 namespace NavisHelper.Agent.Contracts
 {
     /// <summary>
+    /// How well one segment of a caller-authored slash path names a node; lower is
+    /// better. RVM from E3D names nodes `/SITE`, which a split on "/" strips, and every
+    /// node of a file carries that file as its Source File, so a root `X.rvm` and its
+    /// child `/X` both match `X.rvm` unless the name match is preferred (#358).
+    /// </summary>
+    public enum PathSegmentMatch
+    {
+        None = 0,
+        Name = 1,
+        NameWithoutLeadingSlash = 2,
+        SourceFile = 3,
+    }
+
+    /// <summary>
     /// Turns a model-tree path into the node names it addresses.
     ///
     /// This is the inverse of the path the tools print. `list_root_items`,
@@ -22,6 +36,70 @@ namespace NavisHelper.Agent.Contracts
         /// The separator <c>BuildItemPath</c> joins node names with.
         /// </summary>
         public const string Separator = " / ";
+
+        /// <summary>
+        /// Appended to the "resolve to exactly one" errors: the two inputs that never
+        /// depend on how a slash path is split.
+        /// </summary>
+        public const string SlashPathHint = "Pass the path exactly as tools print it, joined with \" / \", or pass parentMatchHandle from find_items.";
+
+        public static PathSegmentMatch MatchSegment(string segment, string displayName, string classDisplayName,
+            string sourceFile, string sourceFileName)
+        {
+            if (string.IsNullOrWhiteSpace(segment))
+                return PathSegmentMatch.None;
+            if (string.Equals(segment, displayName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(segment, classDisplayName, StringComparison.OrdinalIgnoreCase))
+                return PathSegmentMatch.Name;
+            if (!string.IsNullOrEmpty(displayName) && displayName[0] == '/' &&
+                (displayName.Length == 1 || displayName[1] != '/') &&
+                string.Equals(segment, displayName.Substring(1), StringComparison.OrdinalIgnoreCase))
+                return PathSegmentMatch.NameWithoutLeadingSlash;
+            if (string.Equals(segment, sourceFile, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(segment, sourceFileName, StringComparison.OrdinalIgnoreCase))
+                return PathSegmentMatch.SourceFile;
+            return PathSegmentMatch.None;
+        }
+
+        public static PathSegmentMatch CombineSegments(IEnumerable<PathSegmentMatch> segments)
+        {
+            var worst = PathSegmentMatch.None;
+            if (segments == null)
+                return worst;
+            foreach (var segment in segments)
+            {
+                if (segment == PathSegmentMatch.None)
+                    return PathSegmentMatch.None;
+                if (segment > worst)
+                    worst = segment;
+            }
+            return worst;
+        }
+
+        /// <summary>
+        /// Keeps the items at the best grade found anywhere, so a weaker reading never
+        /// turns one answer into an ambiguity; two items at the same grade stay two.
+        /// </summary>
+        public static List<T> KeepBestMatches<T>(IEnumerable<KeyValuePair<T, PathSegmentMatch>> matches)
+        {
+            var result = new List<T>();
+            var best = PathSegmentMatch.None;
+            if (matches == null)
+                return result;
+            foreach (var match in matches)
+            {
+                if (match.Value == PathSegmentMatch.None)
+                    continue;
+                if (best == PathSegmentMatch.None || match.Value < best)
+                {
+                    result.Clear();
+                    best = match.Value;
+                }
+                if (match.Value == best)
+                    result.Add(match.Key);
+            }
+            return result;
+        }
 
         /// <summary>
         /// Every way one node can consume the front of a printed path.
