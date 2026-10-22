@@ -155,12 +155,51 @@ namespace NavisHelper.Agent.Contracts
     {
         public HostStatusResponse HostStatus { get; set; }
         public ListRootItemsResponse RootItems { get; set; }
+        public List<string> RootItemNames { get; set; } = new List<string>();
         public int? SavedViewpointTotalItemCount { get; set; }
         public int? SavedViewpointReturnedItemCount { get; set; }
         public int? SelectionSetTotalItemCount { get; set; }
         public int? SelectionSetReturnedItemCount { get; set; }
         public List<string> SearchGuidance { get; set; } = new List<string>();
         public List<string> RecommendedWorkflow { get; set; } = new List<string>();
+    }
+
+    public static class ActiveModelContextRootFormats
+    {
+        public const string Full = "full";
+        public const string Names = "names";
+
+        public static bool TryNormalize(string value, out string normalized)
+        {
+            normalized = null;
+            var format = string.IsNullOrWhiteSpace(value) ? Full : value.Trim();
+            if (string.Equals(format, Full, StringComparison.OrdinalIgnoreCase))
+                normalized = Full;
+            else if (string.Equals(format, Names, StringComparison.OrdinalIgnoreCase))
+                normalized = Names;
+            return normalized != null;
+        }
+    }
+
+    public static class RootItemNames
+    {
+        public static List<string> From(ListRootItemsResponse rootItems)
+        {
+            var names = new List<string>();
+            if (rootItems == null || rootItems.Items == null)
+                return names;
+
+            foreach (var item in rootItems.Items)
+            {
+                if (item == null)
+                    continue;
+                var name = string.IsNullOrWhiteSpace(item.DisplayName) ? item.FileName : item.DisplayName;
+                if (!string.IsNullOrWhiteSpace(name))
+                    names.Add(name);
+            }
+
+            return names;
+        }
     }
 
     public sealed class McpHealthCheckResponse

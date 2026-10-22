@@ -237,24 +237,26 @@ namespace NavisHelper.Agent.Services
                 throw new ArgumentNullException(nameof(document));
 
             request = request ?? new SelectedItemsTreeRequest();
+            var offsetError = SelectedItemsTreePaging.DescribeOffsetError(request.Offset);
+            if (offsetError != null)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, offsetError);
+            var offset = request.Offset ?? 0;
             var format = NormalizeSelectedItemsTreeFormat(request.Format);
             var maxItems = ClampSelectedItemsTreeMaxItems(request.MaxItems);
             var maxDepth = NormalizeSelectedItemsTreeMaxDepth(request.MaxDepth);
             var includeBoundingBoxes = request.IncludeBoundingBoxes.GetValueOrDefault(false);
             var selectedItems = document.CurrentSelection.SelectedItems;
             var selectedCount = selectedItems == null ? 0 : selectedItems.Count;
-            var returnedCount = Math.Min(selectedCount, maxItems);
 
             var response = new SelectedItemsTreeResponse
             {
                 DocumentTitle = string.IsNullOrWhiteSpace(document.FileName) ? string.Empty : Path.GetFileName(document.FileName),
                 Format = format,
                 SelectedItemCount = selectedCount,
-                ReturnedItemCount = returnedCount,
-                Truncated = selectedCount > maxItems,
+                Offset = offset,
             };
 
-            if (selectedItems == null || selectedCount == 0)
+            if (selectedItems == null || offset >= selectedCount)
                 return response;
 
             var rootBuilders = new Dictionary<string, SelectedItemsTreeBuildNode>(StringComparer.OrdinalIgnoreCase);
@@ -268,19 +270,18 @@ namespace NavisHelper.Agent.Services
             // selected leaf's box is always read from its own item.
             var boxesByPath = new Dictionary<string, BoundingBoxInfo>(StringComparer.Ordinal);
             var sourceFilesByRootPath = new Dictionary<string, string>(StringComparer.Ordinal);
-            var selectionIndex = 0;
+            var selectionIndex = offset;
 
-            foreach (ModelItem item in selectedItems.Take(maxItems))
+            foreach (ModelItem item in selectedItems.Skip(offset).Take(maxItems))
             {
                 var deadline = HostRequestDeadline.Current;
                 if (deadline != null && deadline.Expired)
                 {
-                    response.Truncated = true;
                     response.DeadlineTruncated = true;
-                    response.ReturnedItemCount = selectionIndex;
                     break;
                 }
 
+                var itemIndex = selectionIndex++;
                 var chainItems = BuildItemChain(item);
                 if (chainItems.Count == 0)
                     continue;
@@ -295,7 +296,7 @@ namespace NavisHelper.Agent.Services
                 if (string.Equals(format, SelectedItemsTreeFormatFlat, StringComparison.OrdinalIgnoreCase))
                 {
                     response.Items.Add(BuildSelectedItemsTreeFlatItem(
-                        selectionIndex,
+                        itemIndex,
                         item,
                         chainItems,
                         chainPaths,
@@ -322,8 +323,13 @@ namespace NavisHelper.Agent.Services
                         response);
                 }
 
-                selectionIndex++;
+                response.ReturnedItemCount++;
             }
+
+            // The next page starts after every position this page looked at, including an
+            // item skipped for an empty chain; counting only returned items would repeat items.
+            response.NextOffset = SelectedItemsTreePaging.NextOffset(offset, selectionIndex - offset, selectedCount);
+            response.Truncated = response.NextOffset.HasValue;
 
             if (string.Equals(format, SelectedItemsTreeFormatTree, StringComparison.OrdinalIgnoreCase))
                 response.Roots = rootBuilders.Values.Select(builder => builder.Node).ToList();

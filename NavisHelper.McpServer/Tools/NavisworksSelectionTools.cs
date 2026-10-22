@@ -81,10 +81,11 @@ internal sealed class NavisworksSelectionTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Returns the full current Navisworks selection as either a merged parent tree or a flat list. It reads Application.ActiveDocument.CurrentSelection without changing selection, supports more than 100 selected items, and includes selected counts/truncation flags.")]
+    [Description("Returns the full current Navisworks selection as either a merged parent tree or a flat list. It reads Application.ActiveDocument.CurrentSelection without changing selection, supports more than 100 selected items, and includes selected counts/truncation flags. When truncated, call again with offset=nextOffset.")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectedItemsTreeResponse> SelectedItemsTree(
         [Description("Maximum selected items to return. Default is 10000, maximum is 100000. If selection is larger, response.truncated is true.")] int maxItems = 10000,
+        [Description("Zero-based position in the selection of the first item to return. Pass nextOffset from the previous page. Default is 0.")] int offset = 0,
         [Description("Optional maximum path depth to return from model root. Omit for full chains.")] int? maxDepth = null,
         [Description("Response format: tree or flat. Default is tree.")] string format = "tree",
         [Description("Include bounding boxes for returned nodes/items. Default is false because bounding boxes can be expensive on large selections.")] bool includeBoundingBoxes = false,
@@ -95,6 +96,7 @@ internal sealed class NavisworksSelectionTools : NavisworksToolBase
         return _hostBridgeClient.SelectedItemsTreeAsync(new SelectedItemsTreeRequest
         {
             MaxItems = maxItems,
+            Offset = offset,
             MaxDepth = maxDepth,
             Format = format,
             IncludeBoundingBoxes = includeBoundingBoxes,

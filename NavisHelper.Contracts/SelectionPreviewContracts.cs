@@ -64,6 +64,7 @@ namespace NavisHelper.Agent.Contracts
     public sealed class SelectedItemsTreeRequest
     {
         public int? MaxItems { get; set; }
+        public int? Offset { get; set; }
         public int? MaxDepth { get; set; }
         public string Format { get; set; }
         public bool? IncludeBoundingBoxes { get; set; }
@@ -75,11 +76,35 @@ namespace NavisHelper.Agent.Contracts
         public string Format { get; set; }
         public int SelectedItemCount { get; set; }
         public int ReturnedItemCount { get; set; }
+        public int Offset { get; set; }
+        public int? NextOffset { get; set; }
         public bool Truncated { get; set; }
         public bool DepthTruncated { get; set; }
         public bool DeadlineTruncated { get; set; }
         public List<SelectedItemsTreeNode> Roots { get; set; } = new List<SelectedItemsTreeNode>();
         public List<SelectedItemsTreeFlatItem> Items { get; set; } = new List<SelectedItemsTreeFlatItem>();
+    }
+
+    /// <summary>
+    /// Paging for selected_items_tree (#359): a large selection with bounding boxes ran
+    /// into the request deadline and came back truncated with no way to ask for the rest.
+    /// </summary>
+    public static class SelectedItemsTreePaging
+    {
+        /// <summary>
+        /// The first selection position after this page, or null when the page reached the
+        /// end. <paramref name="consumed"/> counts every position the page looked at.
+        /// </summary>
+        public static int? NextOffset(int offset, int consumed, int selectedCount)
+        {
+            var next = (long)offset + consumed;
+            return next < selectedCount ? (int?)next : null;
+        }
+
+        public static string DescribeOffsetError(int? offset)
+        {
+            return offset < 0 ? "offset must be 0 or greater." : null;
+        }
     }
 
     public sealed class SelectedItemsTreeNode

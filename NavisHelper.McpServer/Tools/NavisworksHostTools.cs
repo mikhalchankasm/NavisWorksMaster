@@ -102,6 +102,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
                 : await BuildActiveModelContextAsync(
                     status,
                     rootItemLimit,
+                    ActiveModelContextRootFormats.Full,
                     includeRootAliases: false,
                     includeSavedItemsSummary: true,
                     target,
@@ -166,20 +167,25 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public async Task<ActiveModelContextResponse> ActiveModelContext(
         [Description("Maximum root model items to include. Default is 100; use 1000 when you need the full root filename list.")] int rootItemLimit = 100,
+        [Description("Root list format: full (name, source file, file name and path per root) or names (only rootItemNames, much smaller). Default is full.")] string rootItemsFormat = "full",
         [Description("Include alternate root item aliases used by find_root_items_by_name.")] bool includeRootAliases = false,
         [Description("Include saved viewpoint and selection set summary counts.")] bool includeSavedItemsSummary = true,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
+        if (!ActiveModelContextRootFormats.TryNormalize(rootItemsFormat, out var normalizedFormat))
+            throw new InvalidOperationException(ErrorCodes.SchemaViolation + ": rootItemsFormat must be full or names.");
+
         var target = CreateTarget(instanceId, navisworksVersion);
         var status = await _hostBridgeClient.HostStatusAsync(new HostStatusRequest(), cancellationToken, target).ConfigureAwait(false);
-        return await BuildActiveModelContextAsync(status, rootItemLimit, includeRootAliases, includeSavedItemsSummary, target, cancellationToken).ConfigureAwait(false);
+        return await BuildActiveModelContextAsync(status, rootItemLimit, normalizedFormat, includeRootAliases, includeSavedItemsSummary, target, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<ActiveModelContextResponse> BuildActiveModelContextAsync(
         HostStatusResponse status,
         int rootItemLimit,
+        string rootItemsFormat,
         bool includeRootAliases,
         bool includeSavedItemsSummary,
         HostTargetOptions target,
@@ -188,8 +194,15 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
         var rootItems = await _hostBridgeClient.ListRootItemsAsync(new ListRootItemsRequest
         {
             Limit = rootItemLimit,
-            IncludeAliases = includeRootAliases,
+            IncludeAliases = rootItemsFormat == ActiveModelContextRootFormats.Full && includeRootAliases,
         }, cancellationToken, target).ConfigureAwait(false);
+
+        var rootItemNames = new List<string>();
+        if (rootItemsFormat == ActiveModelContextRootFormats.Names)
+        {
+            rootItemNames = RootItemNames.From(rootItems);
+            rootItems.Items.Clear();
+        }
 
         ListSavedViewpointsResponse savedViewpoints = null;
         ListSelectionSetsResponse selectionSets = null;
@@ -209,6 +222,7 @@ internal sealed class NavisworksHostTools : NavisworksToolBase
         {
             HostStatus = status,
             RootItems = rootItems,
+            RootItemNames = rootItemNames,
             SavedViewpointTotalItemCount = savedViewpoints?.TotalItemCount,
             SavedViewpointReturnedItemCount = savedViewpoints?.ReturnedItemCount,
             SelectionSetTotalItemCount = selectionSets?.TotalItemCount,
