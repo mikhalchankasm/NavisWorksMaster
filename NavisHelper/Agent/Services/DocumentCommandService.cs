@@ -210,8 +210,6 @@ namespace NavisHelper.Agent.Services
             document.CurrentSelection.CopyFrom(selectionSnapshot ?? new ModelItemCollection());
         }
 
-
-
         private static int ClampSelectionPreviewLimit(int? limit)
         {
             var value = limit.GetValueOrDefault(DefaultSelectionPreviewLimit);
