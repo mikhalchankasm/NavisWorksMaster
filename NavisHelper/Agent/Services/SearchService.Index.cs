@@ -340,9 +340,14 @@ namespace NavisHelper.Agent.Services
             {
                 PathSegmentMatch childGrade;
                 var resolved = TryResolveChildPath(child, segments, segmentIndex + 1, out childGrade);
-                if (resolved != null)
-                    candidates.Add(new KeyValuePair<ModelItem, PathSegmentMatch>(resolved,
-                        FindItemsPathSegments.CombineSegments(new[] { segmentGrade, childGrade })));
+                if (resolved == null)
+                    continue;
+
+                var combined = FindItemsPathSegments.CombineSegments(new[] { segmentGrade, childGrade });
+                candidates.Add(new KeyValuePair<ModelItem, PathSegmentMatch>(resolved, combined));
+                // Nothing below this node can beat its own grade, and ties keep the first.
+                if (combined == segmentGrade)
+                    break;
             }
 
             var best = FindItemsPathSegments.KeepBestMatches(candidates).FirstOrDefault();
