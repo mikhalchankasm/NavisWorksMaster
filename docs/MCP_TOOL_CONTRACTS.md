@@ -213,6 +213,7 @@ a new truncation flag appears on a contract without being documented.
 | `valuesTruncated` | `selection_distinct_property_values` | fewer distinct values than exist, so the set is not the full domain |
 | `depthTruncated` | `selected_items_tree` | the tree was cut at `maxDepth`; deeper nodes exist and are absent |
 | `deadlineTruncated` | `selected_items_tree` | the walk over the selection stopped at the request deadline; more selected items exist and are absent, and what was built so far is returned |
+| `nextOffset` | `selected_items_tree` | not a flag but its remedy: the selection position where the next page starts, null on the last page. Call again with `offset=nextOffset`; it counts every position the page looked at, so no item is repeated or skipped (#359) |
 | `traversalTruncated` | `find_items_by_bbox`, `isolate_by_box`, clash matrix traversal | the walk stopped at a scan or time limit, so items were never examined. See *find_items_by_bbox* for what narrowing the zone now skips |
 | `responseTruncated` | `last_operation_status` | the command completed but its response had to be reduced to fit the named-pipe frame |
 | `groupsTruncated`, `pairsTruncated`, `candidatePairsTruncated`, `plannedTestsTruncated`, `analysisTruncated`, `classificationTruncated`, `rootItemsTruncated` | clash planning, grouping and root listings | fewer groups, pairs, planned tests or roots than the operation found |
@@ -1817,6 +1818,8 @@ Restores the original viewpoint, section box, A/B appearance overrides, and temp
 Captures the current Navisworks view exactly as displayed, including a manually adjusted camera after `clash_isolate_result`.
 
 `outputPath` is a required absolute `.png`, `.jpg`, `.jpeg`, or `.bmp` path. Screenshot profile/format/size/quality parameters match `clash_generate_report`; `overwrite=false` and `apply=false` are the defaults.
+
+`hideSelectionHighlight=true` clears the selection for the capture, so its highlight does not cover model colours, and restores it afterwards (`selectionHighlightHidden` in the response). A dry run does not touch the selection (#357).
 
 ## `clash_report_status`
 

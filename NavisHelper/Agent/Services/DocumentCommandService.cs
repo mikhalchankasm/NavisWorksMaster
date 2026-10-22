@@ -210,10 +210,6 @@ namespace NavisHelper.Agent.Services
             document.CurrentSelection.CopyFrom(selectionSnapshot ?? new ModelItemCollection());
         }
 
-        private static void ClearSelection(Document document)
-        {
-            RestoreSelection(document, new ModelItemCollection());
-        }
 
 
         private static int ClampSelectionPreviewLimit(int? limit)
