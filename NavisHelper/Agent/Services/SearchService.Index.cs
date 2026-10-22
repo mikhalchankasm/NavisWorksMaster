@@ -331,18 +331,26 @@ namespace NavisHelper.Agent.Services
                 return start;
             }
 
+            // Every child that resolves is weighed before one is chosen: siblings `/Pipes`
+            // and `Pipes` both answer the segment `Pipes`, and stopping at the first would
+            // let the slash-stripped reading hide the exact name (review of #358). Among
+            // equal grades the first still wins, as the slash path always did.
+            var candidates = new List<KeyValuePair<ModelItem, PathSegmentMatch>>();
             foreach (ModelItem child in start.Children)
             {
                 PathSegmentMatch childGrade;
                 var resolved = TryResolveChildPath(child, segments, segmentIndex + 1, out childGrade);
                 if (resolved != null)
-                {
-                    grade = FindItemsPathSegments.CombineSegments(new[] { segmentGrade, childGrade });
-                    return resolved;
-                }
+                    candidates.Add(new KeyValuePair<ModelItem, PathSegmentMatch>(resolved,
+                        FindItemsPathSegments.CombineSegments(new[] { segmentGrade, childGrade })));
             }
 
-            return null;
+            var best = FindItemsPathSegments.KeepBestMatches(candidates).FirstOrDefault();
+            if (best == null)
+                return null;
+
+            grade = candidates.First(candidate => ReferenceEquals(candidate.Key, best)).Value;
+            return best;
         }
 
         private static PathSegmentMatch ItemNameMatchesSegment(ModelItem item, string segment)
