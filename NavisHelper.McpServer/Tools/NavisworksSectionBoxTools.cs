@@ -36,6 +36,7 @@ internal sealed class NavisworksSectionBoxTools : NavisworksToolBase
         [Description("Required bounded duration for traversal, bounding-box classification, and visibility planning. Default 60 seconds, maximum 480; values outside 1..480 are rejected. Raise it explicitly on loaded workstations. Navisworks API access remains synchronous on the UI thread. Exact replay stores this value literally.")] int maxDurationSeconds = SectionBoxIsolationLimits.DefaultMaxDurationSeconds,
         [Description("Maximum visibility-change preview rows, including items that would be revealed or newly hidden. Default 10, maximum 50.")] int previewLimit = 10,
         [Description("Fill prunedDirectChildBranchCount by enumerating the direct children of each pruned subtree. This costs one extra child enumeration per pruned subtree and is off by default.")] bool countPrunedBranches = false,
+        [Description("True (default) walks subtrees fully inside the zone to reveal hidden items there. False keeps such subtrees visible as a whole without walking them, which is much faster when the zone covers most of a large model; hidden items inside stay hidden and the response counts the skipped subtrees.")] bool revealHiddenInside = true,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -49,6 +50,7 @@ internal sealed class NavisworksSectionBoxTools : NavisworksToolBase
                 MaxDurationSeconds = maxDurationSeconds,
                 PreviewLimit = previewLimit,
                 CountPrunedBranches = countPrunedBranches,
+                RevealHiddenInside = revealHiddenInside,
             },
             cancellationToken,
             CreateTarget(instanceId, navisworksVersion));

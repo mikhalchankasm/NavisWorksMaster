@@ -41,12 +41,13 @@ namespace NavisHelper.Agent.Services
             var maxDurationSeconds = ValidateMaxDurationSeconds(request.MaxDurationSeconds);
             var previewLimit = Clamp(request.PreviewLimit, DefaultPreviewLimit, MaximumPreviewLimit);
             var countPrunedBranches = request.CountPrunedBranches == true;
+            var revealHiddenInside = request.RevealHiddenInside != false;
             var selectionSnapshot = applyRequested ? SnapshotSelection(document) : null;
             var durationStopwatch = Stopwatch.StartNew();
             var durationGuard = new SectionBoxIsolationDurationGuard(
                 maxDurationSeconds,
                 new StopwatchIsolationClock(durationStopwatch));
-            var traversal = Traverse(document, request.Box, maxScannedItems, durationGuard, countPrunedBranches);
+            var traversal = Traverse(document, request.Box, maxScannedItems, durationGuard, countPrunedBranches, revealHiddenInside);
             BoxIsolationPlanningResult planning;
             try
             {
@@ -149,7 +150,8 @@ namespace NavisHelper.Agent.Services
             SectionBoxGeometry box,
             int maxScannedItems,
             SectionBoxIsolationDurationGuard durationGuard,
-            bool countPrunedBranches)
+            bool countPrunedBranches,
+            bool revealHiddenInside)
         {
             var result = new TraversalResult(maxScannedItems);
             var intersectionTester = new SectionBoxGeometryRules.SectionBoxIntersectionTester(box);
@@ -184,6 +186,7 @@ namespace NavisHelper.Agent.Services
                 BoxVector3 maximum;
                 var boundsReadable = false;
                 var intersects = false;
+                var fullyInside = false;
                 var boundsErrorMessage = string.Empty;
                 try
                 {
@@ -194,6 +197,8 @@ namespace NavisHelper.Agent.Services
                     maximum = ToVector(bounds.Max);
                     SectionBoxGeometryRules.ValidateBounds(minimum, maximum);
                     intersects = intersectionTester.Intersects(minimum, maximum);
+                    if (!revealHiddenInside && intersects)
+                        fullyInside = intersectionTester.Contains(minimum, maximum);
                     boundsReadable = true;
                 }
                 catch (Exception ex)
@@ -215,7 +220,7 @@ namespace NavisHelper.Agent.Services
                         // builds interleaved in fresh processes) that dominates the call:
                         // reading children twice cost 4.4-4.5 s, once 2.5 s, and asking a
                         // pruned node only whether it has children 2.1 s.
-                        if (boundsReadable && !intersects && !countPrunedBranches)
+                        if (boundsReadable && ((!intersects && !countPrunedBranches) || fullyInside))
                         {
                             hasChildren = itemChildren.Cast<ModelItem>().Any();
                         }
@@ -285,6 +290,9 @@ namespace NavisHelper.Agent.Services
                 else if (disposition == BoxIsolationNodeDisposition.EmptyLeaf)
                 {
                     result.EmptyItemCount++;
+                    // Only the preview reads these; the total is EmptyItemCount.
+                    if (result.EmptyIndices.Count < MaximumPreviewLimit)
+                        result.EmptyIndices.Add(candidateIndex);
                 }
                 else if (disposition == BoxIsolationNodeDisposition.Intersecting)
                 {
@@ -297,11 +305,14 @@ namespace NavisHelper.Agent.Services
 
                 // Autodesk's API contract defines ModelItem.BoundingBox() as the box of the
                 // item and its children. A readable outside box therefore excludes the whole
-                // subtree. Counting skipped direct child branches is optional; enumerating
+                // subtree. Fully contained subtrees may also skip descent when revealing is off.
+                // Counting skipped outside child branches is optional; enumerating
                 // every pruned descendant would defeat the bounded traversal.
-                if (!BoxIsolationTraversalPolicy.ShouldDescend(disposition, hasChildren))
+                if (!BoxIsolationTraversalPolicy.ShouldDescend(disposition, hasChildren, fullyInside, revealHiddenInside))
                 {
-                    if (countPrunedBranches)
+                    if (disposition == BoxIsolationNodeDisposition.Intersecting && hasChildren)
+                        result.Accounting.RecordPrunedInsideSubtree();
+                    else if (countPrunedBranches)
                         result.Accounting.RecordPrunedSubtree(childItems.Count);
                     else
                         result.Accounting.RecordPrunedSubtreeRoot(hasChildren);
@@ -371,6 +382,7 @@ namespace NavisHelper.Agent.Services
                 StructuralContainerItemCount = traversal.StructuralContainerItemCount,
                 EmptyItemCount = traversal.EmptyItemCount,
                 PrunedSubtreeRootCount = traversal.Accounting.PrunedSubtreeRootCount,
+                PrunedInsideSubtreeCount = traversal.Accounting.PrunedInsideSubtreeCount,
                 PrunedDirectChildBranchCount = countPrunedBranches
                     ? (int?)traversal.Accounting.PrunedDirectChildBranchCount
                     : null,
@@ -381,6 +393,7 @@ namespace NavisHelper.Agent.Services
                 WouldChangeVisibilityItemCount = plan.WouldChangeVisibilityItemCount,
                 AffectedItemsPreviewTruncated = plan.WouldChangeVisibilityItemCount > previewLimit,
                 PreservedUnclassifiedPreviewTruncated = traversal.UnclassifiedIndices.Count > previewLimit,
+                PreservedEmptyPreviewTruncated = traversal.EmptyItemCount > previewLimit,
                 SelectionPreserved = !applyRequested || SelectionMatches(document, selectionSnapshot),
                 SectionBoxPreserved = true,
                 Warnings = traversal.Warnings.ToList(),
@@ -411,6 +424,23 @@ namespace NavisHelper.Agent.Services
                     WasHidden = candidate.PlanItem.WasHidden,
                     TargetHidden = false,
                 });
+            }
+            foreach (var candidateIndex in traversal.EmptyIndices.Take(previewLimit))
+            {
+                var candidate = traversal.Candidates[candidateIndex];
+                response.PreservedEmptyPreview.Add(new BoxIsolationPreviewItem
+                {
+                    DisplayName = candidate.Item.DisplayName ?? string.Empty,
+                    Path = BuildItemPath(candidate.Item),
+                    WasHidden = candidate.PlanItem.WasHidden,
+                    TargetHidden = candidate.PlanItem.WasHidden,
+                });
+            }
+            if (response.PrunedInsideSubtreeCount > 0)
+            {
+                response.Warnings.Add(
+                    response.PrunedInsideSubtreeCount +
+                    " subtrees fully inside the zone were not walked (revealHiddenInside=false); hidden items inside them stay hidden.");
             }
             if (traversal.UnclassifiedIndices.Count > 0)
             {
@@ -577,6 +607,7 @@ namespace NavisHelper.Agent.Services
             public int StructuralContainerItemCount { get; set; }
             public int EmptyItemCount { get; set; }
             public List<int> UnclassifiedIndices { get; } = new List<int>();
+            public List<int> EmptyIndices { get; } = new List<int>();
             public List<string> Warnings { get; } = new List<string>();
 
             public void AddWarning(string warning)
