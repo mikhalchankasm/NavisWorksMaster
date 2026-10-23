@@ -39,6 +39,7 @@ namespace NavisHelper.Agent.Contracts
         public int? MaxDurationSeconds { get; set; }
         public int? PreviewLimit { get; set; }
         public bool? CountPrunedBranches { get; set; }
+        public bool? RevealHiddenInside { get; set; }
     }
 
     public sealed class IsolateByBoxResponse
@@ -60,6 +61,7 @@ namespace NavisHelper.Agent.Contracts
         public int StructuralContainerItemCount { get; set; }
         public int EmptyItemCount { get; set; }
         public int PrunedSubtreeRootCount { get; set; }
+        public int PrunedInsideSubtreeCount { get; set; }
         public int? PrunedDirectChildBranchCount { get; set; }
         public int WouldKeepVisibleItemCount { get; set; }
         public int WouldHideItemCount { get; set; }
@@ -72,6 +74,8 @@ namespace NavisHelper.Agent.Contracts
         public List<BoxIsolationPreviewItem> AffectedItemsPreview { get; set; } = new List<BoxIsolationPreviewItem>();
         public bool PreservedUnclassifiedPreviewTruncated { get; set; }
         public List<BoxIsolationPreviewItem> PreservedUnclassifiedPreview { get; set; } = new List<BoxIsolationPreviewItem>();
+        public bool PreservedEmptyPreviewTruncated { get; set; }
+        public List<BoxIsolationPreviewItem> PreservedEmptyPreview { get; set; } = new List<BoxIsolationPreviewItem>();
         public bool SelectionPreserved { get; set; }
         public bool SectionBoxPreserved { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
@@ -155,6 +159,14 @@ namespace NavisHelper.Agent.Contracts
             return disposition != BoxIsolationNodeDisposition.OutsideSubtree;
         }
 
+        public static bool ShouldDescend(
+            BoxIsolationNodeDisposition disposition, bool hasChildren, bool fullyInside, bool revealHiddenInside)
+        {
+            if (disposition == BoxIsolationNodeDisposition.Intersecting && fullyInside && !revealHiddenInside)
+                return false;
+            return ShouldDescend(disposition, hasChildren);
+        }
+
         public static bool IsRealClassificationError(BoxIsolationNodeDisposition disposition)
         {
             return disposition == BoxIsolationNodeDisposition.Unclassified;
@@ -181,6 +193,12 @@ namespace NavisHelper.Agent.Contracts
         public int ScannedItemCount { get; private set; }
         public int PrunedSubtreeRootCount { get; private set; }
         public int PrunedDirectChildBranchCount { get; private set; }
+        public int PrunedInsideSubtreeCount { get; private set; }
+
+        public void RecordPrunedInsideSubtree()
+        {
+            PrunedInsideSubtreeCount++;
+        }
 
         public bool TryRegisterScannedItem()
         {
@@ -388,6 +406,24 @@ namespace NavisHelper.Agent.Contracts
                         _absolute[row, column] = Math.Abs(_rotation[row, column]) + epsilon;
                     }
                 }
+            }
+
+            public bool Contains(BoxVector3 minimum, BoxVector3 maximum)
+            {
+                ValidateBounds(minimum, maximum);
+                for (var corner = 0; corner < 8; corner++)
+                {
+                    var x = ((corner & 1) == 0 ? minimum.X : maximum.X) - _box.Center.X;
+                    var y = ((corner & 2) == 0 ? minimum.Y : maximum.Y) - _box.Center.Y;
+                    var z = ((corner & 4) == 0 ? minimum.Z : maximum.Z) - _box.Center.Z;
+                    for (var axis = 0; axis < 3; axis++)
+                    {
+                        var projection = x * _rotation[0, axis] + y * _rotation[1, axis] + z * _rotation[2, axis];
+                        if (!(Math.Abs(projection) <= Value(axis, _extent0, _extent1, _extent2) + 1e-9))
+                            return false;
+                    }
+                }
+                return true;
             }
 
             public bool Intersects(BoxVector3 minimum, BoxVector3 maximum)
