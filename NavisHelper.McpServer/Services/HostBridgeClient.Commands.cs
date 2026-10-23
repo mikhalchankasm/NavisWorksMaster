@@ -110,6 +110,11 @@ internal sealed partial class HostBridgeClient
         return CallHostAsync<ItemAppearanceResponse>(HostCommandNames.ItemAppearance, request, cancellationToken, target);
     }
 
+    public Task<FindDuplicateGeometryResponse> FindDuplicateGeometryAsync(FindDuplicateGeometryRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    {
+        return CallHostAsync<FindDuplicateGeometryResponse>(HostCommandNames.FindDuplicateGeometry, request, cancellationToken, target);
+    }
+
     public Task<ResetAppearanceResponse> ResetAppearanceAsync(ResetAppearanceRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
     {
         return CallHostAsync<ResetAppearanceResponse>(HostCommandNames.ResetAppearance, request, cancellationToken, target);

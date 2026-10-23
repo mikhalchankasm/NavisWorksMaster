@@ -30,6 +30,7 @@ namespace NavisHelper.Agent.Contracts
                 { HostCommandNames.ModelColorScheme, true },
                 { HostCommandNames.AppearanceProfileApply, true },
                 { HostCommandNames.ItemAppearance, false },
+                { HostCommandNames.FindDuplicateGeometry, false },
                 { HostCommandNames.ResetAppearance, true },
                 { HostCommandNames.ClashListTests, false },
                 { HostCommandNames.ClashListResults, false },

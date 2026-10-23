@@ -112,6 +112,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<ItemAppearanceRequest>,
             (document, request) => _itemAppearanceService.Read(document, request, _matchSessionStore));
 
+        router.Register<FindDuplicateGeometryRequest>(
+            HostCommandNames.FindDuplicateGeometry,
+            true,
+            DeserializePayload<FindDuplicateGeometryRequest>,
+            (document, request) => _duplicateGeometryService.Find(document, request, _matchSessionStore));
+
         router.Register<ResetAppearanceRequest>(
             HostCommandNames.ResetAppearance,
             true,

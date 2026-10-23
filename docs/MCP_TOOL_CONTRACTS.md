@@ -67,6 +67,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `delete_scenario` | Files, LocalState | No | No | Yes |
 | `dump_subtree_names` | Files | Yes | Yes | No |
 | `dump_subtree_names_status` | Files, LocalState | Yes | Yes | No |
+| `find_duplicate_geometry` | None | Yes | Yes | No |
 | `find_items` | None | Yes | Yes | No |
 | `find_items_by_bbox` | None | Yes | Yes | No |
 | `find_root_items_by_name` | None | Yes | Yes | No |
@@ -215,6 +216,8 @@ a new truncation flag appears on a contract without being documented.
 | `valuesTruncated` | `selection_distinct_property_values` | fewer distinct values than exist, so the set is not the full domain |
 | `depthTruncated` | `selected_items_tree` | the tree was cut at `maxDepth`; deeper nodes exist and are absent |
 | `deadlineTruncated` | `selected_items_tree` | the walk over the selection stopped at the request deadline; more selected items exist and are absent, and what was built so far is returned |
+| `scanTruncated` | `find_duplicate_geometry` | the geometry scan stopped at 200000 items or the host request deadline; counts and groups cover only scanned items |
+| `groupsTruncated` | `find_duplicate_geometry` | more duplicate groups were found than `maxGroups`; `groupCount` and `duplicateItemCount` cover only returned groups |
 | `nextOffset` | `selected_items_tree` | not a flag but its remedy: the selection position where the next page starts, null on the last page. Call again with `offset=nextOffset`; it counts every position the page looked at, so no item is repeated or skipped (#359) |
 | `traversalTruncated` | `find_items_by_bbox`, `isolate_by_box`, clash matrix traversal | the walk stopped at a scan or time limit, so items were never examined. See *find_items_by_bbox* for what narrowing the zone now skips |
 | `responseTruncated` | `last_operation_status` | the command completed but its response had to be reduced to fit the named-pipe frame |
@@ -252,7 +255,7 @@ contract cannot skip that description.
 | `CommentsTruncated` | `ClashResultSummary` |
 | `DeadlineTruncated` | `SelectedItemsTreeResponse` |
 | `DepthTruncated` | `SelectedItemsTreeResponse` |
-| `GroupsTruncated` | `ClashGroupResultsResponse`, `SelectionColorByPropertyResponse` |
+| `GroupsTruncated` | `ClashGroupResultsResponse`, `FindDuplicateGeometryResponse`, `SelectionColorByPropertyResponse` |
 | `ItemsTruncated` | `ItemPropertiesHandleResult`, `ModelColorSchemeResponse`, `SelectionColorByPropertyResponse`, `SelectionDistinctPropertyValuesResponse`, `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
 | `PairsTruncated` | `ClashRootMatrixResponse` |
 | `PlannedTestsTruncated` | `ClashCreateMatrixFromSelectionResponse` |
@@ -267,6 +270,7 @@ contract cannot skip that description.
 | `RootItemsTruncated` | `ClashBboxPairPlanResponse` |
 | `RowsTruncated` | `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
 | `RulesTruncated` | `AppearanceProfileApplyResponse` |
+| `ScanTruncated` | `FindDuplicateGeometryResponse` |
 | `TraversalTruncated` | `FindItemsByBboxResponse`, `IsolateByBoxResponse` |
 | `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `ItemAppearanceResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
 | `ValuesTruncated` | `SelectionDistinctPropertyValuesResponse` |
@@ -1173,6 +1177,37 @@ exceptions produce `CommandFailed`.
 
 Overrides are permanent. `model_color_scheme reset` does not undo them. Use Navisworks
 Reset Appearance, or reopen without saving. Native runtime behavior awaits an agreed L3 window.
+
+## `find_duplicate_geometry`
+
+Read-only geometry duplicate report in the `reports` tool set; requires an open
+document. Pass non-blank `matchHandles` or `useSelection=true`, exactly one target
+mode. Geometry items contribute themselves; structural items contribute their
+geometry-bearing descendants, deduplicated by native item identity. Empty selections
+return zero counts. Invalid targets or `mode` return `SchemaViolation`; stale handles
+return `StaleMatchReference`. Optional `instanceId` and `navisworksVersion` target the host.
+
+`gridSize=0.01` is clamped to 0.0001–1 in model units (1 cm in a metre model).
+The six bounding-box coordinates, rounded to the grid away from zero at midpoints,
+and primitive count form the grouping key. This is a geometry heuristic, not a mesh
+comparison. `mode=all` keeps groups of at least two items; `within_root` splits by
+model root; `across_roots` keeps groups spanning at least two roots. Root and parent
+keys are printed paths, so distinct same-named roots or parents share those keys.
+
+`maxGroups=50` is clamped to 1–100; largest groups come first, then key in ordinal
+order. `previewPerGroup=5` is clamped to 1–20. Returns effective `gridSize`, `mode`,
+`scannedItemCount`, `scanTruncated`, `groupCount`, `groupsTruncated`,
+`duplicateItemCount`, `groups`, and `warnings`. On `FindDuplicateGeometryResponse`,
+`scanTruncated` means the scan stopped at 200000 geometry items or the host deadline;
+`groupsTruncated` means more than `maxGroups` qualifying groups exist in the scanned
+scope. Counts describe scanned items and returned groups, not omitted data.
+
+Each group has `itemCount`, distinct `rootCount`, `sameParentAndName` (ordinal parent
+path equality and case-insensitive name equality), `matchHandle`, and `previewPaths`.
+Only the first 25 returned groups receive handles for `select_items`; later handles
+are null and a warning asks callers to narrow scope or mode. `duplicateItemCount`
+is the sum of returned groups' item counts. Native geometry behavior awaits SDK
+builds and an agreed L3 window.
 
 ## `item_appearance`
 

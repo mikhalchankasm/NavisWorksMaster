@@ -57,6 +57,7 @@ builder.Services
     .WithTools<NavisworksModelColorSchemeTools>()
     .WithTools<NavisworksAppearanceProfileTools>()
     .WithTools<NavisworksItemAppearanceTools>()
+    .WithTools<NavisworksDuplicateGeometryTools>()
     .WithTools<NavisworksScenarioWorkflowTools>()
     .WithTools<NavisworksClashListingTools>()
     .WithTools<NavisworksClashResultTools>()
