@@ -281,9 +281,20 @@ class SearchPatternsAreNotStops(unittest.TestCase):
                 [entry] = self.entries(command)
                 self.assertFalse(entry["inRunTree"])
 
+    def test_an_expression_argument_of_a_search_is_still_read(self) -> None:
+        """Review of #371: PowerShell runs `(& 'Stop-Process' -Id 1)` while building rg's argument."""
+        [entry] = self.entries(PWSH7 + f"\"rg (& 'Stop-Process' -Id {FOREIGN_PID}) f\"")
+        self.assertFalse(entry["inRunTree"])
+
     def test_cmd_lines_are_not_masked(self) -> None:
-        [entry] = self.entries(f"cmd /c rg \"x & taskkill /PID {FOREIGN_PID} &\" f")
-        self.assertEqual(entry["pids"], [FOREIGN_PID])
+        for command in (
+            f"cmd /c rg \"x & taskkill /PID {FOREIGN_PID} &\" f",
+            # Review of #371: a quoted cmd.exe path, where single quotes are plain characters.
+            f"\"C:\\Windows\\System32\\cmd.exe\" /c rg 'x & taskkill /PID {FOREIGN_PID} &' f",
+        ):
+            with self.subTest(command=command[:40]):
+                [entry] = self.entries(command)
+                self.assertEqual(entry["pids"], [FOREIGN_PID])
 
 
 @unittest.skipUnless(os.name == "nt", "the executor's process tree is a Windows Job Object")

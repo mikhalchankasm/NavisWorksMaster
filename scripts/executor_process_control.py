@@ -39,7 +39,8 @@ _KILL_ARGS = re.compile(
 
 
 _SEARCH = re.compile(r"(?:rg|grep|egrep|fgrep|findstr|Select-String|sls)(?:\.exe)?(?![\w-])", re.IGNORECASE)
-_CMD_SHELL = re.compile(r"(?<![\w.-])cmd(?:\.exe)?\s+/[ck]\b", re.IGNORECASE)
+# Any cmd mention, a quoted cmd.exe path included: there single quotes are plain characters and `&` runs.
+_CMD_SHELL = re.compile(r"(?<![\w-])cmd(?:\.exe)?(?![\w-])", re.IGNORECASE)
 
 
 def _mask_search_patterns(command: str) -> str:
@@ -48,7 +49,9 @@ def _mask_search_patterns(command: str) -> str:
     The #360 run searched the guard scripts for `kill|Stop-Process` and failed with exit 6. Quoting alone
     cannot decide it: Codex wraps whole PowerShell commands in quotes (`-Command 'Stop-Process -Id 1'`).
     So only quoted strings after rg/grep/findstr/Select-String are blanked, up to the end of that search's
-    segment or of the string that encloses it. cmd.exe lines are left alone: there quotes do not stop `&`.
+    segment or of the string that encloses it, and never past an unquoted `(`, `)`, `{`, `}` or `&`, which
+    start PowerShell expressions (`rg (& 'Stop-Process' -Id 1)`). Lines mentioning cmd are left alone: there
+    quotes do not stop `&`. The review of #371 found both of those bypasses.
     Blanking keeps every index, so pids are still read from the original positions.
     """
     if _CMD_SHELL.search(command):
@@ -76,7 +79,7 @@ def _mask_search_patterns(command: str) -> str:
 def _mask_arguments(chars: list[str], command: str, index: int, enclosing: str | None) -> int:
     while index < len(command):
         char = command[index]
-        if char == enclosing or char in ";|\r\n" or command.startswith("&&", index):
+        if char == enclosing or char in ";|\r\n(){}&":
             return index
         if char in "'\"":
             end = command.find(char, index + 1)
