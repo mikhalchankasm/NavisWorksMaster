@@ -710,6 +710,7 @@
     <Compile Include="RibbonCommandMessages.cs" />
     <Compile Include="RunSaveClashReport.cs" />
     <Compile Include="SaveAsNavis2018.cs" />
+    <Compile Include="NwdPublishAddIn.cs" />
     <Compile Include="SaveHierarhy.cs" />
     <Compile Include="SaveViewpiontList.cs" />
     <Compile Include="SortViewpoints.cs" />
