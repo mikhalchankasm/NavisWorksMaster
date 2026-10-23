@@ -25,7 +25,7 @@ Tell Claude, Codex or Cursor what to do with your model, and NavisHelper does it
 - Clash Detective: groups, isolation, viewpoints, reports.
 
 **With AI** (Claude, Codex, Cursor and others)
-- describe the task in plain words; the AI does it through NavisHelper's 122 tools;
+- describe the task in plain words; the AI does it through NavisHelper's 123 tools;
 - the AI shows each change before making it, and makes it only after confirmation;
 - in **protected mode** the AI cannot change the document until you allow it in the panel.
 
@@ -128,7 +128,7 @@ More in [security and compatibility](docs/SECURITY_AND_COMPATIBILITY.md).
 
 ## For developers
 
-The source registers **122 distinct MCP tools**. `scripts/check_mcp_command_catalog.py` derives their names from the 122 `[McpServerTool]` methods and verifies the generated 122-row index. Inputs, outputs and limits of every tool are in the [tool contracts](docs/MCP_TOOL_CONTRACTS.md); the design is in the [architecture](docs/MCP_ARCHITECTURE.md). Building and contributing: [Contributing](CONTRIBUTING.md) and the [build rules](BUILD_BUNDLE_RULES.md).
+The source registers **123 distinct MCP tools**. `scripts/check_mcp_command_catalog.py` derives their names from the 123 `[McpServerTool]` methods and verifies the generated 123-row index. Inputs, outputs and limits of every tool are in the [tool contracts](docs/MCP_TOOL_CONTRACTS.md); the design is in the [architecture](docs/MCP_ARCHITECTURE.md). Building and contributing: [Contributing](CONTRIBUTING.md) and the [build rules](BUILD_BUNDLE_RULES.md).
 
 ## License and status
 

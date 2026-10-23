@@ -38,6 +38,7 @@ namespace NavisHelper.Agent.Contracts
         public const string SelectionColorByProperty = "selection_color_by_property";
         public const string ModelColorScheme = "model_color_scheme";
         public const string AppearanceProfileApply = "appearance_profile_apply";
+        public const string GetItemTextureMapping = "get_item_texture_mapping";
         public const string ItemAppearance = "item_appearance";
         public const string SelectionSetsApplyAppearance = "selection_sets_apply_appearance";
         public const string FindDuplicateGeometry = "find_duplicate_geometry";

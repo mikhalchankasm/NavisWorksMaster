@@ -140,6 +140,7 @@ internal static class McpToolProfile
             {
                 "model_color_scheme",
                 "appearance_profile_apply",
+                "get_item_texture_mapping",
                 "item_appearance",
                 "selection_sets_apply_appearance",
                 "find_duplicate_geometry",

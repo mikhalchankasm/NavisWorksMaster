@@ -29,6 +29,7 @@ namespace NavisHelper.Agent.Contracts
                 { HostCommandNames.SelectionColorByProperty, true },
                 { HostCommandNames.ModelColorScheme, true },
                 { HostCommandNames.AppearanceProfileApply, true },
+                { HostCommandNames.GetItemTextureMapping, false },
                 { HostCommandNames.ItemAppearance, false },
                 { HostCommandNames.SelectionSetsApplyAppearance, true },
                 { HostCommandNames.FindDuplicateGeometry, false },

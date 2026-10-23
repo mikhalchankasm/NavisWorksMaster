@@ -106,6 +106,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<AppearanceProfileApplyRequest>,
             (document, request) => _appearanceProfileService.Execute(document, request));
 
+        router.Register<GetItemTextureMappingRequest>(
+            HostCommandNames.GetItemTextureMapping,
+            true,
+            DeserializePayload<GetItemTextureMappingRequest>,
+            (document, request) => _itemTextureMappingService.Read(document, request, _matchSessionStore));
+
         router.Register<ItemAppearanceRequest>(
             HostCommandNames.ItemAppearance,
             true,

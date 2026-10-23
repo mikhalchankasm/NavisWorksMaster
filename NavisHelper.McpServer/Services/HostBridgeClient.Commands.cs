@@ -105,6 +105,11 @@ internal sealed partial class HostBridgeClient
         return CallHostAsync<AppearanceProfileApplyResponse>(HostCommandNames.AppearanceProfileApply, request, cancellationToken, target);
     }
 
+    public Task<GetItemTextureMappingResponse> GetItemTextureMappingAsync(GetItemTextureMappingRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    {
+        return CallHostAsync<GetItemTextureMappingResponse>(HostCommandNames.GetItemTextureMapping, request, cancellationToken, target);
+    }
+
     public Task<ItemAppearanceResponse> ItemAppearanceAsync(ItemAppearanceRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
     {
         return CallHostAsync<ItemAppearanceResponse>(HostCommandNames.ItemAppearance, request, cancellationToken, target);

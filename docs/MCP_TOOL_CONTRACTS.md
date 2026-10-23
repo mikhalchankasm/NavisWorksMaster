@@ -74,6 +74,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `fit_all` | View | Yes | Yes | No |
 | `focus_on_selection` | View | Yes | Yes | No |
 | `get_current_section_box` | None | Yes | Yes | No |
+| `get_item_texture_mapping` | None | Yes | Yes | No |
 | `get_scenario` | None | No | No | No |
 | `get_view_display_settings` | None | Yes | Yes | No |
 | `hide_selected` | View | Yes | Yes | Yes |
@@ -210,7 +211,7 @@ a new truncation flag appears on a contract without being documented.
 
 | flag | on | meaning |
 | --- | --- | --- |
-| `truncated` | every paged listing -- `list_root_items`, `list_item_children`, `list_selection_sets`, `list_saved_viewpoints`, `selection_copy_names`, `selected_items_preview`/`_ancestry`/`_tree`, `item_appearance`, the clash listings and reports, viewpoint build and import | fewer rows returned than exist. `dump_subtree_names` does **not** have this flag: its job status reports state and progress counts instead |
+| `truncated` | every paged listing -- `list_root_items`, `list_item_children`, `list_selection_sets`, `list_saved_viewpoints`, `selection_copy_names`, `selected_items_preview`/`_ancestry`/`_tree`, `item_appearance`, `get_item_texture_mapping`, the clash listings and reports, viewpoint build and import | fewer rows returned than exist. `dump_subtree_names` does **not** have this flag: its job status reports state and progress counts instead |
 | `itemsTruncated`, `resultsTruncated`, `rowsTruncated` | `selection_property_report`, `selection_export_properties`, clash listings and reports | fewer rows than exist. `selection_export_properties` writes a file, so a truncated export is a report short of rows |
 | `propertiesTruncated` | `item_properties_by_handle`, `selection_property_report`, `selection_export_properties`, `model_color_scheme` item facts | fewer properties per item than the item has |
 | `commentsTruncated` | `clash_list_results` result summaries | fewer comments returned than `commentCount`, or a returned comment body was shortened |
@@ -274,7 +275,7 @@ contract cannot skip that description.
 | `RulesTruncated` | `AppearanceProfileApplyResponse` |
 | `ScanTruncated` | `FindDuplicateGeometryResponse` |
 | `TraversalTruncated` | `FindItemsByBboxResponse`, `IsolateByBoxResponse` |
-| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `ItemAppearanceResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
+| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `GetItemTextureMappingResponse`, `ItemAppearanceResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
 | `ValuesTruncated` | `SelectionDistinctPropertyValuesResponse` |
 
 <!-- END GENERATED TRUNCATION FLAG INVENTORY -->
@@ -1212,6 +1213,37 @@ Only the first 25 returned groups receive handles for `select_items`; later hand
 are null and a warning asks callers to narrow scope or mode. `duplicateItemCount`
 is the sum of returned groups' item counts. Native geometry behavior awaits SDK
 builds and an agreed L3 window.
+
+## `get_item_texture_mapping`
+
+Reads texture mapping through the texture-space internals, one matched item at a
+time through the current selection, and restores the saved selection in `finally`.
+Read-only; no document transaction or texture/material changes. Requires an open
+document; belongs to the `reports` tool set.
+
+Required `matchHandles` contains non-blank handles from `find_items` or other
+queries. Missing/empty targets return `SchemaViolation`; stale handles return
+`StaleMatchReference` before selection changes. Matched items are deduplicated by
+native item identity and are read as-is, without expanding geometry descendants.
+Optional `maxItems=20` is clamped to 1–100; `instanceId=""` and
+`navisworksVersion=""` target the host.
+
+Returns `itemCount` (all distinct matched items), `readCount` (successful reads),
+`truncated`, `selectionRestored`, `items`, and `warnings`. On
+`GetItemTextureMappingResponse`, `truncated=true` means only the first `maxItems`
+items were attempted. Each item carries `displayName`, `path`, `mapping` (`box`,
+`plane`, `cylinder`, `sphere`, `explicit`, or null for an unknown native value),
+nullable `hasTextureCoordinates`, `translation`, `scale`, quaternion `rotation`
+(`a`, `b`, `c`, `d`), `domainMin`, `domainMax`, `faceDirections`, nullable
+`capEnabled` and `capThreshold`, and `error`. Vectors have `x`, `y`, `z`; domains
+are read for plane, box and cylinder mappings. Each box face direction contains
+`face`, `u`, `v` as signed axes (`+x`, `-x`, `+y`, `-y`, `+z`, `-z`). Cap fields
+are read for cylinders. `hasTextureCoordinates` reports availability, not UV
+samples. Unavailable fields remain null (or an empty face list); a per-item
+exception records `error`, preserves any fields already read and continues.
+Selection restoration failure leaves `selectionRestored=false` and adds a warning.
+Live behaviour, including the native domain output parameters and selection
+restoration, awaits an agreed L3 window.
 
 ## `item_appearance`
 

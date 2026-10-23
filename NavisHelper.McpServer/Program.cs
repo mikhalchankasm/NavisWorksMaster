@@ -56,6 +56,7 @@ builder.Services
     .WithTools<NavisworksSelectionReportTools>()
     .WithTools<NavisworksModelColorSchemeTools>()
     .WithTools<NavisworksAppearanceProfileTools>()
+    .WithTools<NavisworksTextureMappingTools>()
     .WithTools<NavisworksItemAppearanceTools>()
     .WithTools<NavisworksSetAppearanceTools>()
     .WithTools<NavisworksDuplicateGeometryTools>()

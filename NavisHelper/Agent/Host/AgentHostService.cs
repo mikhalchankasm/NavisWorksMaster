@@ -44,6 +44,7 @@ namespace NavisHelper.Agent.Host
         private readonly ClashIsolationService _clashIsolationService = new ClashIsolationService();
         private readonly ModelColorSchemeService _modelColorSchemeService = new ModelColorSchemeService();
         private readonly AppearanceProfileService _appearanceProfileService = new AppearanceProfileService();
+        private readonly ItemTextureMappingService _itemTextureMappingService = new ItemTextureMappingService();
         private readonly ItemAppearanceService _itemAppearanceService = new ItemAppearanceService();
         private readonly SetAppearanceService _setAppearanceService = new SetAppearanceService();
         private readonly DuplicateGeometryService _duplicateGeometryService = new DuplicateGeometryService();
