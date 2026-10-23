@@ -125,8 +125,8 @@ namespace NavisHelper.Agent.Services
                 };
                 foreach (var face in faces)
                 {
-                    LcOpTextureSpaceAxisDirection u, v;
-                    box.GetDirection(face, out u, out v);
+                    LcOpTextureSpaceAxisDirection u = LcOpTextureSpaceAxisDirection.eDIRECTION_PLUSX, v = LcOpTextureSpaceAxisDirection.eDIRECTION_PLUSX;
+                    box.GetDirection(face, ref u, ref v);
                     info.FaceDirections.Add(new TextureFaceDirection
                     {
                         Face = TextureMappingRules.AxisName(face.ToString()),
