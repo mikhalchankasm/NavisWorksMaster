@@ -290,7 +290,9 @@ namespace NavisHelper.Agent.Services
                 else if (disposition == BoxIsolationNodeDisposition.EmptyLeaf)
                 {
                     result.EmptyItemCount++;
-                    result.EmptyIndices.Add(candidateIndex);
+                    // Only the preview reads these; the total is EmptyItemCount.
+                    if (result.EmptyIndices.Count < MaximumPreviewLimit)
+                        result.EmptyIndices.Add(candidateIndex);
                 }
                 else if (disposition == BoxIsolationNodeDisposition.Intersecting)
                 {
