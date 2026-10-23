@@ -106,6 +106,18 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<AppearanceProfileApplyRequest>,
             (document, request) => _appearanceProfileService.Execute(document, request));
 
+        router.Register<ItemAppearanceRequest>(
+            HostCommandNames.ItemAppearance,
+            true,
+            DeserializePayload<ItemAppearanceRequest>,
+            (document, request) => _itemAppearanceService.Read(document, request, _matchSessionStore));
+
+        router.Register<ResetAppearanceRequest>(
+            HostCommandNames.ResetAppearance,
+            true,
+            DeserializePayload<ResetAppearanceRequest>,
+            (document, request) => _itemAppearanceService.Reset(document, request, _matchSessionStore));
+
         router.Register<ModelColorSchemeRequest>(
             HostCommandNames.ModelColorScheme,
             true,

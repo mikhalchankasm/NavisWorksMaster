@@ -80,6 +80,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `host_status` | None | Yes | No | No |
 | `isolate_by_box` | View | Yes | Yes | Yes |
 | `isolate_selected` | View | Yes | Yes | Yes |
+| `item_appearance` | None | Yes | Yes | No |
 | `item_properties_by_handle` | None | Yes | Yes | No |
 | `last_operation_status` | None | Yes | No | No |
 | `list_item_children` | None | Yes | Yes | No |
@@ -100,6 +101,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `mcp_task_timer_start` | LocalState | No | No | No |
 | `model_color_scheme` | Document, LocalState | Yes | Yes | Yes |
 | `open_latest_navisworks_file` | Host | No | No | No |
+| `reset_appearance` | Document | Yes | Yes | Yes |
 | `resolve_scenario` | None | No | No | No |
 | `reveal_selected` | View | Yes | Yes | Yes |
 | `save_document` | Document, Files | Yes | Yes | No |
@@ -206,7 +208,7 @@ a new truncation flag appears on a contract without being documented.
 
 | flag | on | meaning |
 | --- | --- | --- |
-| `truncated` | every paged listing -- `list_root_items`, `list_item_children`, `list_selection_sets`, `list_saved_viewpoints`, `selection_copy_names`, `selected_items_preview`/`_ancestry`/`_tree`, the clash listings and reports, viewpoint build and import | fewer rows returned than exist. `dump_subtree_names` does **not** have this flag: its job status reports state and progress counts instead |
+| `truncated` | every paged listing -- `list_root_items`, `list_item_children`, `list_selection_sets`, `list_saved_viewpoints`, `selection_copy_names`, `selected_items_preview`/`_ancestry`/`_tree`, `item_appearance`, the clash listings and reports, viewpoint build and import | fewer rows returned than exist. `dump_subtree_names` does **not** have this flag: its job status reports state and progress counts instead |
 | `itemsTruncated`, `resultsTruncated`, `rowsTruncated` | `selection_property_report`, `selection_export_properties`, clash listings and reports | fewer rows than exist. `selection_export_properties` writes a file, so a truncated export is a report short of rows |
 | `propertiesTruncated` | `item_properties_by_handle`, `selection_property_report`, `selection_export_properties`, `model_color_scheme` item facts | fewer properties per item than the item has |
 | `commentsTruncated` | `clash_list_results` result summaries | fewer comments returned than `commentCount`, or a returned comment body was shortened |
@@ -266,7 +268,7 @@ contract cannot skip that description.
 | `RowsTruncated` | `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
 | `RulesTruncated` | `AppearanceProfileApplyResponse` |
 | `TraversalTruncated` | `FindItemsByBboxResponse`, `IsolateByBoxResponse` |
-| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
+| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `ItemAppearanceResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
 | `ValuesTruncated` | `SelectionDistinctPropertyValuesResponse` |
 
 <!-- END GENERATED TRUNCATION FLAG INVENTORY -->
@@ -1171,6 +1173,41 @@ exceptions produce `CommandFailed`.
 
 Overrides are permanent. `model_color_scheme reset` does not undo them. Use Navisworks
 Reset Appearance, or reopen without saving. Native runtime behavior awaits an agreed L3 window.
+
+## `item_appearance`
+
+Reads original and current permanent colour/transparency without changing the document.
+Pass non-blank `matchHandles` or `useSelection=true`, exactly one target mode. Empty
+selections return zero counts. Invalid target modes return `SchemaViolation`; stale
+handles return `StaleMatchReference` before any work is applied.
+An item with geometry contributes itself; an item without geometry contributes its
+geometry-bearing descendants. Items are deduplicated by native item identity.
+Optional `maxItems=50` is clamped to 1–500; `instanceId=""` and `navisworksVersion=""`
+target the host. Requires an open document; belongs to the `reports` tool set.
+
+Returns `itemCount`, `overriddenItemCount`, `truncated`, `items`, and `warnings`.
+Counts cover every geometry item, including those beyond the returned sample.
+`truncated=true` on `ItemAppearanceResponse` means `items` contains only the first
+`maxItems` entries. Each entry has `displayName`, `path`, `originalColorHex`,
+`originalTransparency`, `currentColorHex`, `currentTransparency`, `colorOverridden`,
+and `transparencyOverridden`. Colours are uppercase `#RRGGBB` (null if unavailable);
+transparency is a whole percentage, 0–100. Override flags compare colour bytes
+case-insensitively and rounded transparency percentages, rather than recording provenance.
+
+## `reset_appearance`
+
+Uses the same target modes, geometry expansion, and override comparisons as
+`item_appearance`. Optional `apply=false` previews counts and changes nothing.
+With `apply=true`, resets permanent materials on overridden items only, in one
+committed transaction (one Navisworks undo step), then requests a redraw. With no
+overrides, changes nothing. Unlike `model_color_scheme` reset, it does not need a
+scheme captured by the current host session. It never saves the document.
+
+Returns `apply`, `itemCount`, `overriddenItemCount`, `resetItemCount`, `message`,
+and `warnings`. `resetItemCount` is zero for dry-run and otherwise counts the items
+successfully reset. Optional `instanceId=""` and `navisworksVersion=""` target the
+host. Requires an open document; belongs to `reports`. Native appearance and undo
+behavior await SDK builds and an agreed L3 window.
 
 ## `model_color_scheme`
 

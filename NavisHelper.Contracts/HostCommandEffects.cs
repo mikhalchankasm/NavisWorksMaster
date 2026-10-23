@@ -29,6 +29,8 @@ namespace NavisHelper.Agent.Contracts
                 { HostCommandNames.SelectionColorByProperty, true },
                 { HostCommandNames.ModelColorScheme, true },
                 { HostCommandNames.AppearanceProfileApply, true },
+                { HostCommandNames.ItemAppearance, false },
+                { HostCommandNames.ResetAppearance, true },
                 { HostCommandNames.ClashListTests, false },
                 { HostCommandNames.ClashListResults, false },
                 { HostCommandNames.ClashListClusters, false },

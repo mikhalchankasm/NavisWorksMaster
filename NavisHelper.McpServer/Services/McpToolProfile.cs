@@ -140,6 +140,8 @@ internal static class McpToolProfile
             {
                 "model_color_scheme",
                 "appearance_profile_apply",
+                "item_appearance",
+                "reset_appearance",
                 "selection_color_by_property",
                 "selection_distinct_property_values",
                 "selection_export_properties",

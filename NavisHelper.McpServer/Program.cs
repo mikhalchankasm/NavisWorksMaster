@@ -56,6 +56,7 @@ builder.Services
     .WithTools<NavisworksSelectionReportTools>()
     .WithTools<NavisworksModelColorSchemeTools>()
     .WithTools<NavisworksAppearanceProfileTools>()
+    .WithTools<NavisworksItemAppearanceTools>()
     .WithTools<NavisworksScenarioWorkflowTools>()
     .WithTools<NavisworksClashListingTools>()
     .WithTools<NavisworksClashResultTools>()
