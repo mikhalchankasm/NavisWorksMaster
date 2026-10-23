@@ -199,6 +199,14 @@ Rules:
 
 Large models: colour in batches with `scope=selection` and `mode=accumulate`. Each batch adds to the active scheme, and one `reset` undoes all of them. The default `mode=replace` restores the previous scheme first and says so in `previousSchemeRestored`. Every apply and every reset runs as one Navisworks transaction.
 
+## Reading, Resetting and Set Appearance
+
+Colours and transparency that are saved in the file, or that `selection_color_by_property` set, are permanent overrides. `model_color_scheme reset` does not know about them. Use these tools instead. Targets are `matchHandles` from `find_items` or `useSelection=true`, exactly one of the two. An item without geometry stands for its geometry-bearing descendants.
+
+1. `item_appearance` reads the original and current colour and transparency of each item and flags what is overridden. It changes nothing. `itemCount` and `overriddenItemCount` cover every item, while `items` holds at most `maxItems` (default 50).
+2. `reset_appearance` with `apply=false` previews the counts. With `apply=true`, it resets colour and transparency to the original materials in one undo step. It does not unhide items.
+3. `selection_sets_apply_appearance` colours saved selection or search sets with ordered `steps`: `setPath`, `colorHex`, `transparency` (0-100), `hide=true`. Later steps win where sets overlap, for example a whole system red and then one line of it blue. The default dry-run returns each set's `itemCount`. `apply=true` runs all valid steps as one Ctrl+Z step. A missing set, an ambiguous name or a folder fails only its own step, with `error`. Undo it with Ctrl+Z, or use `reset_appearance` for colour and transparency and `show_all` or `unhide_selected` for hidden items.
+
 ## Selection-set viewpoint batches
 
 Use `selection_sets_build_viewpoints` for new batch workflows. Supply a required `folderPrefix`, a `nameTemplate` containing `{set}` and `{step}`, and independently configured `overview`, `markup`, or `sectionBox` steps. Use `whenItemCountMin`/`whenItemCountMax` to give large and small sets different recipes in one call. Count clustering accepts either approximate `clusterTargetSize` or exact `clusterCount`. `verbosity="summary"` is the default and omits per-cluster item previews; request `full` only for diagnostics. `maxClusters` reports `droppedClusterCount` and `uncoveredItemCount` and never overrides an explicit `arrowCallout=false`. Set `overwrite=true` on a step to update matching viewpoints in place. Start with `apply=false`.
@@ -516,6 +524,28 @@ Keep the two Navisworks set concepts separate:
 Use `list_selection_sets` before modifying sets or folders. Its `itemId` is duplicate-safe for the current tree state; refresh the list after any create, move, delete, or reorder. For large trees, page with `offset` or narrow results with `pathPrefix` / `nameContains` before asking for an `itemId`. Use `selection_sets_manage` for `create_folder`, `delete_folder`, `delete_set`, `delete`, `rename`, and `move`; prefer `itemId` when cleaning up duplicate or mojibake names. Use `selection_sets_reorder` for natural numeric sorting of folders and sets.
 
 `select_selection_set` is intended for concrete static Selection Sets or dynamic Search Sets. When a folder matches, dry-run returns metadata without expanding all child sets by default; pass `allowFolderExpansion=true` only when the user explicitly wants the folder expanded and accepts that it may be slow on large models.
+
+## Duplicate Geometry
+
+`find_duplicate_geometry` finds stacked copies, such as a model appended twice or pipelines copied in place, without running a clash test. It is read-only. It groups geometry items whose bounding box, rounded to `gridSize` (default 0.01 model units), and primitive count are equal. This is a heuristic, not a mesh comparison: different items of the same size in the same place also group.
+
+- `mode=all` reports every group; `within_root` keeps copies inside one model root; `across_roots` keeps only groups that span two or more roots, such as a file appended twice.
+- `sameParentAndName=true` marks copies with the same name under the same printed parent path, for example the paired fittings E3D writes to RVM.
+- The first 25 groups carry a `matchHandle`. Pass it to `select_items`, then `zoom_to_selection` or `create_selection_set`.
+- On large models, narrow the scope with `matchHandles` or the current selection. `scanTruncated` means the scan stopped at 200,000 items or at the deadline.
+
+## Isolating a Zone on Large Models
+
+`isolate_by_box` walks every node inside the box so it can reveal hidden items there. When most of a large model is inside the zone, pass `revealHiddenInside=false`. Subtrees fully inside the box then stay visible as a whole, are not walked, and are counted in `prunedInsideSubtreeCount`, while hidden items inside them stay hidden. Compare `scannedItemCount` between the two dry-runs before applying.
+
+## Saving an NWD with Textures or for an Older Version
+
+`save_document_as` writes `.nwd` with two optional settings:
+
+- `embedTextures=true` publishes the file with its textures embedded, like the Publish dialog's "Embed Textures" option. The file stays resavable. Use it for files that will be opened on another machine.
+- `fileVersion`, a year from `2015` to `2027`, writes the format of that Navisworks version. For example, a `"2018"` file opens in Navisworks 2016 and later; a file saved in the 2027 format does not open in 2026.
+
+The response reports `published`, `texturesEmbedded` and `fileVersion`. Automation scripts, for example a nightly NWF to NWD conversion, get the same through the plugin's add-in: `ExecuteAddInPlugin("PublishNwd.CBC", @"D:\out\model.nwd", "embedTextures", "version=2018")`. It returns `0` on success and `1` on error, without dialogs.
 
 ## Write Safety
 
