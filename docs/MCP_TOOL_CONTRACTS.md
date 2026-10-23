@@ -1198,14 +1198,15 @@ case-insensitively and rounded transparency percentages, rather than recording p
 
 Uses the same target modes, geometry expansion, and override comparisons as
 `item_appearance`. Optional `apply=false` previews counts and changes nothing.
-With `apply=true`, resets permanent materials on overridden items only, in one
-committed transaction (one Navisworks undo step), then requests a redraw. With no
-overrides, changes nothing. Unlike `model_color_scheme` reset, it does not need a
+With `apply=true`, resets permanent materials on every target geometry item, in one
+committed transaction (one Navisworks undo step), then requests a redraw. Every item
+is reset because `overriddenItemCount` compares values rounded for display and can
+miss a sub-percent override; an item without overrides is left as it was. Unlike `model_color_scheme` reset, it does not need a
 scheme captured by the current host session. It never saves the document.
 
 Returns `apply`, `itemCount`, `overriddenItemCount`, `resetItemCount`, `message`,
 and `warnings`. `resetItemCount` is zero for dry-run and otherwise counts the items
-successfully reset. Optional `instanceId=""` and `navisworksVersion=""` target the
+reset (all target geometry items). Optional `instanceId=""` and `navisworksVersion=""` target the
 host. Requires an open document; belongs to `reports`. Native appearance and undo
 behavior await SDK builds and an agreed L3 window.
 

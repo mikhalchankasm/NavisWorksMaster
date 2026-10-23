@@ -48,20 +48,20 @@ namespace NavisHelper.Agent.Services
                 OverriddenItemCount = overridden.Count,
                 Message = "Reset appearance dry-run; nothing changed.",
             };
-            if (!response.Apply)
+            if (!response.Apply || items.Count == 0)
                 return response;
-            if (overridden.Count == 0)
-            {
-                response.Message = "No appearance overrides found; nothing changed.";
-                return response;
-            }
 
+            // Every item is reset, not only those counted as overridden: the count compares
+            // values rounded for display, so a transparency of 0.4 % or a colour within one
+            // byte would be missed, and resetting an item without an override changes nothing.
+            var targets = new ModelItemCollection();
+            targets.AddRange(items);
             using (var tx = document.BeginTransaction("NavisHelper reset appearance"))
             {
-                document.Models.ResetPermanentMaterials(overridden);
+                document.Models.ResetPermanentMaterials(targets);
                 tx.Commit();
             }
-            response.ResetItemCount = overridden.Count;
+            response.ResetItemCount = items.Count;
             response.Message = "Appearance overrides reset to original materials as one undo step.";
             try
             {
