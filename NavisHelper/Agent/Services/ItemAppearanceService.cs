@@ -48,8 +48,13 @@ namespace NavisHelper.Agent.Services
                 OverriddenItemCount = overridden.Count,
                 Message = "Reset appearance dry-run; nothing changed.",
             };
-            if (!response.Apply || items.Count == 0)
+            if (!response.Apply)
                 return response;
+            if (items.Count == 0)
+            {
+                response.Message = "No geometry items to reset; nothing changed.";
+                return response;
+            }
 
             // Every item is reset, not only those counted as overridden: the count compares
             // values rounded for display, so a transparency of 0.4 % or a colour within one
