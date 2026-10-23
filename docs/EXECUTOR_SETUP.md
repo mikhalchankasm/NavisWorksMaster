@@ -89,7 +89,9 @@ reviewed. In one PR:
 Reviewed here: 0.158.0, 0.159.0, 0.159.2, 0.160.0, 0.161.0, 0.162.1 (copied
 from Avox with the launcher); 0.163.0 (2026-10-20, ported from Avox `3bda6b8f`):
 `code_mode_interrupt` reviewed harmless (`code_mode` stays off),
-`api_key_cyber_access_programs` and `cli_daybreak` switched off.
+`api_key_cyber_access_programs` and `cli_daybreak` switched off; 0.164.0 (2026-10-23,
+reviewed here, Avox had not reviewed it yet): `incremental_tools` reviewed harmless,
+`bedrock_setup_wizard` and `mcp_oauth_refresh_coordination` switched off.
 
 ### Qwen Code (`qwen`)
 

@@ -303,6 +303,7 @@ class ArgvTests(unittest.TestCase):
             "apps", "browser_use", "browser_use_external", "browser_use_full_cdp_access", "computer_use", "plugins",
             "remote_plugin", "plugin_sharing", "in_app_browser", "image_generation", "skill_mcp_dependency_install",
             "tool_suggest", "browser_annotation_api", "api_key_cyber_access_programs", "cli_daybreak",
+            "bedrock_setup_wizard", "mcp_oauth_refresh_coordination",
         ):
             isolation += ["-c", f"features.{feature}=false"]
         expected = [
@@ -330,7 +331,8 @@ class ArgvTests(unittest.TestCase):
         disabled = ("apps", "browser_use", "browser_use_external", "browser_use_full_cdp_access", "computer_use",
                     "plugins", "remote_plugin", "plugin_sharing", "in_app_browser", "image_generation",
                     "skill_mcp_dependency_install", "tool_suggest", "browser_annotation_api",
-                    "api_key_cyber_access_programs", "cli_daybreak")
+                    "api_key_cyber_access_programs", "cli_daybreak", "bedrock_setup_wizard",
+                    "mcp_oauth_refresh_coordination")
         rows = ["WARNING: proceeding, even though we could not create PATH aliases"]
         rows += [f"{name:<40} stable             false" for name in disabled]
         rows += [f"{name:<40} stable             true" for name in ("in_app_chat", "in_app_local_automation", "hooks")]
