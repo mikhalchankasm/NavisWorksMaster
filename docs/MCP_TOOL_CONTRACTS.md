@@ -126,6 +126,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `selection_distinct_property_values` | None | Yes | Yes | No |
 | `selection_export_properties` | Files | Yes | Yes | Yes |
 | `selection_property_report` | None | Yes | Yes | No |
+| `selection_sets_apply_appearance` | Document | Yes | Yes | Yes |
 | `selection_sets_build_viewpoints` | View, Document | Yes | Yes | Yes |
 | `selection_sets_manage` | Document | Yes | Yes | Yes |
 | `selection_sets_reorder` | Document | Yes | Yes | Yes |
@@ -1230,6 +1231,31 @@ Counts cover every geometry item, including those beyond the returned sample.
 and `transparencyOverridden`. Colours are uppercase `#RRGGBB` (null if unavailable);
 transparency is a whole percentage, 0–100. Override flags compare colour bytes
 case-insensitively and rounded transparency percentages, rather than recording provenance.
+
+## `selection_sets_apply_appearance`
+
+Applies ordered steps to saved selection or search sets as whole sets, including
+containers, without expanding to geometry leaves. Required `steps` contains 1–200
+objects: `setPath` (path or unique name), optional `colorHex` (exact `#RRGGBB`,
+either case), `transparency` (integer 0–100), and `hide` (only true hides; false
+does not unhide). Each step needs a colour, transparency, or `hide=true`.
+Later steps win on overlapping items for the properties they supply.
+
+Optional `apply=false` previews each set's item count. With `apply=true`, valid,
+resolved, non-empty steps run in order in one committed transaction and request a
+redraw; permanent overrides can be undone with Ctrl+Z. `reset_appearance` resets
+colour/transparency; it does not unhide items. The tool never saves the document.
+Invalid steps, missing or ambiguous sets, and folders produce per-step `error`
+values and are skipped while other steps continue. A missing/empty or over-limit
+step list returns `SchemaViolation` before any change. Apply-time API failures
+abort the transaction instead of committing partial changes.
+
+Returns `apply`, `applied`, `appliedStepCount`, `steps`, `message`, and `warnings`.
+Each step reports `setPath`, `resolved`, `itemCount`, `colorHex`, `transparency`,
+`hide`, and `error`. `appliedStepCount` counts non-empty steps actually applied;
+`applied` means that count is positive. Optional `instanceId=""` and
+`navisworksVersion=""` target the host. Requires an open document; belongs to
+`reports`. Native appearance and undo behavior await SDK builds and an agreed L3 window.
 
 ## `reset_appearance`
 

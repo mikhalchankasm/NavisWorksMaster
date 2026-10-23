@@ -606,7 +606,7 @@ namespace NavisHelper.Agent.Services
             return value.Trim().Replace('\\', '/').Trim('/');
         }
 
-        private static ModelItemCollection BuildSelectionSetItems(Document document, SavedItem savedItem)
+        internal static ModelItemCollection BuildSelectionSetItems(Document document, SavedItem savedItem)
         {
             var result = new ModelItemCollection();
             // Dedup by item identity: a selection set can hold two distinct

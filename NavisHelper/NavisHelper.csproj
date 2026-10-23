@@ -591,6 +591,7 @@
     <Compile Include="Agent\Services\ModelColorSchemeService.cs" />
     <Compile Include="Agent\Services\AppearanceProfileService.cs" />
     <Compile Include="Agent\Services\ItemAppearanceService.cs" />
+    <Compile Include="Agent\Services\SetAppearanceService.cs" />
     <Compile Include="Agent\Services\DuplicateGeometryService.cs" />
     <Compile Include="Agent\Services\ModelColorSchemeService.Analysis.cs" />
     <Compile Include="Agent\Services\ModelColorSchemeService.Apply.cs" />

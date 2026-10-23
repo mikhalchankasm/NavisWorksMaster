@@ -21,6 +21,7 @@ selection_color_by_property
 model_color_scheme
 appearance_profile_apply
 item_appearance
+selection_sets_apply_appearance
 find_duplicate_geometry
 reset_appearance
 clash_list_tests

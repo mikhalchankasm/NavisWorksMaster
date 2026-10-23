@@ -10,7 +10,7 @@ namespace NavisHelper.Agent.Services
 {
     internal sealed partial class DocumentCommandService
     {
-        private static SelectionSetNode ResolveSelectionSetNode(GroupItem root, SelectionSetsManageRequest request, Func<SavedItem, bool> predicate, string notFoundMessage)
+        internal static SelectionSetNode ResolveSelectionSetNode(GroupItem root, SelectionSetsManageRequest request, Func<SavedItem, bool> predicate, string notFoundMessage)
         {
             var nodes = BuildSelectionSetNodes(root)
                 .Where(node => predicate == null || predicate(node.Item))
@@ -212,7 +212,7 @@ namespace NavisHelper.Agent.Services
                 .FirstOrDefault(item => string.Equals(item.DisplayName ?? string.Empty, name, StringComparison.OrdinalIgnoreCase));
         }
 
-        private sealed class SelectionSetNode
+        internal sealed class SelectionSetNode
         {
             public SavedItem Item { get; set; }
             public GroupItem Parent { get; set; }
