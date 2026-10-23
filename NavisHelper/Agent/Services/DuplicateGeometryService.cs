@@ -31,6 +31,7 @@ namespace NavisHelper.Agent.Services
             var items = new List<ModelItem>();
             var candidates = new List<DuplicateGeometryCandidate>();
             var seen = new HashSet<ModelItem>();
+            var nodeKeys = new Dictionary<ModelItem, string>();
             foreach (var item in EnumerateScope(targets))
             {
                 var deadline = HostRequestDeadline.Current;
@@ -49,7 +50,7 @@ namespace NavisHelper.Agent.Services
                     break;
                 }
                 seen.Add(item);
-                candidates.Add(ReadCandidate(item, items.Count));
+                candidates.Add(ReadCandidate(item, items.Count, nodeKeys));
                 items.Add(item);
             }
             response.ScannedItemCount = candidates.Count;
@@ -99,7 +100,10 @@ namespace NavisHelper.Agent.Services
 
         private static IEnumerable<ModelItem> EnumerateScope(IEnumerable<ModelItem> targets)
         {
-            foreach (var target in targets.Where(item => item != null).Distinct())
+            // A target whose ancestor is also a target is already inside that ancestor's walk;
+            // walking it again made nested selections cost quadratic node visits (#362 review).
+            var distinct = new HashSet<ModelItem>(targets.Where(item => item != null));
+            foreach (var target in distinct.Where(item => !HasAncestorIn(item, distinct)))
             {
                 // Yield structural nodes too so the caller checks its deadline during sparse walks.
                 yield return target;
@@ -109,7 +113,31 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private static DuplicateGeometryCandidate ReadCandidate(ModelItem item, int index)
+        private static bool HasAncestorIn(ModelItem item, HashSet<ModelItem> set)
+        {
+            for (var ancestor = item.Parent; ancestor != null; ancestor = ancestor.Parent)
+                if (set.Contains(ancestor))
+                    return true;
+            return false;
+        }
+
+        // Keyed by the node itself (ModelItem equality is native identity), not by its printed
+        // path: two roots appended from the same file print the same path but are different
+        // roots, and copies across them are exactly what across_roots must find (#362 review).
+        private static string NodeKey(ModelItem node, Dictionary<ModelItem, string> keys)
+        {
+            if (node == null)
+                return string.Empty;
+            string key;
+            if (!keys.TryGetValue(node, out key))
+            {
+                key = "n" + keys.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                keys.Add(node, key);
+            }
+            return key;
+        }
+
+        private static DuplicateGeometryCandidate ReadCandidate(ModelItem item, int index, Dictionary<ModelItem, string> nodeKeys)
         {
             var geometry = item.Geometry;
             BoundingBox3D box;
@@ -132,8 +160,8 @@ namespace NavisHelper.Agent.Services
                 return new DuplicateGeometryCandidate
                 {
                     Index = index,
-                    RootKey = SearchService.PrintItemPath(root),
-                    ParentKey = parent == null ? string.Empty : SearchService.PrintItemPath(parent),
+                    RootKey = NodeKey(root, nodeKeys),
+                    ParentKey = NodeKey(parent, nodeKeys),
                     DisplayName = item.DisplayName,
                     MinX = min.X, MinY = min.Y, MinZ = min.Z,
                     MaxX = max.X, MaxY = max.Y, MaxZ = max.Z,

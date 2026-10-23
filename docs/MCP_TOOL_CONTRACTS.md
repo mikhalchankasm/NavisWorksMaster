@@ -1192,8 +1192,9 @@ return `StaleMatchReference`. Optional `instanceId` and `navisworksVersion` targ
 The six bounding-box coordinates, rounded to the grid away from zero at midpoints,
 and primitive count form the grouping key. This is a geometry heuristic, not a mesh
 comparison. `mode=all` keeps groups of at least two items; `within_root` splits by
-model root; `across_roots` keeps groups spanning at least two roots. Root and parent
-keys are printed paths, so distinct same-named roots or parents share those keys.
+model root; `across_roots` keeps groups spanning at least two roots. Roots and parents
+are compared by node identity, so two roots appended from the same file count as two.
+A target nested under another target is not walked twice.
 
 `maxGroups=50` is clamped to 1–100; largest groups come first, then key in ordinal
 order. `previewPerGroup=5` is clamped to 1–20. Returns effective `gridSize`, `mode`,
