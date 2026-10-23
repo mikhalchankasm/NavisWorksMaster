@@ -38,6 +38,60 @@ _KILL_ARGS = re.compile(
 )
 
 
+_SEARCH = re.compile(r"(?:rg|grep|egrep|fgrep|findstr|Select-String|sls)(?:\.exe)?(?![\w-])", re.IGNORECASE)
+_CMD_SHELL = re.compile(r"(?<![\w.-])cmd(?:\.exe)?\s+/[ck]\b", re.IGNORECASE)
+
+
+def _mask_search_patterns(command: str) -> str:
+    """Blank the quoted arguments of a search command, so a searched-for word is not a stop (#371).
+
+    The #360 run searched the guard scripts for `kill|Stop-Process` and failed with exit 6. Quoting alone
+    cannot decide it: Codex wraps whole PowerShell commands in quotes (`-Command 'Stop-Process -Id 1'`).
+    So only quoted strings after rg/grep/findstr/Select-String are blanked, up to the end of that search's
+    segment or of the string that encloses it. cmd.exe lines are left alone: there quotes do not stop `&`.
+    Blanking keeps every index, so pids are still read from the original positions.
+    """
+    if _CMD_SHELL.search(command):
+        return command
+    chars = list(command)
+    quote: str | None = None
+    index = 0
+    while index < len(command):
+        char = command[index]
+        if char in "'\"" and quote is None:
+            quote = char
+        elif char == quote:
+            if command[index + 1:index + 2] == quote:
+                index += 1  # a doubled quote is a literal one inside the same string
+            else:
+                quote = None
+        elif (index == 0 or not (command[index - 1].isalnum() or command[index - 1] in "_.-$")) \
+                and _SEARCH.match(command, index):
+            index = _mask_arguments(chars, command, _SEARCH.match(command, index).end(), quote)
+            continue
+        index += 1
+    return "".join(chars)
+
+
+def _mask_arguments(chars: list[str], command: str, index: int, enclosing: str | None) -> int:
+    while index < len(command):
+        char = command[index]
+        if char == enclosing or char in ";|\r\n" or command.startswith("&&", index):
+            return index
+        if char in "'\"":
+            end = command.find(char, index + 1)
+            if end < 0 or (enclosing is not None and command.find(enclosing, index + 1, end) >= 0):
+                return index  # unbalanced or crossing the enclosing string: leave it to the stop scan
+            body = command[index + 1:end]
+            if "$(" in body or "`" in body:
+                return index  # a subexpression or backtick inside the pattern runs: never blank it
+            chars[index + 1:end] = "_" * (end - index - 1)
+            index = end + 1
+            continue
+        index += 1
+    return index
+
+
 def _targets(command: str) -> tuple[list[int], bool]:
     stops = list(_STOP.finditer(command))
     separators = list(_SEPARATOR.finditer(command))
@@ -134,9 +188,12 @@ def scan(
     entries: list[dict[str, object]] = []
     for item_id, item in items.items():
         command = item.get("command")
-        if not isinstance(command, str) or not _STOP.search(command):
+        if not isinstance(command, str):
             continue
-        pids, proven = _targets(command)
+        scanned = _mask_search_patterns(command)
+        if not _STOP.search(scanned):
+            continue
+        pids, proven = _targets(scanned)
         output = item.get("aggregated_output", "") if item_id in completed else ""
         entries.append({
             "itemId": item_id,

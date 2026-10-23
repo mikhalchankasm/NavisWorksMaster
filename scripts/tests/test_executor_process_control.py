@@ -21,6 +21,7 @@ from unittest import mock
 
 import scripts.external_worktree_executor as launcher
 from scripts.agent_home_isolation import IsolatedHome
+from scripts import executor_process_control as process_control
 from scripts.executor_host_guard import HostSnapshot, violations
 from scripts.executor_primitives import ProcessResult
 
@@ -226,6 +227,63 @@ class ProcessControlInTheRecord(unittest.TestCase):
         stop = {"itemId": "item_1", "command": "taskkill /PID 1 /F", "output": "", "pids": [1], "inRunTree": False}
         self.assertEqual(violations({"processControl": [stop]}, windows=False), ["PROCESS_STOP_OUTSIDE_RUN"])
         self.assertEqual(violations({"processControl": [dict(stop, inRunTree=True)]}, windows=False), [])
+
+
+PWSH7 ='"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '
+
+
+class SearchPatternsAreNotStops(unittest.TestCase):
+    """#371: the #360 run failed with exit 6 because Codex searched the guard scripts for the words.
+
+    `kill` and `Stop-Process` were the quoted pattern of an `rg` search, with no pid. Quoted arguments of a
+    search command are data. A stop beside the search, or inside cmd.exe where quotes do not protect `&`,
+    still counts.
+    """
+
+    def entries(self, command: str) -> list[dict[str, object]]:
+        return process_control.scan(stream(command_item("item_21", command)), frozenset())
+
+    def test_the_two_360_commands_record_nothing(self) -> None:
+        for command in (
+            PWSH7 + "\"rg -n 'subprocess|Popen|dotnet|unlink|write_text|kill|Stop-Process' scripts/check_*.py\"",
+            PWSH7 + "\"rg -n 'subprocess|Popen|dotnet|unlink|write_text|kill|Stop-Process' scripts -g 'check_*.py'; "
+                    "git diff --numstat; Get-Content NavisHelper/x.cs | Select-Object -Skip 1318 -First 16\"",
+        ):
+            with self.subTest(command=command[:60]):
+                self.assertEqual(self.entries(command), [])
+
+    def test_other_search_commands_and_quote_styles_record_nothing(self) -> None:
+        for command in (
+            "grep -rn \"taskkill\\|Stop-Process\" scripts",
+            POWERSHELL + "'Select-String -Path scripts\\*.py -Pattern \"Stop-Process|kill\"'",
+            POWERSHELL + "'findstr /S /C:\"taskkill /PID 1\" *.py'",
+        ):
+            with self.subTest(command=command[:60]):
+                self.assertEqual(self.entries(command), [])
+
+    def test_a_stop_beside_a_search_still_counts(self) -> None:
+        command = POWERSHELL + f"'rg -n \"kill\" scripts; Stop-Process -Id {FOREIGN_PID}'"
+        [entry] = self.entries(command)
+        self.assertEqual(entry["pids"], [FOREIGN_PID])
+        self.assertFalse(entry["inRunTree"])
+
+    def test_a_whole_command_in_quotes_is_still_read(self) -> None:
+        [entry] = self.entries(POWERSHELL + f"'Stop-Process -Id {FOREIGN_PID}; rg -n \"x\" f'")
+        self.assertEqual(entry["pids"], [FOREIGN_PID])
+
+    def test_a_subexpression_inside_a_search_pattern_is_still_read(self) -> None:
+        for command in (
+            POWERSHELL + f"'rg \"$(Stop-Process -Id {FOREIGN_PID})\" f'",
+            f"grep \"`kill {FOREIGN_PID}`\" f",
+        ):
+            with self.subTest(command=command[-40:]):
+                # Still recorded, and so still a violation; the backtick form names no provable pid.
+                [entry] = self.entries(command)
+                self.assertFalse(entry["inRunTree"])
+
+    def test_cmd_lines_are_not_masked(self) -> None:
+        [entry] = self.entries(f"cmd /c rg \"x & taskkill /PID {FOREIGN_PID} &\" f")
+        self.assertEqual(entry["pids"], [FOREIGN_PID])
 
 
 @unittest.skipUnless(os.name == "nt", "the executor's process tree is a Windows Job Object")
