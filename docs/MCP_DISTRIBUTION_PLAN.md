@@ -58,7 +58,7 @@ For local MCP server verification, build both the server and configurator in Rel
 The first user-facing installer target is Inno Setup:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1 -AppVersion 2.17.0.0
+powershell -ExecutionPolicy Bypass -File tools\build_installer.ps1 -AppVersion 2.18.0.0
 ```
 
 This script:
