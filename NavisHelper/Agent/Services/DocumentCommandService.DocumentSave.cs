@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
 
@@ -25,19 +26,56 @@ namespace NavisHelper.Agent.Services
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
 
-            var targetPath = NormalizeSaveAsPath(request.Path);
-            var exists = File.Exists(targetPath);
-            if (exists && request.Overwrite != true)
-                throw new AgentCommandException(ErrorCodes.SchemaViolation, "The target file already exists. Pass overwrite=true to replace it: " + targetPath);
-
-            return SaveDocumentToPath(document, targetPath, exists);
+            return SaveDocumentAsToPath(document, request.Path, request.Overwrite == true,
+                request.EmbedTextures == true, request.FileVersion);
         }
 
-        internal static SaveDocumentResponse SaveDocumentToPath(Document document, string path, bool overwritten)
+        internal static SaveDocumentResponse SaveDocumentAsToPath(Document document, string path,
+            bool overwrite, bool embedTextures, string fileVersion)
+        {
+            if (document == null)
+                throw new ArgumentNullException(nameof(document));
+            var targetPath = NormalizeSaveAsPath(path);
+            var error = SaveAsOptionsRules.DescribeError(targetPath, embedTextures, fileVersion);
+            if (error != null)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, error);
+            var exists = File.Exists(targetPath);
+            if (exists && !overwrite)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "The target file already exists. Pass overwrite=true to replace it: " + targetPath);
+
+            return SaveDocumentToPath(document, targetPath, exists, embedTextures, fileVersion);
+        }
+
+        internal static SaveDocumentResponse SaveDocumentToPath(Document document, string path, bool overwritten,
+            bool embedTextures = false, string fileVersion = null)
         {
             try
             {
-                if (!document.TrySaveFile(path))
+                SaveAsOptionsRules.TryParseFileVersion(fileVersion, out var year);
+                var version = default(DocumentFileVersion);
+                if (year.HasValue && !Enum.TryParse("Navisworks" + year.Value, out version))
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation,
+                        "fileVersion " + year.Value + " is not supported by this Navisworks version.");
+
+                bool saved;
+                if (embedTextures)
+                {
+                    var options = new NwdExportOptions();
+                    if (year.HasValue)
+                        options.FileVersion = (int)version;
+                    var setEmbedTextures = typeof(NwdExportOptions).GetMethod("SetEmbedTextures",
+                        BindingFlags.Instance | BindingFlags.NonPublic);
+                    if (setEmbedTextures == null)
+                        throw new AgentCommandException(ErrorCodes.CommandFailed,
+                            "embedTextures is not available in this Navisworks version.");
+                    setEmbedTextures.Invoke(options, new object[] { true });
+                    var properties = new PublishProperties { AllowResave = true };
+                    saved = document.TryPublishFile(path, options, properties);
+                }
+                else
+                    saved = year.HasValue ? document.TrySaveFile(path, version) : document.TrySaveFile(path);
+
+                if (!saved)
                     throw new AgentCommandException(ErrorCodes.CommandFailed, "Navisworks did not save the document: " + path);
 
                 if (!File.Exists(path))
@@ -50,6 +88,9 @@ namespace NavisHelper.Agent.Services
                     Format = Path.GetExtension(info.Name).TrimStart('.').ToLowerInvariant(),
                     FileSizeBytes = info.Length,
                     Overwritten = overwritten,
+                    Published = embedTextures,
+                    TexturesEmbedded = embedTextures,
+                    FileVersion = year.HasValue ? fileVersion : null,
                 };
             }
             catch (AgentCommandException)

@@ -1947,6 +1947,32 @@ camera's place on its line of sight itself, so `effectivePosition` may differ
 from the requested `position`; when it differs, a warning says so and confirms
 that the view direction, up vector, and `heightField` are as requested.
 
+## `save_document_as`
+
+Saves the active document to an absolute `.nwd` or `.nwf` `path`.
+`overwrite` defaults to `false`; an existing target requires `overwrite=true`.
+Optional `instanceId` and `navisworksVersion` select the host.
+
+| Input | Type | Default | Meaning |
+|---|---|---:|---|
+| `embedTextures` | bool | `false` | Embed textures using Publish; requires `.nwd`. The published file remains resavable (`AllowResave=true`). |
+| `fileVersion` | string | `""` | Optional format year, exactly four digits from `2015` to `2027`; requires `.nwd` and support in the running Navisworks version. Empty or whitespace keeps the current format. |
+
+With neither option, the existing save behavior applies. A format year alone
+uses versioned Save; texture embedding uses Publish, optionally with that year.
+The response includes `path`, `format`, `fileSizeBytes`, `overwritten`, plus
+`published` and `texturesEmbedded` (both true when textures were embedded), and
+`fileVersion` (the requested year, or null when using the current format).
+Invalid options return `schema_violation`; unavailable texture embedding or
+a failed save/publish returns `command_failed`.
+
+Automation scripts can call
+`ExecuteAddInPlugin("PublishNwd.CBC", @"D:\out\model.nwd", "embedTextures", "version=2018")`.
+The first argument after the plugin ID is the absolute `.nwd` target; the
+optional `embedTextures` and `version=<year>` arguments may appear in either order.
+This entry overwrites existing targets and returns `0` on success or `1` on
+error, logging errors without displaying dialogs.
+
 ## `start_save_document`
 
 Starts the same save as `save_document` — the active document to its current

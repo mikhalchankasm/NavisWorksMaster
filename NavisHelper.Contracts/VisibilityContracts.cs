@@ -184,6 +184,8 @@ namespace NavisHelper.Agent.Contracts
     {
         public string Path { get; set; }
         public bool? Overwrite { get; set; }
+        public bool? EmbedTextures { get; set; }
+        public string FileVersion { get; set; }
     }
 
     public sealed class SaveDocumentResponse
@@ -192,6 +194,42 @@ namespace NavisHelper.Agent.Contracts
         public string Format { get; set; }
         public long FileSizeBytes { get; set; }
         public bool Overwritten { get; set; }
+        public bool Published { get; set; }
+        public bool TexturesEmbedded { get; set; }
+        public string FileVersion { get; set; }
+    }
+
+    public static class SaveAsOptionsRules
+    {
+        public static bool TryParseFileVersion(string value, out int? year)
+        {
+            year = null;
+            if (string.IsNullOrWhiteSpace(value))
+                return true;
+            if (value.Length != 4)
+                return false;
+            var parsed = 0;
+            foreach (var digit in value)
+            {
+                if (digit < '0' || digit > '9')
+                    return false;
+                parsed = parsed * 10 + digit - '0';
+            }
+            if (parsed < 2015 || parsed > 2027)
+                return false;
+            year = parsed;
+            return true;
+        }
+
+        public static string DescribeError(string path, bool embedTextures, string fileVersion)
+        {
+            if (!TryParseFileVersion(fileVersion, out var year))
+                return "fileVersion must be empty or a year from 2015 to 2027.";
+            if ((embedTextures || year.HasValue) &&
+                !string.Equals(System.IO.Path.GetExtension(path), ".nwd", StringComparison.OrdinalIgnoreCase))
+                return "embedTextures and fileVersion need a .nwd target.";
+            return null;
+        }
     }
 
     public sealed class CloseNavisworksRequest

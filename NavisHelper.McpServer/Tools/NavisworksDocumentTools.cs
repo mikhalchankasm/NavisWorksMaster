@@ -29,6 +29,8 @@ internal sealed class NavisworksDocumentTools : NavisworksToolBase
     public Task<SaveDocumentResponse> SaveDocumentAs(
         [Description("Absolute target path with a .nwd or .nwf extension.")] string path,
         [Description("Allow replacing an existing target file. Default is false.")] bool overwrite = false,
+        [Description("Embed textures in the NWD, like Publish > Embed Textures; the file is written with Publish and stays resavable. Needs a .nwd path. Default false.")] bool embedTextures = false,
+        [Description("Optional NWD format year, e.g. 2018; empty keeps the current format. Needs a .nwd path.")] string fileVersion = "",
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -37,6 +39,8 @@ internal sealed class NavisworksDocumentTools : NavisworksToolBase
         {
             Path = path,
             Overwrite = overwrite,
+            EmbedTextures = embedTextures,
+            FileVersion = fileVersion,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
     }
 
