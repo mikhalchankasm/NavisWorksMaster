@@ -1,6 +1,7 @@
 # Navisworks API Notes
 
 This file captures the small Autodesk SDK reference facts that NavisHelper currently depends on, without committing the ignored `api/` vendor sample tree.
+See [Materials and texture API spike (#361)](MATERIALS_TEXTURE_API.md) for reachability, proposed tools and live checks.
 
 ## View.ProjectPoint
 
