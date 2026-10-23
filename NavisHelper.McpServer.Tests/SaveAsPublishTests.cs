@@ -69,7 +69,9 @@ public sealed class SaveAsPublishTests
         var services = Path.Combine(RepositoryPaths.Root, "NavisHelper", "Agent", "Services");
         var save = File.ReadAllText(Path.Combine(services, "DocumentCommandService.DocumentSave.cs"));
         Assert.Contains("SaveAsOptionsRules.DescribeError(", save, StringComparison.Ordinal);
-        Assert.Contains("TryPublishFile(", save, StringComparison.Ordinal);
+        // Through reflection: NwdExportOptions and this TryPublishFile overload exist from 2026 only,
+        // and one source builds for 2024-2027 (found by the L2 build of #363).
+        Assert.Contains("\"TryPublishFile\"", save, StringComparison.Ordinal);
         Assert.Contains("SetEmbedTextures", save, StringComparison.Ordinal);
         Assert.Contains("AllowResave = true", save, StringComparison.Ordinal);
         Assert.Contains("DocumentFileVersion", save, StringComparison.Ordinal);

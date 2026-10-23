@@ -59,19 +59,7 @@ namespace NavisHelper.Agent.Services
 
                 bool saved;
                 if (embedTextures)
-                {
-                    var options = new NwdExportOptions();
-                    if (year.HasValue)
-                        options.FileVersion = (int)version;
-                    var setEmbedTextures = typeof(NwdExportOptions).GetMethod("SetEmbedTextures",
-                        BindingFlags.Instance | BindingFlags.NonPublic);
-                    if (setEmbedTextures == null)
-                        throw new AgentCommandException(ErrorCodes.CommandFailed,
-                            "embedTextures is not available in this Navisworks version.");
-                    setEmbedTextures.Invoke(options, new object[] { true });
-                    var properties = new PublishProperties { AllowResave = true };
-                    saved = document.TryPublishFile(path, options, properties);
-                }
+                    saved = TryPublishWithEmbeddedTextures(document, path, year.HasValue ? (int?)(int)version : null);
                 else
                     saved = year.HasValue ? document.TrySaveFile(path, version) : document.TrySaveFile(path);
 
@@ -100,6 +88,44 @@ namespace NavisHelper.Agent.Services
             catch (Exception ex)
             {
                 throw new AgentCommandException(ErrorCodes.CommandFailed, "Navisworks could not save the document to " + path + ": " + ex.Message);
+            }
+        }
+
+        // NwdExportOptions and Document.TryPublishFile(path, options, properties) exist from
+        // Navisworks 2026; the 2024 and 2025 API has neither, and one source builds for all four
+        // versions. So the whole publish path goes through reflection, and the texture switch is
+        // a private SetEmbedTextures on NwdExportOptions in any case (#363).
+        private static bool TryPublishWithEmbeddedTextures(Document document, string path, int? fileVersion)
+        {
+            var api = typeof(Document).Assembly;
+            var optionsType = api.GetType("Autodesk.Navisworks.Api.NwdExportOptions");
+            var publish = optionsType == null ? null : typeof(Document).GetMethod("TryPublishFile",
+                new[] { typeof(string), optionsType, typeof(PublishProperties) });
+            var setEmbedTextures = optionsType == null ? null : optionsType.GetMethod("SetEmbedTextures",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            if (publish == null || setEmbedTextures == null)
+                throw new AgentCommandException(ErrorCodes.CommandFailed,
+                    "embedTextures needs Navisworks 2026 or later; this version cannot publish with embedded textures.");
+
+            var options = Activator.CreateInstance(optionsType);
+            if (fileVersion.HasValue)
+                optionsType.GetProperty("FileVersion").SetValue(options, fileVersion.Value);
+            setEmbedTextures.Invoke(options, new object[] { true });
+            var properties = new PublishProperties { AllowResave = true };
+            try
+            {
+                return (bool)publish.Invoke(document, new[] { path, options, properties });
+            }
+            catch (TargetInvocationException exception) when (exception.InnerException != null)
+            {
+                throw new AgentCommandException(ErrorCodes.CommandFailed,
+                    "Navisworks could not publish the document: " + exception.InnerException.Message);
+            }
+            finally
+            {
+                var disposable = options as IDisposable;
+                if (disposable != null)
+                    disposable.Dispose();
             }
         }
 
