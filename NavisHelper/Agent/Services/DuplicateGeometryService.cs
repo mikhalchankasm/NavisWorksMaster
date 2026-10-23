@@ -121,7 +121,7 @@ namespace NavisHelper.Agent.Services
             return false;
         }
 
-        // Keyed by the node itself (ModelItem equality is native identity), not by its printed
+        // Roots are keyed by the node itself (ModelItem equality is native identity), not by its printed
         // path: two roots appended from the same file print the same path but are different
         // roots, and copies across them are exactly what across_roots must find (#362 review).
         private static string NodeKey(ModelItem node, Dictionary<ModelItem, string> keys)
@@ -161,7 +161,7 @@ namespace NavisHelper.Agent.Services
                 {
                     Index = index,
                     RootKey = NodeKey(root, nodeKeys),
-                    ParentKey = NodeKey(parent, nodeKeys),
+                    ParentKey = parent == null ? string.Empty : SearchService.PrintItemPath(parent),
                     DisplayName = item.DisplayName,
                     MinX = min.X, MinY = min.Y, MinZ = min.Z,
                     MaxX = max.X, MaxY = max.Y, MaxZ = max.Z,
