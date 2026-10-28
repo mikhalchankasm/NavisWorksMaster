@@ -33,6 +33,8 @@ Apply adds `applied=true`, `exported`, `outputFile` (`<safe animation name>.<for
 
 Example: `viewpoint_animation_export(animation="Animations/Flight", format="png")` validates the default output directory and reports all five plugins' options.
 
+When a failed export still wrote files, a warning says how many and that they may be incomplete. The restore check compares animation names, so a failed restore between two animations with the same name in different folders goes unnoticed.
+
 Apply example: `viewpoint_animation_export(animation="Animations/Flight", format="png", width=1280, height=720, fps=25, antiAliasLevel=4, apply=true)`.
 
 L3 option experiment: `viewpoint_animation_export(animation="Animations/Flight", exporter="lcodpavi", format="avi", exporterOptions=["export.anim.fps=12", "export.image.format=lcodpexpng"], apply=true)`. These options are experimental inputs, not a verified format recipe.

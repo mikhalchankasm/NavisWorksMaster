@@ -209,6 +209,8 @@ namespace NavisHelper.Agent.Services
                 response.Warnings.Add("Could not remove the empty output directory created by this call: " + ex.Message);
             }
             response.Message = response.Exported ? "Exported the animation." : ViewpointAnimationExportRules.FailedExportMessage(response.ExportStatus);
+            if (!response.Exported && response.FileCount > 0)
+                response.Warnings.Add("The exporter wrote " + response.FileCount + " file(s) before returning " + response.ExportStatus + "; they may be incomplete.");
             return response;
 
             string ReadCurrentAnimationName()
