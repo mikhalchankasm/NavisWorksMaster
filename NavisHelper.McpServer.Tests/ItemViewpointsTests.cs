@@ -22,6 +22,22 @@ public sealed class ItemViewpointsTests
         Assert.Equal(new[] { "2 - TI-7" }, ItemViewpointRules.PlanNames(new[] { "TI-7" }, "{index} - {name}", firstIndex: 2));
     }
 
+    [Fact]
+    public void ItemNamesAreNotReadAsPlaceholders()
+    {
+        Assert.Equal(new[] { "Pump {index}" }, ItemViewpointRules.PlanNames(new[] { "Pump {index}" }, "{name}"));
+        Assert.Equal(new[] { "3 - A{name}" }, ItemViewpointRules.PlanNames(new[] { "A{name}" }, "{index} - {name}", firstIndex: 3));
+    }
+
+    [Fact]
+    public void BlankMatchHandlesAreRefusedInsteadOfFallingBackToTheSelection()
+    {
+        var blank = new ItemViewpointsRequest { MatchHandles = new List<string> { "h1", " " } };
+        Assert.Equal("matchHandles must not contain blank handles.", ItemViewpointRules.Describe(blank));
+        Assert.Null(ItemViewpointRules.Describe(new ItemViewpointsRequest { MatchHandles = new List<string> { "h1" } }));
+        Assert.Null(ItemViewpointRules.Describe(new ItemViewpointsRequest { MatchHandles = null }));
+    }
+
     [Theory]
     [InlineData("plane", "{name}", 100.0, "top", null)]
     [InlineData("box", "{name}", 100.0, "iso", null)]
