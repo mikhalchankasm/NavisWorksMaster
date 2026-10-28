@@ -12,7 +12,8 @@ namespace NavisHelper.McpServer.Tests;
 // #404 slice 1 (#397 part 3): no public document names the options of the Navisworks animation
 // exporter (COM IO plugin "lcodpanim"), so the first slice only reads them. The tool resolves a saved
 // viewpoint animation, validates the output folder, and reports every option of the exporter and its
-// format plugins. It must not export, write files, or change the current animation; slice 2 adds that.
+// format plugins. Slice 2 adds apply: a synchronous export through DriveIOPlugin("lcodpanim") that sets the
+// current animation for the call, restores it, and reports the produced files with their detected kind.
 public sealed class ViewpointAnimationExportTests
 {
     private static ViewpointAnimationExportRequest Valid() =>
@@ -105,7 +106,7 @@ public sealed class ViewpointAnimationExportTests
     {
         Assert.Equal("viewpoint_animation_export", HostCommandNames.ViewpointAnimationExport);
         Assert.True(HostCommandEffects.IsKnown(HostCommandNames.ViewpointAnimationExport));
-        Assert.False(HostCommandEffects.RequiresApproval(HostCommandNames.ViewpointAnimationExport));
+        Assert.True(HostCommandEffects.RequiresApproval(HostCommandNames.ViewpointAnimationExport));
         Assert.Equal(new[] { "png", "jpg", "avi" }, ViewpointAnimationExportRules.Formats);
         Assert.Equal(new[] { "lcodpanim", "lcodpavi", "lcodpexpng", "lcodpexjpg", "lcodpcuranim" }, ViewpointAnimationExportRules.ProbedPlugins);
         Assert.Equal(200, ViewpointAnimationExportRules.MaxOptionsPerPlugin);
@@ -113,46 +114,143 @@ public sealed class ViewpointAnimationExportTests
         var response = new ViewpointAnimationExportResponse();
         Assert.Empty(response.Plugins);
         Assert.Empty(response.Warnings);
+        Assert.Empty(response.Files);
+        Assert.Empty(response.AppliedOptions);
         var plugin = new ExporterPluginOptions { Plugin = "lcodpanim", Truncated = false, Error = null };
         plugin.Options.Add(new ExporterOption { Name = "export.anim.source", UserName = "Source", Parent = "", Type = "String", Value = "lcodpcuranim" });
         response.Plugins.Add(plugin);
+        response.Files.Add(new ExportedFile { Name = "Flight0000.png", Bytes = 10, Kind = "png" });
         Assert.Single(response.Plugins[0].Options);
+        Assert.Single(response.Files);
+    }
+
+    // Slice 2: the option names below are what GetIOPluginOptions("lcodpanim") reported on 2027 (L3 on #404).
+    [Theory]
+    [InlineData(-1, 0, 0, 0, "width and height must be 0 or between 16 and 4096.")]
+    [InlineData(15, 0, 0, 0, "width and height must be 0 or between 16 and 4096.")]
+    [InlineData(0, 4097, 0, 0, "width and height must be 0 or between 16 and 4096.")]
+    [InlineData(0, 0, 61, 0, "fps must be 0 or between 1 and 60.")]
+    [InlineData(0, 0, -2, 0, "fps must be 0 or between 1 and 60.")]
+    [InlineData(0, 0, 0, 3, "antiAliasLevel must be 0, 1, 2, 4, 8, 16, 32 or 64.")]
+    public void ExportSettingsAreRangeChecked(int width, int height, int fps, int antiAlias, string expected)
+    {
+        var request = Valid();
+        request.Width = width;
+        request.Height = height;
+        request.Fps = fps;
+        request.AntiAliasLevel = antiAlias;
+        Assert.Equal(expected, ViewpointAnimationExportRules.Describe(request));
     }
 
     [Fact]
-    public void TheToolOnlyReadsAndDefaultsToPng()
+    public void OnlyNonZeroSettingsBecomeExporterOptionsInAFixedOrder()
+    {
+        var request = Valid();
+        Assert.Empty(ViewpointAnimationExportRules.OptionAssignments(request));
+        request.Width = 1280;
+        request.Height = 720;
+        request.Fps = 25;
+        request.AntiAliasLevel = 4;
+        Assert.Null(ViewpointAnimationExportRules.Describe(request));
+        Assert.Equal(
+            new[] { "export.image.width=1280", "export.image.height=720", "export.anim.fps=25", "export.image.anti-alias.level=4" },
+            ViewpointAnimationExportRules.OptionAssignments(request).Select(pair => pair.Key + "=" + pair.Value));
+        request = Valid();
+        request.Fps = 12;
+        Assert.Equal(new[] { "export.anim.fps=12" }, ViewpointAnimationExportRules.OptionAssignments(request).Select(pair => pair.Key + "=" + pair.Value));
+    }
+
+    [Theory]
+    [InlineData("png", "Flight: 1/2", "Flight_ 1_2.png")]
+    [InlineData("JPG", "Flight", "Flight.jpg")]
+    [InlineData("avi", "...", "animation.avi")]
+    public void TheOutputFileIsTheSafeAnimationNameWithTheFormatExtension(string format, string name, string expected)
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "nh404");
+        Assert.Equal(Path.Combine(folder, expected), ViewpointAnimationExportRules.OutputFile(folder, name, format));
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }, "png")]
+    [InlineData(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0, 0x10 }, "jpg")]
+    [InlineData(new byte[] { 0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x41, 0x56, 0x49, 0x20 }, "avi")]
+    [InlineData(new byte[] { 0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x57, 0x41, 0x56, 0x45 }, "unknown")]
+    [InlineData(new byte[] { 0x42, 0x4D, 0, 0 }, "bmp")]
+    [InlineData(new byte[] { 0x89, 0x50 }, "unknown")]
+    [InlineData(new byte[0], "unknown")]
+    public void ProducedFilesAreRecognisedByTheirSignature(byte[] head, string expected)
+    {
+        Assert.Equal(expected, ViewpointAnimationExportRules.DetectKind(head));
+        Assert.Equal("unknown", ViewpointAnimationExportRules.DetectKind(null));
+    }
+
+    [Fact]
+    public void ProtectedFoldersAreRefusedAndTheirSiblingsAreNot()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "nh404-protected");
+        var roots = new[] { root + Path.DirectorySeparatorChar, "", null };
+        Assert.True(ViewpointAnimationExportRules.IsForbiddenOutputRoot(root, roots));
+        Assert.True(ViewpointAnimationExportRules.IsForbiddenOutputRoot(Path.Combine(root, "a", "b"), roots));
+        Assert.True(ViewpointAnimationExportRules.IsForbiddenOutputRoot(Path.Combine(root.ToUpperInvariant(), "x"), roots));
+        Assert.False(ViewpointAnimationExportRules.IsForbiddenOutputRoot(root + "-sibling", roots));
+        Assert.False(ViewpointAnimationExportRules.IsForbiddenOutputRoot(Path.Combine(Path.GetTempPath(), "elsewhere"), roots));
+        Assert.Equal("outputDirectory is inside a protected folder (Windows, Program Files or the NavisHelper install).",
+            ViewpointAnimationExportRules.ProtectedFolderMessage);
+    }
+
+    [Fact]
+    public void EarlierOutputOfTheSameAnimationNeedsOverwrite()
+    {
+        var files = new[] { "Other0001.png", "Flight.avi", "notes.txt" };
+        Assert.False(ViewpointAnimationExportRules.HasExistingOutput(files, "Flight", "png"));
+        Assert.True(ViewpointAnimationExportRules.HasExistingOutput(files, "Flight", "avi"));
+        Assert.True(ViewpointAnimationExportRules.HasExistingOutput(new[] { "flight0007.PNG" }, "Flight", "png"));
+        Assert.False(ViewpointAnimationExportRules.HasExistingOutput(null, "Flight", "png"));
+        Assert.Equal("Output files for this animation already exist in outputDirectory; pass overwrite=true to replace them.",
+            ViewpointAnimationExportRules.ExistingOutputMessage);
+    }
+
+    [Fact]
+    public void TheToolPreviewsByDefaultAndExportsOnApply()
     {
         var method = McpReadOnlyMode.RegisteredToolMethods().Single(candidate => candidate.Name == "ViewpointAnimationExport");
         var tool = McpServerTool.Create(method, _ => throw new InvalidOperationException("not invoked"));
         Assert.Equal("viewpoint_animation_export", tool.ProtocolTool.Name);
-        Assert.Equal(ToolEffects.None, method.GetCustomAttribute<ToolCapabilitiesAttribute>()!.Effects);
+        Assert.Equal(ToolEffects.Files | ToolEffects.View, method.GetCustomAttribute<ToolCapabilitiesAttribute>()!.Effects);
         var properties = JsonNode.Parse(tool.ProtocolTool.InputSchema.GetRawText())!["properties"]!;
         Assert.Equal("", properties["animation"]!["default"]!.GetValue<string>());
         Assert.Equal("png", properties["format"]!["default"]!.GetValue<string>());
         Assert.Equal("", properties["outputDirectory"]!["default"]!.GetValue<string>());
-        Assert.Null(properties["apply"]);
+        Assert.False(properties["apply"]!["default"]!.GetValue<bool>());
+        Assert.False(properties["overwrite"]!["default"]!.GetValue<bool>());
+        foreach (var name in new[] { "width", "height", "fps", "antiAliasLevel" })
+            Assert.Equal(0, properties[name]!["default"]!.GetValue<int>());
     }
 
     [Fact]
-    public void ThePluginReadsExporterOptionsAndNeverExports()
+    public void ThePluginExportsThroughTheAnimationExporterAndRestoresTheCurrentAnimation()
     {
         var service = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "NavisHelper", "Agent", "Services", "ViewpointAnimationExportService.cs"));
         foreach (var expected in new[]
         {
             "ViewpointAnimationExportRules.Describe(", "ViewpointAnimationExportRules.NormalizeFormat(",
             "ViewpointAnimationExportRules.ResolveOutputDirectory(", "ViewpointAnimationExportRules.FormatOptionValue(",
-            "ViewpointAnimationExportRules.ProbedPlugins", "ViewpointAnimationExportRules.MaxOptionsPerPlugin",
-            "ViewpointAnimationExportRules.MaxOptionDepth", "GetIOPluginOptions(", "is SavedViewpointAnimation",
-            "Saved viewpoint animation was not found.", "Marshal.ReleaseComObject(",
+            "ViewpointAnimationExportRules.ProbedPlugins", "ViewpointAnimationExportRules.OptionAssignments(",
+            "ViewpointAnimationExportRules.OutputFile(", "ViewpointAnimationExportRules.DetectKind(",
+            "ViewpointAnimationExportRules.IsForbiddenOutputRoot(", "ViewpointAnimationExportRules.HasExistingOutput(",
+            "GetIOPluginOptions(", "DriveIOPlugin(\"lcodpanim\"", "state.CurrentAnimation =", "eSavedViewType_Anim",
+            "Directory.CreateDirectory(", "is SavedViewpointAnimation", "Saved viewpoint animation was not found.",
+            "Marshal.ReleaseComObject(",
         })
             Assert.Contains(expected, service, StringComparison.Ordinal);
-        // Slice 1 is read-only: no export, no option writes, no folder creation, no current-animation change.
+        // Never delete user files, never persist exporter defaults, never touch the document.
         foreach (var forbidden in new[]
         {
-            "DriveIOPlugin", "state.CurrentAnimation =", "State.CurrentAnimation =", "set_PluginOption", ".PluginOption", ".value = ", "Directory.CreateDirectory",
-            "File.Write", "File.Create", "Transaction",
+            "File.Delete", "Directory.Delete", "set_PluginOption", ".PluginOption", "SaveFile", "Transaction",
         })
             Assert.DoesNotContain(forbidden, service, StringComparison.Ordinal);
+        var client = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "NavisHelper.McpServer", "Services", "HostBridgeClient.Commands.cs"));
+        Assert.Contains("HostCommandNames.ViewpointAnimationExport, request, cancellationToken, target, 600000)", client, StringComparison.Ordinal);
     }
 
     private static (string Type, string Value) Format(object value)
