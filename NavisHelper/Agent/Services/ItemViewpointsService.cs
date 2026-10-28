@@ -142,9 +142,9 @@ namespace NavisHelper.Agent.Services
         {
             var items = new List<ModelItem>();
             var seen = new HashSet<ModelItem>();
-            var requested = (handles ?? new List<string>()).Where(handle => !string.IsNullOrWhiteSpace(handle)).ToList();
-            if (requested.Count == 0) return document.CurrentSelection.SelectedItems.Cast<ModelItem>().Distinct().ToList();
-            foreach (var handle in requested)
+            if (handles == null || handles.Count == 0)
+                return document.CurrentSelection.SelectedItems.Cast<ModelItem>().Distinct().ToList();
+            foreach (var handle in handles)
             {
                 IList<ModelItem> matches;
                 if (!store.TryGet(handle, out matches) || matches == null)

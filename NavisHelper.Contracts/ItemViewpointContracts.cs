@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace NavisHelper.Agent.Contracts
 {
@@ -54,6 +55,8 @@ namespace NavisHelper.Agent.Contracts
         public static string Describe(ItemViewpointsRequest request)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
+            if (request.MatchHandles != null && request.MatchHandles.Any(string.IsNullOrWhiteSpace))
+                return "matchHandles must not contain blank handles.";
             if (!string.IsNullOrEmpty(request.Section) &&
                 !Sections.Contains(request.Section, StringComparer.OrdinalIgnoreCase))
                 return "section must be none, plane or box.";
@@ -73,8 +76,8 @@ namespace NavisHelper.Agent.Contracts
             {
                 var itemName = (displayNames[index] ?? "").Replace('/', ' ').Replace('\\', ' ').Trim();
                 if (itemName.Length == 0) itemName = "item";
-                var name = template.Replace("{name}", itemName)
-                    .Replace("{index}", (firstIndex + index).ToString(CultureInfo.InvariantCulture));
+                var name = Regex.Replace(template, @"\{name\}|\{index\}", match =>
+                    match.Value == "{name}" ? itemName : (firstIndex + index).ToString(CultureInfo.InvariantCulture));
                 var candidate = name;
                 var suffix = 2;
                 while (!used.Add(candidate))
