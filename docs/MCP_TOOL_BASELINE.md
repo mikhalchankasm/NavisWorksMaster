@@ -1274,19 +1274,19 @@ Eighteen tools, and the reason for each, so the gap is a decision rather than an
 
 | tool | why |
 | --- | --- |
-| `viewpoints_per_item` | New in #387; contract and protocol tests precede SDK compilation and an agreed L3 per-item clipping, camera, mark, save and restoration window. |
-| `section_planes` | New in #385; pure plane rules and JSON tests precede SDK compilation and an agreed L3 Distance-sign, cut-side and clipping readback window. |
-| `selection_sets_apply_appearance` | New in #339; contract and protocol tests precede SDK compilation and an agreed L3 set appearance/undo window. |
+| `viewpoints_per_item` | New in #387; behaviour accepted in L3 on 2026-10-28 (per-item clipping, camera, marks, save, restoration), no timing recorded in that window. |
+| `section_planes` | New in #385; Distance sign, cut side and readback accepted in L3 on 2026-10-28 after #396, no timing recorded in that window. |
+| `selection_sets_apply_appearance` | New in #339; step order, transparency and hide accepted in the 2.18 L3, no timing recorded; native undo not checked live. |
 | `appearance_profile_apply` | New in #339; parser and protocol tests precede SDK compilation and an agreed L3 native-loader window. |
 | `get_item_texture_mapping` | New in #377; contract and protocol tests precede an agreed L3 texture-space read and selection-restoration window. |
-| `item_appearance`, `reset_appearance` | New in #360; contract and protocol tests precede SDK compilation and an agreed L3 appearance read/reset window. |
-| `find_duplicate_geometry` | New in #362; grouping and protocol tests precede SDK compilation and an agreed L3 geometry scan window. |
+| `item_appearance`, `reset_appearance` | New in #360; read and reset accepted in the 2.18 L3, no timing recorded; native undo not checked live. |
+| `find_duplicate_geometry` | New in #362; stacked copies and group handles accepted in the 2.18 L3 on a three-item model, no timing on a model large enough to measure. |
 | `get_view_display_settings`, `set_view_display_settings` | New in #182; SDK and protocol tests precede the agreed live display/appearance window. |
 | `clash_one_vs_rest` | New in #282; planner unit tests precede the agreed live clash window on the 12470 model. |
 | `clash_group_rename` | New in #285; planner unit tests precede the agreed live clash window on the 12470 model. |
 | `clash_zones_export` | New in #326; pure policy tests precede plugin SDK compilation and an agreed L3 export window. |
 | `clash_zones_markers` | New in #328; planner tests precede plugin SDK compilation and an agreed L3 append/remove/style window. |
-| `save_document`, `save_document_as` | never run on purpose. Every window depends on the document not being saved. The job pair that wraps the same save was measured on a scratch copy; see [the match-handle and save-job tools](#the-match-handle-and-save-job-tools-at-their-acceptance). |
+| `save_document`, `save_document_as` | not measured on purpose: every measurement window depends on the document not being saved. `save_document_as` ran in the 2.18 L3 only on a scratch worker document, for behaviour. The job pair that wraps the same save was measured on a scratch copy; see [the match-handle and save-job tools](#the-match-handle-and-save-job-tools-at-their-acceptance). |
 | `clash_batchtest_import` | needs a Navisworks-authored `nw-exchange-12.0` XML; no tool in the product writes one. |
 | `saved_viewpoints_import` | needs Navisworks-authored Saved Viewpoints XML, for the same reason. Its refusal path was measured; the import path was not. |
 

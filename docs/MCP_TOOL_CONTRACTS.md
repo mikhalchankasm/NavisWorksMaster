@@ -1242,8 +1242,9 @@ Each group has `itemCount`, distinct `rootCount`, `sameParentAndName` (ordinal p
 path equality and case-insensitive name equality), `matchHandle`, and `previewPaths`.
 Only the first 25 returned groups receive handles for `select_items`; later handles
 are null and a warning asks callers to narrow scope or mode. `duplicateItemCount`
-is the sum of returned groups' item counts. Native geometry behavior awaits SDK
-builds and an agreed L3 window.
+is the sum of returned groups' item counts. Stacked copies are found, `across_roots`
+needs two roots, and a group handle selects its copies (checked in L3 on Navisworks
+2027 for 2.18).
 
 ## `get_item_texture_mapping`
 
@@ -1319,7 +1320,8 @@ Each step reports `setPath`, `resolved`, `itemCount`, `colorHex`, `transparency`
 `hide`, and `error`. `appliedStepCount` counts non-empty steps actually applied;
 `applied` means that count is positive. Optional `instanceId=""` and
 `navisworksVersion=""` target the host. Requires an open document; belongs to
-`reports`. Native appearance and undo behavior await SDK builds and an agreed L3 window.
+`reports`. Checked in L3 on Navisworks 2027 for 2.18: a later step wins, transparency
+is kept and a hide step hides its set. Native undo has not been checked live.
 
 ## `reset_appearance`
 
@@ -1334,8 +1336,8 @@ scheme captured by the current host session. It never saves the document.
 Returns `apply`, `itemCount`, `overriddenItemCount`, `resetItemCount`, `message`,
 and `warnings`. `resetItemCount` is zero for dry-run and otherwise counts the items
 reset (all target geometry items). Optional `instanceId=""` and `navisworksVersion=""` target the
-host. Requires an open document; belongs to `reports`. Native appearance and undo
-behavior await SDK builds and an agreed L3 window.
+host. Requires an open document; belongs to `reports`. Reset of overridden items was
+checked in L3 on Navisworks 2027 for 2.18; native undo has not been checked live.
 
 ## `model_color_scheme`
 
