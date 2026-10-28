@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NavisHelper.Agent.Contracts;
 using Newtonsoft.Json;
@@ -9,7 +10,8 @@ namespace NavisHelper.Agent.Services
 {
     internal sealed class ParsedSectionPlanes
     {
-        public string Mode { get; set; } = "off";
+        public string Mode { get; set; } = "unreadable";
+        public bool Readable { get; set; }
         public bool Enabled { get; set; }
         public bool Linked { get; set; }
         public List<SectionPlaneState> Planes { get; set; } = new List<SectionPlaneState>();
@@ -19,16 +21,18 @@ namespace NavisHelper.Agent.Services
     {
         public static ParsedSectionPlanes Read(string json)
         {
-            if (string.IsNullOrWhiteSpace(json)) return new ParsedSectionPlanes();
+            if (string.IsNullOrWhiteSpace(json)) return new ParsedSectionPlanes { Readable = true, Mode = "off" };
             try
             {
                 var root = JObject.Parse(json);
                 var parsed = new ParsedSectionPlanes
                 {
+                    Readable = true,
                     Enabled = (bool?)root["Enabled"] ?? false,
                     Linked = (bool?)root["Linked"] ?? false,
                 };
                 var planes = root["Planes"] as JArray;
+                if (root["Planes"] != null && planes == null) return new ParsedSectionPlanes();
                 if (planes != null)
                 {
                     for (var index = 0; index < planes.Count; index++)
@@ -57,6 +61,18 @@ namespace NavisHelper.Agent.Services
             {
                 return new ParsedSectionPlanes();
             }
+        }
+
+        public static string Disable(string currentJson)
+        {
+            var root = new JObject();
+            if (!string.IsNullOrWhiteSpace(currentJson))
+            {
+                using (var reader = new JsonTextReader(new StringReader(currentJson)) { DateParseHandling = DateParseHandling.None })
+                    root = JObject.Load(reader);
+            }
+            root["Enabled"] = false;
+            return root.ToString(Formatting.None);
         }
 
         public static string Write(string currentJson, IList<SectionPlaneState> planes, bool linked, bool enabled)

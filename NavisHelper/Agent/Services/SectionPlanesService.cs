@@ -22,6 +22,9 @@ namespace NavisHelper.Agent.Services
             var json = view.GetClippingPlanes();
             var current = SectionPlaneClippingJson.Read(json);
             if (operation == "get") return Response(operation, current);
+            if (!current.Readable)
+                throw new AgentCommandException(ErrorCodes.CommandFailed,
+                    "The active view's clipping could not be read; nothing was changed.");
 
             var requested = new List<SectionPlaneState>();
             if (operation == "set")
@@ -52,8 +55,8 @@ namespace NavisHelper.Agent.Services
                 }
             }
 
-            var plannedJson = SectionPlaneClippingJson.Write(json, requested,
-                operation == "set" ? request.Linked ?? current.Linked : current.Linked, operation == "set");
+            var plannedJson = operation == "clear" ? SectionPlaneClippingJson.Disable(json) :
+                SectionPlaneClippingJson.Write(json, requested, request.Linked ?? current.Linked, enabled: true);
             var planned = SectionPlaneClippingJson.Read(plannedJson);
             if (request.Apply != true)
             {
@@ -67,9 +70,9 @@ namespace NavisHelper.Agent.Services
             var readback = SectionPlaneClippingJson.Read(view.GetClippingPlanes());
             var result = Response(operation, readback);
             result.Applied = true;
-            result.ReadbackMatches = operation == "clear" ? !readback.Enabled :
+            result.ReadbackMatches = readback.Readable && (operation == "clear" ? !readback.Enabled :
                 readback.Enabled && readback.Linked == planned.Linked && requested.All(expected =>
-                    readback.Planes.Any(actual => Matches(expected, actual)));
+                    readback.Planes.Any(actual => Matches(expected, actual))));
             result.Message = result.ReadbackMatches == true ? "Section planes applied and read back." :
                 "Section planes were written, but readback differs from the requested state.";
             if (result.ReadbackMatches != true) result.Warnings.Add(result.Message);
