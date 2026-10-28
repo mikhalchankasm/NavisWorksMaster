@@ -147,11 +147,14 @@ public sealed class ViewpointAnimationTests
             "ViewpointAnimationRules.Describe(", "ViewpointAnimationRules.PlanFrames(", "ViewpointAnimationRules.CameraKey(",
             "ViewpointAnimationRules.StepSpeeds(", "typeof(SavedViewpointAnimation).GetConstructor(Type.EmptyTypes)",
             "typeof(SavedViewpointAnimationCut).GetConstructor(Type.EmptyTypes)", "Navisworks 2026 or later",
-            ".CreateCopy()", "GetProperty(\"Delay\")", "GetProperty(\"Loops\")", "GetProperty(\"Smoothing\")",
+            ".CreateUniqueCopy()", "GetProperty(\"Delay\")", "GetProperty(\"Loops\")", "GetProperty(\"Smoothing\")",
             "LinearSpeed", "AngularSpeed",
         })
             Assert.Contains(expected, service, StringComparison.Ordinal);
         // The 2024/2025 SDK has only protected constructors for both types (L2 found it), so `new` does not compile there.
+        // L3 (#403): CreateCopy keeps the source GUID, and AddCopy then refuses the animation with
+        // "Argument 'item' contains a duplicate GUID"; frames need fresh GUIDs.
+        Assert.DoesNotContain(".CreateCopy()", service, StringComparison.Ordinal);
         foreach (var forbidden in new[] { ".Delay =", ".Loops =", ".Smoothing =", "SavedViewpointAnimationSmoothing.", "new SavedViewpointAnimation(", "new SavedViewpointAnimationCut(" })
             Assert.DoesNotContain(forbidden, service, StringComparison.Ordinal);
     }

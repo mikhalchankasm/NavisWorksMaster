@@ -118,7 +118,7 @@ namespace NavisHelper.Agent.Services
                     {
                         var index = int.Parse(frame.Source, CultureInfo.InvariantCulture);
                         var source = (SavedViewpoint)sources[index].Item;
-                        var copy = source.CreateCopy() as SavedViewpoint;
+                        var copy = source.CreateUniqueCopy() as SavedViewpoint;
                         if (copy == null) throw new AgentCommandException(ErrorCodes.CommandFailed, "Unable to copy a saved viewpoint.");
                         if (previousIndex.HasValue && keys[previousIndex.Value] != keys[index] && request.StepSeconds > 0)
                         {
