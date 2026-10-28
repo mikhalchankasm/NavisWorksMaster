@@ -145,12 +145,14 @@ public sealed class ViewpointAnimationTests
         foreach (var expected in new[]
         {
             "ViewpointAnimationRules.Describe(", "ViewpointAnimationRules.PlanFrames(", "ViewpointAnimationRules.CameraKey(",
-            "ViewpointAnimationRules.StepSpeeds(", "new SavedViewpointAnimation(", "new SavedViewpointAnimationCut(",
+            "ViewpointAnimationRules.StepSpeeds(", "typeof(SavedViewpointAnimation).GetConstructor(Type.EmptyTypes)",
+            "typeof(SavedViewpointAnimationCut).GetConstructor(Type.EmptyTypes)", "Navisworks 2026 or later",
             ".CreateCopy()", "GetProperty(\"Delay\")", "GetProperty(\"Loops\")", "GetProperty(\"Smoothing\")",
             "LinearSpeed", "AngularSpeed",
         })
             Assert.Contains(expected, service, StringComparison.Ordinal);
-        foreach (var forbidden in new[] { ".Delay =", ".Loops =", ".Smoothing =", "SavedViewpointAnimationSmoothing." })
+        // The 2024/2025 SDK has only protected constructors for both types (L2 found it), so `new` does not compile there.
+        foreach (var forbidden in new[] { ".Delay =", ".Loops =", ".Smoothing =", "SavedViewpointAnimationSmoothing.", "new SavedViewpointAnimation(", "new SavedViewpointAnimationCut(" })
             Assert.DoesNotContain(forbidden, service, StringComparison.Ordinal);
     }
 
