@@ -25,7 +25,7 @@ Tell Claude, Codex or Cursor what to do with your model, and NavisHelper does it
 - Clash Detective: groups, isolation, viewpoints, reports.
 
 **With AI** (Claude, Codex, Cursor and others)
-- describe the task in plain words; the AI does it through NavisHelper's 126 tools;
+- describe the task in plain words; the AI does it through NavisHelper's 127 tools;
 - the AI shows each change before making it, and makes it only after confirmation;
 - in **protected mode** the AI cannot change the document until you allow it in the panel.
 
@@ -126,10 +126,11 @@ More in [security and compatibility](docs/SECURITY_AND_COMPATIBILITY.md).
 | See what is new | [Releases](https://github.com/mikhalchankasm/NavisWorksMaster/releases) |
 | Read product details, the comparison and verification results | [Project details](docs/reference/PROJECT_DETAILS.md) |
 | Create a saved viewpoint animation from a route | [viewpoint_animation contract](docs/MCP_TOOL_CONTRACTS.md#viewpoint_animation) |
+| Check an animation export and list the exporter's options | [viewpoint_animation_export contract](docs/MCP_TOOL_CONTRACTS.md#viewpoint_animation_export) |
 
 ## For developers
 
-The source registers **126 distinct MCP tools**. `scripts/check_mcp_command_catalog.py` derives their names from the 126 `[McpServerTool]` methods and verifies the generated 126-row index. Inputs, outputs and limits of every tool are in the [tool contracts](docs/MCP_TOOL_CONTRACTS.md); the design is in the [architecture](docs/MCP_ARCHITECTURE.md). Building and contributing: [Contributing](CONTRIBUTING.md) and the [build rules](BUILD_BUNDLE_RULES.md).
+The source registers **127 distinct MCP tools**. `scripts/check_mcp_command_catalog.py` derives their names from the 127 `[McpServerTool]` methods and verifies the generated 127-row index. Inputs, outputs and limits of every tool are in the [tool contracts](docs/MCP_TOOL_CONTRACTS.md); the design is in the [architecture](docs/MCP_ARCHITECTURE.md). Building and contributing: [Contributing](CONTRIBUTING.md) and the [build rules](BUILD_BUNDLE_RULES.md).
 
 ## License and status
 

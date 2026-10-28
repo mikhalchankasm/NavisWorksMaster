@@ -11,6 +11,20 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 
 `mcp_diagnostics` and `mcp_health_check` expose `protocolVersion`, `mcpServerVersion`, and host `pluginVersion`. `protocolVersion` is the additive MCP-server to in-process-host wire contract version. Host status/health/discovery surfaces expose `hostLogFilePath` when the host plugin can compute the NavisHelper log path. If `mcpServerVersion` and `pluginVersion` differ, reinstall/update the NavisHelper bundle and MCP server from the same distribution package before running write tools.
 
+## viewpoint_animation_export
+
+Reports the Navisworks animation exporter's options and validates an export request; exports nothing yet. Requires a host and active document, belongs to `sections`, and declares `None` effects, so it is available in read-only mode. Inputs: `animation=""` (saved animation path or unique name), `format="png"`, `outputDirectory=""`, plus standard `instanceId` and `navisworksVersion`. There is no `apply` parameter.
+
+Validation returns the first problem as `SchemaViolation`: `animation is required.`, `format must be png, jpg or avi.`, or `outputDirectory must be an absolute path.` Format is trimmed and lowercased; blank defaults to `png`. An explicit directory must be fully qualified (drive plus separator, or UNC server/share); drive-relative and root-relative paths are rejected. The animation resolves through the existing saved-viewpoint resolver, preserving its ambiguity errors; a missing animation reports `SavedViewpointNotFound` with `Saved viewpoint animation was not found.`
+
+An explicit output directory is trimmed and normalized with `Path.GetFullPath`. Otherwise it defaults to `viewpoint_animations/<safe animation name>` beside the document; invalid filename characters become underscores, outer spaces/dots are removed, and an empty name becomes `animation`. A document without a file path requires an explicit directory, otherwise `SchemaViolation` reports `Specify outputDirectory when the document has no file path.` The directory need not exist: existence is reported without creating it.
+
+Output: `animation` (resolved path), `frameCount` (viewpoint frames), `cutCount`, normalized `format`, `outputDirectory`, `outputDirectoryExists`, `currentAnimation` (current COM animation name, null when absent), `plugins`, `message`, `warnings`. Every request probes `lcodpanim`, `lcodpavi`, `lcodpexpng`, `lcodpexjpg`, and `lcodpcuranim`, regardless of format. Each plugin reports `plugin`, `options`, `truncated`, and `error`; a plugin failure records its error and continues to the next plugin. Each option reports `name`, `userName`, `parent` (empty at root), `type`, and `value`. Nested vectors have type `Options` and empty value; children name their immediate parent. At most 200 options and three levels are reported per plugin; skipped options set `truncated=true`. Null values use type `null` and empty text, booleans use lowercase text, and formattable values use invariant culture and their CLR type name.
+
+The tool reads COM IO options and releases obtained COM objects without changing options or the current animation. It writes no files. Message: `Reported the exporter options; nothing was exported.` Warnings include `Export is not available yet; this tool only reports the exporter options and validates the request.` A plugin that returns no option vector reports the error `The plugin returned no options.`
+
+Example: `viewpoint_animation_export(animation="Animations/Flight", format="png")` validates the default output directory and reports all five plugins' options.
+
 ## viewpoint_animation
 
 Lists, creates or deletes saved viewpoint animations. Requires a host and active document, belongs to `sections`, and declares `View | Document` effects. Dry-run is the default. Inputs: `action="list"`, `name=""`, `folderPath=""` (root), `sourceFolder=""`, `viewpoints=null`, `holdSeconds=0`, `pauseSeconds=2`, `stepSeconds=0`, `loops=false`, `smoothing=""`, `overwrite=false`, `apply=false`, plus standard `instanceId` and `navisworksVersion`.
@@ -182,6 +196,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `start_subtree_names_dump` | Files, LocalState | Yes | Yes | No |
 | `unhide_selected` | View | Yes | Yes | Yes |
 | `viewpoint_animation` | View, Document | Yes | Yes | Yes |
+| `viewpoint_animation_export` | None | Yes | Yes | No |
 | `viewpoint_set_camera` | View, Document | Yes | Yes | Yes |
 | `viewpoints_per_item` | View, Document | Yes | Yes | Yes |
 | `world_markers_list` | None | Yes | Yes | No |
@@ -256,6 +271,7 @@ a new truncation flag appears on a contract without being documented.
 
 | flag | on | meaning |
 | --- | --- | --- |
+| `truncated` | `viewpoint_animation_export` (`ExporterPluginOptions`, one per probed plugin) | that plugin reported more than 200 options or option vectors nested deeper than three levels; the listed options are the first ones read |
 | `truncated` | `viewpoints_per_item` (`ItemViewpointsResponse`) | only the first `maxItems` distinct items are planned or processed; `itemCount` includes all distinct input items |
 | `truncated` | every paged listing -- `list_root_items`, `list_item_children`, `list_selection_sets`, `list_saved_viewpoints`, `selection_copy_names`, `selected_items_preview`/`_ancestry`/`_tree`, `item_appearance`, `get_item_texture_mapping`, the clash listings and reports, viewpoint build and import | fewer rows returned than exist. `dump_subtree_names` does **not** have this flag: its job status reports state and progress counts instead |
 | `itemsTruncated`, `resultsTruncated`, `rowsTruncated` | `selection_property_report`, `selection_export_properties`, clash listings and reports | fewer rows than exist. `selection_export_properties` writes a file, so a truncated export is a report short of rows |
@@ -321,7 +337,7 @@ contract cannot skip that description.
 | `RulesTruncated` | `AppearanceProfileApplyResponse` |
 | `ScanTruncated` | `FindDuplicateGeometryResponse` |
 | `TraversalTruncated` | `FindItemsByBboxResponse`, `IsolateByBoxResponse` |
-| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `GetItemTextureMappingResponse`, `ItemAppearanceResponse`, `ItemViewpointsResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
+| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `ExporterPluginOptions`, `GetItemTextureMappingResponse`, `ItemAppearanceResponse`, `ItemViewpointsResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
 | `ValuesTruncated` | `SelectionDistinctPropertyValuesResponse` |
 
 <!-- END GENERATED TRUNCATION FLAG INVENTORY -->
