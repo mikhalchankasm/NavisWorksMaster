@@ -44,8 +44,9 @@ namespace NavisHelper.Agent.Services
                         var state = new SectionPlaneState
                         {
                             Index = index + 1, Enabled = (bool?)plane["Enabled"] ?? false,
-                            Normal = new BoxVector3 { X = (double)normal[0], Y = (double)normal[1], Z = (double)normal[2] },
-                            Distance = (double)plane["Distance"],
+                            // Navisworks keeps the side its JSON normal points at; report the cut side.
+                            Normal = new BoxVector3 { X = 0 - (double)normal[0], Y = 0 - (double)normal[1], Z = 0 - (double)normal[2] },
+                            Distance = 0 - (double)plane["Distance"],
                         };
                         if (!Finite(state.Normal.X) || !Finite(state.Normal.Y) || !Finite(state.Normal.Z) || !Finite(state.Distance))
                             return new ParsedSectionPlanes();
@@ -89,12 +90,13 @@ namespace NavisHelper.Agent.Services
             {
                 SectionPlaneState plane;
                 if (!states.TryGetValue(index, out plane))
-                    plane = new SectionPlaneState { Normal = new BoxVector3 { Z = 1 } };
+                    // Keep padding JSON normals at +Z after conversion to the kept-side convention.
+                    plane = new SectionPlaneState { Normal = new BoxVector3 { Z = -1 } };
                 entries.Add(new JObject
                 {
                     ["Type"] = "ClipPlane", ["Version"] = 1,
-                    ["Normal"] = new JArray(plane.Normal.X, plane.Normal.Y, plane.Normal.Z),
-                    ["Distance"] = plane.Distance, ["Enabled"] = plane.Enabled,
+                    ["Normal"] = new JArray(0 - plane.Normal.X, 0 - plane.Normal.Y, 0 - plane.Normal.Z),
+                    ["Distance"] = 0 - plane.Distance, ["Enabled"] = plane.Enabled,
                 });
             }
             return new JObject
