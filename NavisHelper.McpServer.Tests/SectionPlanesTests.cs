@@ -203,12 +203,25 @@ public sealed class SectionPlanesTests
     [Theory]
     [InlineData("{\"Type\":\"ClipPlaneSet\",\"Version\":1,\"Planes\":[{\"Normal\":[0,0,1],\"Enabled\":true}],\"Enabled\":true}")]
     [InlineData("{not json")]
+    // #398: a root or plane of another Type is not section planes, so set must refuse instead of overwriting it.
+    [InlineData("{\"Type\":\"OtherClipSet\",\"Version\":1,\"Enabled\":true}")]
+    [InlineData("{\"Type\":\"ClipPlaneSet\",\"Version\":1,\"Planes\":[{\"Type\":\"OtherPlane\",\"Version\":1,\"Normal\":[0,0,1],\"Distance\":1,\"Enabled\":true}],\"Enabled\":true}")]
     public void UnreadableClippingIsReportedAsSuch(string json)
     {
         var parsed = SectionPlaneClippingJson.Read(json);
         Assert.False(parsed.Readable);
         Assert.Equal("unreadable", parsed.Mode);
         Assert.True(SectionPlaneClippingJson.Read("").Readable);
+    }
+
+    // #398: a missing Type and an unknown Version stay readable; only a different Type is refused.
+    [Fact]
+    public void MissingTypeAndNewerVersionStayReadable()
+    {
+        var parsed = SectionPlaneClippingJson.Read("{\"Version\":9,\"Planes\":[{\"Normal\":[0,0,1],\"Distance\":1,\"Enabled\":true}],\"Enabled\":true}");
+        Assert.True(parsed.Readable);
+        Assert.Equal("planes", parsed.Mode);
+        Assert.True(SectionPlaneClippingJson.Read("{\"Type\":\"ClipPlaneSet\",\"Version\":2,\"Enabled\":false}").Readable);
     }
 
     [Fact]
