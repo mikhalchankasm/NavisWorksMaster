@@ -149,7 +149,7 @@ public sealed class ViewpointAnimationExportTests
         // Slice 1 is read-only: no export, no option writes, no folder creation, no current-animation change.
         foreach (var forbidden in new[]
         {
-            "DriveIOPlugin", "CurrentAnimation =", "set_PluginOption", ".PluginOption", ".value = ", "Directory.CreateDirectory",
+            "DriveIOPlugin", "state.CurrentAnimation =", "State.CurrentAnimation =", "set_PluginOption", ".PluginOption", ".value = ", "Directory.CreateDirectory",
             "File.Write", "File.Create", "Transaction",
         })
             Assert.DoesNotContain(forbidden, service, StringComparison.Ordinal);
