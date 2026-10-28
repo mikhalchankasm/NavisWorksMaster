@@ -177,6 +177,29 @@ public sealed class SectionPlanesTests
         Assert.Equal("off", SectionPlaneClippingJson.Read(SectionPlaneClippingJson.Write(json, Array.Empty<SectionPlaneState>(), false, enabled: false)).Mode);
     }
 
+    // Review of #385: clear must switch sectioning off without discarding a section box, and JSON the
+    // reader cannot understand must not look like "sectioning off" (or be overwritten as empty).
+    [Fact]
+    public void ClearingOnlySwitchesSectioningOffAndKeepsTheBox()
+    {
+        var box = "{\"Type\":\"ClipPlaneSet\",\"Version\":1,\"OrientedBox\":{\"Type\":\"OrientedBox3D\",\"Version\":1,\"Box\":[[0,0,0],[1,1,1]],\"Rotation\":[0,0,0]},\"Enabled\":true}";
+        var root = JsonNode.Parse(SectionPlaneClippingJson.Disable(box))!;
+        Assert.False(root["Enabled"]!.GetValue<bool>());
+        Assert.Equal(1, root["OrientedBox"]!["Box"]![1]![2]!.GetValue<double>());
+        Assert.Null(root["Planes"]);
+    }
+
+    [Theory]
+    [InlineData("{\"Type\":\"ClipPlaneSet\",\"Version\":1,\"Planes\":[{\"Normal\":[0,0,1],\"Enabled\":true}],\"Enabled\":true}")]
+    [InlineData("{not json")]
+    public void UnreadableClippingIsReportedAsSuch(string json)
+    {
+        var parsed = SectionPlaneClippingJson.Read(json);
+        Assert.False(parsed.Readable);
+        Assert.Equal("unreadable", parsed.Mode);
+        Assert.True(SectionPlaneClippingJson.Read("").Readable);
+    }
+
     [Fact]
     public void TheToolReadsByDefaultAndWritesOnlyOnApply()
     {
@@ -203,5 +226,7 @@ public sealed class SectionPlanesTests
         Assert.Contains("SectionPlaneClippingJson.Read(", service, StringComparison.Ordinal);
         Assert.Contains("SectionPlaneRules.Resolve(", service, StringComparison.Ordinal);
         Assert.Contains("ReadbackMatches", service, StringComparison.Ordinal);
+        Assert.Contains("SectionPlaneClippingJson.Disable(", service, StringComparison.Ordinal);
+        Assert.Contains(".Readable", service, StringComparison.Ordinal);
     }
 }
