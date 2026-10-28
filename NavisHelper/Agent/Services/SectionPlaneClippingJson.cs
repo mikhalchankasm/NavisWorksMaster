@@ -25,6 +25,8 @@ namespace NavisHelper.Agent.Services
             try
             {
                 var root = JObject.Parse(json);
+                if (root["Type"] != null && (string)root["Type"] != "ClipPlaneSet")
+                    return new ParsedSectionPlanes();
                 var parsed = new ParsedSectionPlanes
                 {
                     Readable = true,
@@ -39,6 +41,8 @@ namespace NavisHelper.Agent.Services
                     {
                         var plane = (JObject)planes[index];
                         if (plane == null) return new ParsedSectionPlanes();
+                        if (plane["Type"] != null && (string)plane["Type"] != "ClipPlane")
+                            return new ParsedSectionPlanes();
                         var normal = plane["Normal"] as JArray;
                         if (normal == null || normal.Count != 3) return new ParsedSectionPlanes();
                         var state = new SectionPlaneState
