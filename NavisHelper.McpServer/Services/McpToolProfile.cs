@@ -134,6 +134,7 @@ internal static class McpToolProfile
                 "get_current_section_box",
                 "isolate_by_box",
                 "section_box_viewpoint",
+                "section_planes",
             },
 
             ["reports"] = new[]
