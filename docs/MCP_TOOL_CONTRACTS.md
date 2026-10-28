@@ -11,6 +11,20 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 
 `mcp_diagnostics` and `mcp_health_check` expose `protocolVersion`, `mcpServerVersion`, and host `pluginVersion`. `protocolVersion` is the additive MCP-server to in-process-host wire contract version. Host status/health/discovery surfaces expose `hostLogFilePath` when the host plugin can compute the NavisHelper log path. If `mcpServerVersion` and `pluginVersion` differ, reinstall/update the NavisHelper bundle and MCP server from the same distribution package before running write tools.
 
+## section_planes
+
+Reads, sets or clears section planes through the active view's clipping JSON. Requires a host and an active document; belongs to the `sections` tool set and declares the `View` effect. The section-box tools remain separate.
+
+Inputs: `operation` defaults to `get` and accepts `get`, `set`, `clear`; `planes` defaults to null; `linked` is optional; `apply` defaults to false. Standard `instanceId` and `navisworksVersion` target the host. `get` never writes, even with `apply=true`. `set` and `clear` preview the planned state unless `apply=true`.
+
+Each plane spec has `index` (1–6), optional `enabled`, and either `direction` (`top` +Z, `bottom` −Z, `north` +Y, `south` −Y, `east` +X, `west` −X) or `normal` (`x`, `y`, `z`). The normal is normalised. Position it with exactly one `point` in document units or `fromSelection` (`max` or `min` projection over all selection-box corners). `offsetMm` adds an offset along the normal. Alternatively, `moveByMm` moves an existing plane along its normal; `enabled` alone toggles an existing plane. Duplicate indices are rejected. Invalid specs return `SchemaViolation` before any write.
+
+The intended convention is `Distance = normal · point`, with the normal pointing at the side cut away. The Distance sign and cut side await L3 calibration. Offsets and moves are in millimetres and converted using document units. `set` preserves other indexed planes, pads to six disabled defaults, removes `OrientedBox`, enables plane sectioning and preserves `linked` when omitted. `clear` only sets the clipping JSON's `Enabled` to false, preserving every other key, including `OrientedBox`, plane definitions and linked state. If the current clipping cannot be read, `set` and `clear` refuse with `CommandFailed`: "The active view's clipping could not be read; nothing was changed."
+
+Output: `operation`, `mode` (`off`, `planes`, `box`, `unreadable`), `enabled`, `linked`, `planes` (`index`, `enabled`, `normal`, `distance`, optional axis `direction`), `applied`, nullable `readbackMatches`, `message`, and `warnings`. Empty clipping is readable and reported as `off`; clipping the reader cannot parse is reported as `unreadable`. Dry-run returns the planned state with `applied=false`; applied writes return actual readback. Requested enabled flags, normals and distances are compared within 1e-6; set also checks global enabled/linked state. Clear checks that sectioning is disabled. Unreadable readback always sets `readbackMatches=false`.
+
+Example: `section_planes(operation="set", planes=[{"index":1,"direction":"top","fromSelection":"max","offsetMm":100}], apply=false)` previews a plane 100 mm above the selection. Repeat with `apply=true` to write, then use `operation="get"` to inspect or `operation="clear", apply=true` to disable sectioning.
+
 ## Tool capabilities
 
 <!-- BEGIN GENERATED TOOL CAPABILITIES -->
@@ -116,6 +130,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `saved_viewpoints_reorder` | Document | Yes | Yes | Yes |
 | `scenario_capabilities` | None | No | No | No |
 | `section_box_viewpoint` | View, Document | Yes | Yes | Yes |
+| `section_planes` | View | Yes | Yes | Yes |
 | `select_by_search` | View | Yes | Yes | No |
 | `select_items` | View | Yes | Yes | No |
 | `select_selection_set` | View | Yes | Yes | Yes |

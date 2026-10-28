@@ -10,6 +10,11 @@ namespace NavisHelper.McpServer.Services;
 
 internal sealed partial class HostBridgeClient
 {
+    public Task<SectionPlanesResponse> SectionPlanesAsync(SectionPlanesRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    {
+        return CallHostAsync<SectionPlanesResponse>(HostCommandNames.SectionPlanes, request, cancellationToken, target);
+    }
+
     public Task<FindItemsResponse> FindItemsAsync(FindItemsRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
     {
         return CallHostAsync<FindItemsResponse>(HostCommandNames.FindItems, request, cancellationToken, target);

@@ -40,7 +40,7 @@ Navisworks Manage plugin and local MCP server for design engineers and BIM coord
 | Declared package dependencies | MCP server: `Microsoft.Extensions.Hosting` 8.0.1 and `ModelContextProtocol` 1.2.0. Plugin: `Microsoft.Toolkit.Uwp.Notifications` 7.1.3, `Newtonsoft.Json` 13.0.3, Windows SDK Contracts 10.0.19041.1, `System.Runtime.WindowsRuntime` 4.6.0, `System.Runtime.WindowsRuntime.UI.Xaml` 4.6.0, `System.ValueTuple` 4.5.0, and reference-assembly packages. |
 | Optional script dependencies | Python is used only by some smoke/check scripts, not by the MCP runtime. The minimum Python and PowerShell versions are not specified. <!-- TODO: уточнить --> |
 | HTTP bridge port | None. The MCP client starts the server over stdio; the server connects to the Navisworks plugin through a local Windows named pipe. |
-| LLM API access | Not required for the 123 registered MCP tools. The separate `AIColorObjects` function connects a user-provided OpenRouter key from the Settings tab and stores it in the user-scoped `OPEN_ROUTER_NW_KEY`; API billing depends on the selected model. |
+| LLM API access | Not required for the 124 registered MCP tools. The separate `AIColorObjects` function connects a user-provided OpenRouter key from the Settings tab and stores it in the user-scoped `OPEN_ROUTER_NW_KEY`; API billing depends on the selected model. |
 | AI data egress | The OpenRouter action sends selected objects’ display names to the external OpenRouter API under the user’s key. The separate **Apply local palette** action sends nothing. Account for this when working with NDA-controlled models. The registered MCP tool path remains local. |
 
 ## Installation
@@ -106,12 +106,13 @@ This is a local stdio server configuration. Do not add a host, URL, or port. The
 
 ## Available tools
 
-The current server registers 123 tools. Parameter types, required markers, and defaults below are taken from the recorded `tools/list` schemas. For display settings, see [the current contract](../MCP_TOOL_CONTRACTS.md#get_view_display_settings--set_view_display_settings).
+The current server registers 124 tools. Parameter types, required markers, and defaults below are taken from the recorded `tools/list` schemas. For display settings, see [the current contract](../MCP_TOOL_CONTRACTS.md#get_view_display_settings--set_view_display_settings).
 
 ### Core model, selection, visibility, and viewpoints
 
 | Tool | Description | Parameters |
 |---|---|---|
+| `section_planes` | Reads, sets or clears section planes, with dry-run writes and readback. See [the plane contract](../MCP_TOOL_CONTRACTS.md#section_planes). | <code>operation: string</code> [default="get"]<br><code>planes: array&lt;object&gt;</code> [default=null]<br><code>linked: boolean/null</code> [default=null]<br><code>apply: boolean</code> [default=false]<br><code>instanceId: string</code> [default=""]<br><code>navisworksVersion: string</code> [default=""] |
 | `list_navisworks_hosts` | Lists running Navisworks MCP host instances. Use instance_id from this tool when multiple Navisworks windows are open, or navisworks_version when exactly one host of that version is running. | None. |
 | `mcp_diagnostics` | Returns MCP diagnostics: JSONL log file path, discovery instances directory, and currently running Navisworks host records. | None. |
 | `mcp_recent_calls` | Returns the last MCP JSONL call log lines. Use after failures or long runs to confirm which tools were invoked, their target Navisworks instance, elapsed time, status, and error code. | <code>lineCount: integer</code> [default=50] |
