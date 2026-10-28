@@ -28,6 +28,7 @@ namespace NavisHelper.Agent.Contracts
         public string FolderPath { get; set; }
         public string Source { get; set; }
         public bool? AutoTopView { get; set; }
+        public bool? PreserveSectioning { get; set; }
         public bool? FitToSelection { get; set; }
         public double? FitMarginFactor { get; set; }
         public List<double> EllipseColor { get; set; }
@@ -129,6 +130,7 @@ namespace NavisHelper.Agent.Contracts
         public string Name { get; set; }
         public string FolderPath { get; set; }
         public string Source { get; set; }
+        public string Camera { get; set; }
         public double? BoxOffsetMm { get; set; }
         public List<double> EllipseColor { get; set; }
         public int? Thickness { get; set; }

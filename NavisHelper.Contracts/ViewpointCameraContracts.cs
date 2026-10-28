@@ -277,4 +277,47 @@ namespace NavisHelper.Agent.Contracts
             return !double.IsNaN(value) && !double.IsInfinity(value);
         }
     }
+
+    public static class ViewpointCameraRules
+    {
+        public static string Normalize(string camera)
+        {
+            return string.IsNullOrWhiteSpace(camera) ? "iso" : camera.Trim().ToLowerInvariant();
+        }
+
+        public static string Describe(string camera)
+        {
+            switch (Normalize(camera))
+            {
+                case "iso":
+                case "top":
+                case "north":
+                case "south":
+                case "east":
+                case "west":
+                    return null;
+                default:
+                    return "camera must be iso, top, north, south, east or west.";
+            }
+        }
+
+        public static BoxVector3 Offset(string camera)
+        {
+            switch (Normalize(camera))
+            {
+                case "iso": return new BoxVector3 { X = 1, Y = -1, Z = 1 };
+                case "top": return new BoxVector3 { Z = 1 };
+                case "north": return new BoxVector3 { Y = 1 };
+                case "south": return new BoxVector3 { Y = -1 };
+                case "east": return new BoxVector3 { X = 1 };
+                case "west": return new BoxVector3 { X = -1 };
+                default: throw new ArgumentException(Describe(camera), nameof(camera));
+            }
+        }
+
+        public static bool IsTopDown(string camera)
+        {
+            return Normalize(camera) == "top";
+        }
+    }
 }

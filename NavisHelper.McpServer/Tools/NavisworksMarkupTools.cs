@@ -111,6 +111,7 @@ internal sealed class NavisworksMarkupTools : NavisworksToolBase
         [Description("Selection source. Only current_selection is currently supported.")] string source = "current_selection",
         [Description("Optional explicit world boxes to mark where nothing can be selected, for example a place a drawing says a pipe should occupy. Each item is {min, max} in document units like find_items_by_bbox. Every box becomes its own mark in markStyle and is never merged with item groups. With world boxes the selection may be empty; clusterBy must be none and autoTopView true.")] List<MarkupWorldBox> worldBoxes = null,
         [Description("Switch to a strict orthographic top view and fit it to the combined selection box. Default is true.")] bool autoTopView = true,
+        [Description("With autoTopView=true keep the current section box or section planes instead of switching sectioning off. Default is false.")] bool preserveSectioning = false,
         [Description("When auto_top_view=false, fit the current view to the combined selection box. Default is true.")] bool fitToSelection = true,
         [Description("Extra frame around the selection when fitting the markup plan, as a fraction of its size. 0 keeps a tight fit; 0.10 adds 10%. Default is 0.10. This does not affect section_box_viewpoint.")] double fitMarginFactor = 0.10,
         [Description("Optional RGB frame color with three values from 0 to 1. The legacy parameter name is retained for compatibility. Default is [1, 0, 0].")] List<double> ellipseColor = null,
@@ -149,6 +150,7 @@ internal sealed class NavisworksMarkupTools : NavisworksToolBase
             Source = source,
             WorldBoxes = worldBoxes,
             AutoTopView = autoTopView,
+            PreserveSectioning = preserveSectioning,
             FitToSelection = fitToSelection,
             FitMarginFactor = fitMarginFactor,
             EllipseColor = ellipseColor,
@@ -205,13 +207,14 @@ internal sealed class NavisworksMarkupTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Creates one or more saved viewpoints with an enabled Navisworks section box around the current selection plus context. Optional persistent markup and line-based arrow callouts are calculated after the final ISO camera and clipping box. It never hides or isolates model items. Defaults to dry-run.")]
+    [Description("Creates one or more saved viewpoints with an enabled Navisworks section box around the current selection plus context. Optional persistent markup and line-based arrow callouts are calculated after the final preset camera and clipping box. It never hides or isolates model items. Defaults to dry-run.")]
     [ToolCapabilities(ToolEffects.View | ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<SectionBoxViewpointResponse> SectionBoxViewpoint(
         [Description("Saved viewpoint base name. Slashes are replaced with spaces. When clustering creates multiple viewpoints, (1), (2), and so on are appended.")] string name,
         [Description("Optional folder path under Saved Viewpoints, for example MTR/240103-ТХ. Missing folders are created only when apply=true.")] string folderPath = "",
         [Description("Selection source. Only current_selection is currently supported.")] string source = "current_selection",
         [Description("Extra context around every cluster bounding box, in millimeters. Default is 1000.")] double boxOffsetMm = 1000,
+        [Description("iso, top, north, south, east or west; orthographic, fitted to each cluster box; north means the camera stands north of the box looking south. Default is iso.")] string camera = "iso",
         [Description("Optional markup style: rectangle, target, arrow, or hatch. Empty keeps the section-box viewpoint unmarked unless arrowCallout=true.")] string markStyle = "",
         [Description("Add one arrow callout built from supported RedlineLine primitives to every mark. Default is false.")] bool arrowCallout = false,
         [Description("Arrow length in millimeters. 0 selects 8% of the final camera HeightField, clamped to 5-15%. Default is 0.")] double arrowLengthMm = 0,
@@ -245,6 +248,7 @@ internal sealed class NavisworksMarkupTools : NavisworksToolBase
             FolderPath = folderPath,
             Source = source,
             BoxOffsetMm = boxOffsetMm,
+            Camera = camera,
             MarkStyle = markStyle,
             ArrowCallout = arrowCallout,
             ArrowLengthMm = arrowLengthMm,

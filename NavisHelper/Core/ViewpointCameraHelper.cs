@@ -1,10 +1,57 @@
 using System;
 using Autodesk.Navisworks.Api;
+using NavisHelper.Agent.Contracts;
 
 namespace NavisHelper.Core
 {
     public static class ViewpointCameraHelper
     {
+        public static void ApplyPresetViewToBox(Document document, BoundingBox3D box, string camera)
+        {
+            if (document == null || document.CurrentViewpoint == null || box == null)
+                return;
+
+            if (ViewpointCameraRules.Normalize(camera) == "iso")
+            {
+                ApplyIso1ViewToBox(document, box, box.Center);
+                return;
+            }
+
+            var offset = ViewpointCameraRules.Offset(camera);
+            var viewpoint = document.CurrentViewpoint.CreateCopy();
+            viewpoint.Projection = ViewpointProjection.Orthographic;
+            if (ViewpointCameraRules.IsTopDown(camera))
+            {
+                viewpoint.Rotation = new Rotation3D(0, 0, 0, -1);
+                viewpoint.AspectRatio = 1.0;
+                viewpoint.ZoomBox(box);
+            }
+            else
+            {
+                var center = box.Center;
+                var sizeX = Math.Abs(box.Max.X - box.Min.X);
+                var sizeY = Math.Abs(box.Max.Y - box.Min.Y);
+                var sizeZ = Math.Abs(box.Max.Z - box.Min.Z);
+                var size = Math.Max(Math.Max(sizeX, sizeY), sizeZ);
+                if (size < 1e-6)
+                    size = 1.0;
+
+                var distance = size * 3.0;
+                viewpoint.Position = new Point3D(
+                    center.X + offset.X * distance,
+                    center.Y + offset.Y * distance,
+                    center.Z + offset.Z * distance);
+                ResetViewpointOffsets(viewpoint);
+                PointAtAndAlign(viewpoint, center);
+                viewpoint.ZoomBox(box);
+                ResetViewpointOffsets(viewpoint);
+                PointAtAndAlign(viewpoint, center);
+                SetFocalDistance(viewpoint, center);
+            }
+
+            document.CurrentViewpoint.CopyFrom(viewpoint);
+        }
+
         public static void ApplyIso1ViewToBox(Document document, BoundingBox3D box, Point3D focalPoint)
         {
             ApplyIsoViewToBox(document, box, focalPoint, false);

@@ -157,7 +157,7 @@ namespace NavisHelper.Agent.Services
             {
                 var cluster = clusterPlan.Clusters[index];
                 ApplyMarkupSelectionCamera(document, MergeBounds(cluster.Bounds, worldBoxesBounds), autoTopView, fitToSelection, effectiveFitMarginFactor);
-                if (autoTopView)
+                if (autoTopView && request.PreserveSectioning != true)
                     SectionBoxHelper.Disable();
 
                 // Build against the camera snapshot, not the live viewer. The latter
@@ -298,6 +298,9 @@ namespace NavisHelper.Agent.Services
                 throw new ArgumentNullException(nameof(document));
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
+            var cameraError = ViewpointCameraRules.Describe(request.Camera);
+            if (cameraError != null)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, cameraError);
             if (document.ActiveView == null || document.CurrentViewpoint == null)
                 throw new AgentCommandException(ErrorCodes.NoActiveView, "There is no active view.");
             if (document.SavedViewpoints == null || document.SavedViewpoints.RootItem == null)
@@ -402,7 +405,7 @@ namespace NavisHelper.Agent.Services
             for (var index = 0; index < clusterPlan.Clusters.Count; index++)
             {
                 var box = ExpandBoundingBox(clusterPlan.Clusters[index].Bounds, boxOffsetUnits);
-                ViewpointCameraHelper.ApplyIso1ViewToBox(document, box, box.Center);
+                ViewpointCameraHelper.ApplyPresetViewToBox(document, box, request.Camera);
                 SectionBoxHelper.SetSectionBox(box);
                 if (style == null)
                 {

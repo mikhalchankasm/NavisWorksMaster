@@ -2254,11 +2254,12 @@ For Scenario Library exact replay: call `get_current_section_box` before authori
 
 ## `markup_selection`
 
-Creates saved viewpoints with persistent `rectangle`, `target`, `arrow`, or `hatch` marks around hybrid groups of the current selection, as described in `docs/MTR_MARKUP_WORKFLOW.md`. One parameter extends that contract to places where nothing can be selected:
+Creates saved viewpoints with persistent `rectangle`, `target`, `arrow`, or `hatch` marks around hybrid groups of the current selection, as described in `docs/MTR_MARKUP_WORKFLOW.md`. These parameters extend that contract:
 
 | Parameter | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `worldBoxes` | array of `{min, max}` | `[]` | Optional explicit world boxes to mark in addition to the selection, for example a place a drawing says a pipe should occupy while the model has nothing there. Each `min`/`max` is an `{x, y, z}` point in raw global coordinates of the active document's native units, exactly like `find_items_by_bbox`; no local-origin, grid, rotation, or unit transform is applied. All six values of every box must be finite and each `min` component must not exceed its `max` component, otherwise `schema_violation`. |
+| `preserveSectioning` | bool | `false` | With `autoTopView=true`, keep the current section box or section planes while applying the top camera. The default switches sectioning off. With `autoTopView=false`, sectioning is preserved regardless of this flag. |
 
 Rules for `worldBoxes`:
 
@@ -2268,6 +2269,16 @@ Rules for `worldBoxes`:
 - With `worldBoxes` present the selection may be empty: `selectedItemCount=0` is valid instead of `no_selection`. An empty selection produces exactly one viewpoint named `name`, marked only with the world boxes.
 - The camera fit (`autoTopView`/`fitToSelection` with `fitMarginFactor`) covers the union of the selection cluster bounds and all world boxes, so every mark stays inside the saved frame.
 - Box marks count in `markCount` and `soloMarkCount`; a box that cannot be projected into the active camera counts in `skippedItemCount`.
+
+## `section_box_viewpoint`
+
+Creates saved viewpoints with a section box around each selection cluster plus `boxOffsetMm` context. Optional persistent markup is projected after applying the camera and clipping box. Defaults to dry-run and never hides or isolates model items.
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `camera` | string | `iso` | `iso`, `top`, `north`, `south`, `east`, or `west`; orthographic and fitted to each cluster box. North places the camera north of the box looking south (+Y to -Y); south looks north, east looks west (+X to -X), west looks east, and top looks down from +Z. ISO retains the existing diagonal view. |
+
+Camera names are trimmed and case-insensitive; null or blank selects `iso`. Invalid names fail with `schema_violation` and `camera must be iso, top, north, south, east or west.` before changing the document, including on dry-run.
 
 ## `match_handle_items`
 
