@@ -14,7 +14,9 @@ namespace NavisHelper.McpServer.Tests;
 // the selection. section_planes sets, reads and clears Navisworks section planes through the same
 // View.Get/SetClippingPlanes JSON the box uses: ClipPlaneSet { Planes[{Normal, Distance, Enabled}],
 // Linked, Enabled } (key names read from the JSON serialiser in lcodyplugin.dll).
-// A plane's normal points at the side it cuts away; Distance = normal . point (calibrated in L3).
+// A plane's reported normal points at the side it cuts away; Distance = normal . point. L3 on
+// Navisworks 2027 showed that the clipping JSON keeps the side its own normal points at, so the JSON
+// stores the negated normal and distance: a top plane at z = 10000 is written as [0,0,-1], -10000.
 public sealed class SectionPlanesTests
 {
     private static BoxVector3 V(double x, double y, double z) => new BoxVector3 { X = x, Y = y, Z = z };
@@ -131,10 +133,14 @@ public sealed class SectionPlanesTests
         Assert.True(parsed.Linked);
         Assert.Equal(2, parsed.Planes.Count);
         Assert.Equal(1, parsed.Planes[0].Index);
-        Assert.Equal(12.5, parsed.Planes[0].Distance);
-        Assert.Equal(1, parsed.Planes[0].Normal.Z);
+        // The JSON keeps the side its normal points at; the reported plane names the side cut away.
+        Assert.Equal(-12.5, parsed.Planes[0].Distance);
+        Assert.Equal((0d, 0d, -1d), (parsed.Planes[0].Normal.X, parsed.Planes[0].Normal.Y, parsed.Planes[0].Normal.Z));
+        Assert.Equal("bottom", SectionPlaneRules.DirectionName(parsed.Planes[0].Normal));
         Assert.False(parsed.Planes[1].Enabled);
         Assert.Equal(2, parsed.Planes[1].Index);
+        Assert.Equal(3, parsed.Planes[1].Distance);
+        Assert.Equal(-1, parsed.Planes[1].Normal.X);
     }
 
     [Theory]
@@ -164,16 +170,21 @@ public sealed class SectionPlanesTests
         Assert.Null(root["OrientedBox"]);
         var planes = root["Planes"]!.AsArray();
         Assert.Equal(SectionPlaneRules.MaxPlanes, planes.Count);
-        Assert.Equal(3.1, planes[0]!["Distance"]!.GetValue<double>(), 9);
+        // A top plane (cuts away +Z) is stored with the normal and distance negated.
+        Assert.Equal(-3.1, planes[0]!["Distance"]!.GetValue<double>(), 9);
+        Assert.Equal(-1, planes[0]!["Normal"]![2]!.GetValue<double>(), 9);
         Assert.True(planes[0]!["Enabled"]!.GetValue<bool>());
         Assert.Equal("ClipPlane", planes[0]!["Type"]!.GetValue<string>());
+        // An untouched plane is written back exactly as it was read.
         Assert.Equal(4, planes[1]!["Distance"]!.GetValue<double>(), 9);
+        Assert.Equal(1, planes[1]!["Normal"]![0]!.GetValue<double>(), 9);
         Assert.True(planes[1]!["Enabled"]!.GetValue<bool>());
         Assert.False(planes[5]!["Enabled"]!.GetValue<bool>());
 
         var back = SectionPlaneClippingJson.Read(json);
         Assert.Equal("planes", back.Mode);
         Assert.Equal(3.1, back.Planes[0].Distance, 9);
+        Assert.Equal(1, back.Planes[0].Normal.Z, 9);
         Assert.Equal("off", SectionPlaneClippingJson.Read(SectionPlaneClippingJson.Write(json, Array.Empty<SectionPlaneState>(), false, enabled: false)).Mode);
     }
 
