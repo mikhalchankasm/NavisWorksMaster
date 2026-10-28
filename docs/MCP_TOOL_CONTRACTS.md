@@ -271,6 +271,7 @@ a new truncation flag appears on a contract without being documented.
 
 | flag | on | meaning |
 | --- | --- | --- |
+| `truncated` | `viewpoint_animation_export` (`ExporterPluginOptions`, one per probed plugin) | that plugin reported more than 200 options or option vectors nested deeper than three levels; the listed options are the first ones read |
 | `truncated` | `viewpoints_per_item` (`ItemViewpointsResponse`) | only the first `maxItems` distinct items are planned or processed; `itemCount` includes all distinct input items |
 | `truncated` | every paged listing -- `list_root_items`, `list_item_children`, `list_selection_sets`, `list_saved_viewpoints`, `selection_copy_names`, `selected_items_preview`/`_ancestry`/`_tree`, `item_appearance`, `get_item_texture_mapping`, the clash listings and reports, viewpoint build and import | fewer rows returned than exist. `dump_subtree_names` does **not** have this flag: its job status reports state and progress counts instead |
 | `itemsTruncated`, `resultsTruncated`, `rowsTruncated` | `selection_property_report`, `selection_export_properties`, clash listings and reports | fewer rows than exist. `selection_export_properties` writes a file, so a truncated export is a report short of rows |
@@ -336,7 +337,7 @@ contract cannot skip that description.
 | `RulesTruncated` | `AppearanceProfileApplyResponse` |
 | `ScanTruncated` | `FindDuplicateGeometryResponse` |
 | `TraversalTruncated` | `FindItemsByBboxResponse`, `IsolateByBoxResponse` |
-| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `GetItemTextureMappingResponse`, `ItemAppearanceResponse`, `ItemViewpointsResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
+| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `ExporterPluginOptions`, `GetItemTextureMappingResponse`, `ItemAppearanceResponse`, `ItemViewpointsResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
 | `ValuesTruncated` | `SelectionDistinctPropertyValuesResponse` |
 
 <!-- END GENERATED TRUNCATION FLAG INVENTORY -->
