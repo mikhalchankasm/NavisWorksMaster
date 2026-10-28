@@ -210,6 +210,74 @@ public sealed class ViewpointAnimationExportTests
             ViewpointAnimationExportRules.ExistingOutputMessage);
     }
 
+    // Correction pass (#404 L3 on 7964f9d): lcodpanim returned eExport_FAIL in 0.1 s and exposes no format option, so
+    // the tool lets L3 set or add exporter options and pick the plugin to drive, and returns the data on failure.
+    [Fact]
+    public void ExporterOptionsParseIntoTypedValues()
+    {
+        var parsed = ViewpointAnimationExportRules.ParseExporterOptions(new List<string>
+        {
+            " export.image.format = lcodpexpng ", "export.anim.fps=12", "flag=true", "off=False", "neg=-3", "empty=", "ratio=1.5",
+        });
+        Assert.Equal(
+            new object[] { "lcodpexpng", 12, true, false, -3, "", "1.5" },
+            parsed.Select(pair => pair.Value).ToArray());
+        Assert.Equal(new[] { "export.image.format", "export.anim.fps", "flag", "off", "neg", "empty", "ratio" }, parsed.Select(pair => pair.Key));
+        Assert.Empty(ViewpointAnimationExportRules.ParseExporterOptions(null));
+    }
+
+    [Theory]
+    [InlineData("lcodpcuranim", null, "exporter must be lcodpanim, lcodpavi, lcodpexpng or lcodpexjpg.")]
+    [InlineData("other", null, "exporter must be lcodpanim, lcodpavi, lcodpexpng or lcodpexjpg.")]
+    [InlineData("", "novalue", "exporterOptions entries must be name=value; names use letters, digits, '.', '_' and '-'.")]
+    [InlineData("", "=x", "exporterOptions entries must be name=value; names use letters, digits, '.', '_' and '-'.")]
+    [InlineData("", "bad name=1", "exporterOptions entries must be name=value; names use letters, digits, '.', '_' and '-'.")]
+    public void ExporterAndOptionProblemsHaveExactMessages(string exporter, string option, string expected)
+    {
+        var request = Valid();
+        request.Exporter = exporter;
+        request.ExporterOptions = option == null ? null : new List<string> { option };
+        Assert.Equal(expected, ViewpointAnimationExportRules.Describe(request));
+    }
+
+    [Fact]
+    public void ExporterDefaultsToTheAnimationExporterAndOptionsAreCapped()
+    {
+        Assert.Equal(new[] { "lcodpanim", "lcodpavi", "lcodpexpng", "lcodpexjpg" }, ViewpointAnimationExportRules.Exporters);
+        Assert.Equal("lcodpanim", ViewpointAnimationExportRules.NormalizeExporter(null));
+        Assert.Equal("lcodpavi", ViewpointAnimationExportRules.NormalizeExporter(" LCODPAVI "));
+        var request = Valid();
+        request.Exporter = "LcOdPeXpNg";
+        request.ExporterOptions = Enumerable.Range(0, 20).Select(i => "o" + i + "=" + i).ToList();
+        Assert.Null(ViewpointAnimationExportRules.Describe(request));
+        request.ExporterOptions.Add("o20=20");
+        Assert.Equal("exporterOptions accepts at most 20 entries.", ViewpointAnimationExportRules.Describe(request));
+    }
+
+    [Fact]
+    public void ExporterOptionsOverrideTheTypedSettingsOfTheSameName()
+    {
+        var request = Valid();
+        request.Width = 640;
+        request.Fps = 6;
+        request.ExporterOptions = new List<string> { "export.anim.fps=25", "export.image.format=lcodpexpng" };
+        Assert.Equal(
+            new[] { "export.image.width=640", "export.anim.fps=25", "export.image.format=lcodpexpng" },
+            ViewpointAnimationExportRules.MergedAssignments(request).Select(pair => pair.Key + "=" + Convert.ToString(pair.Value, CultureInfo.InvariantCulture)));
+    }
+
+    [Fact]
+    public void AFailedExportStillReturnsItsData()
+    {
+        var response = new ViewpointAnimationExportResponse();
+        Assert.False(response.Exported);
+        Assert.Empty(response.OptionsAfter);
+        Assert.Null(response.CurrentAnimationAfter);
+        Assert.Equal("The animation exporter returned eExport_FAIL; nothing was exported.", ViewpointAnimationExportRules.FailedExportMessage("eExport_FAIL"));
+        Assert.Equal("The previous current animation could not be restored; Navisworks keeps 'Flight' selected.",
+            ViewpointAnimationExportRules.RestoreWarning("Flight"));
+    }
+
     [Fact]
     public void TheToolPreviewsByDefaultAndExportsOnApply()
     {
@@ -225,6 +293,8 @@ public sealed class ViewpointAnimationExportTests
         Assert.False(properties["overwrite"]!["default"]!.GetValue<bool>());
         foreach (var name in new[] { "width", "height", "fps", "antiAliasLevel" })
             Assert.Equal(0, properties[name]!["default"]!.GetValue<int>());
+        Assert.Equal("lcodpanim", properties["exporter"]!["default"]!.GetValue<string>());
+        Assert.NotNull(properties["exporterOptions"]);
     }
 
     [Fact]
@@ -238,15 +308,20 @@ public sealed class ViewpointAnimationExportTests
             "ViewpointAnimationExportRules.ProbedPlugins", "ViewpointAnimationExportRules.OptionAssignments(",
             "ViewpointAnimationExportRules.OutputFile(", "ViewpointAnimationExportRules.DetectKind(",
             "ViewpointAnimationExportRules.IsForbiddenOutputRoot(", "ViewpointAnimationExportRules.HasExistingOutput(",
-            "GetIOPluginOptions(", "DriveIOPlugin(\"lcodpanim\"", "state.CurrentAnimation =", "eSavedViewType_Anim",
+            "GetIOPluginOptions(", "DriveIOPlugin(", "state.CurrentAnimation =", "eSavedViewType_Anim",
+            "ViewpointAnimationExportRules.NormalizeExporter(", "ViewpointAnimationExportRules.MergedAssignments(",
+            "ViewpointAnimationExportRules.FailedExportMessage(", "ViewpointAnimationExportRules.RestoreWarning(",
+            "eObjectType_nwOaProperty", "Directory.Delete(response.OutputDirectory)",
             "Directory.CreateDirectory(", "is SavedViewpointAnimation", "Saved viewpoint animation was not found.",
             "Marshal.ReleaseComObject(",
         })
             Assert.Contains(expected, service, StringComparison.Ordinal);
-        // Never delete user files, never persist exporter defaults, never touch the document.
+        // Never delete user files (only the empty folder this call created), never persist exporter defaults, never touch the
+        // document, and never throw away a failed export's data: it returns FailedExportMessage instead of an error.
         foreach (var forbidden in new[]
         {
-            "File.Delete", "Directory.Delete", "set_PluginOption", ".PluginOption", "SaveFile", "Transaction",
+            "File.Delete", "Directory.Delete(response.OutputDirectory, true", "recursive: true", "set_PluginOption", ".PluginOption",
+            "SaveFile", "Transaction", "\"The animation exporter returned \" +",
         })
             Assert.DoesNotContain(forbidden, service, StringComparison.Ordinal);
         var client = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "NavisHelper.McpServer", "Services", "HostBridgeClient.Commands.cs"));
