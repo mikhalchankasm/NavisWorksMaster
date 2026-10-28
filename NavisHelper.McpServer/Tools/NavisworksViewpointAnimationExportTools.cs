@@ -21,6 +21,8 @@ internal sealed class NavisworksViewpointAnimationExportTools : NavisworksToolBa
         [Description("Image height: 16-4096; 0 keeps the exporter value.")] int height = 0,
         [Description("Frames per second: 1-60; 0 keeps the exporter value.")] int fps = 0,
         [Description("Anti-alias level: 1, 2, 4, 8, 16, 32, 64; 0 keeps the exporter value.")] int antiAliasLevel = 0,
+        [Description("Exporter plugin to drive: lcodpanim, lcodpavi, lcodpexpng or lcodpexjpg.")] string exporter = "lcodpanim",
+        [Description("Extra exporter options as name=value, at most 20; set existing or add new options.")] List<string> exporterOptions = null,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version when exactly one host matches.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default) =>
@@ -28,5 +30,6 @@ internal sealed class NavisworksViewpointAnimationExportTools : NavisworksToolBa
         {
             Animation = animation, Format = format, OutputDirectory = outputDirectory,
             Apply = apply, Overwrite = overwrite, Width = width, Height = height, Fps = fps, AntiAliasLevel = antiAliasLevel,
+            Exporter = exporter, ExporterOptions = exporterOptions,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
 }

@@ -17,6 +17,8 @@ namespace NavisHelper.Agent.Contracts
         public int? Height { get; set; }
         public int? Fps { get; set; }
         public int? AntiAliasLevel { get; set; }
+        public string Exporter { get; set; } = "lcodpanim";
+        public List<string> ExporterOptions { get; set; }
     }
 
     public sealed class ViewpointAnimationExportResponse
@@ -40,6 +42,9 @@ namespace NavisHelper.Agent.Contracts
         public bool FormatMatches { get; set; }
         public double ElapsedSeconds { get; set; }
         public List<string> AppliedOptions { get; set; } = new List<string>();
+        public bool Exported { get; set; }
+        public List<ExporterOption> OptionsAfter { get; set; } = new List<ExporterOption>();
+        public string CurrentAnimationAfter { get; set; }
     }
 
     public sealed class ExportedFile
@@ -69,6 +74,7 @@ namespace NavisHelper.Agent.Contracts
     public static class ViewpointAnimationExportRules
     {
         public static readonly string[] Formats = { "png", "jpg", "avi" };
+        public static readonly string[] Exporters = { "lcodpanim", "lcodpavi", "lcodpexpng", "lcodpexjpg" };
         public static readonly string[] ProbedPlugins = { "lcodpanim", "lcodpavi", "lcodpexpng", "lcodpexjpg", "lcodpcuranim" };
         public const int MaxOptionsPerPlugin = 200;
         public const int MaxOptionDepth = 3;
@@ -87,6 +93,18 @@ namespace NavisHelper.Agent.Contracts
             if (!ValidRange(request.Fps, 1, 60)) return "fps must be 0 or between 1 and 60.";
             if (!new[] { 0, 1, 2, 4, 8, 16, 32, 64 }.Contains(request.AntiAliasLevel ?? 0))
                 return "antiAliasLevel must be 0, 1, 2, 4, 8, 16, 32 or 64.";
+            if (!Exporters.Contains(NormalizeExporter(request.Exporter)))
+                return "exporter must be lcodpanim, lcodpavi, lcodpexpng or lcodpexjpg.";
+            if (request.ExporterOptions != null && request.ExporterOptions.Count > 20)
+                return "exporterOptions accepts at most 20 entries.";
+            if (request.ExporterOptions != null && request.ExporterOptions.Any(entry =>
+            {
+                var separator = entry == null ? -1 : entry.IndexOf('=');
+                if (separator < 0) return true;
+                var name = entry.Substring(0, separator).Trim();
+                return name.Length == 0 || name.Any(c => !char.IsLetterOrDigit(c) && c != '.' && c != '_' && c != '-');
+            }))
+                return "exporterOptions entries must be name=value; names use letters, digits, '.', '_' and '-'.";
             return null;
         }
 
@@ -104,6 +122,43 @@ namespace NavisHelper.Agent.Contracts
             };
             return options.Where(pair => pair.Value != 0).ToList();
         }
+
+        public static string NormalizeExporter(string exporter) =>
+            string.IsNullOrWhiteSpace(exporter) ? "lcodpanim" : exporter.Trim().ToLowerInvariant();
+
+        public static IList<KeyValuePair<string, object>> ParseExporterOptions(IList<string> entries)
+        {
+            var result = new List<KeyValuePair<string, object>>();
+            foreach (var entry in entries ?? Array.Empty<string>())
+            {
+                var separator = entry.IndexOf('=');
+                var name = entry.Substring(0, separator).Trim();
+                var text = entry.Substring(separator + 1).Trim();
+                object value = text;
+                if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)) value = number;
+                else if (bool.TryParse(text, out var boolean)) value = boolean;
+                result.Add(new KeyValuePair<string, object>(name, value));
+            }
+            return result;
+        }
+
+        public static IList<KeyValuePair<string, object>> MergedAssignments(ViewpointAnimationExportRequest request)
+        {
+            var result = OptionAssignments(request).Select(pair => new KeyValuePair<string, object>(pair.Key, pair.Value)).ToList();
+            foreach (var pair in ParseExporterOptions(request.ExporterOptions))
+            {
+                var index = result.FindIndex(existing => existing.Key == pair.Key);
+                if (index < 0) result.Add(pair);
+                else result[index] = pair;
+            }
+            return result;
+        }
+
+        public static string FailedExportMessage(string status) =>
+            "The animation exporter returned " + status + "; nothing was exported.";
+
+        public static string RestoreWarning(string name) =>
+            "The previous current animation could not be restored; Navisworks keeps '" + name + "' selected.";
 
         public static string OutputFile(string folder, string animationName, string format) =>
             Path.Combine(folder, SafeFileName(animationName) + "." + NormalizeFormat(format));
