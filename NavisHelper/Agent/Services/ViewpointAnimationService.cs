@@ -13,6 +13,10 @@ namespace NavisHelper.Agent.Services
         private static readonly PropertyInfo Delay = typeof(SavedViewpointAnimationCut).GetProperty("Delay");
         private static readonly PropertyInfo Loops = typeof(SavedViewpointAnimation).GetProperty("Loops");
         private static readonly PropertyInfo Smoothing = typeof(SavedViewpointAnimation).GetProperty("Smoothing");
+        private static readonly ConstructorInfo AnimationConstructor = typeof(SavedViewpointAnimation).GetConstructor(Type.EmptyTypes);
+        private static readonly ConstructorInfo CutConstructor = typeof(SavedViewpointAnimationCut).GetConstructor(Type.EmptyTypes);
+        private const string CreateUnsupported =
+            "This Navisworks version's API cannot create viewpoint animations; create needs Navisworks 2026 or later.";
 
         public ViewpointAnimationResponse Execute(Document document, ViewpointAnimationRequest request)
         {
@@ -77,7 +81,21 @@ namespace NavisHelper.Agent.Services
             response.CutCount = plan.Count(frame => frame.Kind == "cut");
             response.FrameCount = plan.Count - response.CutCount;
             response.TotalPauseSeconds = plan.Sum(frame => frame.DelaySeconds ?? 0);
-            using (var animation = new SavedViewpointAnimation())
+            // The 2024/2025 API has only protected constructors: it can list and delete animations but not create them.
+            if (AnimationConstructor == null || CutConstructor == null)
+            {
+                foreach (var frame in plan)
+                {
+                    if (frame.Kind != "cut") frame.Source = sources[int.Parse(frame.Source, CultureInfo.InvariantCulture)].Path;
+                    response.Frames.Add(frame);
+                }
+                if (response.Apply)
+                    throw new AgentCommandException(ErrorCodes.CommandFailed, CreateUnsupported);
+                response.Warnings.Add(CreateUnsupported);
+                response.Message = "Dry-run: no saved viewpoints were changed.";
+                return response;
+            }
+            using (var animation = (SavedViewpointAnimation)AnimationConstructor.Invoke(null))
             {
                 animation.DisplayName = name;
                 // The tool always sends loops; on 2024/2025 only a requested loop is worth a warning.
@@ -91,7 +109,7 @@ namespace NavisHelper.Agent.Services
                 {
                     if (frame.Kind == "cut")
                     {
-                        var cut = new SavedViewpointAnimationCut();
+                        var cut = (SavedViewpointAnimationCut)CutConstructor.Invoke(null);
                         SetOptional(Delay, cut, frame.DelaySeconds.Value,
                             "This Navisworks version cannot set the cut delay; cuts keep the Navisworks default.", response);
                         animation.Children.Add(cut);
