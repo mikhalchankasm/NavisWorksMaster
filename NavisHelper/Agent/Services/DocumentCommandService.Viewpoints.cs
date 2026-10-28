@@ -9,7 +9,7 @@ namespace NavisHelper.Agent.Services
 {
     internal sealed partial class DocumentCommandService
     {
-        private static List<SavedViewpointNode> BuildSavedViewpointNodes(GroupItem root)
+        internal static List<SavedViewpointNode> BuildSavedViewpointNodes(GroupItem root)
         {
             var nodes = new List<SavedViewpointNode>();
             if (root == null)
@@ -166,7 +166,7 @@ namespace NavisHelper.Agent.Services
             return count + Math.Abs(before.Count - after.Count);
         }
 
-        private sealed class SavedViewpointNode
+        internal sealed class SavedViewpointNode
         {
             public SavedItem Item { get; set; }
             public GroupItem Parent { get; set; }

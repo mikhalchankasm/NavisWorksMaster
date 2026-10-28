@@ -11,6 +11,20 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 
 `mcp_diagnostics` and `mcp_health_check` expose `protocolVersion`, `mcpServerVersion`, and host `pluginVersion`. `protocolVersion` is the additive MCP-server to in-process-host wire contract version. Host status/health/discovery surfaces expose `hostLogFilePath` when the host plugin can compute the NavisHelper log path. If `mcpServerVersion` and `pluginVersion` differ, reinstall/update the NavisHelper bundle and MCP server from the same distribution package before running write tools.
 
+## viewpoint_animation
+
+Lists, creates or deletes saved viewpoint animations. Requires a host and active document, belongs to `sections`, and declares `View | Document` effects. Dry-run is the default. Inputs: `action="list"`, `name=""`, `folderPath=""` (root), `sourceFolder=""`, `viewpoints=null`, `holdSeconds=0`, `pauseSeconds=2`, `stepSeconds=0`, `loops=false`, `smoothing=""`, `overwrite=false`, `apply=false`, plus standard `instanceId` and `navisworksVersion`.
+
+Actions are `list`, `create`, `delete`, case-insensitively. Create/delete require a name. Create requires exactly one source: a real folder's direct saved viewpoints in their existing order (animations and subfolders are skipped), or an ordered list of saved viewpoint paths or unique names. Blank entries and more than 1000 source viewpoints are rejected with `SchemaViolation`. Ambiguous explicit names use the existing `SavedItemAmbiguous` error. An empty source folder returns `SavedViewpointNotFound`. Each frame is a copy preserving clipping, visibility, appearance overrides and redlines. Existing same-name items in the target folder return `ViewpointNameConflict` unless `overwrite=true` and every one of them is a saved viewpoint animation; overwrite replaces only animations, never a folder or a viewpoint. Explicit `viewpoints` never resolve to frames inside an existing animation. Delete resolves the exact name in the specified folder and requires a saved viewpoint animation, otherwise `SavedViewpointNotFound`.
+
+Timing inputs must be finite seconds from 0 to 3600. Consecutive equal cameras insert a cut of `pauseSeconds` before each repeat; non-consecutive repeats do not pause. At the end of each camera run, positive `holdSeconds` adds a cut and a second copy of that run's last frame. Camera equality rounds positions to 3 decimals and quaternion components to 4, treating opposite quaternion signs as equal. Positive `stepSeconds` sets the destination frame's linear/angular speeds for moves between different cameras; zero-distance or zero-angle speeds stay as saved. Read-only copied cameras keep saved speeds and add a warning. Step timing via frame speeds is unverified until L3.
+
+Creating needs Navisworks 2026 or later: the 2024/2025 API has only protected constructors for `SavedViewpointAnimation` and `SavedViewpointAnimationCut`, so there a dry-run returns the plan with a warning and `apply=true` fails with `CommandFailed`; `list` and `delete` work in every version. `smoothing` accepts `none`, `sync`, `spline`, or empty to keep the created default. Cut delay, loops and smoothing are set through reflection; SDK versions without each member keep Navisworks defaults and return one warning per unsupported member. Planned delays and `totalPauseSeconds` describe the request even when the runtime cannot set delays. List returns every animation in the saved viewpoint tree, with nullable loops/smoothing when unreadable. List never writes. Dry-run create/delete changes nothing and creates no folders. Apply builds the complete unowned animation and inserts one copy; folder creation and overwrite are grouped in the same undo transaction.
+
+Output: `action`, `apply`, `applied`, `name`, `path`, `frameCount` (viewpoint frames), `cutCount`, `totalPauseSeconds`, `frames`, `animations`, `message`, `warnings`. Frames contain `kind` (`viewpoint` or `cut`), `source` (saved viewpoint path, null for cuts), and nullable `delaySeconds` (cuts only). Animation summaries contain `name`, `path`, `frameCount`, `cutCount`, nullable `loops`, and nullable `smoothing`. Create returns the frame plan; list returns summaries; delete returns the target summary. SDK compilation and live behavior remain for curator validation.
+
+Example: `viewpoint_animation(action="create", name="Flight", sourceFolder="Route", holdSeconds=3, apply=false)` previews the route; repeat with `apply=true` to save it.
+
 ## viewpoints_per_item
 
 Saves one viewpoint per deduplicated item from `matchHandles`, or the current selection only when handles are omitted, null or an empty list, without expanding descendants. A null or whitespace-only entry in a nonempty `matchHandles` list returns `SchemaViolation` with `matchHandles must not contain blank handles.` before other request validation; blank entries are never filtered out. Requires a host and active document, belongs to `sections`, and declares `View | Document` effects. Dry-run is the default and changes nothing.
@@ -167,6 +181,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `start_save_document` | Document, Files | Yes | Yes | No |
 | `start_subtree_names_dump` | Files, LocalState | Yes | Yes | No |
 | `unhide_selected` | View | Yes | Yes | Yes |
+| `viewpoint_animation` | View, Document | Yes | Yes | Yes |
 | `viewpoint_set_camera` | View, Document | Yes | Yes | Yes |
 | `viewpoints_per_item` | View, Document | Yes | Yes | Yes |
 | `world_markers_list` | None | Yes | Yes | No |

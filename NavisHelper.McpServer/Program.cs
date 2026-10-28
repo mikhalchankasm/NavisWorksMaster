@@ -54,6 +54,7 @@ builder.Services
     .WithTools<NavisworksSectionBoxTools>()
     .WithTools<NavisworksSectionPlanesTools>()
     .WithTools<NavisworksItemViewpointTools>()
+    .WithTools<NavisworksViewpointAnimationTools>()
     .WithTools<NavisworksStartupTools>()
     .WithTools<NavisworksSelectionReportTools>()
     .WithTools<NavisworksModelColorSchemeTools>()
