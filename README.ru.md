@@ -25,7 +25,7 @@
 - работа с Clash Detective: группы, изоляция, виды, отчёты.
 
 **Вместе с AI** (Claude, Codex, Cursor и другие)
-- скажите задачу обычными словами, и AI выполнит её через 125 инструментов NavisHelper;
+- скажите задачу обычными словами, и AI выполнит её через 126 инструментов NavisHelper;
 - каждое изменение AI сначала показывает и делает только после подтверждения;
 - в **защищённом режиме** AI не изменит документ, пока вы не разрешите это в панели.
 
@@ -125,10 +125,11 @@ Start-Process $installer -Wait
 | Настроить AI-программы | [Руководство по клиентам](docs/MCP_CLIENT_GUIDE.md) |
 | Что нового | [Выпуски](https://github.com/mikhalchankasm/NavisWorksMaster/releases) |
 | Подробности о продукте, сравнение, проверки | [Подробности о проекте](docs/reference/PROJECT_DETAILS.ru.md) |
+| Создать анимацию из сохранённых точек маршрута | [Контракт viewpoint_animation](docs/MCP_TOOL_CONTRACTS.md#viewpoint_animation) |
 
 ## Для разработчиков
 
-В исходниках зарегистрировано **125 разных MCP-инструментов**. `scripts/check_mcp_command_catalog.py` выводит их имена из 125 методов `[McpServerTool]` и проверяет сгенерированный индекс из 125 строк. Входы, выходы и ограничения каждого описаны в [контрактах инструментов](docs/MCP_TOOL_CONTRACTS.md), устройство — в [архитектуре](docs/MCP_ARCHITECTURE.md). Сборка и правила вклада — в [Contributing](CONTRIBUTING.md) и [правилах сборки](BUILD_BUNDLE_RULES.md).
+В исходниках зарегистрировано **126 разных MCP-инструментов**. `scripts/check_mcp_command_catalog.py` выводит их имена из 126 методов `[McpServerTool]` и проверяет сгенерированный индекс из 126 строк. Входы, выходы и ограничения каждого описаны в [контрактах инструментов](docs/MCP_TOOL_CONTRACTS.md), устройство — в [архитектуре](docs/MCP_ARCHITECTURE.md). Сборка и правила вклада — в [Contributing](CONTRIBUTING.md) и [правилах сборки](BUILD_BUNDLE_RULES.md).
 
 ## Лицензия и статус
 

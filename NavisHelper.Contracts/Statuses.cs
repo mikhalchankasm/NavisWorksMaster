@@ -119,6 +119,7 @@ namespace NavisHelper.Agent.Contracts
         public const string MarkupSelection = "markup_selection";
         public const string LiveMarkers = "live_markers";
         public const string ViewpointsPerItem = "viewpoints_per_item";
+        public const string ViewpointAnimation = "viewpoint_animation";
         public const string SectionBoxViewpoint = "section_box_viewpoint";
         public const string ZoomToSelection = "zoom_to_selection";
         public const string FocusOnSelection = "focus_on_selection";

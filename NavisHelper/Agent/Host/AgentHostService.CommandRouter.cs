@@ -577,6 +577,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<ItemViewpointsRequest>,
             (document, request) => _itemViewpointsService.Execute(document, request, _matchSessionStore));
 
+        router.Register<ViewpointAnimationRequest>(
+            HostCommandNames.ViewpointAnimation,
+            true,
+            DeserializePayload<ViewpointAnimationRequest>,
+            (document, request) => _viewpointAnimationService.Execute(document, request));
+
         router.Register<SectionBoxViewpointRequest>(
             HostCommandNames.SectionBoxViewpoint,
             true,

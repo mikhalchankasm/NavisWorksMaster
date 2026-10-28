@@ -394,7 +394,7 @@ namespace NavisHelper.Agent.Services
             };
         }
 
-        private static SavedViewpointNode ResolveSavedViewpointNode(GroupItem root, SavedViewpointsManageRequest request, Func<SavedItem, bool> predicate, string notFoundMessage)
+        internal static SavedViewpointNode ResolveSavedViewpointNode(GroupItem root, SavedViewpointsManageRequest request, Func<SavedItem, bool> predicate, string notFoundMessage)
         {
             var nodes = BuildSavedViewpointNodes(root)
                 .Where(node => predicate == null || predicate(node.Item))

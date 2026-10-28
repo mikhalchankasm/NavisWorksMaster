@@ -10,6 +10,11 @@ namespace NavisHelper.McpServer.Services;
 
 internal sealed partial class HostBridgeClient
 {
+    public Task<ViewpointAnimationResponse> ViewpointAnimationAsync(ViewpointAnimationRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    {
+        return CallHostAsync<ViewpointAnimationResponse>(HostCommandNames.ViewpointAnimation, request, cancellationToken, target);
+    }
+
     public Task<ItemViewpointsResponse> ViewpointsPerItemAsync(ItemViewpointsRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
     {
         return CallHostAsync<ItemViewpointsResponse>(HostCommandNames.ViewpointsPerItem, request, cancellationToken, target);
