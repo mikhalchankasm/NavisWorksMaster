@@ -11,6 +11,20 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 
 `mcp_diagnostics` and `mcp_health_check` expose `protocolVersion`, `mcpServerVersion`, and host `pluginVersion`. `protocolVersion` is the additive MCP-server to in-process-host wire contract version. Host status/health/discovery surfaces expose `hostLogFilePath` when the host plugin can compute the NavisHelper log path. If `mcpServerVersion` and `pluginVersion` differ, reinstall/update the NavisHelper bundle and MCP server from the same distribution package before running write tools.
 
+## viewpoints_per_item
+
+Saves one viewpoint per deduplicated item from `matchHandles`, or the current selection when handles are omitted, without expanding descendants. Requires a host and active document, belongs to `sections`, and declares `View | Document` effects. Dry-run is the default and changes nothing.
+
+Inputs: `matchHandles=null`, `folderPath=""` (root), `nameTemplate="{name}"`, `section="none"`, `planeOffsetMm=100`, `boxOffsetMm=1000`, `camera="top"`, `contextMm=2000`, `markStyle="target"`, `ellipseColor=null` (red), `thickness=3`, `overwrite=false`, `maxItems=500`, `apply=false`, plus standard `instanceId` and `navisworksVersion`. `maxItems` is clamped to 1–1000. `section` accepts `none`, `plane`, `box`, case-insensitively; distances must not be negative. Camera presets are `iso`, `top`, `north`, `south`, `east`, `west`. An empty `markStyle` disables marks; otherwise the existing markup style rules apply. Thickness is 1–20 and an explicit color contains three finite RGB values from 0 to 1.
+
+The template must contain `{name}` and may contain `{index}` (one-based). Item names are trimmed, slashes replaced by spaces, and blank names become `item`. Repeated planned names receive case-insensitive numbered suffixes. Conflicts in the target folder are reported in dry-run; apply without overwrite rejects them with `ViewpointNameConflict` before changes. Empty input returns `NoSelection`; expired match handles return `StaleMatchReference`.
+
+Apply selects each item, places a top plane `planeOffsetMm` above its bounding-box maximum or a box padded by `boxOffsetMm` (or disables sectioning), fits the preset camera to the box padded by `contextMm`, builds the mark, and saves through the existing viewpoint creation path. Surrounding geometry is retained. Item errors are recorded and processing continues; an empty bounding box reports `no bounding box`. Selection, clipping, camera and active redlines are restored afterwards; restoration failures become warnings. Plane Distance sign, cut side, persisted clipping and restoration await an agreed L3 Navisworks window.
+
+Output: `apply`, `applied` (true when `createdCount > 0`), `itemCount` (all distinct input items), `createdCount`, `truncated`, `folderPath`, `items`, `message`, `warnings`. Each processed/planned item reports `itemName`, source item `path`, `viewpointName`, `markCount`, and optional `error`. Truncation means only the first `maxItems` items were planned or processed.
+
+Example: `viewpoints_per_item(section="plane", planeOffsetMm=100, camera="top", apply=false)` previews names for the selection; repeat with `apply=true` to save.
+
 ## section_planes
 
 Reads, sets or clears section planes through the active view's clipping JSON. Requires a host and an active document; belongs to the `sections` tool set and declares the `View` effect. The section-box tools remain separate.
@@ -154,6 +168,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `start_subtree_names_dump` | Files, LocalState | Yes | Yes | No |
 | `unhide_selected` | View | Yes | Yes | Yes |
 | `viewpoint_set_camera` | View, Document | Yes | Yes | Yes |
+| `viewpoints_per_item` | View, Document | Yes | Yes | Yes |
 | `world_markers_list` | None | Yes | Yes | No |
 | `world_markers_manage` | View, LocalState | Yes | Yes | Yes |
 | `world_markers_set` | View, LocalState | Yes | Yes | Yes |
@@ -226,6 +241,7 @@ a new truncation flag appears on a contract without being documented.
 
 | flag | on | meaning |
 | --- | --- | --- |
+| `truncated` | `viewpoints_per_item` (`ItemViewpointsResponse`) | only the first `maxItems` distinct items are planned or processed; `itemCount` includes all distinct input items |
 | `truncated` | every paged listing -- `list_root_items`, `list_item_children`, `list_selection_sets`, `list_saved_viewpoints`, `selection_copy_names`, `selected_items_preview`/`_ancestry`/`_tree`, `item_appearance`, `get_item_texture_mapping`, the clash listings and reports, viewpoint build and import | fewer rows returned than exist. `dump_subtree_names` does **not** have this flag: its job status reports state and progress counts instead |
 | `itemsTruncated`, `resultsTruncated`, `rowsTruncated` | `selection_property_report`, `selection_export_properties`, clash listings and reports | fewer rows than exist. `selection_export_properties` writes a file, so a truncated export is a report short of rows |
 | `propertiesTruncated` | `item_properties_by_handle`, `selection_property_report`, `selection_export_properties`, `model_color_scheme` item facts | fewer properties per item than the item has |
@@ -290,7 +306,7 @@ contract cannot skip that description.
 | `RulesTruncated` | `AppearanceProfileApplyResponse` |
 | `ScanTruncated` | `FindDuplicateGeometryResponse` |
 | `TraversalTruncated` | `FindItemsByBboxResponse`, `IsolateByBoxResponse` |
-| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `GetItemTextureMappingResponse`, `ItemAppearanceResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
+| `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `GetItemTextureMappingResponse`, `ItemAppearanceResponse`, `ItemViewpointsResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
 | `ValuesTruncated` | `SelectionDistinctPropertyValuesResponse` |
 
 <!-- END GENERATED TRUNCATION FLAG INVENTORY -->

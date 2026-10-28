@@ -53,6 +53,7 @@ builder.Services
     .WithTools<NavisworksWorldMarkerTools>()
     .WithTools<NavisworksSectionBoxTools>()
     .WithTools<NavisworksSectionPlanesTools>()
+    .WithTools<NavisworksItemViewpointTools>()
     .WithTools<NavisworksStartupTools>()
     .WithTools<NavisworksSelectionReportTools>()
     .WithTools<NavisworksModelColorSchemeTools>()

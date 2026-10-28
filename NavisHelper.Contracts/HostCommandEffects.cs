@@ -110,6 +110,7 @@ namespace NavisHelper.Agent.Contracts
                 { HostCommandNames.MarkupSelection, true },
                 { HostCommandNames.LiveMarkers, false },
                 { HostCommandNames.SectionBoxViewpoint, true },
+                { HostCommandNames.ViewpointsPerItem, true },
                 { HostCommandNames.ZoomToSelection, false },
                 { HostCommandNames.FocusOnSelection, false },
                 { HostCommandNames.FitAll, false },

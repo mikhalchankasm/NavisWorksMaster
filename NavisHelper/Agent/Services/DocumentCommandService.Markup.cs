@@ -442,7 +442,7 @@ namespace NavisHelper.Agent.Services
             return response;
         }
 
-        private static void SaveCurrentViewpointUsingCreateViewpointPath(Document document, string folderPath, string name, bool overwrite)
+        internal static void SaveCurrentViewpointUsingCreateViewpointPath(Document document, string folderPath, string name, bool overwrite)
         {
             try
             {

@@ -1243,7 +1243,7 @@ namespace NavisHelper.Agent.Services
                 .Any(item => string.Equals(item.DisplayName, name, StringComparison.OrdinalIgnoreCase));
         }
 
-        private static string NormalizeFolderPath(string folderPath)
+        internal static string NormalizeFolderPath(string folderPath)
         {
             var segments = SplitFolderPath(folderPath);
             return segments.Length == 0 ? string.Empty : string.Join("/", segments);

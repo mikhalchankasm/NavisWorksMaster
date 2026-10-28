@@ -40,7 +40,7 @@
 | Объявленные зависимости пакетов | MCP-сервер: `Microsoft.Extensions.Hosting` 8.0.1 и `ModelContextProtocol` 1.2.0. Плагин: `Microsoft.Toolkit.Uwp.Notifications` 7.1.3, `Newtonsoft.Json` 13.0.3, Windows SDK Contracts 10.0.19041.1, `System.Runtime.WindowsRuntime` 4.6.0, `System.Runtime.WindowsRuntime.UI.Xaml` 4.6.0, `System.ValueTuple` 4.5.0 и пакеты reference assemblies. |
 | Необязательные зависимости скриптов | Python используется только некоторыми smoke/check-скриптами, а не MCP runtime. Минимальные версии Python и PowerShell не указаны. <!-- TODO: уточнить --> |
 | Порт HTTP-моста | Отсутствует. MCP-клиент запускает сервер по stdio; сервер подключается к плагину Navisworks через локальный именованный канал Windows. |
-| Доступ к LLM API | Не требуется для 124 зарегистрированных MCP-инструментов. Отдельной функции плагина `AIColorObjects` нужен пользовательский ключ OpenRouter в `OPEN_ROUTER_NW_KEY`; тарификация API зависит от выбранной модели. |
+| Доступ к LLM API | Не требуется для 125 зарегистрированных MCP-инструментов. Отдельной функции плагина `AIColorObjects` нужен пользовательский ключ OpenRouter в `OPEN_ROUTER_NW_KEY`; тарификация API зависит от выбранной модели. |
 | Передача данных в AI | Действие OpenRouter отправляет отображаемые имена выделенных объектов во внешний API OpenRouter с ключом пользователя. Отдельное действие **Применить локальную палитру** ничего не отправляет. Учитывайте это при работе с моделями под NDA. Путь зарегистрированных MCP-инструментов остаётся локальным. |
 
 ## Установка
@@ -106,12 +106,13 @@
 
 ## Доступные инструменты
 
-Текущий сервер регистрирует 124 инструментов. Типы параметров, признаки обязательности и значения по умолчанию ниже взяты из сохранённых схем `tools/list`. Настройки фона, освещения и отображения описаны в [актуальном контракте](../MCP_TOOL_CONTRACTS.md#get_view_display_settings--set_view_display_settings).
+Текущий сервер регистрирует 125 инструментов. Типы параметров, признаки обязательности и значения по умолчанию ниже взяты из сохранённых схем `tools/list`. Настройки фона, освещения и отображения описаны в [актуальном контракте](../MCP_TOOL_CONTRACTS.md#get_view_display_settings--set_view_display_settings).
 
 ### Модель, выделение, видимость и точки обзора
 
 | Инструмент | Описание | Параметры |
 |---|---|---|
+| `viewpoints_per_item` | Сохраняет отдельную точку обзора для каждого выбранного или найденного элемента: сечение, камера и метка; затем восстанавливает вид и выбор. По умолчанию предварительный просмотр. См. [контракт](../MCP_TOOL_CONTRACTS.md#viewpoints_per_item). | <code>matchHandles: array&lt;string&gt;</code> [default=null]<br><code>folderPath: string</code> [default=""]<br><code>nameTemplate: string</code> [default="{name}"]<br><code>section: string</code> [default="none"]<br><code>planeOffsetMm: number</code> [default=100]<br><code>boxOffsetMm: number</code> [default=1000]<br><code>camera: string</code> [default="top"]<br><code>contextMm: number</code> [default=2000]<br><code>markStyle: string</code> [default="target"]<br><code>ellipseColor: array&lt;number&gt;</code> [default=null]<br><code>thickness: integer</code> [default=3]<br><code>overwrite: boolean</code> [default=false]<br><code>maxItems: integer</code> [default=500]<br><code>apply: boolean</code> [default=false]<br><code>instanceId: string</code> [default=""]<br><code>navisworksVersion: string</code> [default=""] |
 | `section_planes` | Читает, задаёт или отключает секущие плоскости; запись поддерживает предварительный просмотр и проверку чтением. См. [контракт плоскостей](../MCP_TOOL_CONTRACTS.md#section_planes). | <code>operation: string</code> [default="get"]<br><code>planes: array&lt;object&gt;</code> [default=null]<br><code>linked: boolean/null</code> [default=null]<br><code>apply: boolean</code> [default=false]<br><code>instanceId: string</code> [default=""]<br><code>navisworksVersion: string</code> [default=""] |
 | `list_navisworks_hosts` | Перечисляет запущенные экземпляры MCP-хоста Navisworks. Используйте instance_id из этого инструмента, если открыто несколько окон Navisworks, либо navisworks_version, если запущен ровно один хост этой версии. | None. |
 | `mcp_diagnostics` | Возвращает диагностику MCP: путь к файлу JSONL-лога, каталог обнаружения экземпляров и записи о работающих хостах Navisworks. | None. |

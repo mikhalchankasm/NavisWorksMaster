@@ -623,6 +623,7 @@
     <Compile Include="Agent\Services\DocumentCommandService.Visibility.cs" />
     <Compile Include="Agent\Services\SectionPlaneClippingJson.cs" />
     <Compile Include="Agent\Services\SectionPlanesService.cs" />
+    <Compile Include="Agent\Services\ItemViewpointsService.cs" />
     <Compile Include="Agent\Services\SectionBoxClippingParser.cs" />
     <Compile Include="Agent\Services\SectionBoxCaptureService.cs" />
     <Compile Include="Agent\Services\BoxIsolationService.cs" />

@@ -571,6 +571,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<LiveMarkersRequest>,
             (document, request) => _commandService.LiveMarkers(document, request));
 
+        router.Register<ItemViewpointsRequest>(
+            HostCommandNames.ViewpointsPerItem,
+            true,
+            DeserializePayload<ItemViewpointsRequest>,
+            (document, request) => _itemViewpointsService.Execute(document, request, _matchSessionStore));
+
         router.Register<SectionBoxViewpointRequest>(
             HostCommandNames.SectionBoxViewpoint,
             true,
