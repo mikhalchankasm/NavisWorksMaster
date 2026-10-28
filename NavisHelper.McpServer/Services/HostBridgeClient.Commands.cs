@@ -12,7 +12,7 @@ internal sealed partial class HostBridgeClient
 {
     public Task<ViewpointAnimationExportResponse> ViewpointAnimationExportAsync(ViewpointAnimationExportRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
     {
-        return CallHostAsync<ViewpointAnimationExportResponse>(HostCommandNames.ViewpointAnimationExport, request, cancellationToken, target);
+        return CallHostAsync<ViewpointAnimationExportResponse>(HostCommandNames.ViewpointAnimationExport, request, cancellationToken, target, 600000);
     }
 
     public Task<ViewpointAnimationResponse> ViewpointAnimationAsync(ViewpointAnimationRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)

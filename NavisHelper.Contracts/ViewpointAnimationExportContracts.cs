@@ -11,6 +11,12 @@ namespace NavisHelper.Agent.Contracts
         public string Animation { get; set; }
         public string Format { get; set; }
         public string OutputDirectory { get; set; }
+        public bool? Apply { get; set; }
+        public bool? Overwrite { get; set; }
+        public int? Width { get; set; }
+        public int? Height { get; set; }
+        public int? Fps { get; set; }
+        public int? AntiAliasLevel { get; set; }
     }
 
     public sealed class ViewpointAnimationExportResponse
@@ -25,6 +31,22 @@ namespace NavisHelper.Agent.Contracts
         public List<ExporterPluginOptions> Plugins { get; set; } = new List<ExporterPluginOptions>();
         public string Message { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
+        public bool Applied { get; set; }
+        public string OutputFile { get; set; }
+        public string ExportStatus { get; set; }
+        public List<ExportedFile> Files { get; set; } = new List<ExportedFile>();
+        public int FileCount { get; set; }
+        public long TotalBytes { get; set; }
+        public bool FormatMatches { get; set; }
+        public double ElapsedSeconds { get; set; }
+        public List<string> AppliedOptions { get; set; } = new List<string>();
+    }
+
+    public sealed class ExportedFile
+    {
+        public string Name { get; set; }
+        public long Bytes { get; set; }
+        public string Kind { get; set; }
     }
 
     public sealed class ExporterPluginOptions
@@ -50,6 +72,8 @@ namespace NavisHelper.Agent.Contracts
         public static readonly string[] ProbedPlugins = { "lcodpanim", "lcodpavi", "lcodpexpng", "lcodpexjpg", "lcodpcuranim" };
         public const int MaxOptionsPerPlugin = 200;
         public const int MaxOptionDepth = 3;
+        public const string ProtectedFolderMessage = "outputDirectory is inside a protected folder (Windows, Program Files or the NavisHelper install).";
+        public const string ExistingOutputMessage = "Output files for this animation already exist in outputDirectory; pass overwrite=true to replace them.";
 
         public static string Describe(ViewpointAnimationExportRequest request)
         {
@@ -58,8 +82,57 @@ namespace NavisHelper.Agent.Contracts
             if (!Formats.Contains(NormalizeFormat(request.Format))) return "format must be png, jpg or avi.";
             if (!string.IsNullOrWhiteSpace(request.OutputDirectory) && !IsFullyQualified(request.OutputDirectory.Trim()))
                 return "outputDirectory must be an absolute path.";
+            if (!ValidRange(request.Width, 16, 4096) || !ValidRange(request.Height, 16, 4096))
+                return "width and height must be 0 or between 16 and 4096.";
+            if (!ValidRange(request.Fps, 1, 60)) return "fps must be 0 or between 1 and 60.";
+            if (!new[] { 0, 1, 2, 4, 8, 16, 32, 64 }.Contains(request.AntiAliasLevel ?? 0))
+                return "antiAliasLevel must be 0, 1, 2, 4, 8, 16, 32 or 64.";
             return null;
         }
+
+        private static bool ValidRange(int? value, int min, int max) =>
+            !value.HasValue || value == 0 || (value >= min && value <= max);
+
+        public static IList<KeyValuePair<string, int>> OptionAssignments(ViewpointAnimationExportRequest request)
+        {
+            var options = new[]
+            {
+                new KeyValuePair<string, int>("export.image.width", request.Width ?? 0),
+                new KeyValuePair<string, int>("export.image.height", request.Height ?? 0),
+                new KeyValuePair<string, int>("export.anim.fps", request.Fps ?? 0),
+                new KeyValuePair<string, int>("export.image.anti-alias.level", request.AntiAliasLevel ?? 0),
+            };
+            return options.Where(pair => pair.Value != 0).ToList();
+        }
+
+        public static string OutputFile(string folder, string animationName, string format) =>
+            Path.Combine(folder, SafeFileName(animationName) + "." + NormalizeFormat(format));
+
+        public static string DetectKind(byte[] head)
+        {
+            if (head == null) return "unknown";
+            if (head.Length >= 8 && head.Take(8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A })) return "png";
+            if (head.Length >= 3 && head[0] == 0xFF && head[1] == 0xD8 && head[2] == 0xFF) return "jpg";
+            if (head.Length >= 12 && head[0] == 'R' && head[1] == 'I' && head[2] == 'F' && head[3] == 'F'
+                && head[8] == 'A' && head[9] == 'V' && head[10] == 'I' && head[11] == ' ') return "avi";
+            if (head.Length >= 2 && head[0] == 'B' && head[1] == 'M') return "bmp";
+            return "unknown";
+        }
+
+        public static bool IsForbiddenOutputRoot(string path, IEnumerable<string> roots)
+        {
+            var fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return (roots ?? Enumerable.Empty<string>()).Where(root => !string.IsNullOrWhiteSpace(root)).Any(root =>
+            {
+                var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                return fullPath.Equals(fullRoot, StringComparison.OrdinalIgnoreCase)
+                    || fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        public static bool HasExistingOutput(IEnumerable<string> fileNames, string animationName, string format) =>
+            fileNames != null && fileNames.Any(name => Path.GetFileName(name).StartsWith(SafeFileName(animationName), StringComparison.OrdinalIgnoreCase)
+                && string.Equals(Path.GetExtension(name), "." + NormalizeFormat(format), StringComparison.OrdinalIgnoreCase));
 
         private static bool IsFullyQualified(string path)
         {
