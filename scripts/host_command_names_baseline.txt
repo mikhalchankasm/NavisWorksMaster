@@ -102,6 +102,7 @@ markup_selection
 live_markers
 viewpoints_per_item
 viewpoint_animation
+viewpoint_animation_export
 section_box_viewpoint
 zoom_to_selection
 focus_on_selection

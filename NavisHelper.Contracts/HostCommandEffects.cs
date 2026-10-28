@@ -112,6 +112,7 @@ namespace NavisHelper.Agent.Contracts
                 { HostCommandNames.SectionBoxViewpoint, true },
                 { HostCommandNames.ViewpointsPerItem, true },
                 { HostCommandNames.ViewpointAnimation, true },
+                { HostCommandNames.ViewpointAnimationExport, false },
                 { HostCommandNames.ZoomToSelection, false },
                 { HostCommandNames.FocusOnSelection, false },
                 { HostCommandNames.FitAll, false },

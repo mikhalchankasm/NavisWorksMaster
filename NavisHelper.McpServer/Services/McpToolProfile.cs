@@ -136,6 +136,7 @@ internal static class McpToolProfile
                 "section_box_viewpoint",
                 "viewpoints_per_item",
                 "viewpoint_animation",
+                "viewpoint_animation_export",
                 "section_planes",
             },
 
