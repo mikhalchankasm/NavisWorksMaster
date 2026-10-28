@@ -21,6 +21,8 @@
   <ItemGroup>
     <Compile Include="..\NavisHelper\Agent\Services\SectionBoxClippingParser.cs"
              Link="HostServices\SectionBoxClippingParser.cs" />
+    <Compile Include="..\NavisHelper\Agent\Services\SectionPlaneClippingJson.cs"
+             Link="HostServices\SectionPlaneClippingJson.cs" />
     <Compile Include="..\NavisHelper\Agent\Services\FindItemsMatchSet.cs"
              Link="HostServices\FindItemsMatchSet.cs" />
     <ProjectReference Include="..\NavisHelper.McpServer\NavisHelper.McpServer.csproj" />
