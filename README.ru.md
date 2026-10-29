@@ -134,6 +134,7 @@ Start-Process $installer -Wait
 | Подробности о продукте, сравнение, проверки | [Подробности о проекте](docs/reference/PROJECT_DETAILS.ru.md) |
 | Создать анимацию из сохранённых точек маршрута | [Контракт viewpoint_animation](docs/MCP_TOOL_CONTRACTS.md#viewpoint_animation) |
 | Проверить экспорт анимации и узнать опции экспортёра | [Контракт viewpoint_animation_export](docs/MCP_TOOL_CONTRACTS.md#viewpoint_animation_export) |
+| Взять готовый запрос: облёт трассы, обход с подрезами, проход по коллизиям, с пресетами качества и сжатием в MP4 | [Готовые запросы для анимации](docs/prompts/animation/README.md) |
 
 ## Для разработчиков
 
