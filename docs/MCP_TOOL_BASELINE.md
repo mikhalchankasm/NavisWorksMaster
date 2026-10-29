@@ -1274,8 +1274,8 @@ Twenty tools, and the reason for each, so the gap is a decision rather than an o
 
 | tool | why |
 | --- | --- |
-| `viewpoint_animation` | New in #403; planner and protocol tests precede curator SDK compilation and an agreed L3 animation window. |
-| `viewpoint_animation_export` | New in #404 (slice 1, read-only exporter probe); protocol tests precede curator SDK compilation and the L3 window that reads the option names. |
+| `viewpoint_animation` | New in #403; behaviour accepted in L3 on 2026-10-28 (route animation built from `viewpoints_per_item`, playback checked by the owner, fresh frame GUIDs after #407), no timing recorded in that window. |
+| `viewpoint_animation_export` | New in #404, defaults in #411; accepted in L3 on 2026-10-29 on demo.nwd: png, jpg and avi with only `format` (73 frames at 320x180, 2 fps), exporter call 0.2-0.7 s as `elapsedSeconds` reports it, not a tool round trip. |
 | `viewpoints_per_item` | New in #387; behaviour accepted in L3 on 2026-10-28 (per-item clipping, camera, marks, save, restoration), no timing recorded in that window. |
 | `section_planes` | New in #385; Distance sign, cut side and readback accepted in L3 on 2026-10-28 after #396, no timing recorded in that window. |
 | `selection_sets_apply_appearance` | New in #339; step order, transparency and hide accepted in the 2.18 L3, no timing recorded; native undo not checked live. |
