@@ -262,7 +262,7 @@ public sealed class ViewpointAnimationExportTests
         request.Fps = 6;
         request.ExporterOptions = new List<string> { "export.anim.fps=25", "export.image.format=lcodpexpng" };
         Assert.Equal(
-            new[] { "export.image.width=640", "export.anim.fps=25", "export.image.format=lcodpexpng" },
+            new[] { "export.image.width=640", "export.anim.fps=25", "export.image.format=lcodpexpng", "export.image.renderer=lcodpopengl" },
             ViewpointAnimationExportRules.MergedAssignments(request).Select(pair => pair.Key + "=" + Convert.ToString(pair.Value, CultureInfo.InvariantCulture)));
     }
 
@@ -276,6 +276,69 @@ public sealed class ViewpointAnimationExportTests
         Assert.Equal("The animation exporter returned eExport_FAIL; nothing was exported.", ViewpointAnimationExportRules.FailedExportMessage("eExport_FAIL"));
         Assert.Equal("The previous current animation could not be restored; Navisworks keeps 'Flight' selected.",
             ViewpointAnimationExportRules.RestoreWarning("Flight"));
+    }
+
+    // #411 (L3 round 5 on #404): the dialog stores png and jpg as adapters over the single-image exporters, and a stored
+    // viewport renderer fails every export, so the animation exporter gets both by default. GetIOPluginOptions is a copy
+    // of the PluginOptions store that DriveIOPlugin overwrites; the call snapshots the store and puts changed keys back.
+    [Theory]
+    [InlineData(null, "image_anim_adapter_lcodpexpng")]
+    [InlineData("png", "image_anim_adapter_lcodpexpng")]
+    [InlineData(" JPG ", "image_anim_adapter_lcodpexjpg")]
+    [InlineData("avi", "lcodpavi")]
+    public void EachFormatMapsToTheValueTheExportDialogStores(string format, string expected)
+    {
+        Assert.Equal(expected, ViewpointAnimationExportRules.AnimationFormatValue(format));
+        Assert.Equal("lcodpopengl", ViewpointAnimationExportRules.DefaultRenderer);
+    }
+
+    [Fact]
+    public void TheAnimationExporterGetsFormatAndRendererByDefault()
+    {
+        var request = Valid();
+        request.Format = "jpg";
+        Assert.Equal(
+            new[] { "export.image.format=image_anim_adapter_lcodpexjpg", "export.image.renderer=lcodpopengl" },
+            ViewpointAnimationExportRules.MergedAssignments(request).Select(pair => pair.Key + "=" + pair.Value));
+        request.Fps = 4;
+        request.ExporterOptions = new List<string> { "export.image.renderer=lcodpviewport" };
+        Assert.Equal(
+            new[] { "export.anim.fps=4", "export.image.format=image_anim_adapter_lcodpexjpg", "export.image.renderer=lcodpviewport" },
+            ViewpointAnimationExportRules.MergedAssignments(request).Select(pair => pair.Key + "=" + pair.Value));
+        request.Exporter = "lcodpavi";
+        request.ExporterOptions = null;
+        Assert.Equal(new[] { "export.anim.fps=4" }, ViewpointAnimationExportRules.MergedAssignments(request).Select(pair => pair.Key + "=" + pair.Value));
+    }
+
+    [Fact]
+    public void ChangedStoredOptionsAreComparedAsText()
+    {
+        var before = new Dictionary<string, object>
+        {
+            ["width"] = 320, ["fps"] = 10, ["format"] = "image_anim_adapter_lcodpexpng", ["renderer"] = "lcodpopengl", ["aa_level"] = "1", ["height"] = 215,
+        };
+        var after = new Dictionary<string, object>
+        {
+            ["width"] = "320", ["fps"] = 2, ["format"] = "lcodpavi", ["renderer"] = "lcodpopengl", ["height"] = 215, ["extra"] = 1,
+        };
+        Assert.Equal(new[] { "aa_level", "format", "fps" }, ViewpointAnimationExportRules.ChangedOptions(before, after));
+        Assert.Empty(ViewpointAnimationExportRules.ChangedOptions(before, new Dictionary<string, object>(before)));
+        Assert.Empty(ViewpointAnimationExportRules.ChangedOptions(null, after));
+        Assert.Equal(new[] { "fps", "width" }, ViewpointAnimationExportRules.ChangedOptions(new Dictionary<string, object> { ["width"] = 1, ["fps"] = 2 }, null));
+    }
+
+    [Fact]
+    public void OptionsTheDialogKeepsAreNamedInOneWarning()
+    {
+        var after = new Dictionary<string, object> { ["format"] = "lcodpavi", ["fps"] = 2 };
+        Assert.Equal("The Export Animation dialog keeps this call's values: aa_level=, format=lcodpavi, fps=2.",
+            ViewpointAnimationExportRules.OptionsRestoreWarning(new[] { "aa_level", "format", "fps" }, after));
+        Assert.Null(ViewpointAnimationExportRules.OptionsRestoreWarning(Array.Empty<string>(), after));
+        Assert.Null(ViewpointAnimationExportRules.OptionsRestoreWarning(null, after));
+        var response = new ViewpointAnimationExportResponse();
+        Assert.Empty(response.StoredOptions);
+        Assert.Empty(response.RestoredOptions);
+        Assert.False(response.OptionsRestored);
     }
 
     [Fact]
@@ -305,7 +368,8 @@ public sealed class ViewpointAnimationExportTests
         {
             "ViewpointAnimationExportRules.Describe(", "ViewpointAnimationExportRules.NormalizeFormat(",
             "ViewpointAnimationExportRules.ResolveOutputDirectory(", "ViewpointAnimationExportRules.FormatOptionValue(",
-            "ViewpointAnimationExportRules.ProbedPlugins", "ViewpointAnimationExportRules.OptionAssignments(",
+            "ViewpointAnimationExportRules.ProbedPlugins", "ViewpointAnimationExportRules.ChangedOptions(",
+            "ViewpointAnimationExportRules.OptionsRestoreWarning(", "get_PluginOptions(", "set_PluginOptions(",
             "ViewpointAnimationExportRules.OutputFile(", "ViewpointAnimationExportRules.DetectKind(",
             "ViewpointAnimationExportRules.IsForbiddenOutputRoot(", "ViewpointAnimationExportRules.HasExistingOutput(",
             "GetIOPluginOptions(", "DriveIOPlugin(", "state.CurrentAnimation =", "eSavedViewType_Anim",
@@ -316,11 +380,11 @@ public sealed class ViewpointAnimationExportTests
             "Marshal.ReleaseComObject(",
         })
             Assert.Contains(expected, service, StringComparison.Ordinal);
-        // Never delete user files (only the empty folder this call created), never persist exporter defaults, never touch the
+        // Never delete user files (only the empty folder this call created), never write single stored options or the registry, never touch the
         // document, and never throw away a failed export's data: it returns FailedExportMessage instead of an error.
         foreach (var forbidden in new[]
         {
-            "File.Delete", "Directory.Delete(response.OutputDirectory, true", "recursive: true", "set_PluginOption", ".PluginOption",
+            "File.Delete", "Directory.Delete(response.OutputDirectory, true", "recursive: true", "set_PluginOption(", "Registry",
             "SaveFile", "Transaction", "\"The animation exporter returned \" +",
         })
             Assert.DoesNotContain(forbidden, service, StringComparison.Ordinal);

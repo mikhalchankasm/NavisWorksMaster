@@ -59,6 +59,7 @@ namespace NavisHelper.Agent.Services
             if (request.Apply == true)
                 return Export(animation, request, response);
             response.Warnings.Add("Dry-run: nothing was exported; pass apply=true to export.");
+            SnapshotStoredOptions("lcodpanim", response);
             var state = ComApiBridge.State;
             object currentAnimationObject = null;
             try
@@ -103,6 +104,8 @@ namespace NavisHelper.Agent.Services
             InwOpAnimView view = null;
             InwOpAnimView previous = null;
             InwOaPropertyVec vector = null;
+            var exporter = ViewpointAnimationExportRules.NormalizeExporter(request.Exporter);
+            Dictionary<string, object> storedOptions = null;
             try
             {
                 var chain = new List<SavedItem>();
@@ -121,8 +124,8 @@ namespace NavisHelper.Agent.Services
                 response.CurrentAnimation = previous == null ? null : previous.name;
                 try
                 {
+                    storedOptions = SnapshotStoredOptions(exporter, response);
                     state.CurrentAnimation = view;
-                    var exporter = ViewpointAnimationExportRules.NormalizeExporter(request.Exporter);
                     vector = state.GetIOPluginOptions(exporter);
                     ApplyOptions(vector, request, response);
                     var stopwatch = Stopwatch.StartNew();
@@ -140,6 +143,7 @@ namespace NavisHelper.Agent.Services
                 }
                 finally
                 {
+                    RestoreStoredOptions(exporter, storedOptions, response);
                     try { state.CurrentAnimation = previous; }
                     catch (Exception ex) { Logger.Warn("Restoring the current animation failed; the readback decides: " + ex.Message, "ViewpointAnimationExport"); }
                     try
@@ -267,9 +271,7 @@ namespace NavisHelper.Agent.Services
         private static void ApplyOptions(InwOaPropertyVec vector, ViewpointAnimationExportRequest request,
             ViewpointAnimationExportResponse response)
         {
-            IEnumerable<KeyValuePair<string, object>> assignments = request.ExporterOptions == null
-                ? ViewpointAnimationExportRules.OptionAssignments(request).Select(pair => new KeyValuePair<string, object>(pair.Key, pair.Value))
-                : ViewpointAnimationExportRules.MergedAssignments(request);
+            var assignments = ViewpointAnimationExportRules.MergedAssignments(request);
             var properties = vector.Properties();
             try
             {
@@ -308,6 +310,138 @@ namespace NavisHelper.Agent.Services
                 }
             }
             finally { Release(properties); }
+        }
+
+        private static Dictionary<string, object> SnapshotStoredOptions(string exporter, ViewpointAnimationExportResponse response)
+        {
+            try
+            {
+                var snapshot = ReadStoredOptions(exporter);
+                response.StoredOptions = snapshot.OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                    .Select(pair => pair.Key + "=" + ViewpointAnimationExportRules.FormatOptionValue(pair.Value, out _)).ToList();
+                return snapshot;
+            }
+            catch (Exception ex)
+            {
+                response.Warnings.Add("Could not read the Export Animation dialog store; option restoration will be skipped: " + ex.Message);
+                return null;
+            }
+        }
+
+        private static Dictionary<string, object> ReadStoredOptions(string exporter)
+        {
+            InwOaPropertyVec vector = null;
+            object properties = null;
+            IEnumerator enumerator = null;
+            try
+            {
+                vector = ComApiBridge.State.get_PluginOptions(exporter);
+                if (vector == null) throw new InvalidOperationException("The exporter returned no stored options.");
+                properties = vector.Properties();
+                enumerator = ((IEnumerable)properties).GetEnumerator();
+                var result = new Dictionary<string, object>(StringComparer.Ordinal);
+                while (enumerator.MoveNext())
+                {
+                    InwOaProperty property = null;
+                    object value = null;
+                    try
+                    {
+                        property = (InwOaProperty)enumerator.Current;
+                        value = property.value;
+                        if (value != null && Marshal.IsComObject(value))
+                            throw new InvalidOperationException("Stored exporter options must be scalar values.");
+                        result.Add(property.name, value);
+                    }
+                    finally
+                    {
+                        Release(value);
+                        Release(property);
+                    }
+                }
+                return result;
+            }
+            finally
+            {
+                Release(enumerator);
+                Release(properties);
+                Release(vector);
+            }
+        }
+
+        private static void RestoreStoredOptions(string exporter, IDictionary<string, object> snapshot,
+            ViewpointAnimationExportResponse response)
+        {
+            if (snapshot == null) return;
+            try
+            {
+                var current = ReadStoredOptions(exporter);
+                var putBack = new List<string>();
+                foreach (var key in ViewpointAnimationExportRules.ChangedOptions(snapshot, current))
+                {
+                    try
+                    {
+                        RestoreStoredOption(exporter, key, snapshot[key]);
+                        putBack.Add(key);
+                    }
+                    catch (Exception ex) { Logger.Warn("Restoring stored exporter option '" + key + "' failed; the readback decides: " + ex.Message, "ViewpointAnimationExport"); }
+                }
+                var after = ReadStoredOptions(exporter);
+                // Keys the export added to the store count as left over too: nothing can put them back.
+                var remaining = ViewpointAnimationExportRules.ChangedOptions(snapshot, after)
+                    .Union(ViewpointAnimationExportRules.ChangedOptions(after, snapshot)).OrderBy(key => key, StringComparer.Ordinal).ToList();
+                response.OptionsRestored = remaining.Count == 0;
+                response.RestoredOptions = putBack.Where(key => !remaining.Contains(key))
+                    .Select(key => key + "=" + ViewpointAnimationExportRules.FormatOptionValue(after[key], out _)).ToList();
+                var warning = ViewpointAnimationExportRules.OptionsRestoreWarning(remaining, after);
+                if (warning != null) response.Warnings.Add(warning);
+            }
+            catch (Exception ex)
+            {
+                response.Warnings.Add("Could not verify restoration of the Export Animation dialog store: " + ex.Message);
+            }
+        }
+
+        private static void RestoreStoredOption(string exporter, string key, object value)
+        {
+            InwOaPropertyVec vector = null;
+            InwOaProperty property = null;
+            IEnumerator enumerator = null;
+            try
+            {
+                // Each put starts from a fresh vector so one rejected key cannot poison later puts.
+                vector = ComApiBridge.State.get_PluginOptions(exporter);
+                if (vector == null) throw new InvalidOperationException("The exporter returned no stored options.");
+                var properties = vector.Properties();
+                try
+                {
+                    enumerator = ((IEnumerable)properties).GetEnumerator();
+                    while (enumerator.MoveNext())
+                    {
+                        var candidate = (InwOaProperty)enumerator.Current;
+                        try
+                        {
+                            if (candidate.name == key) { property = candidate; break; }
+                        }
+                        finally { if (property == null) Release(candidate); }
+                    }
+                    var added = property == null;
+                    if (added)
+                    {
+                        property = (InwOaProperty)ComApiBridge.State.ObjectFactory(nwEObjectType.eObjectType_nwOaProperty, null, null);
+                        property.name = key;
+                    }
+                    property.value = value;
+                    if (added) properties.Add(property);
+                    ComApiBridge.State.set_PluginOptions(exporter, vector);
+                }
+                finally { Release(properties); }
+            }
+            finally
+            {
+                Release(enumerator);
+                Release(property);
+                Release(vector);
+            }
         }
 
         private static void ReadOptions(InwOaPropertyVec vector, string parent, int depth, ExporterPluginOptions plugin)

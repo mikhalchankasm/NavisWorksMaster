@@ -42,6 +42,9 @@ namespace NavisHelper.Agent.Contracts
         public bool FormatMatches { get; set; }
         public double ElapsedSeconds { get; set; }
         public List<string> AppliedOptions { get; set; } = new List<string>();
+        public List<string> StoredOptions { get; set; } = new List<string>();
+        public List<string> RestoredOptions { get; set; } = new List<string>();
+        public bool OptionsRestored { get; set; }
         public bool Exported { get; set; }
         public List<ExporterOption> OptionsAfter { get; set; } = new List<ExporterOption>();
         public string CurrentAnimationAfter { get; set; }
@@ -78,6 +81,7 @@ namespace NavisHelper.Agent.Contracts
         public static readonly string[] ProbedPlugins = { "lcodpanim", "lcodpavi", "lcodpexpng", "lcodpexjpg", "lcodpcuranim" };
         public const int MaxOptionsPerPlugin = 200;
         public const int MaxOptionDepth = 3;
+        public const string DefaultRenderer = "lcodpopengl";
         public const string ProtectedFolderMessage = "outputDirectory is inside a protected folder (Windows, Program Files or the NavisHelper install).";
         public const string ExistingOutputMessage = "Output files for this animation already exist in outputDirectory; pass overwrite=true to replace them.";
 
@@ -145,6 +149,11 @@ namespace NavisHelper.Agent.Contracts
         public static IList<KeyValuePair<string, object>> MergedAssignments(ViewpointAnimationExportRequest request)
         {
             var result = OptionAssignments(request).Select(pair => new KeyValuePair<string, object>(pair.Key, pair.Value)).ToList();
+            if (NormalizeExporter(request.Exporter) == "lcodpanim")
+            {
+                result.Add(new KeyValuePair<string, object>("export.image.format", AnimationFormatValue(request.Format)));
+                result.Add(new KeyValuePair<string, object>("export.image.renderer", DefaultRenderer));
+            }
             foreach (var pair in ParseExporterOptions(request.ExporterOptions))
             {
                 var index = result.FindIndex(existing => existing.Key == pair.Key);
@@ -152,6 +161,31 @@ namespace NavisHelper.Agent.Contracts
                 else result[index] = pair;
             }
             return result;
+        }
+
+        public static string AnimationFormatValue(string format)
+        {
+            switch (NormalizeFormat(format))
+            {
+                case "png": return "image_anim_adapter_lcodpexpng";
+                case "jpg": return "image_anim_adapter_lcodpexjpg";
+                case "avi": return "lcodpavi";
+                default: throw new ArgumentException("format must be png, jpg or avi.", nameof(format));
+            }
+        }
+
+        public static IList<string> ChangedOptions(IDictionary<string, object> before, IDictionary<string, object> after) =>
+            (before ?? new Dictionary<string, object>()).Where(pair =>
+                after == null || !after.TryGetValue(pair.Key, out var value)
+                || FormatOptionValue(pair.Value, out _) != FormatOptionValue(value, out _))
+            .Select(pair => pair.Key).OrderBy(key => key, StringComparer.Ordinal).ToList();
+
+        public static string OptionsRestoreWarning(IEnumerable<string> keys, IDictionary<string, object> after)
+        {
+            var values = (keys ?? Enumerable.Empty<string>()).Select(key => key + "="
+                + (after != null && after.TryGetValue(key, out var value) ? FormatOptionValue(value, out _) : "")).ToList();
+            return values.Count == 0 ? null
+                : "The Export Animation dialog keeps this call's values: " + string.Join(", ", values) + ".";
         }
 
         public static string FailedExportMessage(string status) =>
