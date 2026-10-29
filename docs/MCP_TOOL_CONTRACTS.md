@@ -39,7 +39,7 @@ When a failed export still wrote files, a warning says how many and that they ma
 
 Apply example: `viewpoint_animation_export(animation="Animations/Flight", format="png", width=1280, height=720, fps=25, antiAliasLevel=4, apply=true)`.
 
-L3 option experiment: `viewpoint_animation_export(animation="Animations/Flight", exporter="lcodpavi", format="avi", exporterOptions=["export.anim.fps=12", "export.image.format=lcodpexpng"], apply=true)`. These options are experimental inputs, not a verified format recipe.
+Override example: `viewpoint_animation_export(animation="Animations/Flight", format="avi", exporterOptions=["export.image.renderer=lcodpopengl"], apply=true)`. `format` alone already selects the verified value (#411 L3 on Navisworks 2027); `exporterOptions` are for experiments and other exporters, and `lcodpavi`, `lcodpexpng` and `lcodpexjpg` returned `eExport_UNIMPLEMENTED` when driven directly.
 
 ## viewpoint_animation
 
