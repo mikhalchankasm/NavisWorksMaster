@@ -188,7 +188,10 @@ CODEX_DISABLED_FEATURES = (
 # 0.164.0 (2026-10-23): newly enabled incremental_tools (tools delivered to the model in parts, no new surface)
 # reviewed harmless; bedrock_setup_wizard (model-provider account setup) and mcp_oauth_refresh_coordination
 # (OAuth token refresh for MCP connectors) are switched off above as account and connector surfaces.
-CODEX_REVIEWED_VERSIONS = frozenset({"codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0", "codex-cli 0.164.0"})
+# 0.165.0 (2026-10-29): newly enabled prediction_preserve_parent_tools and reasoning_effort_override (both stable;
+# the CLI gives no description, neither names an account, browser, connector, plugin or web surface) reviewed
+# harmless; unified_exec_zsh_fork is no longer reported. Probe: no MCP server, clock only, no web tool.
+CODEX_REVIEWED_VERSIONS = frozenset({"codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0", "codex-cli 0.164.0", "codex-cli 0.165.0"})
 
 _CODEX_RELEASE = re.compile(r"codex-cli (\d+\.\d+)\.(\d+)")
 
@@ -217,7 +220,7 @@ CODEX_REVIEWED_ENABLED_FEATURES = frozenset({
     "api_key_model_discovery", "auth_elicitation", "code_mode_host", "code_mode_interrupt", "collaboration_modes", "compaction_image_budget", "content_item_kinds",
     "daemon_auto_start", "enable_request_compression", "fast_mode", "goals", "guardian_approval",
     "guardian_reuse_parent_compaction", "hooks", "in_app_chat", "in_app_dictation", "in_app_local_automation",
-    "in_app_updates", "in_app_voice", "incremental_tools", "instant_interrupt", "item_ids", "mentions_v2", "multi_agent", "realtime_conversation", "resize_all_images",
+    "in_app_updates", "in_app_voice", "incremental_tools", "instant_interrupt", "item_ids", "mentions_v2", "multi_agent", "prediction_preserve_parent_tools", "realtime_conversation", "reasoning_effort_override", "resize_all_images",
     "secret_auth_storage", "shell_snapshot", "shell_tool", "skill_search", "sleep_tool", "sqlite", "steer",
     "system_proxy_fallback", "terminal_resize_reflow", "tool_call_mcp_elicitation", "tool_search_always_defer_mcp_tools",
     "tui_app_server", "ultrafast_mode", "unbounded_connection_retries", "unified_exec", "unified_exec_tty", "unified_exec_zsh_fork",

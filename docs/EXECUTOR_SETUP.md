@@ -91,7 +91,9 @@ from Avox with the launcher); 0.163.0 (2026-10-20, ported from Avox `3bda6b8f`):
 `code_mode_interrupt` reviewed harmless (`code_mode` stays off),
 `api_key_cyber_access_programs` and `cli_daybreak` switched off; 0.164.0 (2026-10-23,
 reviewed here, Avox had not reviewed it yet): `incremental_tools` reviewed harmless,
-`bedrock_setup_wizard` and `mcp_oauth_refresh_coordination` switched off.
+`bedrock_setup_wizard` and `mcp_oauth_refresh_coordination` switched off. 0.165.0 (2026-10-29,
+reviewed here): `prediction_preserve_parent_tools` and `reasoning_effort_override` reviewed
+harmless, nothing new switched off; the probe listed no MCP server and no web tool.
 
 ### Qwen Code (`qwen`)
 
