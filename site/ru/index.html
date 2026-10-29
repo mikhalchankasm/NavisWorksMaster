@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NavisHelper — AI-помощник для Navisworks</title>
+<meta name="description" content="Скажите Claude, Codex или Cursor, что сделать в модели Navisworks, и NavisHelper выполнит это прямо в открытом окне. Бесплатно, открытый код, Navisworks Manage 2024–2027.">
+<meta property="og:title" content="NavisHelper — AI-помощник для Navisworks">
+<meta property="og:description" content="Поиск элементов, разбор коллизий, виды и облёты — по запросу к вашей AI-программе. Бесплатно и с открытым кодом.">
+<meta property="og:image" content="https://mikhalchankasm.github.io/NavisWorksMaster/assets/banner-light.svg">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="en" href="../">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img class="brand-mark" src="../assets/mark.svg" alt="">NavisHelper</a>
+    <nav class="nav">
+      <a href="#features">Возможности</a>
+      <a href="#how">Как работает</a>
+      <a href="#examples">Примеры</a>
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster">GitHub</a>
+    </nav>
+    <a class="lang" href="../" hreflang="en">English</a>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <h1>Скажите AI, что сделать в <em>Navisworks</em>.</h1>
+      <p class="lead">NavisHelper подключает Claude, Codex, Cursor и другие AI-программы к открытому окну Navisworks. Просите обычными словами: найти элементы, разобрать коллизии, сохранить виды, выгрузить облёт.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/mikhalchankasm/NavisWorksMaster/releases/latest">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+          Скачать для Windows
+        </a>
+        <a class="btn" href="https://github.com/mikhalchankasm/NavisWorksMaster">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
+          Открыть на GitHub
+        </a>
+      </div>
+      <div class="meta"><span>Бесплатно, открытый код (MIT)</span><span>Navisworks Manage 2024–2027</span><span id="version">Последний выпуск на GitHub</span></div>
+      <div class="hero-art">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="../assets/banner-dark.svg">
+          <img src="../assets/banner-light.svg" alt="Изометрическая трасса труб с путём камеры облёта, секущей плоскостью и названиями инструментов NavisHelper" width="1280" height="320">
+        </picture>
+      </div>
+      <!-- Промо-ролик: сюда встанет ролик облёта, когда будет готова демо-модель. -->
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <p class="eyebrow">Что умеет</p>
+      <h2>Ежедневная работа координатора — одной фразой</h2>
+      <p class="section-lead">За кадром 127 инструментов, вы описываете только результат. Без AI работает и сама панель NavisHelper.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></div>
+          <h3>Найти и показать</h3>
+          <p>Выделить элементы по имени или свойству, скрыть, изолировать и раскрасить их в сводной модели.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9v9H4z"/><path d="M11 4h9v9h-9z"/><path d="M11 7h2v6h-2z" fill="currentColor"/></svg></div>
+          <h3>Коллизии</h3>
+          <p>Разобрать результаты Clash Detective, сгруппировать, изолировать коллизию, сохранить виды и отчёты.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5-9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8" stroke-dasharray="2 2.5"/></svg></div>
+          <h3>Виды и сечения</h3>
+          <p>Вид на каждый элемент, плоскости и рамки сечения, пометки — всё сохраняется в документе.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c4-8 8 4 12-4s4-6 6-6" stroke-dasharray="3 3"/><circle cx="3.5" cy="17" r="2"/><circle cx="20.5" cy="7" r="2"/></svg></div>
+          <h3>Облёты</h3>
+          <p>Анимации из сохранённых видов с выгрузкой в PNG, JPG или AVI, готовые к сжатию в MP4.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
+          <h3>Отчёты</h3>
+          <p>Свойства и имена из дерева модели в Excel; проверка свойств выделенных элементов.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="alt">
+    <div class="wrap">
+      <p class="eyebrow">Как это работает</p>
+      <h2>Три шага, без прав администратора</h2>
+      <p class="section-lead">Всё работает на вашем компьютере: NavisHelper не открывает сетевых портов.</p>
+      <div class="steps">
+        <div class="card step"><h3>Установите</h3><p>Запустите <code>NavisHelperSetup.exe</code> при закрытом Navisworks. На ленте появится вкладка NavisHelper.</p></div>
+        <div class="card step"><h3>Подключите AI</h3><p>Установщик сам подключит Claude Code, Codex, Cursor и другие; в Claude Desktop ставится расширение <code>.mcpb</code>.</p></div>
+        <div class="card step"><h3>Просите</h3><p>Опишите задачу. AI сначала покажет каждое изменение и выполнит его только после вашего подтверждения.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="examples">
+    <div class="wrap">
+      <p class="eyebrow">Примеры запросов</p>
+      <h2>Обычные слова, настоящая модель</h2>
+      <div class="chat">
+        <div class="bubble">Найди все насосы, выдели их и приблизь вид.</div>
+        <div class="bubble">Покажи активные коллизии в тесте <code>HVAC vs Structure</code> и изолируй первую.</div>
+        <div class="bubble">Сделай облёт вдоль трассы КИП и выгрузи его в видео.</div>
+        <div class="bubble">Раскрась модель по системам, но сначала покажи, что получится.</div>
+      </div>
+      <p class="chat-note">Готовые запросы для облёта трассы, обхода с подрезами и прохода по коллизиям, с пресетами качества: <a href="https://github.com/mikhalchankasm/NavisWorksMaster/tree/main/docs/prompts/animation">скопируйте и поправьте под себя</a>.</p>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <p class="eyebrow">Безопасность</p>
+      <h2>Модель остаётся под вашим контролем</h2>
+      <ul class="checks">
+        <li><strong>Всё локально</strong>AI-программа связывается с Navisworks только на вашем компьютере.</li>
+        <li><strong>Сначала показ</strong>Изменяющие команды сначала показывают, что будет сделано.</li>
+        <li><strong>Защищённый режим</strong>Включите его в панели, и любое изменение будет ждать вашего «Разрешить».</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="band">
+        <div>
+          <h2>Скачайте NavisHelper</h2>
+          <p>Windows x64, Navisworks Manage 2024–2027, .NET 9 Runtime (установщик предложит его).</p>
+        </div>
+        <a class="btn" href="https://github.com/mikhalchankasm/NavisWorksMaster/releases/latest">Скачать установщик</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster">GitHub</a>
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster/releases">Выпуски</a>
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster/blob/main/docs/NAVISWORKS_MCP_QUICKSTART.md">Быстрый старт</a>
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster/blob/main/docs/SECURITY_AND_COMPATIBILITY.md">Безопасность</a>
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster/blob/main/LICENSE">MIT License</a>
+    </div>
+    <small>Autodesk и Navisworks являются зарегистрированными товарными знаками или товарными знаками Autodesk, Inc. и/или её дочерних и аффилированных компаний. NavisHelper — независимый проект; он не связан с Autodesk, не авторизован, не одобрен и не спонсируется Autodesk, Inc.</small>
+  </div>
+</footer>
+
+<script>
+  fetch("https://api.github.com/repos/mikhalchankasm/NavisWorksMaster/releases/latest")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (release) {
+      if (release && release.tag_name) document.getElementById("version").textContent = "Последний выпуск: " + release.tag_name.replace(/^v/, "");
+    })
+    .catch(function () {});
+</script>
+</body>
+</html>
