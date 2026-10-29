@@ -161,8 +161,9 @@ public sealed class ViewpointAnimationExportTests
     }
 
     [Theory]
-    [InlineData("png", "Flight: 1/2", "Flight_ 1_2.png")]
-    [InlineData("JPG", "Flight", "Flight.jpg")]
+    [InlineData("png", "Flight: 1/2", "Flight_ 1_2_.png")]
+    [InlineData("JPG", "Flight", "Flight_.jpg")]
+    [InlineData("jpg", "Mix v2", "Mix v2_.jpg")]
     [InlineData("avi", "...", "animation.avi")]
     public void TheOutputFileIsTheSafeAnimationNameWithTheFormatExtension(string format, string name, string expected)
     {
@@ -341,6 +342,50 @@ public sealed class ViewpointAnimationExportTests
         Assert.False(response.OptionsRestored);
     }
 
+    // #420 (owner's L3 on 2027): Navisworks appends the frame number to the output base name, so "Mix v2" wrote
+    // "Mix v21" for frame 1 and again for frame 21 of a 367-frame export. Image frames get a "_" separator and are
+    // renamed to zero-padded numbers after the export; the response lists every file only on request.
+    [Theory]
+    [InlineData("Flight", "png", 1, 73, "Flight_0001.png")]
+    [InlineData("Mix v2", "jpg", 21, 367, "Mix v2_0021.jpg")]
+    [InlineData("F", "PNG", 7, 12345, "F_00007.png")]
+    public void FramesAreZeroPaddedBehindASeparator(string name, string format, int frame, int count, string expected)
+    {
+        Assert.Equal(expected, ViewpointAnimationExportRules.PaddedFrameName(name, format, frame, count));
+    }
+
+    [Theory]
+    [InlineData("Mix v2_21.jpg", 21)]
+    [InlineData("Mix v2_0021.jpg", 21)]
+    [InlineData("MIX V2_3.JPG", 3)]
+    [InlineData("Mix v21.jpg", null)]
+    [InlineData("Mix v2_.jpg", null)]
+    [InlineData("Mix v2_x1.jpg", null)]
+    [InlineData("Mix v2_1.png", null)]
+    [InlineData("Other_1.jpg", null)]
+    public void OnlyThisAnimationsNumberedFramesHaveAFrameNumber(string fileName, int? expected)
+    {
+        Assert.Equal(expected, ViewpointAnimationExportRules.FrameNumber(fileName, "Mix v2", "jpg"));
+    }
+
+    [Fact]
+    public void TheSummaryNamesTheFramePatternAndTheRestoreWarningNeedsANamedAnimation()
+    {
+        Assert.Equal("Flight_####.png", ViewpointAnimationExportRules.FilePattern("Flight", "png", 73));
+        Assert.Equal("F_#####.jpg", ViewpointAnimationExportRules.FilePattern("F", "jpg", 12345));
+        Assert.Equal("Flight.avi", ViewpointAnimationExportRules.FilePattern("Flight", "avi", 1));
+        Assert.Null(ViewpointAnimationExportRules.RestoreWarningFor(null, "Flight"));
+        Assert.Null(ViewpointAnimationExportRules.RestoreWarningFor("", "Flight"));
+        Assert.Null(ViewpointAnimationExportRules.RestoreWarningFor("Route", "Route"));
+        Assert.Equal(ViewpointAnimationExportRules.RestoreWarning("Flight"), ViewpointAnimationExportRules.RestoreWarningFor("Route", "Flight"));
+        Assert.Equal(ViewpointAnimationExportRules.RestoreWarning(null), ViewpointAnimationExportRules.RestoreWarningFor("Route", null));
+        Assert.Null(new ViewpointAnimationExportRequest().ListFiles);
+        var response = new ViewpointAnimationExportResponse();
+        Assert.Null(response.FirstFile);
+        Assert.Null(response.LastFile);
+        Assert.Null(response.FilePattern);
+    }
+
     [Fact]
     public void TheToolPreviewsByDefaultAndExportsOnApply()
     {
@@ -358,6 +403,7 @@ public sealed class ViewpointAnimationExportTests
             Assert.Equal(0, properties[name]!["default"]!.GetValue<int>());
         Assert.Equal("lcodpanim", properties["exporter"]!["default"]!.GetValue<string>());
         Assert.NotNull(properties["exporterOptions"]);
+        Assert.False(properties["listFiles"]!["default"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -374,7 +420,9 @@ public sealed class ViewpointAnimationExportTests
             "ViewpointAnimationExportRules.IsForbiddenOutputRoot(", "ViewpointAnimationExportRules.HasExistingOutput(",
             "GetIOPluginOptions(", "DriveIOPlugin(", "state.CurrentAnimation =", "eSavedViewType_Anim",
             "ViewpointAnimationExportRules.NormalizeExporter(", "ViewpointAnimationExportRules.MergedAssignments(",
-            "ViewpointAnimationExportRules.FailedExportMessage(", "ViewpointAnimationExportRules.RestoreWarning(",
+            "ViewpointAnimationExportRules.FailedExportMessage(", "ViewpointAnimationExportRules.RestoreWarningFor(",
+            "ViewpointAnimationExportRules.PaddedFrameName(", "ViewpointAnimationExportRules.FrameNumber(",
+            "ViewpointAnimationExportRules.FilePattern(", "request.ListFiles", "File.Move(",
             "eObjectType_nwOaProperty", "Directory.Delete(response.OutputDirectory)",
             "Directory.CreateDirectory(", "is SavedViewpointAnimation", "Saved viewpoint animation was not found.",
             "Marshal.ReleaseComObject(",
