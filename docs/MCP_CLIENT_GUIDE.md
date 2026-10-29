@@ -159,6 +159,29 @@ and disclosure of incomplete results. They do not change selection, views,
 documents or files. Clients without prompt support can follow the workflows in
 this guide using the ordinary tools.
 
+Five animation prompts are also available through `prompts/list` and
+`prompts/get`, without arguments:
+
+| Prompt | Workflow | Required tool groups |
+| --- | --- | --- |
+| `animation_route_flythrough` | Fly through items along a route | `core,sections` |
+| `animation_section_tour` | Tour nodes with a section box per node | `core,sections` |
+| `animation_clash_walkthrough` | Walk through clashes from one test | `core,sections,clash` |
+| `animation_from_viewpoints` | Animate existing saved viewpoints | `core,sections` |
+| `animation_export_video` | Export an existing animation at an agreed quality | `core,sections` |
+
+These workflows change the document after user confirmation: they save viewpoints
+and animations and write export files. Every state-changing tool must first be
+called with `apply=false`; show the plan and use `apply=true` only after the user
+confirms. Never overwrite existing items without consent or save the document
+unless asked. Creating an animation requires Navisworks 2026 or later. Video
+encoding is optional and external, requiring client shell access and ffmpeg.
+
+Animation workflows are unavailable in read-only mode. If required tools are
+missing or read-only mode is enabled, the prompt returns configuration guidance;
+it does not authorize configuration edits or a server restart. Retrieving any
+prompt only returns guidance and does not execute the workflow.
+
 ## Task Timing
 
 Every MCP tool result includes automatic `navishelper_timing` in the primary JSON result with `elapsed_ms`, `elapsed_human`, `should_report_to_user`, `user_message`, and `agent_instruction`. If `should_report_to_user=true`, include `user_message` in the user-facing answer.

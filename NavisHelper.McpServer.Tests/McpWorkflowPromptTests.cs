@@ -17,7 +17,7 @@ public sealed class McpWorkflowPromptTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         await using var client = await McpCatalogResourceTests.ConnectAsync(profile, true, timeout.Token);
         var prompts = await client.ListPromptsAsync(cancellationToken: timeout.Token);
-        Assert.Equal(new[] { "audit_selection_properties", "review_clashes" },
+        Assert.Equal(McpAnimationPromptTests.AllPromptNames,
             prompts.Select(prompt => prompt.Name).OrderBy(value => value, StringComparer.Ordinal));
         var result = await client.GetPromptAsync(name, cancellationToken: timeout.Token);
         var message = Assert.Single(result.Messages);
