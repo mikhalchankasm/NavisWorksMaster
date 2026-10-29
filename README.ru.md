@@ -1,6 +1,9 @@
 <div align="center">
 
-# NavisHelper
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
+  <img alt="NavisHelper: MCP-сервер для Autodesk Navisworks Manage 2024-2027" src="docs/assets/banner-light.svg" width="100%">
+</picture>
 
 **AI-помощник и панель для Autodesk Navisworks Manage 2024–2027**
 
