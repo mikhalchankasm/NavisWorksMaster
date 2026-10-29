@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NavisHelper — AI assistant for Navisworks</title>
+<meta name="description" content="Tell Claude, Codex or Cursor what to do with your Navisworks model, and NavisHelper does it in the window you have open. Free, open source, Navisworks Manage 2024–2027.">
+<meta property="og:title" content="NavisHelper — AI assistant for Navisworks">
+<meta property="og:description" content="Find items, review clashes, save viewpoints and export fly-throughs by asking your AI app. Free and open source.">
+<meta property="og:image" content="https://mikhalchankasm.github.io/NavisWorksMaster/assets/banner-light.svg">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="ru" href="ru/">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img class="brand-mark" src="assets/mark.svg" alt="">NavisHelper</a>
+    <nav class="nav">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#examples">Examples</a>
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster">GitHub</a>
+    </nav>
+    <a class="lang" href="ru/" hreflang="ru">Русский</a>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <h1>Tell your AI what to do in <em>Navisworks</em>.</h1>
+      <p class="lead">NavisHelper connects Claude, Codex, Cursor and other AI apps to the Navisworks window you have open. Ask in plain words: find items, review clashes, save viewpoints, export a fly-through.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/mikhalchankasm/NavisWorksMaster/releases/latest">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+          Download for Windows
+        </a>
+        <a class="btn" href="https://github.com/mikhalchankasm/NavisWorksMaster">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+      <div class="meta"><span>Free and open source (MIT)</span><span>Navisworks Manage 2024–2027</span><span id="version">Latest release on GitHub</span></div>
+      <div class="hero-art">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+          <img src="assets/banner-light.svg" alt="An isometric pipe route with a fly-through camera path, a section plane and the names of NavisHelper tools" width="1280" height="320">
+        </picture>
+      </div>
+      <!-- Promo video: the fly-through clip goes here once the demo model is ready. -->
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <p class="eyebrow">What it does</p>
+      <h2>The coordination work you repeat every day, in one sentence</h2>
+      <p class="section-lead">127 tools behind the scenes; you only describe the result. It also works from the NavisHelper panel, without any AI.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></div>
+          <h3>Find and show</h3>
+          <p>Select items by name or property, hide, isolate and color them across a federated model.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9v9H4z"/><path d="M11 4h9v9h-9z"/><path d="M11 7h2v6h-2z" fill="currentColor"/></svg></div>
+          <h3>Clashes</h3>
+          <p>Review Clash Detective results, group them, isolate a clash, save viewpoints and reports.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5-9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8" stroke-dasharray="2 2.5"/></svg></div>
+          <h3>Viewpoints and sections</h3>
+          <p>One viewpoint per item, section planes and boxes, markups — saved in the document.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c4-8 8 4 12-4s4-6 6-6" stroke-dasharray="3 3"/><circle cx="3.5" cy="17" r="2"/><circle cx="20.5" cy="7" r="2"/></svg></div>
+          <h3>Fly-throughs</h3>
+          <p>Animations from saved viewpoints, exported to PNG, JPG or AVI, ready to compress into MP4.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
+          <h3>Reports</h3>
+          <p>Properties and model-tree names to Excel; property audits of the current selection.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="alt">
+    <div class="wrap">
+      <p class="eyebrow">How it works</p>
+      <h2>Three steps, no administrator rights</h2>
+      <p class="section-lead">Everything runs on your computer: NavisHelper opens no network ports.</p>
+      <div class="steps">
+        <div class="card step"><h3>Install</h3><p>Run <code>NavisHelperSetup.exe</code> with Navisworks closed. The ribbon gets a NavisHelper tab.</p></div>
+        <div class="card step"><h3>Connect your AI app</h3><p>The installer connects Claude Code, Codex, Cursor and others; Claude Desktop takes the <code>.mcpb</code> extension.</p></div>
+        <div class="card step"><h3>Ask</h3><p>Describe the task. The AI shows each change first and applies it only after you confirm.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="examples">
+    <div class="wrap">
+      <p class="eyebrow">Try asking</p>
+      <h2>Plain words, real model</h2>
+      <div class="chat">
+        <div class="bubble">Find all pumps, select them and zoom to them.</div>
+        <div class="bubble">Show the active clashes in <code>HVAC vs Structure</code> and isolate the first one.</div>
+        <div class="bubble">Make a fly-through along the instrumentation route and export it to video.</div>
+        <div class="bubble">Color the model by system, but show me the result first.</div>
+      </div>
+      <p class="chat-note">Ready-made requests for fly-throughs, section tours and clash walkthroughs, with quality presets: <a href="https://github.com/mikhalchankasm/NavisWorksMaster/tree/main/docs/prompts/animation">copy and adapt them</a>.</p>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <p class="eyebrow">Safety</p>
+      <h2>You stay in control of the model</h2>
+      <ul class="checks">
+        <li><strong>Everything stays local</strong>The AI app talks to Navisworks only on your computer.</li>
+        <li><strong>Preview first</strong>Commands that change the model show what they will do before they do it.</li>
+        <li><strong>Protected mode</strong>Turn it on in the panel, and every change waits for your "Allow".</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="band">
+        <div>
+          <h2>Get NavisHelper</h2>
+          <p>Windows x64, Navisworks Manage 2024–2027, .NET 9 Runtime (the installer offers it).</p>
+        </div>
+        <a class="btn" href="https://github.com/mikhalchankasm/NavisWorksMaster/releases/latest">Download the installer</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster">GitHub</a>
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster/releases">Releases</a>
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster/blob/main/docs/NAVISWORKS_MCP_QUICKSTART.md">Quickstart</a>
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster/blob/main/docs/SECURITY_AND_COMPATIBILITY.md">Security</a>
+      <a href="https://github.com/mikhalchankasm/NavisWorksMaster/blob/main/LICENSE">MIT License</a>
+    </div>
+    <small>Autodesk and Navisworks are registered trademarks or trademarks of Autodesk, Inc. and/or its subsidiaries and/or affiliates. NavisHelper is an independent project and is not affiliated with, authorized by, endorsed by, sponsored by, or otherwise approved by Autodesk, Inc.</small>
+  </div>
+</footer>
+
+<script>
+  fetch("https://api.github.com/repos/mikhalchankasm/NavisWorksMaster/releases/latest")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (release) {
+      if (release && release.tag_name) document.getElementById("version").textContent = "Latest: " + release.tag_name.replace(/^v/, "");
+    })
+    .catch(function () {});
+</script>
+</body>
+</html>
