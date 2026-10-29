@@ -386,7 +386,9 @@ namespace NavisHelper.Agent.Services
                     catch (Exception ex) { Logger.Warn("Restoring stored exporter option '" + key + "' failed; the readback decides: " + ex.Message, "ViewpointAnimationExport"); }
                 }
                 var after = ReadStoredOptions(exporter);
-                var remaining = ViewpointAnimationExportRules.ChangedOptions(snapshot, after);
+                // Keys the export added to the store count as left over too: nothing can put them back.
+                var remaining = ViewpointAnimationExportRules.ChangedOptions(snapshot, after)
+                    .Union(ViewpointAnimationExportRules.ChangedOptions(after, snapshot)).OrderBy(key => key, StringComparer.Ordinal).ToList();
                 response.OptionsRestored = remaining.Count == 0;
                 response.RestoredOptions = putBack.Where(key => !remaining.Contains(key))
                     .Select(key => key + "=" + ViewpointAnimationExportRules.FormatOptionValue(after[key], out _)).ToList();
