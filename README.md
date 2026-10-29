@@ -41,6 +41,8 @@ Tell Claude, Codex or Cursor what to do with your model, and NavisHelper does it
 
 > "Color the model by system, but show me the result first."
 
+> "Make a fly-through along the instrumentation route and export it to PNG." (Navisworks 2026 or 2027, see [requirements](#requirements))
+
 Three complete workflows, with what to check after each step, are in the [user workflows (Russian)](docs/USER_WORKFLOWS.md).
 
 ## Install
@@ -60,6 +62,11 @@ Other ways to install (ZIP, installation by an AI agent, manual client setup) ar
 | Navisworks | Autodesk Navisworks Manage 2024, 2025, 2026 or 2027, Windows x64 |
 | Microsoft component | .NET 9 Runtime; the installer offers to download it if it is missing |
 | AI app | any app that can connect MCP servers: Claude Code, Claude Desktop, Codex, Cursor and others. The panel works without one |
+
+> [!IMPORTANT]
+> **Viewpoint animations are created only in Navisworks 2026 and 2027.** The 2024 and 2025 API cannot create them, so there
+> `viewpoint_animation` shows the plan but does not save it; listing and deleting animations work in every version.
+> Exporting an animation to PNG, JPG or AVI was checked live on 2027 only.
 
 ### Verify the download
 
