@@ -1,6 +1,6 @@
 #define AppName "NavisHelper"
 #ifndef AppVersion
-#define AppVersion "2.19.0.0"
+#define AppVersion "2.20.0.0"
 #endif
 #ifndef SourceDir
 #define SourceDir "..\artifacts\distribution\NavisHelper-full-win-x64-framework-dependent-installer-source"

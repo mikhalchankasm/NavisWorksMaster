@@ -6,9 +6,9 @@
     <Nullable>enable</Nullable>
     <AssemblyName>NavisHelper.McpConfigurator</AssemblyName>
     <RootNamespace>NavisHelper.McpConfigurator</RootNamespace>
-    <Version>2.19.0.0</Version>
-    <AssemblyVersion>2.19.0.0</AssemblyVersion>
-    <FileVersion>2.19.0.0</FileVersion>
+    <Version>2.20.0.0</Version>
+    <AssemblyVersion>2.20.0.0</AssemblyVersion>
+    <FileVersion>2.20.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
