@@ -50,7 +50,7 @@ Set `NAVISHELPER_MCP_TOOLS` in the MCP client configuration, or pass
 present. The default is the full surface, so an existing configuration keeps
 behaving exactly as before.
 
-Measured 2026-10-29 after the `viewpoint_animation_export` correction pass (#404) (compact UTF-8
+Measured 2026-10-29 on `9445b58` (#411; byte-identical to the #404 correction pass) (compact UTF-8
 JSON-RPC response bytes, decimal KB = 1000 bytes; token counts use the approximate 3.375 bytes/token ratio):
 
 | Spec | Tools | `tools/list` | Approx. tokens |
