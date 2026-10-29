@@ -13,6 +13,7 @@ namespace NavisHelper.Agent.Contracts
         public string OutputDirectory { get; set; }
         public bool? Apply { get; set; }
         public bool? Overwrite { get; set; }
+        public bool? ListFiles { get; set; }
         public int? Width { get; set; }
         public int? Height { get; set; }
         public int? Fps { get; set; }
@@ -38,6 +39,9 @@ namespace NavisHelper.Agent.Contracts
         public string ExportStatus { get; set; }
         public List<ExportedFile> Files { get; set; } = new List<ExportedFile>();
         public int FileCount { get; set; }
+        public string FirstFile { get; set; }
+        public string LastFile { get; set; }
+        public string FilePattern { get; set; }
         public long TotalBytes { get; set; }
         public bool FormatMatches { get; set; }
         public double ElapsedSeconds { get; set; }
@@ -194,8 +198,33 @@ namespace NavisHelper.Agent.Contracts
         public static string RestoreWarning(string name) =>
             "The previous current animation could not be restored; Navisworks keeps '" + name + "' selected.";
 
+        public static string RestoreWarningFor(string previous, string after) =>
+            string.IsNullOrEmpty(previous) || (after ?? "") == previous ? null : RestoreWarning(after);
+
         public static string OutputFile(string folder, string animationName, string format) =>
-            Path.Combine(folder, SafeFileName(animationName) + "." + NormalizeFormat(format));
+            Path.Combine(folder, SafeFileName(animationName) + (NormalizeFormat(format) == "avi" ? "." : "_.") + NormalizeFormat(format));
+
+        public static string PaddedFrameName(string name, string format, int frame, int count) =>
+            SafeFileName(name) + "_" + frame.ToString("D" + FrameDigits(count), CultureInfo.InvariantCulture) + "." + NormalizeFormat(format);
+
+        public static int? FrameNumber(string fileName, string name, string format)
+        {
+            var file = Path.GetFileName(fileName);
+            var prefix = SafeFileName(name) + "_";
+            var extension = "." + NormalizeFormat(format);
+            if (file == null || !file.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                || !file.EndsWith(extension, StringComparison.OrdinalIgnoreCase)
+                || file.Length <= prefix.Length + extension.Length) return null;
+            var digits = file.Substring(prefix.Length, file.Length - prefix.Length - extension.Length);
+            return digits.All(c => c >= '0' && c <= '9')
+                && int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var frame) ? (int?)frame : null;
+        }
+
+        public static string FilePattern(string name, string format, int count) =>
+            SafeFileName(name) + (NormalizeFormat(format) == "avi" ? "" : "_" + new string('#', FrameDigits(count)))
+                + "." + NormalizeFormat(format);
+
+        private static int FrameDigits(int count) => Math.Max(4, count.ToString(CultureInfo.InvariantCulture).Length);
 
         public static string DetectKind(byte[] head)
         {

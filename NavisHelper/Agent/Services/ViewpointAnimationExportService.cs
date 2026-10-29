@@ -161,8 +161,8 @@ namespace NavisHelper.Agent.Services
                             finally { Release(copy); }
                             response.CurrentAnimationAfter = ReadCurrentAnimationName();
                         }
-                        if ((response.CurrentAnimationAfter ?? "") != (response.CurrentAnimation ?? ""))
-                            response.Warnings.Add(ViewpointAnimationExportRules.RestoreWarning(response.CurrentAnimationAfter));
+                        var warning = ViewpointAnimationExportRules.RestoreWarningFor(response.CurrentAnimation, response.CurrentAnimationAfter);
+                        if (warning != null) response.Warnings.Add(warning);
                     }
                     catch (Exception ex)
                     {
@@ -177,10 +177,42 @@ namespace NavisHelper.Agent.Services
                 Release(view);
             }
             var prefix = ViewpointAnimationExportRules.SafeFileName(animation.DisplayName);
-            foreach (var file in new DirectoryInfo(response.OutputDirectory).EnumerateFiles()
+            var outputFiles = new DirectoryInfo(response.OutputDirectory).EnumerateFiles()
                 .Where(file => file.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
                     && (!before.TryGetValue(file.Name, out var stamp) || stamp != file.LastWriteTimeUtc.Ticks + ":" + file.Length))
-                .OrderBy(file => file.Name, StringComparer.OrdinalIgnoreCase).ThenBy(file => file.Name, StringComparer.Ordinal))
+                .ToList();
+            var frameCount = outputFiles.Count(file => ViewpointAnimationExportRules.FrameNumber(file.Name, animation.DisplayName, response.Format).HasValue);
+            if (response.Format == "png" || response.Format == "jpg")
+            {
+                var blocked = false;
+                var renameFailed = false;
+                for (var index = 0; index < outputFiles.Count; index++)
+                {
+                    var file = outputFiles[index];
+                    var number = ViewpointAnimationExportRules.FrameNumber(file.Name, animation.DisplayName, response.Format);
+                    if (!number.HasValue) continue;
+                    var padded = ViewpointAnimationExportRules.PaddedFrameName(animation.DisplayName, response.Format, number.Value, frameCount);
+                    if (file.Name == padded) continue;
+                    var target = Path.Combine(response.OutputDirectory, padded);
+                    try
+                    {
+                        if (!File.Exists(target)) File.Move(file.FullName, target);
+                        else if (request.Overwrite == true) File.Replace(file.FullName, target, null);
+                        else { blocked = true; continue; }
+                        outputFiles[index] = new FileInfo(target);
+                    }
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                    {
+                        renameFailed = true;
+                    }
+                }
+                if (blocked) response.Warnings.Add("Frame files were left unpadded because padded names already exist; pass overwrite=true to replace them.");
+                if (renameFailed) response.Warnings.Add("Some frame files could not be renamed to padded names (I/O or access failure).");
+            }
+            var files = new List<ExportedFile>();
+            foreach (var file in outputFiles
+                .OrderBy(file => ViewpointAnimationExportRules.FrameNumber(file.Name, animation.DisplayName, response.Format) ?? int.MaxValue)
+                .ThenBy(file => file.Name, StringComparer.OrdinalIgnoreCase).ThenBy(file => file.Name, StringComparer.Ordinal))
             {
                 string kind;
                 try
@@ -193,12 +225,16 @@ namespace NavisHelper.Agent.Services
                 {
                     kind = "unreadable";
                 }
-                response.Files.Add(new ExportedFile { Name = file.Name, Bytes = file.Length, Kind = kind });
+                files.Add(new ExportedFile { Name = file.Name, Bytes = file.Length, Kind = kind });
             }
             response.Applied = true;
-            response.FileCount = response.Files.Count;
-            response.TotalBytes = response.Files.Sum(file => file.Bytes);
-            response.FormatMatches = response.FileCount > 0 && response.Files.All(file => file.Kind == response.Format);
+            response.FileCount = files.Count;
+            response.FirstFile = files.FirstOrDefault()?.Name;
+            response.LastFile = files.LastOrDefault()?.Name;
+            response.FilePattern = ViewpointAnimationExportRules.FilePattern(animation.DisplayName, response.Format, response.Format == "avi" ? 1 : frameCount);
+            if (request.ListFiles == true) response.Files = files;
+            response.TotalBytes = files.Sum(file => file.Bytes);
+            response.FormatMatches = response.FileCount > 0 && files.All(file => file.Kind == response.Format);
             response.Exported = response.ExportStatus == "eExport_OK" && response.FileCount > 0;
             try
             {
