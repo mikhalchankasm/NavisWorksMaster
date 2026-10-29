@@ -127,6 +127,7 @@ More in [security and compatibility](docs/SECURITY_AND_COMPATIBILITY.md).
 | Read product details, the comparison and verification results | [Project details](docs/reference/PROJECT_DETAILS.md) |
 | Create a saved viewpoint animation from a route | [viewpoint_animation contract](docs/MCP_TOOL_CONTRACTS.md#viewpoint_animation) |
 | Check an animation export and list the exporter's options | [viewpoint_animation_export contract](docs/MCP_TOOL_CONTRACTS.md#viewpoint_animation_export) |
+| Copy a ready-made fly-through, section tour or clash walkthrough request, with quality presets and MP4 compression | [animation prompts (Russian and English)](docs/prompts/animation/README.md) |
 
 ## For developers
 
