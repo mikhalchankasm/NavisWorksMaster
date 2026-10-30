@@ -91,7 +91,9 @@ with exit 6 when `inRunTree` is false and it names a PID, or has no
 `outsideExits` (no watch, a failed sample, output whose decoding replaced bytes,
 or a command that can run code elsewhere - `ssh`, `Invoke-Command`, `psexec`,
 `winrs`, WSL, a container, a `\host` path, a remote option - whose processes
-this machine cannot see), or its `outsideExits` is not empty. A named PID outside
+this machine cannot see, or one that decides at run time what it runs - a
+PowerShell or cmd variable, `iex`, an encoded command, a script block,
+`Start-Process`, another interpreter - or a command with no start event), or its `outsideExits` is not empty. A named PID outside
 the run fails it even if the stop itself failed. Read the entry before acting on
 the exit code: `outsideExits` names what ended. Outside Windows no run-tree PIDs
 are proven and nothing is watched. The executor preamble prohibits

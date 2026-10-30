@@ -41,7 +41,20 @@ _ELSEWHERE = re.compile(
     r"|-VMName\b|-VMId\b|-ContainerId\b)|(?<![\w:\\])\\\\+[\w.-]+",
     re.IGNORECASE,
 )
-_NUMBERS = r"\d+(?:\s*,\s*\d+)*"
+# A command that decides at run time what it runs - a variable, an evaluated string, an encoded command, a script
+# block, another interpreter or a started process - can reach elsewhere without naming it (#371 review): it keeps
+# the strict text verdict too. Searches rarely need any of these; one that does only stays as strict as before.
+_INDIRECT = re.compile(
+    # `cmd /c` and `pwsh -Command` are how Codex wraps every command, and the text they run is right here; their
+    # variables are not, so %VAR% and !VAR! count.
+    r"[$`]|&\s*[({]|%[^%\s]+%|![^!\s]+!"
+    r"|(?<![\w.-])(?:iex|Invoke-Expression|Start-Process|saps|start|Start-Job|Start-ThreadJob|Invoke-Item|ii"
+    r"|Add-Type|python\d*|py|node|perl|ruby|cscript|wscript|mshta|rundll32|schtasks|at)(?:\.exe)?(?![\w-])"
+    r"|-Parallel\b|\b(?:ScriptBlock|FromBase64String|EncodedCommand)\b"
+    r"|(?:powershell|pwsh)(?:\.exe)?[\"']?\s+(?:-\w+\s+)*-e(?:c|n\w*)?\b",
+    re.IGNORECASE,
+)
+_NUMBERS =r"\d+(?:\s*,\s*\d+)*"
 _END_NUMBER = r"(?!\s*,)(?=$|[\s)'\";/&|])"
 _ID = re.compile(r"(?<!\w)-Id(?:\s*:\s*|\s+)(?P<pids>" + _NUMBERS + r")" + _END_NUMBER, re.I)
 _TASK_PID = re.compile(r"/PID\s+(?P<pids>\d+)" + _END_NUMBER, re.I)
@@ -167,7 +180,7 @@ def scan(
         if not isinstance(command, str) or not _STOP.search(command):
             continue
         pids, proven, remote = _targets(command)
-        remote = remote or bool(_ELSEWHERE.search(command))
+        local = not remote and not _ELSEWHERE.search(command) and not _INDIRECT.search(command)
         output = item.get("aggregated_output", "") if item_id in completed else ""
         entry: dict[str, object] = {
             "itemId": item_id,
@@ -176,11 +189,12 @@ def scan(
             "pids": pids,
             "inRunTree": proven and all(pid in run_tree_pids for pid in pids),
         }
-        # Processes elsewhere are not in this machine's process list: such a stop keeps the text verdict.
-        if evidence and not remote and not entry["inRunTree"]:
+        # Processes elsewhere are not in this machine's process list: such a stop keeps the text verdict. So does
+        # a command whose start event is missing: its window would begin at its completion (#371 review).
+        if evidence and local and item_id in started_at and not entry["inRunTree"]:
             assert watch is not None
             # One sample of slack before the start line: the command may begin before Codex's line is flushed.
-            start = arrival(watch.stdout_timeline, started_at.get(item_id, completed_at.get(item_id, 0)))[0]
+            start = arrival(watch.stdout_timeline, started_at[item_id])[0]
             start = max(0.0, start - SAMPLE_INTERVAL_SECONDS)
             end = arrival(watch.stdout_timeline, completed_at[item_id])[1] if item_id in completed_at else None
             entry["window"] = [round(start, 2), None if end is None else round(end, 2)]

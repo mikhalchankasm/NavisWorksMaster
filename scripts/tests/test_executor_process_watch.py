@@ -23,6 +23,9 @@ from scripts.tests.test_executor_process_control import FOREIGN_PID, POWERSHELL,
 SEARCH_360 = "rg -n 'subprocess|Popen|dotnet|unlink|write_text|kill|Stop-Process' scripts/check_*.py"
 SEARCH_377 = "rg -n 'subprocess|Popen|dotnet|kill|terminate|write_text|write_bytes' scripts"
 SEARCH_387 = "rg -n 'kill|Terminate|Stop-Process|taskkill' scripts -g 'check_*.py'"
+# From the #336 record: Codex also wraps searches in cmd.exe, and the text it runs is all in the command.
+SEARCH_CMD = ('"C:\\\\Windows\\\\System32\\\\cmd.exe" /c \'rg -n -e subprocess -e Popen -e kill -e dotnet '
+              '-e write_text scripts -g check_*.py\'')
 START = 100.0  # the watch has run this long when the stream starts, so processes it saw first are old
 
 
@@ -57,7 +60,7 @@ def fails(entry: dict[str, object]) -> bool:
 
 class SearchesThatStoppedNothing(unittest.TestCase):
     def test_the_three_recorded_searches_pass_when_nothing_outside_the_run_ended(self) -> None:
-        for command in (SEARCH_360, SEARCH_377, SEARCH_387, POWERSHELL + f"'{SEARCH_360}'"):
+        for command in (SEARCH_360, SEARCH_377, SEARCH_387, POWERSHELL + f"'{SEARCH_360}'", SEARCH_CMD):
             with self.subTest(command=command):
                 entry = entry_for(stream(command_item("item_7", command, "scripts/check_x.py:1:kill")))
                 self.assertEqual(entry["pids"], [])
@@ -96,7 +99,8 @@ class StopsThatActed(unittest.TestCase):
         self.assertTrue(fails(entry_for(stdout, (ended(77, "chrome.exe", at=at),))))
 
     def test_a_stop_left_running_in_the_background_is_caught_after_the_command_returned(self) -> None:
-        command = POWERSHELL + "'Start-Process pwsh -ArgumentList \"Start-Sleep 60; Stop-Process -Name Roamer\"'"
+        # The text names no background process (that would keep the text verdict); the watch sees the child.
+        command = POWERSHELL + "'Stop-Process -Name Roamer'"
         stdout = stream(command_item("item_9", command))
         started = START + line_of(stdout, "item_9", "item.started") + 0.5
         late = START + 90
@@ -127,6 +131,27 @@ class StopsThatActed(unittest.TestCase):
                 entry = entry_for(stream(command_item("item_4", command)))
                 self.assertNotIn("outsideExits", entry)
                 self.assertTrue(fails(entry))
+
+    def test_a_command_that_decides_at_run_time_what_it_runs_keeps_the_text_verdict(self) -> None:
+        """Codex review: `& $env:REMOTE_CLIENT rig 'taskkill ...'` reaches another machine without naming it."""
+        for command in (POWERSHELL + "'& $env:REMOTE_CLIENT rig \"taskkill /IM Roamer.exe /F\"'",
+                        POWERSHELL + "'iex \"Stop-Process -Name Roamer\"'",
+                        POWERSHELL + "'Start-Process pwsh -ArgumentList \"Stop-Process -Name Roamer\"'",
+                        POWERSHELL + "'& (\"s\" + \"sh\") rig taskkill /IM Roamer.exe'",
+                        "pwsh -NoProfile -ec UwB0AG8AcAAtAFAAcgBvAGMAZQBzAHMA # Stop-Process",
+                        "python -c \"import os; os.system('taskkill /IM Roamer.exe')\"",
+                        "cmd /c %REMOTE_CLIENT% rig taskkill /IM Roamer.exe /F"):
+            with self.subTest(command=command):
+                entry = entry_for(stream(command_item("item_4", command)))
+                self.assertNotIn("outsideExits", entry)
+                self.assertTrue(fails(entry))
+
+    def test_a_completion_without_a_start_keeps_the_text_verdict(self) -> None:
+        """Codex review: with no start event the window would begin at the completion and miss an early stop."""
+        [_, done] = command_item("item_8", POWERSHELL + "'Stop-Process -Name Roamer; Start-Sleep 60'")
+        entry = entry_for(stream([done]))
+        self.assertNotIn("outsideExits", entry)
+        self.assertTrue(fails(entry))
 
     def test_without_complete_evidence_the_text_verdict_stands(self) -> None:
         stdout = stream(command_item("item_7", SEARCH_360))
