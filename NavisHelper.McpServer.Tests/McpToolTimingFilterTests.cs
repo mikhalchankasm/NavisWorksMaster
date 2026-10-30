@@ -171,6 +171,44 @@ public sealed class McpToolTimingFilterTests
         Assert.Equal("sample_tool", timing.GetProperty("tool_name").GetString());
     }
 
+    // #427: the default encoder wrote every Cyrillic letter of a model name as a six-byte \uXXXX escape.
+    [Fact]
+    public async Task NonAsciiText_StaysReadableAndItsBytesAreReported()
+    {
+        const string payload = """{"items":[{"name":"ЗОНА 1 /6501.5-S.АМ","note":"a + b's"}]}""";
+        var result = await InvokeAsync(new CallToolResult
+        {
+            Content = new List<ContentBlock>
+            {
+                new TextContentBlock { Text = payload },
+            },
+        });
+
+        var text = ((TextContentBlock)result.Content[0]).Text;
+        Assert.Contains("ЗОНА 1 /6501.5-S.АМ", text, StringComparison.Ordinal);
+        Assert.Contains("a + b's", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\u", text, StringComparison.Ordinal);
+
+        var bytes = System.Text.Encoding.UTF8.GetByteCount(payload);
+        Assert.Equal(bytes, MetaTiming(result).GetProperty("response_bytes").GetInt32());
+        var inline = JsonDocument.Parse(text).RootElement.GetProperty("navishelper_timing");
+        Assert.Equal(bytes, inline.GetProperty("response_bytes").GetInt32());
+    }
+
+    [Fact]
+    public async Task NonJsonText_ReportsItsBytesToo()
+    {
+        var result = await InvokeAsync(new CallToolResult
+        {
+            Content = new List<ContentBlock>
+            {
+                new TextContentBlock { Text = "журнал" },
+            },
+        });
+
+        Assert.Equal(12, MetaTiming(result).GetProperty("response_bytes").GetInt32());
+    }
+
     private static async Task<CallToolResult> InvokeAsync(CallToolResult inner)
     {
         var handler = McpToolTimingFilter.Create(

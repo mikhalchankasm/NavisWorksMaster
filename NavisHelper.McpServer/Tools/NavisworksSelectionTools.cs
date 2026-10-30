@@ -81,7 +81,7 @@ internal sealed class NavisworksSelectionTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Returns the full current Navisworks selection as either a merged parent tree or a flat list. It reads Application.ActiveDocument.CurrentSelection without changing selection, supports more than 100 selected items, and includes selected counts/truncation flags. When truncated, call again with offset=nextOffset.")]
+    [Description("Returns the full current Navisworks selection as either a merged parent tree or a flat list. It reads Application.ActiveDocument.CurrentSelection without changing selection, supports more than 100 selected items, and includes selected counts/truncation flags. A page also stops at about 80 KB (budgetTruncated). When truncated, call again with offset=nextOffset.")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectedItemsTreeResponse> SelectedItemsTree(
         [Description("Maximum selected items to return. Default is 10000, maximum is 100000. If selection is larger, response.truncated is true.")] int maxItems = 10000,

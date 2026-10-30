@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
@@ -12,6 +14,9 @@ internal static class McpToolTimingFilter
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         WriteIndented = false,
+        // The client reads this text as JSON, never as HTML: the default encoder wrote every
+        // Cyrillic letter of a model name as a six-byte \uXXXX escape (#427).
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     public static McpRequestHandler<CallToolRequestParams, CallToolResult> Create(
@@ -56,6 +61,7 @@ internal static class McpToolTimingFilter
 
         result.Content ??= new List<ContentBlock>();
         var primaryPayload = TryParsePrimaryJsonContent(result.Content, out var primaryTextBlock);
+        var responseBytes = ResponseBytes(result.Content, primaryPayload);
         var toolOk = ReadPayloadBoolean(primaryPayload, "ok");
         var toolErrorCode = ReadPayloadString(primaryPayload, "errorCode");
 
@@ -74,6 +80,7 @@ internal static class McpToolTimingFilter
             completed_at_utc = completedAtUtc,
             elapsed_ms = elapsedMs,
             elapsed_human = elapsedHuman,
+            response_bytes = responseBytes,
             should_report_to_user = shouldReportToUser,
             user_message = userMessage,
             agent_instruction = shouldReportToUser
@@ -99,6 +106,22 @@ internal static class McpToolTimingFilter
         }
 
         return result;
+    }
+
+    // What the client receives before the timing block is added: every text block, the JSON
+    // payload as this filter writes it back.
+    private static int ResponseBytes(IList<ContentBlock> content, JsonObject primaryPayload)
+    {
+        var bytes = 0;
+        var first = true;
+        foreach (var block in content.OfType<TextContentBlock>())
+        {
+            var text = first && primaryPayload != null ? primaryPayload.ToJsonString(JsonOptions) : block.Text;
+            bytes += Encoding.UTF8.GetByteCount(text ?? string.Empty);
+            first = false;
+        }
+
+        return bytes;
     }
 
     private static JsonObject TryParsePrimaryJsonContent(IList<ContentBlock> content, out TextContentBlock textBlock)
