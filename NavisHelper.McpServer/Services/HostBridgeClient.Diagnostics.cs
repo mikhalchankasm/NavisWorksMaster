@@ -94,6 +94,7 @@ internal sealed partial class HostBridgeClient
                 Error(ErrorCodes.ViewpointNameConflict, "A saved viewpoint with the requested name already exists in the target folder.", "Choose another viewpoint name or folder.", false),
                 Error(ErrorCodes.StaleMatchReference, "A match handle no longer resolves in the host session.", "Re-run find_items, find_root_items_by_name, or list_item_children and retry with fresh handles.", false),
                 Error(ErrorCodes.QueryTooAmbiguous, "A broad query would scan or return too much model data.", "Use a more specific name/path/source-file filter or split the request.", false),
+                Error(ErrorCodes.ResponseTooLarge, "One item alone is larger than the response budget of about 80 KB (#427).", "Retry with a smaller maxDepth or without bounding boxes.", false),
                 Error(ErrorCodes.RequestTimeout, "The host did not complete the request within the timeout or the search guarded itself before timeout.", "Split large requests into smaller batches and retry remaining work.", true),
                 Error(ErrorCodes.TransportConnectFailed, "The MCP server could not connect to the host named pipe.", "Call list_navisworks_hosts; if the process is gone, start Navisworks again.", true),
                 Error(ErrorCodes.CommandFailed, "Navisworks rejected or failed the requested operation.", "Inspect the error message and current model/view state before retrying.", false),

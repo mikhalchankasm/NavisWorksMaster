@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Autodesk.Navisworks.Api;
@@ -335,6 +336,15 @@ namespace NavisHelper.Agent.Services
 
                 if (!added)
                 {
+                    if (response.ReturnedItemCount == 0)
+                    {
+                        throw new AgentCommandException(ErrorCodes.ResponseTooLarge, string.Format(
+                            CultureInfo.InvariantCulture,
+                            "Selected item at position {0} alone is larger than the {1}-byte response page. Retry with a smaller maxDepth or includeBoundingBoxes=false.",
+                            itemIndex,
+                            ResponseBudget.PageBytes));
+                    }
+
                     // The refused item opens the next page.
                     selectionIndex--;
                     response.BudgetTruncated = true;

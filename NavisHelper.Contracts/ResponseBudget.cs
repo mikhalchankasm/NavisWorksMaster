@@ -17,9 +17,10 @@ namespace NavisHelper.Agent.Contracts
     }
 
     /// <summary>
-    /// Fills one page up to a byte budget. The first item is always taken, however large, so a
-    /// caller paging with nextOffset always moves forward; after that an item that would pass
-    /// the budget is refused and the page is exhausted.
+    /// Fills one page up to a byte budget: an item that would pass it is refused and the page is
+    /// exhausted. A refusal on an empty page means one item alone is larger than a page; the
+    /// caller refuses the request with response_too_large rather than return it whole, which the
+    /// client could not read, or nothing, which would page forever.
     /// </summary>
     public sealed class ResponsePageBudget
     {
@@ -36,7 +37,7 @@ namespace NavisHelper.Agent.Contracts
 
         public bool TryTake(int bytes)
         {
-            if (Used > 0 && (long)Used + bytes > _limit)
+            if ((long)Used + bytes > _limit)
             {
                 Exhausted = true;
                 return false;

@@ -1,4 +1,5 @@
 using NavisHelper.Agent.Contracts;
+using NavisHelper.McpServer.Services;
 using Xunit;
 
 namespace NavisHelper.McpServer.Tests;
@@ -35,13 +36,22 @@ public sealed class ResponseBudgetTests
     }
 
     [Fact]
-    public void TheFirstItemAlwaysFitsSoEveryPageMovesForward()
+    public void AnItemLargerThanAPageIsRefusedEvenFirst()
     {
         var budget = new ResponsePageBudget(1_000);
 
-        Assert.True(budget.TryTake(5_000));
-        Assert.False(budget.TryTake(1));
+        Assert.False(budget.TryTake(5_000));
         Assert.True(budget.Exhausted);
+        Assert.Equal(0, budget.Used);
+    }
+
+    [Fact]
+    public void AnOversizedItemIsRefusedByNameNotReturnedOrSkipped()
+    {
+        Assert.Single(HostBridgeClient.GetErrorContract().Errors, item => item.ErrorCode == ErrorCodes.ResponseTooLarge);
+
+        var queries = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "NavisHelper", "Agent", "Services", "DocumentCommandService.SelectionQueries.cs"));
+        Assert.Contains("ErrorCodes.ResponseTooLarge", queries, StringComparison.Ordinal);
     }
 
     [Fact]
