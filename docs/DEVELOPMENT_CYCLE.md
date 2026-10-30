@@ -25,7 +25,7 @@ page adds only the owner's touchpoints and the pre-release tech-debt pass.
 | Intake and plan | states the need, answers the decisions the curator puts as questions | writing briefs or code |
 | Live windows | agrees to a window when Navisworks must run | starting or closing Navisworks, installing builds |
 | Release | says "публикуй" and approves the one `gh release create` prompt | building, hashing or uploading assets |
-| Claude Desktop | installs a new `.mcpb` from **Settings → Extensions** (the app's own UI) | — |
+| Claude Desktop | installs a new `.mcpb` from **Settings → Desktop app → Extensions → Manage → Advanced settings → Install Extension…** (the app's own UI) | — |
 
 CI needs no message: the curator reads PR checks on its next turn. Publishing is an
 `ask` rule in `.claude/settings.json` and prompts in every permission mode;

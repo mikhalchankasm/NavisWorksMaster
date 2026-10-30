@@ -7,7 +7,7 @@
 | Файл | Кому нужен |
 | --- | --- |
 | **`NavisHelperSetup-<версия>.exe`** | **Всем, начните с него.** Ставит плагин для Navisworks и подключает к нему AI-программы. Права администратора не нужны. |
-| `NavisHelper-<версия>.mcpb` | Только пользователям **Claude Desktop**, если EXE не ставили: Claude Desktop → **Settings → Extensions**, установка из файла. Тот же файл EXE кладёт в папку, которую открывает ярлык «Расширение NavisHelper для Claude Desktop». |
+| `NavisHelper-<версия>.mcpb` | Только пользователям **Claude Desktop**, если EXE не ставили: Claude Desktop → **Settings → Desktop app → Extensions → Manage → Advanced settings → Install Extension…** (в старых версиях: Settings → Extensions). Тот же файл EXE кладёт в папку, которую открывает ярлык «Расширение NavisHelper для Claude Desktop». |
 | `NavisHelper-full-win-x64-framework-dependent-<версия>.zip` | Для установки без EXE: вручную или AI-агентом, скриптом `Install-NavisHelperBundle.ps1` из архива. |
 | `SHA256SUMS.txt`, `release-receipt.json` | Для проверки, что файлы не повреждены и собраны из коммита `<sha>`. Обычной установке не нужны. |
 

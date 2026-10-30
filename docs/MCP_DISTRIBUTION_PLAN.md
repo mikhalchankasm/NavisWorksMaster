@@ -68,7 +68,7 @@ This script:
 - installs the Autodesk bundle into `%APPDATA%\Autodesk\ApplicationPlugins\NavisHelper.bundle`;
 - stages MCP binaries in `{app}\McpServerPayload` and activates them through `McpConfigurator --install-server` in the selected installation root;
 - offers a checked Finish-page action to connect detected AI apps for the current user, excluding Claude Desktop;
-- installs `NavisHelper.mcpb` in `{app}\ClaudeDesktop`; the `NavisHelper extension for Claude Desktop` Start-menu shortcut opens that folder for installation through Settings → Extensions.
+- installs `NavisHelper.mcpb` in `{app}\ClaudeDesktop`; the `NavisHelper extension for Claude Desktop` Start-menu shortcut opens that folder for installation through Settings → Desktop app → Extensions → Manage → Advanced settings → Install Extension….
 
 The plugin and MCP binaries are fully installed even if the user clears that action. When checked, it runs `McpConfigurator --configure --clients claude-code,codex,cursor,opencode,kimi,zcode` without `--create-missing`: it may create or update a config file inside each detected client's existing user directory, while missing client applications and their config roots are skipped. Claude Desktop uses the bundled `.mcpb` extension instead. The same explicit client list is available later from the `Connect NavisHelper to AI apps` Start-menu shortcut. Creating missing client config roots requires this deliberate manual command:
 

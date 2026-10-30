@@ -110,7 +110,7 @@ public sealed class InstallerSemanticsTests
             // Step 1: the plugin adds a NavisHelper ribbon tab whose NavisHelper button opens the panel.
             Assert.Contains("NavisHelper", label, StringComparison.Ordinal);
             // Step 3: Claude Desktop installs the bundled extension from the shortcut's folder.
-            Assert.Contains("Settings → Extensions", label, StringComparison.Ordinal);
+            Assert.Contains("Settings → Desktop app → Extensions → Manage → Advanced settings → Install Extension…", label, StringComparison.Ordinal);
             Assert.Contains("NavisHelper.mcpb", label, StringComparison.Ordinal);
         }
     }

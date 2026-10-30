@@ -47,7 +47,7 @@ Download `NavisHelperSetup-<version>.exe` from the [latest release](https://gith
 
 1. **Open Navisworks.** The ribbon gets a **NavisHelper** tab; its **NavisHelper** button opens the panel.
 2. **Restart the AI apps you use.** If the box on the installer's last page stayed checked, NavisHelper is already connected to them.
-3. **Claude Desktop:** Settings → Extensions → install from a file → `NavisHelper.mcpb`. The Start-menu shortcut "NavisHelper extension for Claude Desktop" opens its folder.
+3. **Claude Desktop:** Settings → Desktop app → Extensions → Manage → Advanced settings → Install Extension… → `NavisHelper.mcpb` (the older app: Settings → Extensions). The Start-menu shortcut "NavisHelper extension for Claude Desktop" opens its folder.
 
 ### Requirements
 
