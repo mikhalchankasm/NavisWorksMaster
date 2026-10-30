@@ -90,13 +90,21 @@ An entry adds `PROCESS_STOP_OUTSIDE_RUN` to `hostViolations` and fails the run
 with exit 6 when `inRunTree` is false and it names a PID, or has no
 `outsideExits` (no watch, a failed sample, output whose decoding replaced bytes,
 or a command that can run code elsewhere - `ssh`, `Invoke-Command`, `psexec`,
-`winrs`, WSL, a container, a `\host` path, a remote option - whose processes
-this machine cannot see, or one that decides at run time what it runs - a
+`winrs`, WSL, a container, a `\\host` path, a remote option - whose processes
+this machine cannot see; one that decides at run time what it runs - a
 PowerShell or cmd variable, `iex`, an encoded command, a script block,
-`Start-Process`, another interpreter - or a command with no start event), or its `outsideExits` is not empty. A named PID outside
-the run fails it even if the stop itself failed. Read the entry before acting on
-the exit code: `outsideExits` names what ended. Outside Windows no run-tree PIDs
-are proven and nothing is watched. The executor preamble prohibits
+`Start-Process`, another interpreter, a script file, a program run from a
+relative path; or a command with no start event), or its `outsideExits` is not
+empty. A named PID outside the run fails it even if the stop itself failed. Read
+the entry before acting on the exit code: `outsideExits` names what ended.
+Outside Windows no run-tree PIDs are proven and nothing is watched.
+
+What the evidence cannot see: a process younger than 10 s, and a stop that a
+program the text does not name forwards to WSL, a container or another machine.
+The second is narrow: the Codex sandbox has no network, and the markers above
+keep every channel they name strict. Three Codex reviews of #371 each found such
+a channel in text; the markers grew with each and only ever make the verdict
+stricter. The executor preamble prohibits
 process stops from commands it writes and tells it to report locks and stop
 work; test suites may stop only children they started themselves.
 

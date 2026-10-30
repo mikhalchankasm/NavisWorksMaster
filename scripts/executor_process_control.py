@@ -14,7 +14,9 @@ import re
 from typing import Collection
 
 from scripts.executor_primitives import redact_patterns
-from scripts.executor_process_watch import SAMPLE_INTERVAL_SECONDS, WatchResult, arrival, describe, outside_exits
+from scripts.executor_process_watch import (
+    SAMPLE_INTERVAL_SECONDS, WatchResult, arrival, describe, grown_end, outside_exits,
+)
 
 
 _STOP = re.compile(
@@ -51,6 +53,8 @@ _INDIRECT = re.compile(
     r"|(?<![\w.-])(?:iex|Invoke-Expression|Start-Process|saps|start|Start-Job|Start-ThreadJob|Invoke-Item|ii"
     r"|Add-Type|python\d*|py|node|perl|ruby|cscript|wscript|mshta|rundll32|schtasks|at)(?:\.exe)?(?![\w-])"
     r"|-Parallel\b|\b(?:ScriptBlock|FromBase64String|EncodedCommand)\b"
+    # A script or a program run from a relative path: what it does with its arguments is not in the command.
+    r"|(?<![\w-])-File\b|\.(?:ps1|psm1|psd1|cmd|bat|sh|vbs|vbe|wsf|js|hta)\b|(?:^|(?<=[\s;&|'\"(]))\.{1,2}[\\/]"
     r"|(?:powershell|pwsh)(?:\.exe)?[\"']?\s+(?:-\w+\s+)*-e(?:c|n\w*)?\b",
     re.IGNORECASE,
 )
@@ -197,6 +201,8 @@ def scan(
             start = arrival(watch.stdout_timeline, started_at[item_id])[0]
             start = max(0.0, start - SAMPLE_INTERVAL_SECONDS)
             end = arrival(watch.stdout_timeline, completed_at[item_id])[1] if item_id in completed_at else None
+            # The window the exits were judged in, grown for background children, not the command's own span.
+            end = grown_end(watch, start, end)
             entry["window"] = [round(start, 2), None if end is None else round(end, 2)]
             entry["outsideExits"] = describe(outside_exits(watch, start, end))
         entries.append(entry)

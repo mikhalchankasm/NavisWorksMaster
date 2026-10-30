@@ -107,6 +107,7 @@ class StopsThatActed(unittest.TestCase):
         child = SeenProcess(900, "pwsh.exe", started, late - 0.25, late, True)
         entry = entry_for(stdout, (child, ended(4242, "Roamer.exe", at=late - 0.1)))
         self.assertEqual(entry["outsideExits"], [{"pid": 4242, "exe": "Roamer.exe"}])
+        self.assertEqual(entry["window"][1], late)  # the record shows the grown window the exit was judged in
         self.assertTrue(fails(entry))
         # A child still running when the run ended keeps the window open to the end.
         still_running = SeenProcess(900, "pwsh.exe", started, START + 200, None, True)
@@ -140,7 +141,10 @@ class StopsThatActed(unittest.TestCase):
                         POWERSHELL + "'& (\"s\" + \"sh\") rig taskkill /IM Roamer.exe'",
                         "pwsh -NoProfile -ec UwB0AG8AcAAtAFAAcgBvAGMAZQBzAHMA # Stop-Process",
                         "python -c \"import os; os.system('taskkill /IM Roamer.exe')\"",
-                        "cmd /c %REMOTE_CLIENT% rig taskkill /IM Roamer.exe /F"):
+                        "cmd /c %REMOTE_CLIENT% rig taskkill /IM Roamer.exe /F",
+                        # Third review: a script can forward its argument anywhere.
+                        "pwsh -File .\\forward.ps1 'Stop-Process -Name Roamer'",
+                        "forward.cmd taskkill /IM Roamer.exe", "./forward 'kill 1'"):
             with self.subTest(command=command):
                 entry = entry_for(stream(command_item("item_4", command)))
                 self.assertNotIn("outsideExits", entry)

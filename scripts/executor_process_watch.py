@@ -110,11 +110,10 @@ def arrival(timeline: tuple[tuple[float, int], ...], offset: int) -> tuple[float
     return before, None
 
 
-def outside_exits(watch: WatchResult, start: float, end: float | None) -> list[SeenProcess]:
-    """Processes outside the run, seen at least MIN_AGE_SECONDS before `start`, that ended in [start, end].
+def grown_end(watch: WatchResult, start: float, end: float | None) -> float | None:
+    """`end` grown to the last exit of any run process started in the window and still running after it.
 
-    `end` grows to the last exit of any run process started in the window and still running after it: a stop
-    that a command leaves behind in a background process acts after the command's own output has arrived.
+    A stop that a command leaves behind in a background process acts after the command's own output arrived.
     """
     grown = True
     while grown and end is not None:  # a grandchild started while its parent ran grows the window again
@@ -125,6 +124,12 @@ def outside_exits(watch: WatchResult, start: float, end: float | None) -> list[S
                 end, grown = child.ended_by, True
                 if end is None:
                     break
+    return end
+
+
+def outside_exits(watch: WatchResult, start: float, end: float | None) -> list[SeenProcess]:
+    """Processes outside the run, older than MIN_AGE_SECONDS at `start`, that ended in [start, grown_end]."""
+    end = grown_end(watch, start, end)
     return [p for p in watch.processes
             if not p.in_run and p.ended_by is not None and p.ended_by > start
             and (end is None or p.last_seen < end)
