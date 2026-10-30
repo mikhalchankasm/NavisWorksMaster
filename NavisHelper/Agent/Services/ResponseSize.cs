@@ -24,8 +24,17 @@ namespace NavisHelper.Agent.Services
 
         public static int Bytes(object value)
         {
-            // All ASCII after escaping, so one character is one byte.
-            return JsonConvert.SerializeObject(value, Settings).Length;
+            // All ASCII after escaping, so one character is one byte, except DEL: Newtonsoft leaves
+            // it as is and the server's encoder writes it as \u007F (#427 review).
+            var json = JsonConvert.SerializeObject(value, Settings);
+            var bytes = json.Length;
+            foreach (var c in json)
+            {
+                if (c == '\u007f')
+                    bytes += 5;
+            }
+
+            return bytes;
         }
     }
 }

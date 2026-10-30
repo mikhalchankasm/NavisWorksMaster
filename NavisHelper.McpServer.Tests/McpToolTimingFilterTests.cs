@@ -200,7 +200,7 @@ public sealed class McpToolTimingFilterTests
     [Fact]
     public async Task NoStringIsWrittenLongerThanItsAsciiEscapedForm()
     {
-        const string value = "ЗОНА\u3000东京 😀 \u2028 tab\t \"q\" \\ <a&b>";
+        const string value = "ЗОНА\u3000东京 😀 \u2028 tab\t del\u007f \"q\" \\ <a&b>";
         var payload = JsonSerializer.Serialize(new { name = value });
         var result = await InvokeAsync(new CallToolResult
         {

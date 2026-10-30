@@ -80,5 +80,6 @@ public sealed class ResponseBudgetTests
         // escapes, so the host counts every non-ASCII character that way (#427 review).
         var size = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "NavisHelper", "Agent", "Services", "ResponseSize.cs"));
         Assert.Contains("StringEscapeHandling.EscapeNonAscii", size, StringComparison.Ordinal);
+        Assert.Contains("\\u007f", size, StringComparison.Ordinal);
     }
 }
