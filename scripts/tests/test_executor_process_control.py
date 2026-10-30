@@ -23,6 +23,7 @@ import scripts.external_worktree_executor as launcher
 from scripts.agent_home_isolation import IsolatedHome
 from scripts.executor_host_guard import HostSnapshot, violations
 from scripts.executor_primitives import ProcessResult
+from scripts.executor_process_watch import SeenProcess, WatchResult
 
 POWERSHELL = '"C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe" -Command '
 OWN_PID = 4321
@@ -69,8 +70,9 @@ class ProcessControlInTheRecord(unittest.TestCase):
             folder.mkdir(parents=True)
         self.home = IsolatedHome(provider="codex", path=home, operator=self.root / "op", env={}, inventory=())
 
-    def run_codex(self, stdout: str, tree: frozenset[int] = frozenset()) -> tuple[dict[str, object], int]:
-        process = ProcessResult(0, stdout, "", 1.0, process_tree_pids=tree)
+    def run_codex(self, stdout: str, tree: frozenset[int] = frozenset(),
+                  watch: WatchResult | None = None) -> tuple[dict[str, object], int]:
+        process = ProcessResult(0, stdout, "", 1.0, process_tree_pids=tree, process_watch=watch)
         record_path = self.root / "records" / f"run-{len(list(self.root.glob('records/*.json')))}.json"
         record_path.parent.mkdir(exist_ok=True)
         with (
@@ -81,7 +83,7 @@ class ProcessControlInTheRecord(unittest.TestCase):
             mock.patch.object(launcher, "prepare_isolated_home", return_value=self.home),
             mock.patch.object(launcher, "build_argv", return_value=(["codex"], None)),
             mock.patch.object(launcher, "check_codex_isolation", return_value=None),
-            mock.patch.object(launcher, "_run_process", return_value=process),
+            mock.patch.object(launcher, "_run_process", return_value=process) as run_process,
             mock.patch.object(launcher, "persist_rotated_credentials", return_value=[]),
             # The worktree grant (#1275) has its own tests; these runs use a stub worktree.
             mock.patch.object(launcher, "grant_worktree_access", return_value=None),
@@ -89,6 +91,7 @@ class ProcessControlInTheRecord(unittest.TestCase):
         ):
             code = launcher.main(["--provider", "codex", "--worktree", str(self.worktree), "--brief",
                                   str(self.brief), "--record", str(record_path)])
+        self.assertIs(run_process.call_args.kwargs["watch_outside"], True)
         return json.loads(record_path.read_text(encoding="utf-8")), code
 
     def assert_violation(self, command: str, output: str, pids: list[int]) -> None:
@@ -121,6 +124,24 @@ class ProcessControlInTheRecord(unittest.TestCase):
         ):
             with self.subTest(command=command):
                 self.assert_violation(command, "", pids)
+
+    def test_a_search_naming_a_stop_completes_the_run_when_nothing_outside_it_ended(self) -> None:
+        """#371: the #360 search, with the launcher's process watch attached to the provider result."""
+        command = "rg -n 'subprocess|Popen|dotnet|unlink|write_text|kill|Stop-Process' scripts/check_*.py"
+        stdout = stream(command_item("item_12", command, "scripts/check_x.py:3:kill"))
+        sizes = [len(stdout.encode("utf-8")) * share // 4 for share in range(5)]
+        timeline = tuple((100.0 + index, size) for index, size in enumerate(sizes))
+        quiet = WatchResult((SeenProcess(7, "Roamer.exe", None, 104.0, None, False),), timeline, True)
+        record, code = self.run_codex(stdout, watch=quiet)
+        [entry] = record["host"]["processControl"]
+        self.assertEqual((entry["pids"], entry["inRunTree"], entry["outsideExits"]), ([], False, []))
+        self.assertNotIn("hostViolations", record)
+        self.assertEqual(code, 0)
+        ended = WatchResult((SeenProcess(7, "Roamer.exe", None, 102.5, 102.75, False),), timeline, True)
+        record, code = self.run_codex(stdout, watch=ended)
+        self.assertEqual(record["host"]["processControl"][0]["outsideExits"], [{"pid": 7, "exe": "Roamer.exe"}])
+        self.assertIn("PROCESS_STOP_OUTSIDE_RUN", record["hostViolations"])
+        self.assertEqual(code, 6)
 
     def test_listing_processes_alone_is_not_process_control(self) -> None:
         record, code = self.run_codex(stream(

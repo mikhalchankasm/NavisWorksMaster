@@ -3,6 +3,8 @@
 Only literal PID targets can establish ownership. Names, variables and
 pipelines remain unproven even when another stop in the command is owned.
 This is command-text detection, not execution or inspection of script files.
+A command outside the run's tree with no PID to check is then weighed against
+`executor_process_watch`: what actually ended while it ran (#371).
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ import re
 from typing import Collection
 
 from scripts.executor_primitives import redact_patterns
+from scripts.executor_process_watch import SAMPLE_INTERVAL_SECONDS, WatchResult, arrival, describe, outside_exits
 
 
 _STOP = re.compile(
@@ -38,11 +41,13 @@ _KILL_ARGS = re.compile(
 )
 
 
-def _targets(command: str) -> tuple[list[int], bool]:
+def _targets(command: str) -> tuple[list[int], bool, bool]:
+    """PIDs named, whether every stop is proven to target only them, and whether any stop is remote."""
     stops = list(_STOP.finditer(command))
     separators = list(_SEPARATOR.finditer(command))
     pids: list[int] = []
     proven = bool(stops)
+    any_remote = False
     for index, stop in enumerate(stops):
         left = max((part.end() for part in separators if part.end() <= stop.start()), default=0)
         right = min((part.start() for part in separators if part.start() >= stop.end()), default=len(command))
@@ -90,8 +95,9 @@ def _targets(command: str) -> tuple[list[int], bool]:
         remote = re.search(r"(?<![\w-])(?:/S(?=[\s:])|/SERVER:|/node:|/FI\b|-ComputerName\b|-CimSession\b)",
                            before + stop.group() + after, re.I)
         proven = proven and bool(targets) and not dynamic and not piped and not selection and not remote
+        any_remote = any_remote or bool(remote)
         pids.extend(pid for pid in targets if pid not in pids)
-    return pids, bool(proven)
+    return pids, bool(proven), any_remote
 
 
 def _scrub(text: str, secrets: list[str]) -> str:
@@ -101,17 +107,25 @@ def _scrub(text: str, secrets: list[str]) -> str:
 
 
 def scan(
-    stdout: str, run_tree_pids: frozenset[int], secrets: Collection[str] = ()
+    stdout: str, run_tree_pids: frozenset[int], secrets: Collection[str] = (), watch: WatchResult | None = None
 ) -> list[dict[str, object]]:
     """One entry per item ID in first-seen order; completed replaces started.
 
     The raw stream is parsed and only the kept strings are redacted. Redacting first would let a token shape
     such as `token=\\S+` eat an event's closing quotes, drop the event as unparsable and hide its stop.
+
+    With a complete `watch` an entry outside the run also gets `outsideExits`: the older processes outside the
+    run that ended while the command ran (#371). Without one, or when the stream's byte offsets cannot be trusted
+    because its decoding replaced bytes, the field is absent and the host guard keeps the text verdict.
     """
     items: dict[str, dict[str, object]] = {}
     completed: set[str] = set()
+    started_at: dict[str, int] = {}
+    completed_at: dict[str, int] = {}
+    offset = 0
     # JSONL boundaries are "\n" only: str.splitlines would also cut at U+2028 inside a JSON string.
     for row in stdout.split("\n"):
+        offset += len(row.encode("utf-8", "surrogatepass")) + 1
         try:
             event = json.loads(row[:-1] if row.endswith("\r") else row)
         except ValueError:
@@ -127,22 +141,35 @@ def scan(
         if event["type"] == "item.completed":
             items[item_id] = item
             completed.add(item_id)
+            completed_at.setdefault(item_id, offset)
         elif item_id not in completed:
             items[item_id] = item
+            started_at.setdefault(item_id, offset)
 
     known = sorted((secret for secret in secrets if secret), key=len, reverse=True)
+    evidence = watch is not None and watch.complete and "\ufffd" not in stdout
     entries: list[dict[str, object]] = []
     for item_id, item in items.items():
         command = item.get("command")
         if not isinstance(command, str) or not _STOP.search(command):
             continue
-        pids, proven = _targets(command)
+        pids, proven, remote = _targets(command)
         output = item.get("aggregated_output", "") if item_id in completed else ""
-        entries.append({
+        entry: dict[str, object] = {
             "itemId": item_id,
             "command": _scrub(command, known),
             "output": _scrub(output, known)[-2000:] if isinstance(output, str) else "",
             "pids": pids,
             "inRunTree": proven and all(pid in run_tree_pids for pid in pids),
-        })
+        }
+        # Another machine's processes are not in this machine's process list: a remote stop keeps the text verdict.
+        if evidence and not remote and not entry["inRunTree"]:
+            assert watch is not None
+            # One sample of slack before the start line: the command may begin before Codex's line is flushed.
+            start = arrival(watch.stdout_timeline, started_at.get(item_id, completed_at.get(item_id, 0)))[0]
+            start = max(0.0, start - SAMPLE_INTERVAL_SECONDS)
+            end = arrival(watch.stdout_timeline, completed_at[item_id])[1] if item_id in completed_at else None
+            entry["window"] = [round(start, 2), None if end is None else round(end, 2)]
+            entry["outsideExits"] = describe(outside_exits(watch, start, end))
+        entries.append(entry)
     return entries
