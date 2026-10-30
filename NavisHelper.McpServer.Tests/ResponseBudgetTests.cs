@@ -75,5 +75,10 @@ public sealed class ResponseBudgetTests
 
         var builders = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "NavisHelper", "Agent", "Services", "DocumentCommandService.cs"));
         Assert.Contains("ResponseSize.Bytes(", builders, StringComparison.Ordinal);
+
+        // The server's encoder still writes some characters (U+3000, surrogates) as six-byte
+        // escapes, so the host counts every non-ASCII character that way (#427 review).
+        var size = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "NavisHelper", "Agent", "Services", "ResponseSize.cs"));
+        Assert.Contains("StringEscapeHandling.EscapeNonAscii", size, StringComparison.Ordinal);
     }
 }

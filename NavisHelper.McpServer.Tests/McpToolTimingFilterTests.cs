@@ -195,6 +195,29 @@ public sealed class McpToolTimingFilterTests
         Assert.Equal(bytes, inline.GetProperty("response_bytes").GetInt32());
     }
 
+    // The host pages by counting every non-ASCII character as a six-byte escape. That holds
+    // only while this filter never writes a string longer than that (#427 review).
+    [Fact]
+    public async Task NoStringIsWrittenLongerThanItsAsciiEscapedForm()
+    {
+        const string value = "ЗОНА\u3000东京 😀 \u2028 tab\t \"q\" \\ <a&b>";
+        var payload = JsonSerializer.Serialize(new { name = value });
+        var result = await InvokeAsync(new CallToolResult
+        {
+            Content = new List<ContentBlock>
+            {
+                new TextContentBlock { Text = payload },
+            },
+        });
+
+        var escapedBound = 0;
+        foreach (var c in value)
+            escapedBound += c == '"' || c == '\\' ? 2 : c >= 0x20 && c < 0x7f ? 1 : 6;
+        var written = MetaTiming(result).GetProperty("response_bytes").GetInt32();
+        Assert.True(written <= escapedBound + """{"name":""}""".Length,
+            $"The filter wrote {written} bytes; the host's bound is {escapedBound} for the string.");
+    }
+
     [Fact]
     public async Task NonJsonText_ReportsItsBytesToo()
     {
