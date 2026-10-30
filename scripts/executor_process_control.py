@@ -28,6 +28,19 @@ _STOP = re.compile(
     re.IGNORECASE,
 )
 _SEPARATOR = re.compile(r"[;|\r\n]|&&")
+# Anything in the command that can run code on another machine, in WSL or in a container: their processes are
+# not in this machine's process list, so a local watch cannot clear a stop sent there (#371 review). Matched
+# anywhere in the command, not only beside the stop: a miss would clear a real stop, an extra match only keeps
+# the strict text verdict.
+_ELSEWHERE = re.compile(
+    r"(?<![\w.-])(?:ssh|plink|scp|psexec|paexec|winrs|wsl|bash\.exe|docker|podman|kubectl|Invoke-Command|icm"
+    r"|Enter-PSSession|New-PSSession|Invoke-WmiMethod|Invoke-CimMethod)(?:\.exe)?(?![\w-])"
+    r"|(?<![\w-])(?:/S(?=[\s:])|/SERVER:|/node:|-ComputerName\b|-CimSession\b|-Session\b|-HostName\b"
+    # A \\host path starts a token; Codex writes local paths with doubled backslashes (C:\\windows), so not after
+    # a drive colon, a word character or another backslash.
+    r"|-VMName\b|-VMId\b|-ContainerId\b)|(?<![\w:\\])\\\\+[\w.-]+",
+    re.IGNORECASE,
+)
 _NUMBERS = r"\d+(?:\s*,\s*\d+)*"
 _END_NUMBER = r"(?!\s*,)(?=$|[\s)'\";/&|])"
 _ID = re.compile(r"(?<!\w)-Id(?:\s*:\s*|\s+)(?P<pids>" + _NUMBERS + r")" + _END_NUMBER, re.I)
@@ -154,6 +167,7 @@ def scan(
         if not isinstance(command, str) or not _STOP.search(command):
             continue
         pids, proven, remote = _targets(command)
+        remote = remote or bool(_ELSEWHERE.search(command))
         output = item.get("aggregated_output", "") if item_id in completed else ""
         entry: dict[str, object] = {
             "itemId": item_id,
@@ -162,7 +176,7 @@ def scan(
             "pids": pids,
             "inRunTree": proven and all(pid in run_tree_pids for pid in pids),
         }
-        # Another machine's processes are not in this machine's process list: a remote stop keeps the text verdict.
+        # Processes elsewhere are not in this machine's process list: such a stop keeps the text verdict.
         if evidence and not remote and not entry["inRunTree"]:
             assert watch is not None
             # One sample of slack before the start line: the command may begin before Codex's line is flushed.

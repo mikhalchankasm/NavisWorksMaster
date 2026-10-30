@@ -15,7 +15,8 @@ import unittest
 from scripts.executor_host_guard import PROCESS_STOP_OUTSIDE_RUN, violations
 from scripts.executor_process_control import scan
 from scripts.executor_process_watch import (
-    MIN_AGE_SECONDS, ProcessWatch, SeenProcess, WatchResult, _toolhelp_snapshot, arrival, outside_exits,
+    MIN_AGE_SECONDS, ProcessWatch, SeenProcess, WatchResult, _process_ages, _toolhelp_snapshot, arrival,
+    outside_exits,
 )
 from scripts.tests.test_executor_process_control import FOREIGN_PID, POWERSHELL, command_item, stream
 
@@ -115,7 +116,13 @@ class StopsThatActed(unittest.TestCase):
 
     def test_a_remote_stop_keeps_the_text_verdict(self) -> None:
         for command in (POWERSHELL + "'Stop-Process -Name Roamer -ComputerName rig'",
-                        "taskkill /S rig /IM Roamer.exe /F"):
+                        "taskkill /S rig /IM Roamer.exe /F",
+                        # Codex review: run through another channel, the stop is not next to a remote option.
+                        'ssh rig "taskkill /IM Roamer.exe /F"',
+                        POWERSHELL + "'icm -ComputerName rig { Stop-Process -Name Roamer }'",
+                        POWERSHELL + "'Invoke-Command -Session $s { spps -Name Roamer }'",
+                        "psexec \\\\rig taskkill /IM Roamer.exe /F",
+                        "wsl kill 1", "docker exec builder kill 1"):
             with self.subTest(command=command):
                 entry = entry_for(stream(command_item("item_4", command)))
                 self.assertNotIn("outsideExits", entry)
@@ -149,7 +156,7 @@ class TheWatchItself(unittest.TestCase):
             {(20, 1, "b.exe"): "b.exe", (30, 20, "c.exe"): "c.exe", (10, 5, "x.exe"): "x.exe"},  # 10 reused
             {(20, 1, "b.exe"): "b.exe", (10, 5, "x.exe"): "x.exe"},
         ])
-        watch = ProcessWatch(snapshot=lambda: next(snapshots), clock=lambda: next(clock))
+        watch = ProcessWatch(snapshot=lambda: next(snapshots), clock=lambda: next(clock), ages=lambda pids: {})
         watch.sample(0, ())
         watch.sample(10, {30})
         watch.sample(20, ())
@@ -165,10 +172,31 @@ class TheWatchItself(unittest.TestCase):
 
     def test_one_failed_sample_makes_the_whole_watch_incomplete(self) -> None:
         snapshots = iter([{(1, 0, "a.exe"): "a.exe"}, None, {(1, 0, "a.exe"): "a.exe"}])
-        watch = ProcessWatch(snapshot=lambda: next(snapshots), clock=lambda: 0.0)
+        watch = ProcessWatch(snapshot=lambda: next(snapshots), clock=lambda: 0.0, ages=lambda pids: {})
         for _ in range(3):
             watch.sample(0, ())
         self.assertFalse(watch.result().complete)
+
+    def test_a_process_running_at_the_first_sample_keeps_its_real_age(self) -> None:
+        """Codex review: one started a moment before the watch is young, not old, when its start time is known."""
+        clock = iter([0.0, 0.0, 6.0])
+        snapshots = iter([{(10, 1, "git.exe"): "git.exe", (20, 1, "Roamer.exe"): "Roamer.exe",
+                           (30, 1, "csrss.exe"): "csrss.exe"}, {}])
+        watch = ProcessWatch(snapshot=lambda: next(snapshots), clock=lambda: next(clock),
+                             ages=lambda pids: {10: 1.0, 20: 3600.0})
+        watch.sample(0, ())
+        watch.sample(0, ())
+        by = {p.exe: p for p in watch.result().processes}
+        self.assertEqual((by["git.exe"].first_seen, by["Roamer.exe"].first_seen, by["csrss.exe"].first_seen),
+                         (-1.0, -3600.0, None))
+        # A command from 5 s: git is 6 s old at its start, Roamer an hour, csrss of unknown age counts as old.
+        self.assertEqual(sorted(p.exe for p in outside_exits(watch.result(), 5.0, 7.0)), ["Roamer.exe", "csrss.exe"])
+
+    @unittest.skipUnless(os.name == "nt", "process times are read through kernel32")
+    def test_this_process_has_an_age(self) -> None:
+        age = _process_ages([os.getpid()]).get(os.getpid())
+        self.assertIsNotNone(age)
+        self.assertGreater(age, 0.0)
 
     def test_arrival_brackets_a_byte_offset_between_two_samples(self) -> None:
         timeline = ((0.0, 0), (1.0, 50), (2.0, 120))

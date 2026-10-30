@@ -30,7 +30,8 @@ Snapshot = Callable[[], "dict[tuple[int, int, str], str] | None"]
 class SeenProcess:
     pid: int
     exe: str
-    first_seen: float | None  # None: already running at the first sample
+    # Negative for a process older than the watch; None when the first sample listed it and its age is unknown.
+    first_seen: float | None
     last_seen: float
     ended_by: float | None  # the first sample without it; None while it was still running at the last one
     in_run: bool  # listed by the run's Job at any sample while it was seen
@@ -60,6 +61,9 @@ class ProcessWatch:
 
     snapshot: Snapshot = field(default_factory=lambda: _toolhelp_snapshot)
     clock: Callable[[], float] = time.monotonic
+    # Seconds each PID has run, asked once for the processes of the first sample. Without it one that started a
+    # moment before the watch would read as old, and its exit would blame a harmless command (#371 review).
+    ages: Callable[[Iterable[int]], "dict[int, float]"] = field(default_factory=lambda: _process_ages)
 
     def __post_init__(self) -> None:
         self._start = self.clock()
@@ -79,10 +83,13 @@ class ProcessWatch:
             if key not in processes:
                 self._ended.append(SeenProcess(live.pid, live.exe, live.first_seen, live.last_seen, now, live.in_run))
                 del self._live[key]
+        ages = {} if self._sampled else self.ages(key[0] for key in processes)
         for key, exe in processes.items():
             live = self._live.get(key)
             if live is None:
-                live = self._live[key] = _Live(key[0], exe, now if self._sampled else None, now, False)
+                # A first-sample process whose start time cannot be read stays None: old, so its exit is evidence.
+                first = now if self._sampled else (now - ages[key[0]] if key[0] in ages else None)
+                live = self._live[key] = _Live(key[0], exe, first, now, False)
             live.last_seen = now
             live.in_run = live.in_run or key[0] in job_pids
         self._timeline.append((now, stdout_bytes))
@@ -161,6 +168,39 @@ def _toolhelp_snapshot() -> dict[tuple[int, int, str], str] | None:
         return found if ctypes.get_last_error() == 18 else None
     finally:
         kernel32.CloseHandle(handle)
+
+
+def _process_ages(pids: Iterable[int]) -> dict[int, float]:
+    """PID -> seconds since it started, for the processes whose start time this user may read."""
+    if os.name != "nt":
+        return {}
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+    kernel32.GetSystemTimeAsFileTime.argtypes = [ctypes.POINTER(wintypes.FILETIME)]
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+
+    def ticks(value: wintypes.FILETIME) -> int:
+        return (value.dwHighDateTime << 32) | value.dwLowDateTime  # 100 ns since 1601
+
+    now = wintypes.FILETIME()
+    kernel32.GetSystemTimeAsFileTime(ctypes.byref(now))
+    ages: dict[int, float] = {}
+    for pid in pids:
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            continue
+        try:
+            created, gone, kernel, user = (wintypes.FILETIME() for _ in range(4))
+            if kernel32.GetProcessTimes(handle, ctypes.byref(created), ctypes.byref(gone),
+                                        ctypes.byref(kernel), ctypes.byref(user)) and ticks(created):
+                ages[pid] = max(0.0, (ticks(now) - ticks(created)) / 10_000_000)
+        finally:
+            kernel32.CloseHandle(handle)
+    return ages
 
 
 def describe(processes: Iterable[SeenProcess], limit: int = 20) -> list[dict[str, object]]:

@@ -76,8 +76,10 @@ mentions a stop - `rg 'Stop-Process'` - is also unproven.
 For Codex on Windows the launcher also samples every process on the machine
 each 250 ms (#371). An unproven entry that is not remote then carries `window`
 (seconds since the watch started; `null` end: to the end of the run) and
-`outsideExits`: processes outside the run, seen at least 10 s before the command
-started, that ended inside the window. The window runs from the sample before
+`outsideExits`: processes outside the run, started at least 10 s before the
+command (by their start time when the watch began, by the first sample that
+listed them after that; an unreadable start time counts as old), that ended
+inside the window. The window runs from the sample before
 the command's start line to the sample that holds its completion line, and grows
 while a process the run started inside it is still running, so a stop left in a
 background process is still inside it. Windows does not record who ended a
@@ -86,8 +88,10 @@ lands in a one-second window about one time in twelve.
 
 An entry adds `PROCESS_STOP_OUTSIDE_RUN` to `hostViolations` and fails the run
 with exit 6 when `inRunTree` is false and it names a PID, or has no
-`outsideExits` (no watch, a failed sample, a remote stop, or output whose
-decoding replaced bytes), or its `outsideExits` is not empty. A named PID outside
+`outsideExits` (no watch, a failed sample, output whose decoding replaced bytes,
+or a command that can run code elsewhere - `ssh`, `Invoke-Command`, `psexec`,
+`winrs`, WSL, a container, a `\host` path, a remote option - whose processes
+this machine cannot see), or its `outsideExits` is not empty. A named PID outside
 the run fails it even if the stop itself failed. Read the entry before acting on
 the exit code: `outsideExits` names what ended. Outside Windows no run-tree PIDs
 are proven and nothing is watched. The executor preamble prohibits
