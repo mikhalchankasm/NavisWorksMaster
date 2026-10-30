@@ -403,6 +403,15 @@ def violations(host: dict[str, object], *, windows: bool | None = None) -> list[
         found.append(EXECUTOR_TELEMETRY_INCOMPLETE)
     if windows and unavailable_snapshots(host):
         found.append(HOST_SNAPSHOT_UNAVAILABLE)
-    if any(entry.get("inRunTree") is False for entry in host.get("processControl", [])):
+    if any(_stop_outside_run(entry) for entry in host.get("processControl", [])):
         found.append(PROCESS_STOP_OUTSIDE_RUN)
     return found
+
+
+def _stop_outside_run(entry: dict[str, object]) -> bool:
+    """A named PID outside the run is a violation whatever happened to it. A stop with no PID to check is one
+    unless the process watch shows that no older process outside the run ended while it ran (#371)."""
+    if entry.get("inRunTree") is not False:
+        return False
+    exits = entry.get("outsideExits")
+    return bool(entry.get("pids")) or not isinstance(exits, list) or bool(exits)

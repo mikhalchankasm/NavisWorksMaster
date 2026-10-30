@@ -309,6 +309,8 @@ def run(
             stdin_text=stdin_text,
             spool_dir=root,
             max_output_bytes=MAX_WORKTREE_STREAM_BYTES,
+            # Codex's command stream is the one scan() reads, so only its run is watched (#371).
+            watch_outside=provider == "codex",
         )
         window_finished_ms = int(time.time() * 1000)
         if worktree_grant is not None:
@@ -329,7 +331,7 @@ def run(
         if acl_result is not None:
             host["worktreeAclGrant"] = acl_result
         if provider == "codex":
-            host["processControl"] = scan(process.stdout, process.process_tree_pids, secrets)
+            host["processControl"] = scan(process.stdout, process.process_tree_pids, secrets, process.process_watch)
             # Read from the whole stream before the record's tail is cut; only problem codes are kept.
             host["telemetry"] = {"problems": telemetry_problems(
                 process.stdout, timed_out=process.timed_out, output_too_large=process.output_too_large

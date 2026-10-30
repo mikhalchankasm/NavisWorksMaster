@@ -26,8 +26,11 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
+if TYPE_CHECKING:
+    # build_lock.py imports this file as a top-level module, where `scripts.` does not resolve.
+    from scripts.executor_process_watch import ProcessWatch, WatchResult
 
 MAX_FILE_BYTES = 32_000
 MAX_RESPONSE_BYTES = 256_000
@@ -178,6 +181,8 @@ class ProcessResult:
     timed_out: bool = False
     output_too_large: bool = False
     process_tree_pids: frozenset[int] = frozenset()
+    # What ended outside the run while it ran, and when its output arrived (#371); None when not watched.
+    process_watch: WatchResult | None = None
 
 
 def _repo_root() -> Path:
@@ -694,8 +699,10 @@ def _run_process(
     stdin_text: str | None = None,
     spool_dir: Path | None = None,
     max_output_bytes: int = MAX_RESPONSE_BYTES,
+    watch_outside: bool = False,
 ) -> ProcessResult:
     started = time.monotonic()
+    watch: ProcessWatch | None = None
     launch_options: dict[str, Any]
     windows_job: _WindowsJob | None = None
     process_tree_pids: set[int] = set()
@@ -737,6 +744,13 @@ def _run_process(
                     **launch_options,
                 )
                 if windows_job is not None:
+                    if watch_outside:
+                        from scripts.executor_process_watch import ProcessWatch
+
+                        # The first sample is taken before the provider can start anything: what it lists
+                        # was running before the run.
+                        watch = ProcessWatch()
+                        watch.sample(0, ())
                     windows_job.assign(process)
                     windows_job.sample_pids()
                     _resume_windows_process(process)
@@ -754,6 +768,8 @@ def _run_process(
             while process.poll() is None:
                 if windows_job is not None and time.monotonic() >= next_pid_sample:
                     windows_job.sample_pids()
+                    if watch is not None:
+                        watch.sample(os.fstat(stdout_file.fileno()).st_size, windows_job.process_tree_pids)
                     next_pid_sample = time.monotonic() + 0.25
                 stdout_size = os.fstat(stdout_file.fileno()).st_size
                 stderr_size = os.fstat(stderr_file.fileno()).st_size
@@ -770,6 +786,10 @@ def _run_process(
                     windows_job = None
                     break
                 time.sleep(0.01)
+            if watch is not None and windows_job is not None:
+                # The provider has exited: its last lines are on disk and its stops have acted.
+                windows_job.sample_pids()
+                watch.sample(os.fstat(stdout_file.fileno()).st_size, windows_job.process_tree_pids)
             if process.poll() is None:
                 _stop_process_tree(process, windows_job)
                 process_tree_stopped = True
@@ -796,6 +816,7 @@ def _run_process(
                 timed_out,
                 output_too_large,
                 frozenset(process_tree_pids),
+                None if watch is None else watch.result(),
             )
         except BaseException:
             if process is not None and not process_tree_stopped:

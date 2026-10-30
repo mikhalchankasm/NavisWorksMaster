@@ -71,10 +71,40 @@ were observed in the run's Windows Job Object. A stop by name, pipeline or
 variable is unproven, and so is every WMI/CIM stop (its predicate can select
 more than the PID it names) and every remote or filtered one (`/S`, `/FI`,
 `-ComputerName`). Detection reads the command text, so a command that only
-mentions a stop - `rg 'Stop-Process'` - also fails the run; read the entry
-before acting on the exit code. Any false entry adds `PROCESS_STOP_OUTSIDE_RUN` to
-`hostViolations` and fails the run with exit 6, even if the stop itself failed;
-outside Windows no run-tree PIDs are proven. The executor preamble prohibits
+mentions a stop - `rg 'Stop-Process'` - is also unproven.
+
+For Codex on Windows the launcher also samples every process on the machine
+each 250 ms (#371). An unproven entry that is not remote then carries `window`
+(seconds since the watch started; `null` end: to the end of the run) and
+`outsideExits`: processes outside the run, started at least 10 s before the
+command (by their start time when the watch began, by the first sample that
+listed them after that; an unreadable start time counts as old), that ended
+inside the window. The window runs from the sample before
+the command's start line to the sample that holds its completion line, and grows
+while a process the run started inside it is still running, so a stop left in a
+background process is still inside it. Windows does not record who ended a
+process, so this is a coincidence in time: on a busy machine an unrelated exit
+lands in a one-second window about one time in twelve.
+
+An entry adds `PROCESS_STOP_OUTSIDE_RUN` to `hostViolations` and fails the run
+with exit 6 when `inRunTree` is false and it names a PID, or has no
+`outsideExits` (no watch, a failed sample, output whose decoding replaced bytes,
+or a command that can run code elsewhere - `ssh`, `Invoke-Command`, `psexec`,
+`winrs`, WSL, a container, a `\\host` path, a remote option - whose processes
+this machine cannot see; one that decides at run time what it runs - a
+PowerShell or cmd variable, `iex`, an encoded command, a script block,
+`Start-Process`, another interpreter, a script file, a program run from a
+relative path; or a command with no start event), or its `outsideExits` is not
+empty. A named PID outside the run fails it even if the stop itself failed. Read
+the entry before acting on the exit code: `outsideExits` names what ended.
+Outside Windows no run-tree PIDs are proven and nothing is watched.
+
+What the evidence cannot see: a process younger than 10 s, and a stop that a
+program the text does not name forwards to WSL, a container or another machine.
+The second is narrow: the Codex sandbox has no network, and the markers above
+keep every channel they name strict. Three Codex reviews of #371 each found such
+a channel in text; the markers grew with each and only ever make the verdict
+stricter. The executor preamble prohibits
 process stops from commands it writes and tells it to report locks and stop
 work; test suites may stop only children they started themselves.
 
