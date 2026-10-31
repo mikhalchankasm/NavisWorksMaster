@@ -167,6 +167,7 @@ CODEX_DISABLED_FEATURES = (
     "cli_daybreak",
     "bedrock_setup_wizard",
     "mcp_oauth_refresh_coordination",
+    "plugin_discovery_prefetch",
 )
 
 # Every feature codex 0.158.0 still reports enabled in the isolated home with the switches above, reviewed on
@@ -191,7 +192,9 @@ CODEX_DISABLED_FEATURES = (
 # 0.165.0 (2026-10-29): newly enabled prediction_preserve_parent_tools and reasoning_effort_override (both stable;
 # the CLI gives no description, neither names an account, browser, connector, plugin or web surface) reviewed
 # harmless; unified_exec_zsh_fork is no longer reported. Probe: no MCP server, clock only, no web tool.
-CODEX_REVIEWED_VERSIONS = frozenset({"codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0", "codex-cli 0.164.0", "codex-cli 0.165.0"})
+# 0.166.0 (2026-10-31, as Avox #2000): newly enabled plugin_discovery_prefetch (a plugin surface) is switched off
+# above; the rest of the enabled set is unchanged and unified_exec_zsh_fork is still not enabled.
+CODEX_REVIEWED_VERSIONS = frozenset({"codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0", "codex-cli 0.164.0", "codex-cli 0.165.0", "codex-cli 0.166.0"})
 
 _CODEX_RELEASE = re.compile(r"codex-cli (\d+\.\d+)\.(\d+)")
 

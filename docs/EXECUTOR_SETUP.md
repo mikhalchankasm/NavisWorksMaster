@@ -93,7 +93,9 @@ from Avox with the launcher); 0.163.0 (2026-10-20, ported from Avox `3bda6b8f`):
 reviewed here, Avox had not reviewed it yet): `incremental_tools` reviewed harmless,
 `bedrock_setup_wizard` and `mcp_oauth_refresh_coordination` switched off. 0.165.0 (2026-10-29,
 reviewed here): `prediction_preserve_parent_tools` and `reasoning_effort_override` reviewed
-harmless, nothing new switched off; the probe listed no MCP server and no web tool.
+harmless, nothing new switched off; the probe listed no MCP server and no web tool. 0.166.0
+(2026-10-31, the same change as Avox #2000): `plugin_discovery_prefetch`, a plugin surface,
+switched off; the rest of the enabled set is unchanged.
 
 ### Qwen Code (`qwen`)
 
