@@ -151,6 +151,7 @@ internal static class McpToolProfile
                 "reset_appearance",
                 "selection_color_by_property",
                 "selection_distinct_property_values",
+                "selection_export_bounding_boxes",
                 "selection_export_properties",
                 "selection_property_report",
             },

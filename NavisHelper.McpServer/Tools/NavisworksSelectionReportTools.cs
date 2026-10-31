@@ -74,6 +74,29 @@ internal sealed class NavisworksSelectionReportTools : NavisworksToolBase
     }
 
     [McpServerTool]
+    [Description("Writes one CSV row per selected item with its bounding box (min/max XYZ in document units) and returns a summary, never the rows. Dry-run by default. Past maxItems, call again with offset=nextOffset.")]
+    [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
+    public Task<SelectionExportBoundingBoxesResponse> SelectionExportBoundingBoxes(
+        [Description("Absolute output .csv path. Required.")] string outputPath,
+        [Description("False previews counts and path; true writes the file.")] bool apply = false,
+        [Description("Replace an existing file.")] bool overwrite = false,
+        [Description("Maximum items per file, 1-100000.")] int maxItems = 10000,
+        [Description("Zero-based selection position to start at; pass nextOffset.")] int offset = 0,
+        [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
+        [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
+        CancellationToken cancellationToken = default)
+    {
+        return _hostBridgeClient.SelectionExportBoundingBoxesAsync(new SelectionExportBoundingBoxesRequest
+        {
+            OutputPath = outputPath,
+            Apply = apply,
+            Overwrite = overwrite,
+            MaxItems = maxItems,
+            Offset = offset,
+        }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
+    }
+
+    [McpServerTool]
     [Description("Returns distinct property values in the current Navisworks selection with counts. Read-only helper for reporting and future color_by_property workflows.")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectionDistinctPropertyValuesResponse> SelectionDistinctPropertyValues(

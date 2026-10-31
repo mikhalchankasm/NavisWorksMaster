@@ -200,6 +200,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `selection_color_by_property` | Document | Yes | Yes | Yes |
 | `selection_copy_names` | None | Yes | Yes | No |
 | `selection_distinct_property_values` | None | Yes | Yes | No |
+| `selection_export_bounding_boxes` | Files | Yes | Yes | Yes |
 | `selection_export_properties` | Files | Yes | Yes | Yes |
 | `selection_property_report` | None | Yes | Yes | No |
 | `selection_sets_apply_appearance` | Document | Yes | Yes | Yes |
@@ -293,11 +294,12 @@ a new truncation flag appears on a contract without being documented.
 | `truncated` | `viewpoints_per_item` (`ItemViewpointsResponse`) | only the first `maxItems` distinct items are planned or processed; `itemCount` includes all distinct input items |
 | `truncated` | every paged listing -- `list_root_items`, `list_item_children`, `list_selection_sets`, `list_saved_viewpoints`, `selection_copy_names`, `selected_items_preview`/`_ancestry`/`_tree`, `item_appearance`, `get_item_texture_mapping`, the clash listings and reports, viewpoint build and import | fewer rows returned than exist. `dump_subtree_names` does **not** have this flag: its job status reports state and progress counts instead |
 | `itemsTruncated`, `resultsTruncated`, `rowsTruncated` | `selection_property_report`, `selection_export_properties`, clash listings and reports | fewer rows than exist. `selection_export_properties` writes a file, so a truncated export is a report short of rows |
+| `itemsTruncated` | `selection_export_bounding_boxes` | selected items remain after this file's rows (`maxItems` or the request deadline); call again with `offset=nextOffset` and another `outputPath` |
 | `propertiesTruncated` | `item_properties_by_handle`, `selection_property_report`, `selection_export_properties`, `model_color_scheme` item facts | fewer properties per item than the item has |
 | `commentsTruncated` | `clash_list_results` result summaries | fewer comments returned than `commentCount`, or a returned comment body was shortened |
 | `valuesTruncated` | `selection_distinct_property_values` | fewer distinct values than exist, so the set is not the full domain |
 | `depthTruncated` | `selected_items_tree` | the tree was cut at `maxDepth`; deeper nodes exist and are absent |
-| `deadlineTruncated` | `selected_items_tree` | the walk over the selection stopped at the request deadline; more selected items exist and are absent, and what was built so far is returned |
+| `deadlineTruncated` | `selected_items_tree`, `selection_export_bounding_boxes` | the walk over the selection stopped at the request deadline; more selected items exist and are absent, and what was built so far is returned (for the export, written to the file) |
 | `budgetTruncated` | `selected_items_tree` | the page stopped at about 80 KB (`ResponseBudget.PageBytes`) before `maxItems`, so the answer stays under the client's limit of about 25 000 tokens; more selected items exist, and `nextOffset` continues the selection (#427). One item larger than a page on its own is refused with `response_too_large`; retry with a smaller `maxDepth` or without bounding boxes |
 | `scanTruncated` | `find_duplicate_geometry` | the geometry scan stopped at 200000 items or the host request deadline; counts and groups cover only scanned items |
 | `groupsTruncated` | `find_duplicate_geometry` | more duplicate groups were found than `maxGroups`; `groupCount` and `duplicateItemCount` cover only returned groups |
@@ -337,10 +339,10 @@ contract cannot skip that description.
 | `CandidatePairsTruncated` | `ClashBboxPairPlanResponse` |
 | `ClassificationTruncated` | `ModelColorSchemeResponse` |
 | `CommentsTruncated` | `ClashResultSummary` |
-| `DeadlineTruncated` | `SelectedItemsTreeResponse` |
+| `DeadlineTruncated` | `SelectedItemsTreeResponse`, `SelectionExportBoundingBoxesResponse` |
 | `DepthTruncated` | `SelectedItemsTreeResponse` |
 | `GroupsTruncated` | `ClashGroupResultsResponse`, `FindDuplicateGeometryResponse`, `SelectionColorByPropertyResponse` |
-| `ItemsTruncated` | `ItemPropertiesHandleResult`, `ModelColorSchemeResponse`, `SelectionColorByPropertyResponse`, `SelectionDistinctPropertyValuesResponse`, `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
+| `ItemsTruncated` | `ItemPropertiesHandleResult`, `ModelColorSchemeResponse`, `SelectionColorByPropertyResponse`, `SelectionDistinctPropertyValuesResponse`, `SelectionExportBoundingBoxesResponse`, `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
 | `PairsTruncated` | `ClashRootMatrixResponse` |
 | `PlannedTestsTruncated` | `ClashCreateMatrixFromSelectionResponse` |
 | `PreservedEmptyPreviewTruncated` | `IsolateByBoxResponse` |
@@ -1347,6 +1349,31 @@ Counts cover every geometry item, including those beyond the returned sample.
 and `transparencyOverridden`. Colours are uppercase `#RRGGBB` (null if unavailable);
 transparency is a whole percentage, 0–100. Override flags compare colour bytes
 case-insensitively and rounded transparency percentages, rather than recording provenance.
+
+## `selection_export_bounding_boxes`
+
+Writes the bounding box of every selected item to a CSV file and answers with a summary of
+fixed size (#427): `selected_items_tree` with boxes pages at about 80 KB, so 10 000 boxes
+took a dozen pages of context. Belongs to the `reports` tool set; effect `Files`.
+
+Inputs: `outputPath` (required, absolute, `.csv`), `apply=false`, `overwrite=false`,
+`maxItems=10000` (clamped to 1–100000), `offset=0`, `instanceId`, `navisworksVersion`.
+A blank, relative or non-`.csv` path or a negative offset is refused with `schema_violation`.
+The dry-run reads no boxes and writes nothing; it reports the counts and says when the file
+already exists. With `apply=true` the file is written through the verified artifact writer
+(a temporary file, then a replace), and an existing file without `overwrite=true` is refused.
+
+The file is UTF-8 with a byte order mark (so Excel reads Cyrillic names), CRLF line endings, with the header
+`selection_index,name,path,source_file,min_x,min_y,min_z,max_x,max_y,max_z`. `path` is the
+printed path `list_item_children` and `find_items` report; coordinates are in document
+units (`units` in the answer), invariant culture, round-trip precision. An item without a
+box keeps its row with six empty coordinate cells, so the row count equals
+`exportedItemCount`; `itemsWithoutBoxCount` counts them.
+
+The answer has `applied`, `outputPath`, `selectedItemCount`, `offset`, `nextOffset`,
+`exportedItemCount`, `itemsWithoutBoxCount`, `itemsTruncated`, `deadlineTruncated`,
+`fileSizeBytes`, `sha256`, `units` and `message`, and no list, so it stays under 2 KB
+whatever the selection size.
 
 ## `selection_sets_apply_appearance`
 

@@ -747,7 +747,7 @@ namespace NavisHelper.Agent.Services
             };
         }
 
-        private static BoundingBoxInfo TryBuildBoundingBoxInfo(ModelItem item)
+        internal static BoundingBoxInfo TryBuildBoundingBoxInfo(ModelItem item)
         {
             if (item == null)
                 return null;
@@ -1036,7 +1036,7 @@ namespace NavisHelper.Agent.Services
             };
         }
 
-        private static string GetItemDisplayName(ModelItem item)
+        internal static string GetItemDisplayName(ModelItem item)
         {
             if (item == null)
                 return string.Empty;
@@ -1127,7 +1127,7 @@ namespace NavisHelper.Agent.Services
             return string.Empty;
         }
 
-        private static string TryGetSourceFileCached(IDictionary<string, string> sourceFilesByRootPath, string rootPath, ModelItem rootItem)
+        internal static string TryGetSourceFileCached(IDictionary<string, string> sourceFilesByRootPath, string rootPath, ModelItem rootItem)
         {
             string sourceFile;
             if (sourceFilesByRootPath.TryGetValue(rootPath, out sourceFile))

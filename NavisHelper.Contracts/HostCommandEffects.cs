@@ -25,6 +25,7 @@ namespace NavisHelper.Agent.Contracts
                 { HostCommandNames.CancelSubtreeNamesDump, true },
                 { HostCommandNames.SelectionPropertyReport, false },
                 { HostCommandNames.SelectionExportProperties, true },
+                { HostCommandNames.SelectionExportBoundingBoxes, true },
                 { HostCommandNames.SelectionDistinctPropertyValues, false },
                 { HostCommandNames.SelectionColorByProperty, true },
                 { HostCommandNames.ModelColorScheme, true },

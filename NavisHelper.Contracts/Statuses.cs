@@ -34,6 +34,7 @@ namespace NavisHelper.Agent.Contracts
         public const string CancelSubtreeNamesDump = "cancel_subtree_names_dump";
         public const string SelectionPropertyReport = "selection_property_report";
         public const string SelectionExportProperties = "selection_export_properties";
+        public const string SelectionExportBoundingBoxes = "selection_export_bounding_boxes";
         public const string SelectionDistinctPropertyValues = "selection_distinct_property_values";
         public const string SelectionColorByProperty = "selection_color_by_property";
         public const string ModelColorScheme = "model_color_scheme";

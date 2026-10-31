@@ -146,13 +146,16 @@ public sealed class SelectionBoundingBoxExportTests
     public void ThePluginWritesThroughTheVerifiedWriterAndPagesByOffset()
     {
         var service = File.ReadAllText(Path.Combine(
-            RepositoryPaths.Root, "NavisHelper", "Agent", "Services", "DocumentCommandService.BoundingBoxExport.cs"));
+            RepositoryPaths.Root, "NavisHelper", "Agent", "Services", "SelectionBoundingBoxExportService.cs"));
         Assert.Contains("SelectionBoundingBoxExportRules.Describe(", service, StringComparison.Ordinal);
         Assert.Contains("SelectionBoundingBoxExportRules.ClampMaxItems(", service, StringComparison.Ordinal);
         Assert.Contains("SelectionBoundingBoxExportRules.Header", service, StringComparison.Ordinal);
         Assert.Contains("SelectionBoundingBoxExportRules.Row(", service, StringComparison.Ordinal);
         Assert.Contains("TryBuildBoundingBoxInfo(", service, StringComparison.Ordinal);
         Assert.Contains("VerifiedFileArtifactWriter.WriteUtf8(", service, StringComparison.Ordinal);
+        // Without a byte order mark Excel reads the CSV in the ANSI code page and garbles
+        // Cyrillic item names; selection_export_properties writes one for the same reason.
+        Assert.Contains("csv.Append('\\uFEFF')", service, StringComparison.Ordinal);
         Assert.Contains("HostRequestDeadline.Current", service, StringComparison.Ordinal);
         Assert.Contains("SelectedItemsTreePaging.NextOffset(", service, StringComparison.Ordinal);
     }

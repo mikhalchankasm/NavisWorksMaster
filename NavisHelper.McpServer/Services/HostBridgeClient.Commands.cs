@@ -110,6 +110,11 @@ internal sealed partial class HostBridgeClient
         return CallHostAsync<SelectionExportPropertiesResponse>(HostCommandNames.SelectionExportProperties, request, cancellationToken, target);
     }
 
+    public Task<SelectionExportBoundingBoxesResponse> SelectionExportBoundingBoxesAsync(SelectionExportBoundingBoxesRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    {
+        return CallHostAsync<SelectionExportBoundingBoxesResponse>(HostCommandNames.SelectionExportBoundingBoxes, request, cancellationToken, target);
+    }
+
     public Task<SelectionDistinctPropertyValuesResponse> SelectionDistinctPropertyValuesAsync(SelectionDistinctPropertyValuesRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
     {
         return CallHostAsync<SelectionDistinctPropertyValuesResponse>(HostCommandNames.SelectionDistinctPropertyValues, request, cancellationToken, target);
