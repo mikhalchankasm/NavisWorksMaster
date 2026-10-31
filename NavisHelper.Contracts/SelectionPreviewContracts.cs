@@ -81,6 +81,8 @@ namespace NavisHelper.Agent.Contracts
         public bool Truncated { get; set; }
         public bool DepthTruncated { get; set; }
         public bool DeadlineTruncated { get; set; }
+        /// <summary>The page stopped at ResponseBudget.PageBytes before maxItems; nextOffset continues it (#427).</summary>
+        public bool BudgetTruncated { get; set; }
         public List<SelectedItemsTreeNode> Roots { get; set; } = new List<SelectedItemsTreeNode>();
         public List<SelectedItemsTreeFlatItem> Items { get; set; } = new List<SelectedItemsTreeFlatItem>();
     }

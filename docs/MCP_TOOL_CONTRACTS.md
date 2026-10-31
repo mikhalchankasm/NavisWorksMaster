@@ -236,7 +236,7 @@ Start the MCP server with `--read-only`, or set `NAVISHELPER_MCP_READ_ONLY=1` (a
 - Host discovery/status surfaces may include `protocolVersion`; absence means an older host record or plugin build.
 - Use `hostLogFilePath` from `host_status`, `mcp_health_check`, or `list_navisworks_hosts` for the in-process NavisHelper plugin log; use `logFilePath` from `mcp_diagnostics` / `mcp_recent_calls` for the external MCP server JSONL log.
 - Host and MCP logs rotate at 5 MB with three suffix backups (`.1`, `.2`, `.3`). `mcp_recent_calls` reads across the current MCP JSONL log and its rotated backups.
-- Every MCP tool call appends automatic `navishelper_timing` metadata to the tool result. The same timing is also appended as a text content block so agents can see it without reading logs. Fields: `tool_name`, `status`, `tool_ok`, `tool_error_code`, `started_at_utc`, `completed_at_utc`, `elapsed_ms`, `elapsed_human`, `should_report_to_user`, `user_message`, `agent_instruction`, `error_type`.
+- Every MCP tool call appends automatic `navishelper_timing` metadata to the tool result. The same timing is also appended as a text content block so agents can see it without reading logs. Fields: `tool_name`, `status`, `tool_ok`, `tool_error_code`, `started_at_utc`, `completed_at_utc`, `elapsed_ms`, `elapsed_human`, `response_bytes`, `should_report_to_user`, `user_message`, `agent_instruction`, `error_type`. `response_bytes` is the UTF-8 size of the result's text before the timing block was added, the number to hold against `ResponseBudget.MaxBytes` (84 000 bytes, about 25 000 tokens; #427). The JSON text keeps non-ASCII characters as they are, not as `\uXXXX` escapes, which made every Cyrillic letter of a model name cost six bytes.
 - `testHandle` values such as `clash-test:1` are traversal handles for the current document/session. Refresh them with `clash_list_tests` after deleting, moving, or sorting tests.
 - `resultHandle` values such as `clash-result:1` are traversal handles for clash results in the current document/session.
 - Empty `testName` plus empty `testNames` usually means all tests for read-only/report/viewpoint tools.
@@ -298,6 +298,7 @@ a new truncation flag appears on a contract without being documented.
 | `valuesTruncated` | `selection_distinct_property_values` | fewer distinct values than exist, so the set is not the full domain |
 | `depthTruncated` | `selected_items_tree` | the tree was cut at `maxDepth`; deeper nodes exist and are absent |
 | `deadlineTruncated` | `selected_items_tree` | the walk over the selection stopped at the request deadline; more selected items exist and are absent, and what was built so far is returned |
+| `budgetTruncated` | `selected_items_tree` | the page stopped at about 80 KB (`ResponseBudget.PageBytes`) before `maxItems`, so the answer stays under the client's limit of about 25 000 tokens; more selected items exist, and `nextOffset` continues the selection (#427). One item larger than a page on its own is refused with `response_too_large`; retry with a smaller `maxDepth` or without bounding boxes |
 | `scanTruncated` | `find_duplicate_geometry` | the geometry scan stopped at 200000 items or the host request deadline; counts and groups cover only scanned items |
 | `groupsTruncated` | `find_duplicate_geometry` | more duplicate groups were found than `maxGroups`; `groupCount` and `duplicateItemCount` cover only returned groups |
 | `nextOffset` | `selected_items_tree` | not a flag but its remedy: the selection position where the next page starts, null on the last page. Call again with `offset=nextOffset`; it counts every position the page looked at, so no item is repeated or skipped (#359) |
@@ -332,6 +333,7 @@ contract cannot skip that description.
 | `AffectedItemsPreviewTruncated` | `HideSelectedResponse`, `HideUnselectedResponse`, `IsolateByBoxResponse`, `IsolateSelectedResponse`, `RevealSelectedResponse`, `ShowAllResponse`, `UnhideSelectedResponse` |
 | `AffectedRootSummariesTruncated` | `HideSelectedResponse`, `HideUnselectedResponse`, `IsolateSelectedResponse`, `RevealSelectedResponse`, `ShowAllResponse`, `UnhideSelectedResponse` |
 | `AnalysisTruncated` | `ModelColorSchemeResponse` |
+| `BudgetTruncated` | `SelectedItemsTreeResponse` |
 | `CandidatePairsTruncated` | `ClashBboxPairPlanResponse` |
 | `ClassificationTruncated` | `ModelColorSchemeResponse` |
 | `CommentsTruncated` | `ClashResultSummary` |

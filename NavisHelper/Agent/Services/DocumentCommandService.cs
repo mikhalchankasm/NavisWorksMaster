@@ -909,7 +909,8 @@ namespace NavisHelper.Agent.Services
             return item;
         }
 
-        private static void AddSelectedItemTreePath(
+        // Returns false, leaving the tree as it was, when the nodes this item adds do not fit the page.
+        private static bool TryAddSelectedItemTreePath(
             IDictionary<string, SelectedItemsTreeBuildNode> rootBuilders,
             IList<ModelItem> chainItems,
             IReadOnlyList<string> chainPaths,
@@ -919,17 +920,22 @@ namespace NavisHelper.Agent.Services
             int? maxDepth,
             bool includeBoundingBoxes,
             IDictionary<string, BoundingBoxInfo> boxesByPath,
+            ResponsePageBudget budget,
             SelectedItemsTreeResponse response)
         {
             IDictionary<string, SelectedItemsTreeBuildNode> siblings = rootBuilders;
             SelectedItemsTreeBuildNode currentBuilder = null;
+            SelectedItemsTreeBuildNode selectedBuilder = null;
+            var attachments = new List<Action>();
+            var bytes = 0;
+            var depthTruncated = false;
 
             for (var depth = 0; depth < chainItems.Count; depth++)
             {
                 if (maxDepth.HasValue && depth > maxDepth.Value)
                 {
-                    response.DepthTruncated = true;
-                    return;
+                    depthTruncated = true;
+                    break;
                 }
 
                 var item = chainItems[depth];
@@ -950,18 +956,36 @@ namespace NavisHelper.Agent.Services
                     {
                         Node = node,
                     };
-                    siblings[path] = nextBuilder;
+                    bytes += ResponseSize.Bytes(node);
 
-                    if (currentBuilder != null)
-                        currentBuilder.Node.Children.Add(node);
+                    var parentSiblings = siblings;
+                    var parent = currentBuilder;
+                    var created = nextBuilder;
+                    attachments.Add(() =>
+                    {
+                        parentSiblings[path] = created;
+                        if (parent != null)
+                            parent.Node.Children.Add(created.Node);
+                    });
                 }
 
                 if (string.Equals(path, selectedPath, StringComparison.OrdinalIgnoreCase))
-                    nextBuilder.Node.IsSelectedLeaf = true;
+                    selectedBuilder = nextBuilder;
 
                 currentBuilder = nextBuilder;
                 siblings = nextBuilder.ChildrenByPath;
             }
+
+            if (!budget.TryTake(bytes))
+                return false;
+
+            foreach (var attach in attachments)
+                attach();
+            if (selectedBuilder != null)
+                selectedBuilder.Node.IsSelectedLeaf = true;
+            if (depthTruncated)
+                response.DepthTruncated = true;
+            return true;
         }
 
         private static SelectedItemsTreeNode BuildSelectedItemsTreeNode(

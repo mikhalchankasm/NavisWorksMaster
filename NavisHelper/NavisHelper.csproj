@@ -571,6 +571,7 @@
     <Compile Include="Agent\Services\ProtectedModeGate.cs" />
     <Compile Include="Agent\Services\ProtectedModeLabels.cs" />
     <Compile Include="Agent\Services\DocumentInstanceTracker.cs" />
+    <Compile Include="Agent\Services\ResponseSize.cs" />
     <Compile Include="Agent\Services\SelectionSetReferenceResolver.cs" />
     <Compile Include="Agent\Services\ClashTestsFromSetsService.cs" />
     <Compile Include="Agent\Services\ClashOneVsRestService.cs" />

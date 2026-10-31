@@ -13,6 +13,7 @@ namespace NavisHelper.Agent.Contracts
         public const string SchemaViolation = "schema_violation";
         // Reserved for search v2 exact/variant matching semantics.
         public const string QueryTooAmbiguous = "query_too_ambiguous";
+        public const string ResponseTooLarge = "response_too_large";
         public const string EmptyMatchHandles = "empty_match_handles";
         public const string NoSelection = "no_selection";
         public const string SectionBoxNotEnabled = "section_box_not_enabled";

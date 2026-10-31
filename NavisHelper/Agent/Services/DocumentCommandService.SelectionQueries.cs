@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Autodesk.Navisworks.Api;
@@ -271,6 +272,8 @@ namespace NavisHelper.Agent.Services
             var boxesByPath = new Dictionary<string, BoundingBoxInfo>(StringComparer.Ordinal);
             var sourceFilesByRootPath = new Dictionary<string, string>(StringComparer.Ordinal);
             var selectionIndex = offset;
+            // maxItems alone let one page of flat chains with boxes reach 1-3 MB (#427).
+            var budget = new ResponsePageBudget(ResponseBudget.PageBytes);
 
             foreach (ModelItem item in selectedItems.Skip(offset).Take(maxItems))
             {
@@ -293,9 +296,11 @@ namespace NavisHelper.Agent.Services
                 var selectedDepth = chainItems.Count - 1;
                 var selectedPath = chainPaths[selectedDepth];
 
+                bool added;
                 if (string.Equals(format, SelectedItemsTreeFormatFlat, StringComparison.OrdinalIgnoreCase))
                 {
-                    response.Items.Add(BuildSelectedItemsTreeFlatItem(
+                    var depthTruncated = response.DepthTruncated;
+                    var flatItem = BuildSelectedItemsTreeFlatItem(
                         itemIndex,
                         item,
                         chainItems,
@@ -306,11 +311,16 @@ namespace NavisHelper.Agent.Services
                         maxDepth,
                         includeBoundingBoxes,
                         boxesByPath,
-                        response));
+                        response);
+                    added = budget.TryTake(ResponseSize.Bytes(flatItem));
+                    if (added)
+                        response.Items.Add(flatItem);
+                    else
+                        response.DepthTruncated = depthTruncated;
                 }
                 else
                 {
-                    AddSelectedItemTreePath(
+                    added = TryAddSelectedItemTreePath(
                         rootBuilders,
                         chainItems,
                         chainPaths,
@@ -320,7 +330,25 @@ namespace NavisHelper.Agent.Services
                         maxDepth,
                         includeBoundingBoxes,
                         boxesByPath,
+                        budget,
                         response);
+                }
+
+                if (!added)
+                {
+                    if (response.ReturnedItemCount == 0)
+                    {
+                        throw new AgentCommandException(ErrorCodes.ResponseTooLarge, string.Format(
+                            CultureInfo.InvariantCulture,
+                            "Selected item at position {0} alone is larger than the {1}-byte response page. Retry with a smaller maxDepth or includeBoundingBoxes=false.",
+                            itemIndex,
+                            ResponseBudget.PageBytes));
+                    }
+
+                    // The refused item opens the next page.
+                    selectionIndex--;
+                    response.BudgetTruncated = true;
+                    break;
                 }
 
                 response.ReturnedItemCount++;

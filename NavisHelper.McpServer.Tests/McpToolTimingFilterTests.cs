@@ -171,6 +171,67 @@ public sealed class McpToolTimingFilterTests
         Assert.Equal("sample_tool", timing.GetProperty("tool_name").GetString());
     }
 
+    // #427: the default encoder wrote every Cyrillic letter of a model name as a six-byte \uXXXX escape.
+    [Fact]
+    public async Task NonAsciiText_StaysReadableAndItsBytesAreReported()
+    {
+        const string payload = """{"items":[{"name":"ЗОНА 1 /6501.5-S.АМ","note":"a + b's"}]}""";
+        var result = await InvokeAsync(new CallToolResult
+        {
+            Content = new List<ContentBlock>
+            {
+                new TextContentBlock { Text = payload },
+            },
+        });
+
+        var text = ((TextContentBlock)result.Content[0]).Text;
+        Assert.Contains("ЗОНА 1 /6501.5-S.АМ", text, StringComparison.Ordinal);
+        Assert.Contains("a + b's", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\u", text, StringComparison.Ordinal);
+
+        var bytes = System.Text.Encoding.UTF8.GetByteCount(payload);
+        Assert.Equal(bytes, MetaTiming(result).GetProperty("response_bytes").GetInt32());
+        var inline = JsonDocument.Parse(text).RootElement.GetProperty("navishelper_timing");
+        Assert.Equal(bytes, inline.GetProperty("response_bytes").GetInt32());
+    }
+
+    // The host pages by counting every non-ASCII character as a six-byte escape. That holds
+    // only while this filter never writes a string longer than that (#427 review).
+    [Fact]
+    public async Task NoStringIsWrittenLongerThanItsAsciiEscapedForm()
+    {
+        const string value = "ЗОНА\u3000东京 😀 \u2028 tab\t del\u007f \"q\" \\ <a&b>";
+        var payload = JsonSerializer.Serialize(new { name = value });
+        var result = await InvokeAsync(new CallToolResult
+        {
+            Content = new List<ContentBlock>
+            {
+                new TextContentBlock { Text = payload },
+            },
+        });
+
+        var escapedBound = 0;
+        foreach (var c in value)
+            escapedBound += c == '"' || c == '\\' ? 2 : c >= 0x20 && c < 0x7f ? 1 : 6;
+        var written = MetaTiming(result).GetProperty("response_bytes").GetInt32();
+        Assert.True(written <= escapedBound + """{"name":""}""".Length,
+            $"The filter wrote {written} bytes; the host's bound is {escapedBound} for the string.");
+    }
+
+    [Fact]
+    public async Task NonJsonText_ReportsItsBytesToo()
+    {
+        var result = await InvokeAsync(new CallToolResult
+        {
+            Content = new List<ContentBlock>
+            {
+                new TextContentBlock { Text = "журнал" },
+            },
+        });
+
+        Assert.Equal(12, MetaTiming(result).GetProperty("response_bytes").GetInt32());
+    }
+
     private static async Task<CallToolResult> InvokeAsync(CallToolResult inner)
     {
         var handler = McpToolTimingFilter.Create(
