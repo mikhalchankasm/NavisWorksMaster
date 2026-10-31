@@ -615,6 +615,7 @@
     <Compile Include="Agent\Services\DocumentCommandService.SelectionSetReorder.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.SelectionSetTree.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.SelectionQueries.cs" />
+    <Compile Include="Agent\Services\SelectionBoundingBoxExportService.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.SelectionSetQueries.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.ViewportCommands.cs" />
     <Compile Include="Agent\Services\ViewpointCameraCommandService.cs" />

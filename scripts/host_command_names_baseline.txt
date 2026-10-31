@@ -16,6 +16,7 @@ dump_subtree_names_status
 cancel_subtree_names_dump
 selection_property_report
 selection_export_properties
+selection_export_bounding_boxes
 selection_distinct_property_values
 selection_color_by_property
 model_color_scheme

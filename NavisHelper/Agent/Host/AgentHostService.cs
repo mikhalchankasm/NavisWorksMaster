@@ -49,6 +49,7 @@ namespace NavisHelper.Agent.Host
         private readonly SetAppearanceService _setAppearanceService = new SetAppearanceService();
         private readonly DuplicateGeometryService _duplicateGeometryService = new DuplicateGeometryService();
         private readonly ItemViewpointsService _itemViewpointsService = new ItemViewpointsService();
+        private readonly SelectionBoundingBoxExportService _selectionBoundingBoxExportService = new SelectionBoundingBoxExportService();
         private readonly ViewpointAnimationService _viewpointAnimationService = new ViewpointAnimationService();
         private readonly ViewpointAnimationExportService _viewpointAnimationExportService = new ViewpointAnimationExportService();
         private readonly SectionPlanesService _sectionPlanesService = new SectionPlanesService();

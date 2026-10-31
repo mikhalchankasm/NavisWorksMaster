@@ -252,7 +252,7 @@ namespace NavisHelper.Agent.Contracts
             fileNames != null && fileNames.Any(name => Path.GetFileName(name).StartsWith(SafeFileName(animationName), StringComparison.OrdinalIgnoreCase)
                 && string.Equals(Path.GetExtension(name), "." + NormalizeFormat(format), StringComparison.OrdinalIgnoreCase));
 
-        private static bool IsFullyQualified(string path)
+        internal static bool IsFullyQualified(string path)
         {
             path = path.Replace('/', '\\');
             if (path.Length >= 3 && ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z'))

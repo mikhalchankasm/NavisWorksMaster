@@ -143,7 +143,7 @@ Start-Process $installer -Wait
 <details>
 <summary>Число инструментов, контракты, архитектура, сборка</summary>
 
-В исходниках зарегистрировано **127 разных MCP-инструментов**. `scripts/check_mcp_command_catalog.py` выводит их имена из 127 методов `[McpServerTool]` и проверяет сгенерированный индекс из 127 строк. Входы, выходы и ограничения каждого описаны в [контрактах инструментов](docs/MCP_TOOL_CONTRACTS.md), устройство — в [архитектуре](docs/MCP_ARCHITECTURE.md). Сборка и правила вклада — в [Contributing](CONTRIBUTING.md) и [правилах сборки](BUILD_BUNDLE_RULES.md).
+В исходниках зарегистрировано **128 разных MCP-инструментов**. `scripts/check_mcp_command_catalog.py` выводит их имена из 128 методов `[McpServerTool]` и проверяет сгенерированный индекс из 128 строк. Входы, выходы и ограничения каждого описаны в [контрактах инструментов](docs/MCP_TOOL_CONTRACTS.md), устройство — в [архитектуре](docs/MCP_ARCHITECTURE.md). Сборка и правила вклада — в [Contributing](CONTRIBUTING.md) и [правилах сборки](BUILD_BUNDLE_RULES.md).
 
 </details>
 

@@ -88,6 +88,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<SelectionExportPropertiesRequest>,
             (document, request) => _commandService.SelectionExportProperties(document, request));
 
+        router.Register<SelectionExportBoundingBoxesRequest>(
+            HostCommandNames.SelectionExportBoundingBoxes,
+            true,
+            DeserializePayload<SelectionExportBoundingBoxesRequest>,
+            (document, request) => _selectionBoundingBoxExportService.Execute(document, request));
+
         router.Register<SelectionDistinctPropertyValuesRequest>(
             HostCommandNames.SelectionDistinctPropertyValues,
             true,
