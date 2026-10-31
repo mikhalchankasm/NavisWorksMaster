@@ -1112,7 +1112,7 @@ namespace NavisHelper.Agent.Services
             };
         }
 
-        private static string TryGetSourceFile(ModelItem item)
+        internal static string TryGetSourceFile(ModelItem item)
         {
             var current = item;
             while (current != null)
@@ -1127,7 +1127,7 @@ namespace NavisHelper.Agent.Services
             return string.Empty;
         }
 
-        internal static string TryGetSourceFileCached(IDictionary<string, string> sourceFilesByRootPath, string rootPath, ModelItem rootItem)
+        private static string TryGetSourceFileCached(IDictionary<string, string> sourceFilesByRootPath, string rootPath, ModelItem rootItem)
         {
             string sourceFile;
             if (sourceFilesByRootPath.TryGetValue(rootPath, out sourceFile))

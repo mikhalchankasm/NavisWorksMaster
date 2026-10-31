@@ -58,8 +58,9 @@ namespace NavisHelper.Agent.Services
             // the file in the ANSI code page and garbles Cyrillic item names.
             csv.Append('\uFEFF');
             csv.Append(SelectionBoundingBoxExportRules.Header).Append("\r\n");
-            // Keyed by the root's display name, as selected_items_tree keys its source files.
-            var sourceFilesByRootPath = new Dictionary<string, string>(StringComparer.Ordinal);
+            // Keyed by the root item itself, not its display name as selected_items_tree does: two
+            // models whose roots share a name would otherwise share a source file (#427 review).
+            var sourceFilesByRoot = new Dictionary<ModelItem, string>();
             var consumed = 0;
             if (pageCount > 0)
             {
@@ -78,7 +79,12 @@ namespace NavisHelper.Agent.Services
                     var root = item;
                     while (root.Parent != null)
                         root = root.Parent;
-                    var sourceFile = DocumentCommandService.TryGetSourceFileCached(sourceFilesByRootPath, DocumentCommandService.GetItemDisplayName(root), root);
+                    string sourceFile;
+                    if (!sourceFilesByRoot.TryGetValue(root, out sourceFile))
+                    {
+                        sourceFile = DocumentCommandService.TryGetSourceFile(root) ?? string.Empty;
+                        sourceFilesByRoot[root] = sourceFile;
+                    }
 
                     var box = DocumentCommandService.TryBuildBoundingBoxInfo(item);
                     if (box == null)

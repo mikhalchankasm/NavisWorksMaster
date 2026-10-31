@@ -61,6 +61,11 @@ public sealed class SelectionBoundingBoxExportTests
     [InlineData("", "outputPath is required.")]
     [InlineData("   ", "outputPath is required.")]
     [InlineData("boxes.csv", "outputPath must be absolute.")]
+    // Rooted but not absolute: these resolve against the Navisworks process's current
+    // drive or directory and would write somewhere the caller did not name (#427 review).
+    [InlineData("C:boxes.csv", "outputPath must be absolute.")]
+    [InlineData(@"\out\boxes.csv", "outputPath must be absolute.")]
+    [InlineData(@"\\server\share\boxes.csv", null)]
     [InlineData(@"C:\out\boxes.json", "outputPath must end in .csv.")]
     [InlineData(@"C:\out\boxes.CSV", null)]
     public void RequestsAreValidated(string outputPath, string expected)

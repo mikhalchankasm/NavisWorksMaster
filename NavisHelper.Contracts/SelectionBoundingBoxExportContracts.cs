@@ -45,7 +45,9 @@ namespace NavisHelper.Agent.Contracts
             if (string.IsNullOrWhiteSpace(outputPath))
                 return "outputPath is required.";
             outputPath = outputPath.Trim();
-            if (!Path.IsPathRooted(outputPath))
+            // Not Path.IsPathRooted: it accepts "C:boxes.csv" and "\out\boxes.csv", which resolve
+            // against the host's current drive or directory (#427 review).
+            if (!ViewpointAnimationExportRules.IsFullyQualified(outputPath))
                 return "outputPath must be absolute.";
             if (!string.Equals(Path.GetExtension(outputPath), ".csv", StringComparison.OrdinalIgnoreCase))
                 return "outputPath must end in .csv.";
