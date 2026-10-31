@@ -53,6 +53,10 @@ namespace NavisHelper.Agent.Services
                 return response;
             }
 
+            // Refused before reading up to 100 000 boxes; the writer checks again at the replace.
+            if (File.Exists(outputPath) && !overwrite)
+                throw new IOException("Output file already exists: " + outputPath + ". Pass overwrite=true to replace it.");
+
             var csv = new StringBuilder();
             // A byte order mark, as selection_export_properties writes: without it Excel reads
             // the file in the ANSI code page and garbles Cyrillic item names.
