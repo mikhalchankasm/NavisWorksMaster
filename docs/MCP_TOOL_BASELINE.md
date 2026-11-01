@@ -14,7 +14,7 @@ had precise numbers for four tools and none for the rest.
 | plugin | host-reported `pluginAssemblyLength` 1586688, `pluginAssemblyLastWriteUtc` 2026-09-20T09:09:49Z, sha256 `af60b1b9…` |
 | server | built from `main` at the same commit |
 | scope of this row | the read-only pass only — the two clash windows ran a **different** plugin (`20bb4356…`) and a separately launched server, and the `rootName` message was checked later still on the branch build (`pluginAssemblyLength` 1588736). Latency is comparable only within one window, so each section states its own build instead of inheriting this one. |
-| tools covered | **107 of 128** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across six windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, 15 cases covering 7 tools in a fourth, the synchronous `dump_subtree_names` in a fifth, `viewpoint_set_camera` at its acceptance on 2026-09-26, the three world-marker tools at NW-03's acceptance the same day, `match_handle_items` and the save job pair at their acceptance on 2026-09-29, and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 107 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **21** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
+| tools covered | **111 of 128** advertised tools carry a measured number. The denominator and the gap list are checked in CI by `scripts/check_baseline_coverage.py` against the tool list discovered from source and against this section's own arithmetic, so landing a tool without updating this row fails the build rather than leaving a stale claim. They were measured across six windows — 35 in the read-only pass below, 28 clash tools across two L3 windows, 28 more in a third, 15 cases covering 7 tools in a fourth, the synchronous `dump_subtree_names` in a fifth, `viewpoint_set_camera` at its acceptance on 2026-09-26, the three world-marker tools at NW-03's acceptance the same day, `match_handle_items` and the save job pair at their acceptance on 2026-09-29, `selection_export_bounding_boxes`, `get_item_texture_mapping`, `get_view_display_settings` and `find_duplicate_geometry` in the [response-size window](#response-sizes-427) on 2026-11-01 (one call each, not first/warm), and `start_navisworks` / `close_navisworks` stated in prose rather than tabulated. (`delete_scenario` was listed here as prose-only too, wrongly -- it has a row of its own under the scenario library.) Those parts sum to more than 111 because some tools were measured in more than one window; the figure above counts distinct tools, which is why it is not their total. The remaining **17** are named in [What still has no number](#what-still-has-no-number), with the reason for each. |
 
 The date and plugin rows above describe the 2026-09-20 read-only pass. The read-only
 table was re-run on 2026-09-26 and states its own build and conditions below.
@@ -1268,23 +1268,155 @@ an empty `sourceFile` on every row because it read only the document root. The n
 from the fixed build (plugin 1627136 bytes, written 2026-09-29T15:29:19Z); disposing each row's
 `Parent` wrappers took the two-page walk from 3.3 to 2.0 s.
 
+## Response sizes (#427)
+
+Measured on 2026-11-01 on `main` `42ea9de` in Navisworks Manage 2027 with
+`D:\Downloads\6501.5.nwd`, each run in a fresh process. The host reported
+`pluginAssemblyLength` 1804288 and `pluginAssemblyLastWriteUtc`
+2026-11-01T05:57:26.7101477Z. The size is `navishelper_timing.response_bytes` (#434). It is an
+upper bound on the UTF-8 answer: every non-ASCII character counts as a six-byte escape,
+so an answer full of Cyrillic names reads larger here than what the client receives. The
+budget is `ResponseBudget.MaxBytes`, 84 000 bytes (25 000 tokens at 3.375 bytes a token).
+**Bold** marks an answer over it. Host ms is a single call, not the first/warm pair of
+[the table](#the-table).
+
+### Every read-only tool, one item selected
+
+`python scripts/measure_read_tools.py --sizes --out <file>` (#437) calls each of the 43
+read-only tools twice:
+
+- **default** passes only a subject where the tool needs one: the root's match handle,
+  the 2-level path, the 200-unit zone of the table, or an operation id that does not
+  exist;
+- **max** also sets every numeric size knob to 1 000 000, which the host clamps to its
+  own maximum, and every `include*` knob to true. `selected_items_tree` also takes
+  `format=flat`.
+
+The run selects the root item, the file node `6501.5.nwd` (`mh_000001`). The selection
+tools therefore see one selected item here. A large selection is in the next table.
+
+| tool | default bytes | max bytes | status | host ms (default / max) |
+| --- | --- | --- | --- | --- |
+| `active_model_context` | 3 017 | 3 089 | ok | 51 / 34 |
+| `clash_list_clusters` | 528 | 531 | ok | 39 / 6 |
+| `clash_list_results` | 219 | 219 | ok | 27 / 4 |
+| `clash_list_tests` | 139 | 139 | ok | 12 / 4 |
+| `clash_report_status` | 248 | 248 | ok | 11 / 3 |
+| `clash_root_matrix` | 71 | 71 | schema_violation | 18 / 5 |
+| `clash_run_status` | 84 | 84 | command_failed | 6 / 3 |
+| `current_viewpoint_info` | 390 | 390 | ok | 14 / 4 |
+| `find_duplicate_geometry` | 31 163 | 36 425 | ok | 49701 / 49790 |
+| `find_items` | 856 | 856 | ok | 218 / 96 |
+| `find_items_by_bbox` | 5 352 | 20 391 | ok | 981 / 2881 |
+| `find_root_items_by_name` | 474 | 474 | ok | 89 / 6 |
+| `get_current_section_box` | 356 | 356 | ok | 27 / 4 |
+| `get_item_texture_mapping` | 250 | 250 | ok | 64 / 49 |
+| `get_scenario` | 1 683 | 1 683 | ok | 4 / 0 |
+| `get_view_display_settings` | 334 | 334 | ok | 12 / 5 |
+| `host_status` | 756 | 756 | ok | 12 / 10 |
+| `item_appearance` | 62 | 62 | request_timeout | 55006 / 55143 |
+| `item_properties_by_handle` | 4 080 | 4 706 | ok | 19842 / 5 |
+| `last_operation_status` | 403 | 403 | ok | 9 / 3 |
+| `list_item_children` | 433 | 433 | ok | 3 / 3 |
+| `list_navisworks_hosts` | 620 | 620 | ok | 1 / 1 |
+| `list_recent_navisworks_files` | 2 801 | 5 871 | ok | 18 / 2 |
+| `list_root_items` | 429 | 501 | ok | 5 / 4 |
+| `list_saved_viewpoints` | 71 | 71 | ok | 4 / 4 |
+| `list_scenarios` | 1 762 | 1 762 | ok | 1 / 1 |
+| `list_selection_sets` | 104 | 104 | ok | 5 / 4 |
+| `match_handle_items` | 257 | 258 | ok | 16 / 5 |
+| `mcp_diagnostics` | 854 | 854 | ok | 1 / 1 |
+| `mcp_error_contract` | 7 861 | 7 861 | ok | 0 / 0 |
+| `mcp_health_check` | 890 | 890 | ok | 38 / 27 |
+| `mcp_recent_calls` | 38 962 | **120 387** | ok | 2 / 1 |
+| `resolve_scenario` | 1 715 | 1 715 | ok | 4 / 1 |
+| `save_document_status` | 82 | 82 | command_failed | 4 / 3 |
+| `scenario_capabilities` | 11 203 | 11 203 | ok | 5 / 0 |
+| `selected_items_ancestry` | 422 | 1 068 | ok | 15 / 21 |
+| `selected_items_preview` | 178 | 501 | ok | 11 / 21 |
+| `selected_items_tree` | 368 | 1 170 | ok | 24 / 38 |
+| `selection_copy_names` | 151 | 161 | ok | 11 / 4 |
+| `selection_distinct_property_values` | 5 223 | 5 542 | ok | 18 / 4 |
+| `selection_property_report` | 7 258 | 8 690 | ok | 16 / 5 |
+| `selection_status` | 366 | 366 | ok | 21 / 20 |
+| `world_markers_list` | 209 | 209 | ok | 13 / 4 |
+
+The four non-`ok` statuses are expected refusals, small by design:
+- `clash_root_matrix`: the model has no Clash Detective tests;
+- `clash_run_status` and `save_document_status`: the operation id does not exist.
+
+`item_appearance` on the root (the whole model) hit `request_timeout` at 55 s, both times.
+That is a latency finding, not a size finding. `item_properties_by_handle` on the root took
+19.8 s on its first call and 5 ms on the second.
+
+### The selection tools on 10 000 selected items
+
+The selection came from `find_items_by_bbox` over the root's whole bounding box with
+`includeContainers=false` and `maxResults=20000`: it scanned 371 027 items, matched
+323 332 and returned 10 000 (`resultsTruncated`), and `select_items` selected those
+10 000. The arguments are the size plan's.
+
+| tool | default bytes | max bytes | host ms (default / max) |
+| --- | --- | --- | --- |
+| `selected_items_ancestry` | 65 690 | **790 556** | 95 / 4867 |
+| `selected_items_preview` | 6 376 | 66 456 | 30 / 10 |
+| `selected_items_tree` | 77 372 | 74 554 | 15 / 52 |
+| `selection_copy_names` | **1 534 801** | **3 609 429** | 106 / 979 |
+| `selection_distinct_property_values` | 56 213 | **3 904 373** | 112 / 3871 |
+| `selection_property_report` | **1 349 190** | **3 017 134** | 142 / 7721 |
+| `selection_status` | 368 | 368 | 5 / 5 |
+
+### `selected_items_tree` paging (#434) and bulk boxes (#436)
+
+- **`selected_items_tree format=flat includeBoundingBoxes=true`, page after page from
+  offset 0.**
+  - The run stopped at its own 400-page cap, at offset 6097 of 10 000.
+  - Every page was 63 217 to 78 024 bytes, all under 84 000, and none was refused with
+    `response_too_large`.
+  - A page held 12 to 20 items (15.2 on average), because every item carries its whole
+    ancestor chain with boxes. The 400 pages took 18.9 s of host time.
+  - Covering the full 10 000 items this way takes about 650 calls. That is why bulk boxes
+    go to a file.
+- **`selection_export_bounding_boxes`** wrote all 10 000 rows (none without a box) as
+  a CSV of 10 001 lines in Meters. It answered with a summary under the 2 000 bytes #427
+  asks for:
+
+| case | host ms | answer bytes | file bytes |
+| --- | --- | --- | --- |
+| `selection_export_bounding_boxes` apply=true, maxItems=10000, 10 000 selected | 5300 | 377 | 3 727 348 |
+
+### What the sizes say
+
+- **Over the budget with default arguments**, on 10 000 selected items:
+  `selection_copy_names` (1 534 801 bytes, every name at the default `limit` of 10 000)
+  and `selection_property_report` (1 349 190 bytes for 100 items and 3 097 rows). #427's
+  "none above the budget with default arguments" does not hold for these two yet.
+- **Further over at maximum limits**: `selection_copy_names` (3 609 429 with paths and
+  source files) and `selection_property_report` (3 017 134, 200 000 rows).
+- **Over the budget only at maximum limits**:
+  - `selected_items_ancestry` (790 556);
+  - `selection_distinct_property_values` (3 904 373 for 10 000 items, 9 370 values);
+  - `mcp_recent_calls` at `lineCount=200` (120 387). That one depends on what is in the
+    log: 38 962 at the default 50 lines after this run's own calls.
+- **Under the budget at both**: `selected_items_tree`, which pages by bytes since #434.
+  `selected_items_preview` stays under it too, at 66 456 at its maximum on 10 000 items.
+  Every other read-only tool stays under 40 KB; the largest is `find_duplicate_geometry`
+  at 36 425 on the whole model, which took 49.7 s.
+
 ## What still has no number
 
-Twenty-one tools, and the reason for each, so the gap is a decision rather than an oversight:
+Seventeen tools, and the reason for each, so the gap is a decision rather than an oversight:
 
 | tool | why |
 | --- | --- |
-| `selection_export_bounding_boxes` | New in #427; CSV format and summary pinned in L0, plugin built in L2; first timing and file size on the 908 MB model in the next L3 window. |
 | `viewpoint_animation` | New in #403; behaviour accepted in L3 on 2026-10-28 (route animation built from `viewpoints_per_item`, playback checked by the owner, fresh frame GUIDs after #407), no timing recorded in that window. |
 | `viewpoint_animation_export` | New in #404, defaults in #411; accepted in L3 on 2026-10-29 on demo.nwd: png, jpg and avi with only `format` (73 frames at 320x180, 2 fps), exporter call 0.2-0.7 s as `elapsedSeconds` reports it, not a tool round trip. |
 | `viewpoints_per_item` | New in #387; behaviour accepted in L3 on 2026-10-28 (per-item clipping, camera, marks, save, restoration), no timing recorded in that window. |
 | `section_planes` | New in #385; Distance sign, cut side and readback accepted in L3 on 2026-10-28 after #396, no timing recorded in that window. |
 | `selection_sets_apply_appearance` | New in #339; step order, transparency and hide accepted in the 2.18 L3, no timing recorded; native undo not checked live. |
 | `appearance_profile_apply` | New in #339; parser and protocol tests precede SDK compilation and an agreed L3 native-loader window. |
-| `get_item_texture_mapping` | New in #377; contract and protocol tests precede an agreed L3 texture-space read and selection-restoration window. |
-| `item_appearance`, `reset_appearance` | New in #360; read and reset accepted in the 2.18 L3, no timing recorded; native undo not checked live. |
-| `find_duplicate_geometry` | New in #362; stacked copies and group handles accepted in the 2.18 L3 on a three-item model, no timing on a model large enough to measure. |
-| `get_view_display_settings`, `set_view_display_settings` | New in #182; SDK and protocol tests precede the agreed live display/appearance window. |
+| `item_appearance`, `reset_appearance` | New in #360; read and reset accepted in the 2.18 L3, no timing recorded; native undo not checked live. `item_appearance` on the root of `6501.5.nwd` hit `request_timeout` at 55 s in the [response-size window](#response-sizes-427). |
+| `set_view_display_settings` | New in #182; SDK and protocol tests precede the agreed live display/appearance window. Its read counterpart `get_view_display_settings` was measured in the [response-size window](#response-sizes-427). |
 | `clash_one_vs_rest` | New in #282; planner unit tests precede the agreed live clash window on the 12470 model. |
 | `clash_group_rename` | New in #285; planner unit tests precede the agreed live clash window on the 12470 model. |
 | `clash_zones_export` | New in #326; pure policy tests precede plugin SDK compilation and an agreed L3 export window. |
@@ -1299,10 +1431,10 @@ more than the count:
 - **out of reach** — `save_document` and `save_document_as`, because every window depends
   on the document not being saved; `clash_batchtest_import` and `saved_viewpoints_import`,
   because each needs a Navisworks-authored XML that no tool in the product writes.
-- **one short window away** — the remaining **17**: `selection_export_bounding_boxes`, `viewpoint_animation_export`, `viewpoint_animation`, `viewpoints_per_item`, `section_planes`, `get_view_display_settings`,
+- **one short window away** — the remaining **13**: `viewpoint_animation_export`, `viewpoint_animation`, `viewpoints_per_item`, `section_planes`,
   `set_view_display_settings`, `clash_one_vs_rest`,
   `clash_group_rename`, `clash_zones_export`, `clash_zones_markers`, `appearance_profile_apply`,
-  `get_item_texture_mapping`, `item_appearance`, `reset_appearance`, `selection_sets_apply_appearance` and `find_duplicate_geometry`. The three previously here landed with #129
+  `item_appearance`, `reset_appearance` and `selection_sets_apply_appearance`. The three previously here landed with #129
   and #130 and were measured on 2026-09-29; see
   [the match-handle and save-job tools](#the-match-handle-and-save-job-tools-at-their-acceptance).
 
