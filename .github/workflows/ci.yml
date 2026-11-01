@@ -90,6 +90,10 @@ jobs:
       - name: Self-test the installed-bundle drift guard
         run: python scripts/check_installed_bundle_drift.py --selftest
 
+      # Plan and table format only: no Navisworks, no MCP server.
+      - name: Test the read-tool measurement harness
+        run: python -m unittest scripts.tests.test_measure_read_tools
+
       # Fixture-only: no provider CLI is started, no network, no credential.
       - name: Test the external executor launcher
         run: >-

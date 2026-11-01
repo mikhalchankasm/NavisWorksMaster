@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Re-run the read-only latency table of docs/MCP_TOOL_BASELINE.md on a live Navisworks.
+"""Measure read-tool latency or response sizes on a live Navisworks.
 
 "The table" (39 rows) was measured once, on 2026-09-20, by one-off harnesses that
 were never committed. This script makes it re-runnable:
@@ -15,6 +15,13 @@ were never committed. This script makes it re-runnable:
   the run-time placeholders, calls every planned row twice, writes one JSON line
   per call to ``--out`` and prints a Markdown table with the doc's columns:
   group, tool (with case), status, first (host ms), warm (host ms), warm (wall ms).
+* ``--sizes`` instead calls every read-only tool once at default arguments and
+  once at maximum limits, records ``response_bytes`` from the timing envelope,
+  and prints tool, case, status, response bytes, budget, and host ms. The budget
+  is 84,000 bytes. ``--plan --sizes`` prints this separate plan without a host.
+  Size mode selects the root before measurement and resolves ``$SCENARIO_ID``
+  from the first saved scenario (or a fixed missing ID) and
+  ``$NO_SUCH_OPERATION`` to a fixed missing operation ID.
 
 Placeholder resolution, in order:
 
@@ -73,6 +80,8 @@ NO_SUCH_ITEM_NAME = "NAVISHELPER-T34-NO-SUCH-ITEM-NAME-c1a97f2e"
 # One tool call may legitimately take tens of seconds (a launch, a capped spatial
 # scan); the per-request timeout is well above the server's own 10-second budget.
 CALL_TIMEOUT_SECONDS = 300
+SIZE_MAX_LIMIT = 1_000_000
+RESPONSE_BUDGET_BYTES = 84_000
 
 # One entry per row of "The table" in docs/MCP_TOOL_BASELINE.md, in the table's
 # order. "case" is the row's text after the tool name, empty when there is none.
@@ -117,6 +126,65 @@ PLAN = [
     {"group": "clash", "tool": "clash_bbox_pair_plan", "case": "sourceMode=selection", "arguments": {"sourceMode": "selection", "apply": False}},
     {"group": "visibility", "tool": "hide_selected", "case": "apply=false", "arguments": {"apply": False}},
     {"group": "visibility", "tool": "show_all", "case": "", "arguments": {"apply": False}},
+]
+
+
+# Subject arguments and size knobs for the readOnlyHint tools. The host clamps
+# numeric limits; tools without size knobs still get both cases for comparison.
+SIZE_PLAN = [
+    {"tool": tool, "case": case, "arguments": {
+        **subject,
+        **({knob: True if knob.startswith("include") else SIZE_MAX_LIMIT
+            for knob in knobs.split()} if case == "max" else {}),
+        **({"format": "flat"} if tool == "selected_items_tree" and case == "max" else {}),
+    }}
+    for tool, subject, knobs in [
+        ("active_model_context", {}, "rootItemLimit includeRootAliases includeSavedItemsSummary"),
+        ("clash_list_clusters", {}, "limit previewRowsPerCluster maxResults includeAllStatuses includeIgnored"),
+        ("clash_list_results", {}, "limit includeAllStatuses includeItemNames includeAssignedTo includeComments includeIgnored"),
+        ("clash_list_tests", {}, "limit includeStatusCounts"),
+        ("clash_report_status", {}, ""),
+        ("clash_root_matrix", {}, "limit includeAllStatuses"),
+        ("clash_run_status", {"operationId": "$NO_SUCH_OPERATION"}, ""),
+        ("current_viewpoint_info", {}, ""),
+        ("find_duplicate_geometry", {"matchHandles": ["$ROOT_HANDLE"]}, "maxGroups previewPerGroup"),
+        ("find_items", {"query": "$ROOT_NAME", "comparison": "equals"}, "previewLimit"),
+        ("find_items_by_bbox", {"min": "$ZONE_MIN", "max": "$ZONE_MAX"},
+         "maxScannedItems maxResults previewLimit includeHidden includeContainers"),
+        ("find_root_items_by_name", {"names": ["$ROOT_NAME"]}, "previewLimit"),
+        ("get_current_section_box", {}, ""),
+        ("get_item_texture_mapping", {"matchHandles": ["$ROOT_HANDLE"]}, "maxItems"),
+        ("get_scenario", {"scenarioId": "$SCENARIO_ID"}, ""),
+        ("get_view_display_settings", {}, ""),
+        ("host_status", {}, ""),
+        ("item_appearance", {"matchHandles": ["$ROOT_HANDLE"]}, "maxItems"),
+        ("item_properties_by_handle", {"matchHandles": ["$ROOT_HANDLE"]}, "itemLimit propertyLimit includeInternalNames"),
+        ("last_operation_status", {}, ""),
+        ("list_item_children", {"parentPath": "$PATH_2"}, "limit includeHidden"),
+        ("list_navisworks_hosts", {}, ""),
+        ("list_recent_navisworks_files", {}, "limit"),
+        ("list_root_items", {}, "limit includeAliases"),
+        ("list_saved_viewpoints", {}, "limit includeItemIds"),
+        ("list_scenarios", {}, "limit"),
+        ("list_selection_sets", {}, "limit includeItemIds"),
+        ("match_handle_items", {"matchHandle": "$ROOT_HANDLE"}, "limit includePaths includeSourceFiles"),
+        ("mcp_diagnostics", {}, ""),
+        ("mcp_error_contract", {}, ""),
+        ("mcp_health_check", {}, "rootItemLimit includeViewpointCheck"),
+        ("mcp_recent_calls", {}, "lineCount"),
+        ("resolve_scenario", {"scenarioId": "$SCENARIO_ID"}, ""),
+        ("save_document_status", {"operationId": "$NO_SUCH_OPERATION"}, ""),
+        ("scenario_capabilities", {}, ""),
+        ("selected_items_ancestry", {}, "limit includeBoundingBoxes"),
+        ("selected_items_preview", {}, "limit includeBoundingBoxes"),
+        ("selected_items_tree", {}, "maxItems includeBoundingBoxes"),
+        ("selection_copy_names", {}, "limit includePaths includeSourceFiles"),
+        ("selection_distinct_property_values", {}, "itemLimit valueLimit includeEmptyValues"),
+        ("selection_property_report", {}, "itemLimit propertyLimitPerItem rowLimit includeInternalNames includeEmptyValues"),
+        ("selection_status", {}, "includeBoundingBox"),
+        ("world_markers_list", {}, ""),
+    ]
+    for case in ("default", "max")
 ]
 
 
@@ -174,7 +242,7 @@ def timed_call(client, tool, arguments, timeout=CALL_TIMEOUT_SECONDS):
         return {
             "status": "client_error", "elapsedMs": None, "wallMs": wall_ms,
             "toolOk": None, "errorCode": None, "message": f"{type(exc).__name__}: {exc}",
-            "startedAtUtc": started_at,
+            "startedAtUtc": started_at, "responseBytes": None,
         }
     wall_ms = round((time.perf_counter() - started) * 1000, 1)
 
@@ -186,7 +254,7 @@ def timed_call(client, tool, arguments, timeout=CALL_TIMEOUT_SECONDS):
             "toolOk": None, "errorCode": pick(rpc_error, "code"),
             "message": (str(message) if message is not None
                         else json.dumps(rpc_error, ensure_ascii=False))[:500],
-            "startedAtUtc": started_at,
+            "startedAtUtc": started_at, "responseBytes": None,
         }
 
     result = response.get("result") or {}
@@ -211,6 +279,7 @@ def timed_call(client, tool, arguments, timeout=CALL_TIMEOUT_SECONDS):
     return {
         "status": timing.get("status") or ("error" if result.get("isError") else "unknown"),
         "elapsedMs": timing.get("elapsed_ms"),
+        "responseBytes": timing.get("response_bytes"),
         "wallMs": wall_ms,
         "toolOk": timing.get("tool_ok"),
         "errorCode": timing.get("tool_error_code"),
@@ -360,7 +429,23 @@ def print_markdown_table(rows):
         print(f"| {entry['group']} | {label} | {row_status(calls)} | {first} | {warm} | {warm_wall} |")
 
 
+def print_size_table(rows):
+    header = ("tool", "case", "status", "response bytes", "budget", "host ms")
+    print()
+    print("| " + " | ".join(header) + " |")
+    print("| " + " | ".join("---" for _ in header) + " |")
+    for entry, record in rows:
+        size = record["responseBytes"]
+        budget = "unknown" if size is None else (
+            "over" if size > RESPONSE_BUDGET_BYTES else "within")
+        print(f"| `{entry['tool']}` | {entry['case']} | {row_status([record])} | "
+              f"{size} | {budget} | {record['elapsedMs']} |")
+
+
 def run_measurements(args):
+    sizes = getattr(args, "sizes", False)
+    plan = SIZE_PLAN if sizes else PLAN
+    call_numbers = (1,) if sizes else (1, 2)
     running = roamer_running()
     if running is None:
         print(
@@ -405,6 +490,17 @@ def run_measurements(args):
         }
 
         values = resolve_placeholders(client, notes)
+        if sizes:
+            values["NO_SUCH_OPERATION"] = "navishelper-427-no-such-operation"
+            scenarios = client.call_tool("list_scenarios", {})
+            items = pick(scenarios, "scenarios", "Scenarios") or []
+            # ScenarioListResponse.Scenarios contains ScenarioListItem.ScenarioId.
+            values["SCENARIO_ID"] = (
+                pick(items[0], "scenario_id", "scenarioId", "ScenarioId") if items else None
+            ) or "00000000-0000-0000-0000-000000000427"
+            selected = client.call_tool("select_items", {"matchHandles": [values["ROOT_HANDLE"]]})
+            if not pick(selected, "selectedItemCount", "selected_item_count"):
+                raise RuntimeError(f"select_items did not select the root: {selected}")
 
         with open(args.out, "w", encoding="utf-8", newline="\n") as out:
             header = {
@@ -420,27 +516,27 @@ def run_measurements(args):
                 "notes": notes,
                 "columns": ["kind", "index", "call", "group", "tool", "case",
                             "arguments", "status", "elapsedMs", "wallMs", "toolOk",
-                            "errorCode", "message", "startedAtUtc"],
+                            "errorCode", "message", "startedAtUtc", "responseBytes"],
             }
             out.write(json.dumps(header, ensure_ascii=False) + "\n")
 
             rows = []
-            for index, entry in enumerate(PLAN, start=1):
+            for index, entry in enumerate(plan, start=1):
                 arguments = resolve_arguments(entry["arguments"], values)
                 calls = []
-                for call_number in (1, 2):
+                for call_number in call_numbers:
                     record = timed_call(client, entry["tool"], arguments)
                     record.update({
                         "kind": "call", "index": index, "call": call_number,
-                        "group": entry["group"], "tool": entry["tool"],
+                        "group": entry.get("group", ""), "tool": entry["tool"],
                         "case": entry["case"], "arguments": arguments,
                     })
                     out.write(json.dumps(record, ensure_ascii=False) + "\n")
                     out.flush()
                     calls.append(record)
-                rows.append((entry, calls))
+                rows.append((entry, calls[0] if sizes else calls))
 
-        print(f"wrote {2 * len(PLAN) + 2} lines to {args.out}")
+        print(f"wrote {len(call_numbers) * len(plan) + 2} lines to {args.out}")
         print(f"model: {args.model}")
         print(f"start outcome: {outcome} "
               f"(startup {pick(started, 'startupElapsedMs', 'startup_elapsed_ms')} ms)")
@@ -448,7 +544,10 @@ def run_measurements(args):
               f"lastWriteUtc {plugin['pluginAssemblyLastWriteUtc']}")
         for note in notes:
             print(f"note: {note}")
-        print_markdown_table(rows)
+        if sizes:
+            print_size_table(rows)
+        else:
+            print_markdown_table(rows)
         return 0
     finally:
         # Once start_navisworks reported host_ready this run owns a Navisworks:
@@ -478,16 +577,20 @@ def main(argv=None):
         pass
 
     parser = argparse.ArgumentParser(
-        description="Re-run the read-only latency table of docs/MCP_TOOL_BASELINE.md on a live Navisworks.",
+        description="Measure the baseline latency table or, with --sizes, read-only MCP response sizes.",
         epilog="With --plan no Navisworks is started and no MCP server is contacted: "
                "the plan prints and the process exits. Without --plan a Navisworks is "
                "launched on --model, placeholders ($ROOT_HANDLE, $PATH_2, $PATH_7, "
-               "$ZONE_MIN, ...) are resolved against that document, every planned row "
-               "is called twice, the per-call records go to --out as JSONL, and a "
-               "Markdown table with the doc's columns is printed. The document is "
+               "$ZONE_MIN, ...) are resolved against that document, every latency row "
+               "is called twice (each size case once with --sizes), the per-call "
+               "records go to --out as JSONL, and a latency or size Markdown table "
+               "is printed. Size mode selects the root and compares response bytes "
+               "with the 84,000-byte budget. The document is "
                "closed with mode=discard and never saved.")
     parser.add_argument("--plan", action="store_true",
                         help="print the planned calls as JSON (one entry per table row, in the table's order) and exit")
+    parser.add_argument("--sizes", action="store_true",
+                        help="measure every read-only tool at default and maximum limits; use with --plan to print size calls")
     parser.add_argument("--model", default=DEFAULT_MODEL,
                         help=f"model file to open (default: {DEFAULT_MODEL})")
     parser.add_argument("--navisworks-version", default=DEFAULT_NAVISWORKS_VERSION,
@@ -497,7 +600,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if args.plan:
-        print(json.dumps(PLAN, indent=2))
+        print(json.dumps(SIZE_PLAN if args.sizes else PLAN, indent=2))
         return 0
 
     return run_measurements(args)
