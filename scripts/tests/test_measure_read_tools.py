@@ -5,9 +5,10 @@ arguments and at maximum limits, measured the same way as the latency table. The
 tests pin the size plan (which tools, which arguments) and the size table's format;
 none of them starts Navisworks or an MCP server.
 
-The read-only set below is the server's `readOnlyHint` tools on main 42ea9de (43 of
-128). When a read-only tool is added or removed, this test fails until the size plan
-follows, the same way the tool-count asserts in the L0 suite do.
+The read-only set is read from the generated capability table in
+docs/MCP_TOOL_CONTRACTS.md (43 of 128 tools on main 42ea9de). When a read-only tool is
+added or removed, that table changes with it and this test fails until the size plan
+follows.
 """
 
 from __future__ import annotations
@@ -24,22 +25,27 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import measure_read_tools as mrt  # noqa: E402
 
-READ_ONLY_TOOLS = {
-    "active_model_context", "clash_list_clusters", "clash_list_results",
-    "clash_list_tests", "clash_report_status", "clash_root_matrix", "clash_run_status",
-    "current_viewpoint_info", "find_duplicate_geometry", "find_items",
-    "find_items_by_bbox", "find_root_items_by_name", "get_current_section_box",
-    "get_item_texture_mapping", "get_scenario", "get_view_display_settings",
-    "host_status", "item_appearance", "item_properties_by_handle",
-    "last_operation_status", "list_item_children", "list_navisworks_hosts",
-    "list_recent_navisworks_files", "list_root_items", "list_saved_viewpoints",
-    "list_scenarios", "list_selection_sets", "match_handle_items", "mcp_diagnostics",
-    "mcp_error_contract", "mcp_health_check", "mcp_recent_calls", "resolve_scenario",
-    "save_document_status", "scenario_capabilities", "selected_items_ancestry",
-    "selected_items_preview", "selected_items_tree", "selection_copy_names",
-    "selection_distinct_property_values", "selection_property_report",
-    "selection_status", "world_markers_list",
-}
+CONTRACTS = ROOT / "docs" / "MCP_TOOL_CONTRACTS.md"
+
+
+def read_only_tools():
+    """Tools whose Effects are `None` in the generated capability table.
+
+    scripts/check_mcp_tool_capabilities.py keeps that table equal to the server's
+    tool annotations, so a read-only tool the server gains shows up here too.
+    """
+    text = CONTRACTS.read_text(encoding="utf-8")
+    block = text.split("<!-- BEGIN GENERATED TOOL CAPABILITIES -->", 1)[1]
+    block = block.split("<!-- END GENERATED TOOL CAPABILITIES -->", 1)[0]
+    tools = set()
+    for line in block.splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) == 5 and cells[0].startswith("`") and cells[1] == "None":
+            tools.add(cells[0].strip("`"))
+    return tools
+
+
+READ_ONLY_TOOLS = read_only_tools()
 
 # The "default" case passes only what the tool needs to have a subject; every
 # tool not listed here is called with no arguments at all.
@@ -137,6 +143,10 @@ class SizePlanTests(unittest.TestCase):
     def test_constants(self):
         self.assertEqual(mrt.SIZE_MAX_LIMIT, 1_000_000)
         self.assertEqual(mrt.RESPONSE_BUDGET_BYTES, 84_000)
+
+    def test_capability_table_was_found(self):
+        self.assertIn("host_status", READ_ONLY_TOOLS)
+        self.assertNotIn("save_document", READ_ONLY_TOOLS)
 
     def test_size_plan_covers_exactly_the_read_only_tools(self):
         self.assertEqual({entry["tool"] for entry in mrt.SIZE_PLAN}, READ_ONLY_TOOLS)
