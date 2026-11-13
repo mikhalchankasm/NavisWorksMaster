@@ -95,7 +95,9 @@ reviewed here, Avox had not reviewed it yet): `incremental_tools` reviewed harml
 reviewed here): `prediction_preserve_parent_tools` and `reasoning_effort_override` reviewed
 harmless, nothing new switched off; the probe listed no MCP server and no web tool. 0.166.0
 (2026-10-31, the same change as Avox #2000): `plugin_discovery_prefetch`, a plugin surface,
-switched off; the rest of the enabled set is unchanged.
+switched off; the rest of the enabled set is unchanged. 0.167.2 (2026-11-13, takes Avox #2161 for 0.167.0):
+`deferred_tool_world_state` and `incremental_tools_legacy_gcp`, both undocumented, switched off; the
+rest of the enabled set is unchanged; the probe listed only `clock` and no web tool.
 
 ### Qwen Code (`qwen`)
 
