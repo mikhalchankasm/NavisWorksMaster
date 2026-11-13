@@ -135,6 +135,21 @@ public sealed class AutomationRunnerTests
     }
 
     [Fact]
+    public void OnlyAFileWrittenDuringThisRunIsAnExport()
+    {
+        var started = new DateTime(2026, 11, 13, 12, 0, 0, DateTimeKind.Utc);
+
+        Assert.True(DatasmithExporter.IsFreshExport(0, true, started.AddSeconds(30), started));
+        // NTFS and the runner's clock can disagree by a moment.
+        Assert.True(DatasmithExporter.IsFreshExport(0, true, started.AddSeconds(-1), started));
+        // --overwrite: yesterday's file is still there and the exporter wrote nothing.
+        Assert.False(DatasmithExporter.IsFreshExport(0, true, started.AddDays(-1), started));
+        Assert.False(DatasmithExporter.IsFreshExport(0, false, DateTime.MinValue, started));
+        Assert.False(DatasmithExporter.IsFreshExport(1, true, started.AddSeconds(30), started));
+        Assert.False(DatasmithExporter.IsFreshExport(null, true, started.AddSeconds(30), started));
+    }
+
+    [Fact]
     public void TheResultIsOneJsonLine()
     {
         var line = new RunnerResult

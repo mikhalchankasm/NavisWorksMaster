@@ -71,6 +71,9 @@ jobs:
       - name: Build MCP configurator
         run: dotnet build NavisHelper.McpConfigurator/NavisHelper.McpConfigurator.csproj -c Release
 
+      - name: Build Automation runner
+        run: dotnet build NavisHelper.AutomationRunner/NavisHelper.AutomationRunner.csproj -c Release -m:1
+
       - name: Smoke test scenario-library MCP lifecycle
         run: python scripts/navishelper_scenario_library_smoke.py
 
