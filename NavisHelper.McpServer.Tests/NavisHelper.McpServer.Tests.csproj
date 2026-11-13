@@ -25,6 +25,10 @@
              Link="HostServices\SectionPlaneClippingJson.cs" />
     <Compile Include="..\NavisHelper\Agent\Services\FindItemsMatchSet.cs"
              Link="HostServices\FindItemsMatchSet.cs" />
+    <Compile Include="..\NavisHelper.AutomationRunner\DatasmithExportArguments.cs"
+             Link="AutomationRunner\DatasmithExportArguments.cs" />
+    <Compile Include="..\NavisHelper.AutomationRunner\RunnerResult.cs"
+             Link="AutomationRunner\RunnerResult.cs" />
     <ProjectReference Include="..\NavisHelper.McpServer\NavisHelper.McpServer.csproj" />
     <ProjectReference Include="..\NavisHelper.McpConfigurator\NavisHelper.McpConfigurator.csproj" Aliases="global,ConfiguratorAssembly" />
   </ItemGroup>
