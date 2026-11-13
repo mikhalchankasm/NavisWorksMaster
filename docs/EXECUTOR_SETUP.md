@@ -55,9 +55,23 @@ adapted to this repository.
 - **Worktree write access (#1275, from Avox).** Inside the unelevated sandbox
   Administrators is deny-only, so a worktree that inherits only Administrators F,
   SYSTEM F and Users RX refuses every write. For a `codex` run the launcher adds one
-  separate `(OI)(CI)` Modify ACE for its own token's SID on the worktree root, removes
-  exactly that ACE when the provider exits (any outcome) and compares the DACL with the
-  one before. Anything else left is `WORKTREE_ACL_NOT_RESTORED` (exit 6).
+  separate `(OI)(CI)` Modify ACE for its own token's SID on the worktree root.
+- **What the sandbox leaves, and the restore.** Codex mints random capability SIDs
+  (`S-1-5-21-a-b-c-d`, mapping to no account) in the run's fresh `CODEX_HOME`, so they
+  are new every run, several per run. For each it leaves an `(OI)(CI)` Modify allow
+  on the worktree root and a deny `0x130156` (the write rights) on its `.git`; seen on
+  0.166.0 (NH-i427s, two SIDs) and 0.167.2 (NH-i440, three). On 0.167.2 its `cap_sid`
+  file (keys `workspace`, `readonly`, `workspace_by_cwd`, `writable_root_by_path`)
+  did not name one of the three, which is why the old cap_sid-based check flagged
+  exactly one. So the launcher no longer trusts `cap_sid`: it snapshots the DACL text
+  of the root and of `.git` before the run and, when the provider exits (any
+  outcome), writes both back verbatim, through the tree first so no file keeps an
+  inherited copy. `host.worktreeAclGrant.reverted` lists each explicit ACE taken off
+  as `grant`, `sandbox` (that shape, for a SID that maps to no account; `listed` says
+  whether `cap_sid` named it) or `unexpected`. Any `unexpected` ACE, lost ACE,
+  protection change or DACL that does not come back is `WORKTREE_ACL_NOT_RESTORED`
+  (exit 6); the DACLs are reverted all the same, so no hand cleanup is left. Files
+  below the root keep the `AI` marker the propagation sets; it grants nothing.
 - **dotnet and NuGet in the sandbox (#1274, from Avox).** The redirected profile (TEMP,
   APPDATA, LOCALAPPDATA, `DOTNET_CLI_HOME`, `NUGET_*`) lives in `codex-work`, a sibling
   of `codex-home` that is TEMP itself, so the sandbox can write it; `codex-home` with

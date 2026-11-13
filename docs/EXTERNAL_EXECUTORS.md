@@ -41,7 +41,7 @@ preamble and process-control changes, run the tests below, and name the Avox
 commit here and in the PR. Launcher changes ship with this page in the same PR.
 
 ```console
-python -m unittest scripts.tests.test_executor_process_control scripts.tests.test_external_worktree_executor scripts.tests.test_executor_worktree scripts.tests.test_agent_home_isolation scripts.tests.test_executor_host_guard scripts.tests.test_executor_msbuild_nodes scripts.tests.test_executor_event_journal scripts.tests.test_executor_escape_guard
+python -m unittest scripts.tests.test_executor_process_control scripts.tests.test_external_worktree_executor scripts.tests.test_executor_worktree scripts.tests.test_executor_worktree_acl scripts.tests.test_agent_home_isolation scripts.tests.test_executor_host_guard scripts.tests.test_executor_msbuild_nodes scripts.tests.test_executor_event_journal scripts.tests.test_executor_escape_guard
 ```
 
 ## What the run may not change on the machine

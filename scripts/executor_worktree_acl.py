@@ -10,8 +10,15 @@ D:\\GITHUB) refuses every write, while one that inherits Authenticated Users M w
 The grant is one separate explicit ACE for the SID in the launcher's own token, written with
 SetNamedSecurityInfoW. `icacls /grant` and .NET AddAccessRule both fold a new ACE into an existing
 one for the same SID and flags, and a partial right the operator already had could then never be
-told apart again. Restoring removes exactly that ACE and compares every ACE before and after: the
-only ones allowed to appear are the capability ACEs Codex wrote for this run's own SIDs.
+told apart again.
+
+Codex leaves ACEs of its own behind (seen on 0.166.0 and 0.167.2): an inheritable Modify allow on
+the worktree root and a write deny on its `.git` for each capability SID it minted, several per run,
+and its `cap_sid` file does not always name all of them. So the launcher snapshots the DACL of the
+root and of `.git` before the run and puts both back exactly afterwards, whatever is on them, then
+reports every ACE it took off. A run is clean only when each of those was the launcher's own grant
+or a sandbox ACE: that shape, for a SID that maps to no account. Anything else is still reverted,
+and still fails the run.
 """
 
 from __future__ import annotations
@@ -27,10 +34,14 @@ from scripts.executor_primitives import ExecutorError
 
 MODIFY_RIGHTS = 0x1301BF
 GRANT_FLAGS = "OICI"
-# What Codex 0.162.1 writes on a writable root for a capability SID, seen on every probe worktree.
-SANDBOX_ACE_FLAGS = "CIOI"
+# What Codex writes for a capability SID: an inheritable Modify allow on a writable root (0.162.1 on),
+# and a deny of these write rights on the root's `.git`, file or folder (0.166.0 and 0.167.2).
+SANDBOX_ROOT_FLAGS = frozenset({"OI", "CI"})
+GIT_DENY_RIGHTS = 0x130156
 _ACE = re.compile(r"\(([^()]*)\)")
 _SID = re.compile(r"S-1-\d+(?:-\d+)+", re.IGNORECASE)
+# The form Codex mints a capability SID in: a random machine-style SID that maps to no account.
+_CAPABILITY_SID = re.compile(r"S-1-5-21-\d+-\d+-\d+-\d+", re.IGNORECASE)
 _RIGHTS_ALIASES = {"FA": 0x1F01FF, "GA": 0x10000000}
 # Account SIDs that SDDL writes as an alias: the built-in Administrator (RID 500) and Guest (RID 501).
 _ACCOUNT_ALIASES = ("LA", "LG")
@@ -40,6 +51,8 @@ class AclBackend(Protocol):
     def operator_sid(self) -> str: ...
     def read(self, path: Path) -> str: ...
     def write(self, path: Path, sddl: str, *, protected: bool) -> None: ...
+    def write_exact(self, path: Path, sddl: str) -> None: ...
+    def resolves(self, sid: str) -> bool: ...
 
 
 @dataclass(frozen=True)
@@ -132,24 +145,24 @@ def _build(explicit: list[str], protected: bool) -> str:
     return "D:" + ("P" if protected else "") + "".join(f"({ace})" for ace in explicit)
 
 
-def _is_sandbox_ace(ace: str, run_sids: set[str]) -> bool:
+def _has_sandbox_shape(role: str, ace: str) -> bool:
+    """The allow Codex puts on a writable root, or the deny it puts on that root's `.git`."""
     fields = _fields(ace)
-    return (len(fields) >= 6 and fields[0].upper() == "A" and "".join(sorted(_flag_pairs(ace))) == SANDBOX_ACE_FLAGS
-            and _rights(ace) == MODIFY_RIGHTS and fields[5].upper() in run_sids)
+    if len(fields) < 6:
+        return False
+    pairs = _flag_pairs(ace)
+    if role == "root":
+        return fields[0].upper() == "A" and pairs == SANDBOX_ROOT_FLAGS and _rights(ace) == MODIFY_RIGHTS
+    return fields[0].upper() == "D" and pairs <= SANDBOX_ROOT_FLAGS and _rights(ace) == GIT_DENY_RIGHTS
 
 
-def dacl_changes(before: Dacl, after: Dacl, run_sids: set[str]) -> tuple[list[str], list[str]]:
-    """ACEs lost and ACEs gained, ignoring only this run's own sandbox capability ACEs."""
-    sids = {sid.upper() for sid in run_sids}
-    old, new = Counter(ace_key(ace) for ace in before.aces), Counter(ace_key(ace) for ace in after.aces)
+def explicit_changes(before: Dacl, after: Dacl) -> tuple[list[str], list[str]]:
+    """Explicit ACEs lost and gained; inherited ones follow the parent and come back with it."""
+    old, new = Counter(ace_key(ace) for ace in before.explicit()), Counter(ace_key(ace) for ace in after.explicit())
     by_key = {ace_key(ace): ace for ace in (*before.aces, *after.aces)}
-    missing = [by_key[key] for key, count in (old - new).items() for _ in range(count)]
+    lost = [by_key[key] for key, count in (old - new).items() for _ in range(count)]
     gained = [by_key[key] for key, count in (new - old).items() for _ in range(count)]
-    unexpected = [ace for ace in gained if not _is_sandbox_ace(ace, sids)]
-    # Protection, not the whole control string: SetNamedSecurityInfoW always sets AI (auto-inherited), a marker.
-    if before.protected != after.protected:
-        unexpected.append("control:" + before.control + "->" + after.control)
-    return missing, unexpected
+    return lost, gained
 
 
 def sandbox_sids(codex_home: Path) -> set[str]:
@@ -186,13 +199,18 @@ def grant_worktree_access(
             return None
         backend = WindowsAcl()
     check_target(worktree, main_checkout, toplevel() if callable(toplevel) else toplevel)
+    git = worktree / ".git"
     try:
         sid = backend.operator_sid()
         before = backend.read(worktree)
         dacl = parse_dacl(before)
+        # Snapshotted before the grant: the restore puts back this text, not a reconstruction of it.
+        git_before = backend.read(git) if git.exists() else None
     except (OSError, ValueError) as exc:
         raise ExecutorError("SANDBOX_UNSAFE", f"The worktree ACL could not be read: {exc}") from exc
     state: dict[str, object] = {"path": str(worktree), "sid": sid, "before": before}
+    if git_before is not None:
+        state.update(gitPath=str(git), gitBefore=git_before)
     if already_granted(dacl, sid):
         state["added"] = None
         return state
@@ -228,32 +246,66 @@ def grant_runtime_access(path: Path, backend: AclBackend | None = None) -> str |
 def restore_worktree_access(
     state: dict[str, object], run_sids: set[str], backend: AclBackend | None = None
 ) -> dict[str, object]:
-    """Remove exactly the added ACE and prove the DACL is the one the run started with."""
+    """Put the root's and `.git`'s DACLs back exactly as snapshotted, and say what was taken off.
+
+    `reverted` lists every explicit ACE removed, each as `grant` (the launcher's own), `sandbox` (the
+    shape Codex writes, for a SID that maps to no account; `listed` says whether this run's cap_sid
+    named it) or `unexpected`. `restored` is true only when both DACLs are back and nothing was
+    unexpected or lost; an unexpected ACE is reverted all the same, so no hand cleanup is left.
+    """
     backend = backend or WindowsAcl()
-    path = Path(str(state["path"]))
-    result = {key: state[key] for key in ("path", "sid", "before", "added")}
-    problem = ""
-    try:
-        text = backend.read(path)
-        current = parse_dacl(text)
-        added = state.get("added")
-        if added:
-            explicit = current.explicit()
-            matches = [index for index, ace in enumerate(explicit) if ace_key(ace) == ace_key(str(added))]
-            if not matches:
-                problem = "the added ACE is no longer on the worktree"
-            else:
-                del explicit[matches[-1]]
-                backend.write(path, _build(explicit, current.protected), protected=current.protected)
+    listed = {sid.upper() for sid in run_sids}
+    result = {key: state[key] for key in ("path", "sid", "before", "added", "gitPath", "gitBefore") if key in state}
+    objects = [("root", Path(str(state["path"])), str(state["before"]))]
+    if state.get("gitPath"):
+        # After the root: `.git` inherits from it, so its inherited ACEs are only right once the root is.
+        objects.append(("git", Path(str(state["gitPath"])), str(state["gitBefore"])))
+    reverted: list[dict[str, object]] = []
+    missing: list[str] = []
+    unexpected: list[str] = []
+    problems: list[str] = []
+    exact = True
+    added = str(state["added"]) if state.get("added") else None
+    for role, path, before in objects:
+        try:
+            text = backend.read(path)
+            if role == "root" and added and ace_key(added) not in {ace_key(ace) for ace in parse_dacl(text).explicit()}:
+                problems.append("the added ACE is no longer on the worktree")
+            if text != before:
+                old, new = parse_dacl(before), parse_dacl(text)
+                lost, gained = explicit_changes(old, new)
+                grant_seen = False
+                for ace in gained:
+                    entry: dict[str, object] = {"path": str(path), "ace": ace}
+                    sid = _fields(ace)[5] if len(_fields(ace)) >= 6 else ""
+                    if role == "root" and added and not grant_seen and ace_key(ace) == ace_key(added):
+                        grant_seen, entry["kind"] = True, "grant"
+                    elif _has_sandbox_shape(role, ace) and _CAPABILITY_SID.fullmatch(sid) and not backend.resolves(sid):
+                        entry.update(kind="sandbox", listed=sid.upper() in listed)
+                    else:
+                        entry["kind"] = "unexpected"
+                        unexpected.append(ace)
+                    reverted.append(entry)
+                missing.extend(lost)
+                # Protection, not the whole control string: AI is a marker every SetNamedSecurityInfoW sets.
+                if old.protected != new.protected:
+                    unexpected.append(f"control:{role}:{old.control}->{new.control}")
+                # Through the tree first, so no file below keeps an inherited copy; then the object's own
+                # descriptor verbatim, which also drops the AI marker the first write left on it.
+                backend.write(path, _build(old.explicit(), old.protected), protected=old.protected)
+                backend.write_exact(path, before)
                 text = backend.read(path)
-                current = parse_dacl(text)
-        missing, unexpected = dacl_changes(parse_dacl(str(state["before"])), current, run_sids)
-        result["after"] = text
-    except (OSError, ValueError) as exc:
-        missing, unexpected, problem = [], [], f"{type(exc).__name__}: {exc}"
-    result.update(missing=missing, unexpected=unexpected, restored=not (missing or unexpected or problem))
-    if problem:
-        result["problem"] = problem
+            result["after" if role == "root" else "gitAfter"] = text
+            exact = exact and text == before
+        except (OSError, ValueError) as exc:
+            exact = False
+            problems.append(f"{role}: {type(exc).__name__}: {exc}")
+    if not exact and not problems:
+        problems.append("a DACL is not the one the run started with")
+    result.update(reverted=reverted, missing=missing, unexpected=unexpected, daclRestored=exact,
+                  restored=not (missing or unexpected or problems))
+    if problems:
+        result["problem"] = "; ".join(problems)
     return result
 
 
@@ -295,6 +347,12 @@ class WindowsAcl:
         self.advapi.SetNamedSecurityInfoW.argtypes = [
             wintypes.LPWSTR, ctypes.c_int, wintypes.DWORD, void, void, void, void]
         self.advapi.SetNamedSecurityInfoW.restype = wintypes.DWORD
+        self.advapi.SetFileSecurityW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, void]
+        dword_p = ctypes.POINTER(wintypes.DWORD)
+        self.advapi.LookupAccountSidW.argtypes = [
+            wintypes.LPCWSTR, void, wintypes.LPWSTR, dword_p, wintypes.LPWSTR, dword_p, dword_p]
+
+    ERROR_NONE_MAPPED = 1332
 
     def _fail(self, code: int | None = None) -> OSError:
         return self.ctypes.WinError(code if code is not None else self.ctypes.get_last_error())
@@ -381,3 +439,30 @@ class WindowsAcl:
                 raise self._fail(code)
         finally:
             self.kernel.LocalFree(descriptor)
+
+    def write_exact(self, path: Path, sddl: str) -> None:
+        """This one object's DACL exactly as given, inherited ACEs and control bits included; nothing below it."""
+        descriptor = self.ctypes.c_void_p()
+        if not self.advapi.ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                sddl, 1, self.ctypes.byref(descriptor), None):
+            raise self._fail()
+        try:
+            if not self.advapi.SetFileSecurityW(str(path), self.DACL_SECURITY_INFORMATION, descriptor):
+                raise self._fail()
+        finally:
+            self.kernel.LocalFree(descriptor)
+
+    def resolves(self, sid: str) -> bool:
+        """False only when Windows says the SID maps to no account; any other answer counts as an account."""
+        ctypes, wintypes = self.ctypes, self.wintypes
+        psid = ctypes.c_void_p()
+        if not self.advapi.ConvertStringSidToSidW(sid, ctypes.byref(psid)):
+            return True
+        try:
+            name, domain, use = wintypes.DWORD(0), wintypes.DWORD(0), wintypes.DWORD(0)
+            if self.advapi.LookupAccountSidW(
+                    None, psid, None, ctypes.byref(name), None, ctypes.byref(domain), ctypes.byref(use)):
+                return True
+            return ctypes.get_last_error() != self.ERROR_NONE_MAPPED
+        finally:
+            self.kernel.LocalFree(psid)

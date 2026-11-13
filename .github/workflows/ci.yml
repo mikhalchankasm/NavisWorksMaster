@@ -102,6 +102,7 @@ jobs:
           scripts.tests.test_executor_process_watch
           scripts.tests.test_external_worktree_executor
           scripts.tests.test_executor_worktree
+          scripts.tests.test_executor_worktree_acl
           scripts.tests.test_agent_home_isolation
           scripts.tests.test_executor_host_guard
           scripts.tests.test_executor_msbuild_nodes
