@@ -269,7 +269,8 @@ class AgentHomeIsolationTests(unittest.TestCase):
             "plugin_sharing = false\nin_app_browser = false\nimage_generation = false\n"
             "skill_mcp_dependency_install = false\ntool_suggest = false\nbrowser_annotation_api = false\n"
             "api_key_cyber_access_programs = false\ncli_daybreak = false\nbedrock_setup_wizard = false\n"
-            "mcp_oauth_refresh_coordination = false\nplugin_discovery_prefetch = false\n",
+            "mcp_oauth_refresh_coordination = false\nplugin_discovery_prefetch = false\n"
+            "deferred_tool_world_state = false\nincremental_tools_legacy_gcp = false\n",
         )
 
     def test_the_codex_advisor_configuration_carries_its_own_route(self) -> None:

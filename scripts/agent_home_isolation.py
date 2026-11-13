@@ -168,6 +168,8 @@ CODEX_DISABLED_FEATURES = (
     "bedrock_setup_wizard",
     "mcp_oauth_refresh_coordination",
     "plugin_discovery_prefetch",
+    "deferred_tool_world_state",
+    "incremental_tools_legacy_gcp",
 )
 
 # Every feature codex 0.158.0 still reports enabled in the isolated home with the switches above, reviewed on
@@ -194,7 +196,11 @@ CODEX_DISABLED_FEATURES = (
 # harmless; unified_exec_zsh_fork is no longer reported. Probe: no MCP server, clock only, no web tool.
 # 0.166.0 (2026-10-31, as Avox #2000): newly enabled plugin_discovery_prefetch (a plugin surface) is switched off
 # above; the rest of the enabled set is unchanged and unified_exec_zsh_fork is still not enabled.
-CODEX_REVIEWED_VERSIONS = frozenset({"codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0", "codex-cli 0.164.0", "codex-cli 0.165.0", "codex-cli 0.166.0"})
+# 0.167.2 (2026-11-13): newly enabled deferred_tool_world_state (undocumented deferred-tool state, switched off as in
+# Avox #2161) and incremental_tools_legacy_gcp (undocumented; Avox #2161 does not name it, and Avox already keeps
+# incremental_tools off) are switched off above because neither could be shown harmless; the rest of the enabled
+# set is unchanged. Probe: only clock, no web tool.
+CODEX_REVIEWED_VERSIONS = frozenset({"codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0", "codex-cli 0.164.0", "codex-cli 0.165.0", "codex-cli 0.166.0", "codex-cli 0.167.2"})
 
 _CODEX_RELEASE = re.compile(r"codex-cli (\d+\.\d+)\.(\d+)")
 
