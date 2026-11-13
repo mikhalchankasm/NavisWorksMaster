@@ -137,16 +137,30 @@ public sealed class AutomationRunnerTests
     [Fact]
     public void OnlyAFileWrittenDuringThisRunIsAnExport()
     {
-        var started = new DateTime(2026, 11, 13, 12, 0, 0, DateTimeKind.Utc);
+        var now = new DateTime(2026, 11, 13, 12, 0, 0, DateTimeKind.Utc);
+        var earlier = now.AddDays(-1);
+        var future = now.AddDays(3);
 
-        Assert.True(DatasmithExporter.IsFreshExport(0, true, started.AddSeconds(30), started));
-        // NTFS and the runner's clock can disagree by a moment.
-        Assert.True(DatasmithExporter.IsFreshExport(0, true, started.AddSeconds(-1), started));
-        // --overwrite: yesterday's file is still there and the exporter wrote nothing.
-        Assert.False(DatasmithExporter.IsFreshExport(0, true, started.AddDays(-1), started));
-        Assert.False(DatasmithExporter.IsFreshExport(0, false, DateTime.MinValue, started));
-        Assert.False(DatasmithExporter.IsFreshExport(1, true, started.AddSeconds(30), started));
-        Assert.False(DatasmithExporter.IsFreshExport(null, true, started.AddSeconds(30), started));
+        // No file before: whatever the exporter left is new.
+        Assert.True(DatasmithExporter.IsFreshExport(0, true, now, null));
+        // --overwrite: the file was rewritten, so its write time moved.
+        Assert.True(DatasmithExporter.IsFreshExport(0, true, now, earlier));
+        // --overwrite and nothing written: the old file is still there, even one dated ahead.
+        Assert.False(DatasmithExporter.IsFreshExport(0, true, earlier, earlier));
+        Assert.False(DatasmithExporter.IsFreshExport(0, true, future, future));
+        Assert.False(DatasmithExporter.IsFreshExport(0, false, DateTime.MinValue, null));
+        Assert.False(DatasmithExporter.IsFreshExport(1, true, now, null));
+        Assert.False(DatasmithExporter.IsFreshExport(null, true, now, null));
+    }
+
+    [Fact]
+    public void TheResultLineIsAsciiWhateverTheConsoleCodePage()
+    {
+        var line = new RunnerResult { Ok = true, OutputPath = "D:\\Порт\\модель.udatasmith" }.ToJsonLine();
+
+        Assert.All(line, character => Assert.InRange(character, ' ', '~'));
+        using var json = JsonDocument.Parse(line);
+        Assert.Equal("D:\\Порт\\модель.udatasmith", json.RootElement.GetProperty("outputPath").GetString());
     }
 
     [Fact]

@@ -40,7 +40,9 @@ namespace NavisHelper.AutomationRunner
                     case '\r': json.Append("\\r"); break;
                     case '\t': json.Append("\\t"); break;
                     default:
-                        if (character < ' ')
+                        // ASCII only: a .NET Framework console writes in its own code page, which
+                        // would turn a Cyrillic path into question marks.
+                        if (character < ' ' || character > '~')
                             json.Append("\\u").Append(((int)character).ToString("X4", CultureInfo.InvariantCulture));
                         else
                             json.Append(character);

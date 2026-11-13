@@ -63,7 +63,8 @@ namespace NavisHelper.AutomationRunner
                 return;
             }
 
-            var startedUtc = DateTime.UtcNow;
+            var before = new FileInfo(parsed.OutputPath);
+            DateTime? writeUtcBeforeExport = before.Exists ? before.LastWriteTimeUtc : (DateTime?)null;
             ResolveEventHandler resolve = (sender, eventArgs) =>
             {
                 string name = new AssemblyName(eventArgs.Name).Name;
@@ -105,7 +106,7 @@ namespace NavisHelper.AutomationRunner
             }
 
             var output = new FileInfo(parsed.OutputPath);
-            if (DatasmithExporter.IsFreshExport(result.ExporterReturnCode, output.Exists, output.Exists ? output.LastWriteTimeUtc : DateTime.MinValue, startedUtc))
+            if (DatasmithExporter.IsFreshExport(result.ExporterReturnCode, output.Exists, output.Exists ? output.LastWriteTimeUtc : DateTime.MinValue, writeUtcBeforeExport))
             {
                 result.FileSizeBytes = output.Length;
                 result.Ok = true;

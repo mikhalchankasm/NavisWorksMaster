@@ -151,17 +151,16 @@ namespace NavisHelper.AutomationRunner
     {
         public const string PluginId = "DatasmithNavisworksExporter.EpicGames";
 
-        /// <summary>Slack for file-system time stamps against the runner's own clock.</summary>
-        public static readonly TimeSpan WriteTimeTolerance = TimeSpan.FromSeconds(2);
-
         /// <summary>
-        /// The export counts only when the exporter returned 0 and wrote the file during this
-        /// run. With --overwrite an older file is already there, so its existence alone would
-        /// report a stale export as a fresh one.
+        /// The export counts only when the exporter returned 0 and the file is new or was
+        /// rewritten during this run. With --overwrite an older file is already there, so its
+        /// existence alone would report a stale export as a fresh one; comparing with the write
+        /// time taken before the export holds whatever that time was, even one in the future.
         /// </summary>
-        public static bool IsFreshExport(int? exporterReturnCode, bool outputExists, DateTime outputWriteUtc, DateTime startedUtc)
+        public static bool IsFreshExport(int? exporterReturnCode, bool outputExists, DateTime outputWriteUtc, DateTime? writeUtcBeforeExport)
         {
-            return exporterReturnCode == 0 && outputExists && outputWriteUtc >= startedUtc - WriteTimeTolerance;
+            return exporterReturnCode == 0 && outputExists &&
+                (!writeUtcBeforeExport.HasValue || outputWriteUtc != writeUtcBeforeExport.Value);
         }
     }
 
