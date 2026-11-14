@@ -138,6 +138,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `create_selection_set` | Document | Yes | Yes | Yes |
 | `create_viewpoint` | Document | Yes | Yes | Yes |
 | `current_viewpoint_info` | None | Yes | Yes | No |
+| `datasmith_export_status` | None | No | No | No |
 | `delete_scenario` | Files, LocalState | No | No | Yes |
 | `dump_subtree_names` | Files | Yes | Yes | No |
 | `dump_subtree_names_status` | Files, LocalState | Yes | Yes | No |
@@ -210,6 +211,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `selection_status` | None | Yes | Yes | No |
 | `set_view_display_settings` | View, Document | Yes | Yes | Yes |
 | `show_all` | View | Yes | Yes | Yes |
+| `start_datasmith_export` | Files, Host | No | No | No |
 | `start_navisworks` | Host | No | No | No |
 | `start_save_document` | Document, Files | Yes | Yes | No |
 | `start_subtree_names_dump` | Files, LocalState | Yes | Yes | No |

@@ -206,12 +206,14 @@ internal static class McpToolProfile
             ["lifecycle"] = new[]
             {
                 "close_navisworks",
+                "datasmith_export_status",
                 "list_recent_navisworks_files",
                 "open_latest_navisworks_file",
                 "save_document",
                 "save_document_as",
                 "save_document_status",
                 "start_navisworks",
+                "start_datasmith_export",
                 "start_save_document",
             },
         };
