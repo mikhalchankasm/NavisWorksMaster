@@ -58,6 +58,7 @@ namespace NavisHelper.Agent.Host
         private readonly ClashTestsFromSetsService _clashTestsFromSetsService = new ClashTestsFromSetsService();
         private readonly ClashBatchRunService _clashBatchRunService;
         private readonly SaveDocumentJobService _saveDocumentJobService;
+        private readonly FbxLevelExportJobService _fbxLevelExportJobService;
         private readonly NavisworksApplicationCloseService _applicationCloseService;
         private readonly MatchSessionStore _matchSessionStore = new MatchSessionStore();
         private readonly MatchHandleItemsService _matchHandleItemsService;
@@ -86,6 +87,7 @@ namespace NavisHelper.Agent.Host
             _applicationCloseService = new NavisworksApplicationCloseService(_commandService);
             _clashBatchRunService = new ClashBatchRunService(PostToUi);
             _saveDocumentJobService = new SaveDocumentJobService(PostToUi);
+            _fbxLevelExportJobService = new FbxLevelExportJobService(PostToUi);
             _commandRouter = CreateCommandRouter();
         }
     }

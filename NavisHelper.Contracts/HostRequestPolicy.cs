@@ -12,6 +12,8 @@ namespace NavisHelper.Agent.Contracts
         ClashRunStatus = 5,
         CancelClashRun = 6,
         SaveDocumentStatus = 7,
+        FbxLevelExportStatus = 8,
+        CancelFbxLevelExport = 9,
     }
 
     public static class HostRequestPolicy
@@ -32,6 +34,10 @@ namespace NavisHelper.Agent.Contracts
                 return HostRequestGateBypassKind.CancelClashRun;
             if (string.Equals(command, HostCommandNames.SaveDocumentStatus, StringComparison.OrdinalIgnoreCase))
                 return HostRequestGateBypassKind.SaveDocumentStatus;
+            if (string.Equals(command, HostCommandNames.FbxLevelExportStatus, StringComparison.OrdinalIgnoreCase))
+                return HostRequestGateBypassKind.FbxLevelExportStatus;
+            if (string.Equals(command, HostCommandNames.CancelFbxLevelExport, StringComparison.OrdinalIgnoreCase))
+                return HostRequestGateBypassKind.CancelFbxLevelExport;
 
             return HostRequestGateBypassKind.None;
         }
@@ -47,6 +53,7 @@ namespace NavisHelper.Agent.Contracts
             return kind == HostRequestGateBypassKind.ClashReportStatus ||
                    kind == HostRequestGateBypassKind.ClashRunStatus ||
                    kind == HostRequestGateBypassKind.SaveDocumentStatus ||
+                   kind == HostRequestGateBypassKind.FbxLevelExportStatus ||
                    kind == HostRequestGateBypassKind.LastOperationStatus;
         }
     }
