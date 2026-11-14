@@ -24,8 +24,9 @@ namespace NavisHelper.Agent.Services
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
-            if (request == null || string.IsNullOrWhiteSpace(request.Folder) || !Path.IsPathRooted(request.Folder))
-                throw new AgentCommandException(ErrorCodes.SchemaViolation, "An absolute folder path is required.");
+            if (request == null || !FbxLevelExportPlan.IsFullyQualifiedFolder(request.Folder))
+                throw new AgentCommandException(ErrorCodes.SchemaViolation,
+                    @"A fully qualified folder path is required, such as D:\export\fbx or \\server\share\fbx.");
 
             var folder = Path.GetFullPath(request.Folder);
             Directory.CreateDirectory(folder);

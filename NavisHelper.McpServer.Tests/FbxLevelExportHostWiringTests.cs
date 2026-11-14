@@ -72,6 +72,23 @@ public sealed class FbxLevelExportHostWiringTests
         Assert.DoesNotContain("UnhideSet(", service, StringComparison.Ordinal);
     }
 
+    // Codex review of beta2, P2: IsPathRooted accepts "C:exports" and "\exports", which resolve
+    // against the process's current directory. The folder must be fully qualified.
+    [Theory]
+    [InlineData(@"C:\out\fbx", true)]
+    [InlineData("C:/out/fbx", true)]
+    [InlineData(@"\\server\share\fbx", true)]
+    [InlineData("C:exports", false)]
+    [InlineData(@"\exports", false)]
+    [InlineData("exports", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void TheFolderMustBeFullyQualified(string folder, bool expected)
+    {
+        Assert.Equal(expected, FbxLevelExportPlan.IsFullyQualifiedFolder(folder));
+        Assert.Contains("FbxLevelExportPlan.IsFullyQualifiedFolder(", Read("NavisHelper", "Agent", "Services", "FbxLevelExportJobService.cs"), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TheHostAdaptsNavisworksToThePureJob()
     {
