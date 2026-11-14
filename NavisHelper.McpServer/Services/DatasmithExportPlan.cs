@@ -88,6 +88,54 @@ internal static class DatasmithExportPlan
 
 internal sealed record DatasmithRunnerOutcome(bool Ok, int ExitCode, int? ExporterReturnCode, long FileSizeBytes, string Error);
 
+internal sealed class RunnerStreamTail
+{
+    private readonly int _maxChars;
+    private string _text = string.Empty;
+    private bool _truncated;
+
+    internal RunnerStreamTail(int maxChars)
+    {
+        if (maxChars <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxChars));
+        _maxChars = maxChars;
+    }
+
+    internal string LastLine { get; private set; }
+    internal string Text => _truncated ? "..." + _text : _text;
+
+    internal void Append(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return;
+        if (line.Length > _maxChars)
+        {
+            line = line.Substring(line.Length - _maxChars);
+            _truncated = true;
+        }
+        LastLine = line;
+        // Retain only the portion of the old tail that fits beside this line.
+        var keep = _maxChars - line.Length - 1;
+        if (_text.Length > 0)
+        {
+            if (keep < 0)
+            {
+                _text = line;
+                _truncated = true;
+                return;
+            }
+            if (_text.Length > keep)
+            {
+                _text = _text.Substring(_text.Length - keep);
+                _truncated = true;
+            }
+            _text += "\n" + line;
+        }
+        else
+            _text = line;
+    }
+}
+
 internal sealed class DatasmithExportJobState
 {
     private DatasmithExportJobState(string operationId, string sourcePath, string outputPath, DateTime startedAtUtc,
