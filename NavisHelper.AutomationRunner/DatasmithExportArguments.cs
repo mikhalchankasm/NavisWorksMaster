@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace NavisHelper.AutomationRunner
 {
@@ -14,6 +15,7 @@ namespace NavisHelper.AutomationRunner
         public double[] Origin { get; set; }
         public bool IncludeMetadata { get; set; }
         public bool Overwrite { get; set; }
+        public string JobName { get; set; }
 
         public static DatasmithExportArguments Parse(string[] args, out string error)
         {
@@ -33,6 +35,7 @@ namespace NavisHelper.AutomationRunner
                     case "--output":
                     case "--merge":
                     case "--origin":
+                    case "--job":
                     case "--include-metadata":
                     case "--overwrite":
                         break;
@@ -62,6 +65,11 @@ namespace NavisHelper.AutomationRunner
                     case "--navisworks-dir": parsed.NavisworksDirectory = value; break;
                     case "--source": parsed.SourcePath = value; break;
                     case "--output": parsed.OutputPath = value; break;
+                    case "--job":
+                        if (!Regex.IsMatch(value, @"\ALocal\\NavisHelper-Datasmith-[0-9a-f]{32}\z", RegexOptions.CultureInvariant))
+                            return Fail("--job must be a server Datasmith job name.", out error);
+                        parsed.JobName = value;
+                        break;
                     case "--merge":
                         int merge;
                         if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out merge) || merge < 0)
