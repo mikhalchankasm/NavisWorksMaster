@@ -29,6 +29,8 @@
              Link="AutomationRunner\DatasmithExportArguments.cs" />
     <Compile Include="..\NavisHelper.AutomationRunner\RunnerResult.cs"
              Link="AutomationRunner\RunnerResult.cs" />
+    <Compile Include="..\NavisHelper.AutomationRunner\NavisworksProcessSelection.cs"
+             Link="AutomationRunner\NavisworksProcessSelection.cs" />
     <ProjectReference Include="..\NavisHelper.McpServer\NavisHelper.McpServer.csproj" />
     <ProjectReference Include="..\NavisHelper.McpConfigurator\NavisHelper.McpConfigurator.csproj" Aliases="global,ConfiguratorAssembly" />
   </ItemGroup>
