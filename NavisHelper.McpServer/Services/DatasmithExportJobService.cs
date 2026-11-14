@@ -144,7 +144,7 @@ internal sealed class DatasmithExportJobService : IDisposable
             try
             {
                 // Drain both pipes concurrently while waiting; dependencies may write diagnostics.
-                var stdoutTail = new RunnerStreamTail(64 * 1024);
+                var stdoutTail = new RunnerStreamTail(64 * 1024, keepText: false);
                 var stderrTail = new RunnerStreamTail(MaxDiagnosticsChars);
                 stdout = ReadTailAsync(process.StandardOutput, stdoutTail, deadline.Token);
                 stderr = ReadTailAsync(process.StandardError, stderrTail, deadline.Token);

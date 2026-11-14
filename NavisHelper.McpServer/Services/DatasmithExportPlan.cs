@@ -94,11 +94,16 @@ internal sealed class RunnerStreamTail
     private string _text = string.Empty;
     private bool _truncated;
 
-    internal RunnerStreamTail(int maxChars)
+    private readonly bool _keepText;
+
+    /// <param name="keepText">False keeps only <see cref="LastLine"/>: stdout needs nothing else, and
+    /// maintaining a full tail would copy it on every line.</param>
+    internal RunnerStreamTail(int maxChars, bool keepText = true)
     {
         if (maxChars <= 0)
             throw new ArgumentOutOfRangeException(nameof(maxChars));
         _maxChars = maxChars;
+        _keepText = keepText;
     }
 
     internal string LastLine { get; private set; }
@@ -114,6 +119,8 @@ internal sealed class RunnerStreamTail
             _truncated = true;
         }
         LastLine = line;
+        if (!_keepText)
+            return;
         // Retain only the portion of the old tail that fits beside this line.
         var keep = _maxChars - line.Length - 1;
         if (_text.Length > 0)
