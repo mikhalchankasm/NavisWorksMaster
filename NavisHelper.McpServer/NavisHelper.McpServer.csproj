@@ -22,16 +22,26 @@
   <!-- #440: the net48 Automation runner ships in the server's own output, at the path
        DatasmithExportPlan.ResolveRunnerPath resolves. The server's global properties
        (-r, self-contained, -o) must not reach a net48 build, so they are removed. -->
+  <PropertyGroup>
+    <_AutomationRunnerProject>..\NavisHelper.AutomationRunner\NavisHelper.AutomationRunner.csproj</_AutomationRunnerProject>
+    <_AutomationRunnerRemovedProperties>RuntimeIdentifier;SelfContained;PublishDir;OutputPath;OutDir;TargetFramework;Platform;NoBuild;_IsPublishing</_AutomationRunnerRemovedProperties>
+  </PropertyGroup>
+
   <Target Name="BuildAutomationRunner" AfterTargets="Build">
     <!-- Restore in its own project instance: a build evaluated before restore misses its outputs. -->
-    <MSBuild Projects="..\NavisHelper.AutomationRunner\NavisHelper.AutomationRunner.csproj"
-             Targets="Restore"
+    <MSBuild Projects="$(_AutomationRunnerProject)" Targets="Restore"
              Properties="Configuration=$(Configuration);NavisHelperRunnerRestore=true"
-             RemoveProperties="RuntimeIdentifier;SelfContained;PublishDir;OutputPath;OutDir;TargetFramework;Platform" />
-    <MSBuild Projects="..\NavisHelper.AutomationRunner\NavisHelper.AutomationRunner.csproj"
-             Targets="Build"
+             RemoveProperties="$(_AutomationRunnerRemovedProperties)" />
+    <MSBuild Projects="$(_AutomationRunnerProject)" Targets="Build"
              Properties="Configuration=$(Configuration)"
-             RemoveProperties="RuntimeIdentifier;SelfContained;PublishDir;OutputPath;OutDir;TargetFramework;Platform">
+             RemoveProperties="$(_AutomationRunnerRemovedProperties)" />
+  </Target>
+
+  <!-- Lists the runner's existing output without building it, so `publish no-build` works. -->
+  <Target Name="CollectAutomationRunnerFiles">
+    <MSBuild Projects="$(_AutomationRunnerProject)" Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="$(_AutomationRunnerRemovedProperties)">
       <Output TaskParameter="TargetOutputs" ItemName="_AutomationRunnerOutput" />
     </MSBuild>
     <ItemGroup>
@@ -39,12 +49,15 @@
       <_AutomationRunnerFiles Include="@(_AutomationRunnerOutput->'%(Identity).config')"
                               Condition="Exists('%(_AutomationRunnerOutput.Identity).config')" />
     </ItemGroup>
+  </Target>
+
+  <Target Name="CopyAutomationRunnerToOutput" AfterTargets="BuildAutomationRunner" DependsOnTargets="CollectAutomationRunnerFiles">
     <Copy SourceFiles="@(_AutomationRunnerFiles)"
           DestinationFolder="$(OutDir)AutomationRunner\"
           SkipUnchangedFiles="true" />
   </Target>
 
-  <Target Name="PublishAutomationRunner" AfterTargets="Publish" DependsOnTargets="BuildAutomationRunner">
+  <Target Name="PublishAutomationRunner" AfterTargets="Publish" DependsOnTargets="CollectAutomationRunnerFiles">
     <Copy SourceFiles="@(_AutomationRunnerFiles)"
           DestinationFolder="$(PublishDir)AutomationRunner\"
           SkipUnchangedFiles="true" />
