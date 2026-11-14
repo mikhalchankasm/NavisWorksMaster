@@ -3,17 +3,21 @@ using NavisHelper.Agent.Contracts;
 
 namespace NavisHelper.McpServer.Services;
 
-internal sealed class DatasmithExportJobService
+internal sealed class DatasmithExportJobService : IDisposable
 {
     private const int MaxDiagnosticsChars = 2000;
     private readonly object _gate = new();
     private readonly Dictionary<string, DatasmithExportJobState> _jobs = new(StringComparer.Ordinal);
     private readonly Queue<string> _history = new();
+    private readonly Dictionary<string, RunnerJobObject> _runnerJobs = new(StringComparer.Ordinal);
     private DatasmithExportJobState _current;
     private string _cleanupBlockedOperationId;
+    private bool _disposed;
 
     public StartDatasmithExportResponse Start(StartDatasmithExportRequest request)
     {
+        lock (_gate)
+            ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(request);
         var timeout = DatasmithExportPlan.NormalizeTimeoutSeconds(request.TimeoutSeconds);
         var directory = DatasmithExportPlan.ResolveNavisworksDirectory(request.NavisworksVersion,
@@ -38,6 +42,7 @@ internal sealed class DatasmithExportJobService
 
         lock (_gate)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (_cleanupBlockedOperationId != null)
                 throw new InvalidOperationException("Runner cleanup failed for job " + _cleanupBlockedOperationId + "; no further export can start in this server.");
             var job = DatasmithExportJobState.StartNew("datasmith-" + Guid.NewGuid().ToString("N"),
@@ -49,19 +54,40 @@ internal sealed class DatasmithExportJobService
                 _jobs.Remove(_history.Dequeue());
 
             var process = new Process { StartInfo = startInfo };
+            RunnerJobObject runnerJob = null;
+            var started = false;
             try
             {
+                runnerJob = new RunnerJobObject();
                 if (!process.Start())
                     throw new InvalidOperationException("Automation runner did not start.");
+                started = true;
+                runnerJob.Assign(process);
             }
             catch (Exception error)
             {
-                process.Dispose();
-                Update(job.Fail("Automation runner could not start: " + error.Message, DateTime.UtcNow));
+                var message = "Automation runner could not start: " + error.Message;
+                try
+                {
+                    if (started)
+                        EndRunner(process);
+                }
+                catch (Exception cleanupError)
+                {
+                    message += " Runner cleanup failed: " + cleanupError.Message;
+                    _cleanupBlockedOperationId = job.OperationId;
+                }
+                finally
+                {
+                    runnerJob?.Dispose();
+                    process.Dispose();
+                }
+                Update(job.Fail(message, DateTime.UtcNow));
                 throw;
             }
+            _runnerJobs.Add(job.OperationId, runnerJob);
             var response = job.BuildStartResponse(DateTime.UtcNow);
-            _ = Task.Run(() => MonitorAsync(process, job, timeout));
+            _ = Task.Run(() => MonitorAsync(process, runnerJob, job, timeout));
             return response;
         }
     }
@@ -76,26 +102,63 @@ internal sealed class DatasmithExportJobService
         }
     }
 
-    private async Task MonitorAsync(Process process, DatasmithExportJobState job, int timeoutSeconds)
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+            foreach (var runnerJob in _runnerJobs.Values)
+                runnerJob.Dispose();
+            foreach (var job in _jobs.Values.Where(value => value.IsRunning).ToArray())
+                Update(job.Fail("The MCP server stopped during the export.", DateTime.UtcNow));
+        }
+    }
+
+    private static async Task ReadTailAsync(StreamReader reader, RunnerStreamTail tail, CancellationToken cancellationToken)
+    {
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+            tail.Append(line);
+    }
+
+    private static void EndRunner(Process process)
+    {
+        try
+        {
+            // This handle belongs only to the runner launched for this job.
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+        }
+        catch (InvalidOperationException) when (process.HasExited) { }
+    }
+
+    private async Task MonitorAsync(Process process, RunnerJobObject runnerJob, DatasmithExportJobState job, int timeoutSeconds)
     {
         using (process)
+        using (runnerJob)
         using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds)))
         {
+            Task stdout = Task.CompletedTask;
+            Task stderr = Task.CompletedTask;
             try
             {
                 // Drain both pipes concurrently while waiting; dependencies may write diagnostics.
-                var stdout = process.StandardOutput.ReadToEndAsync(deadline.Token);
-                var stderr = process.StandardError.ReadToEndAsync(deadline.Token);
-                await Task.WhenAll(stdout, stderr, process.WaitForExitAsync(deadline.Token)).ConfigureAwait(false);
-                var outcome = DatasmithExportPlan.ParseRunnerOutput(await stdout.ConfigureAwait(false), process.ExitCode);
-                var diagnostics = (await stderr.ConfigureAwait(false)).Trim();
-                // Keep the status reply bounded: only the tail of stderr names the failure.
-                if (diagnostics.Length > MaxDiagnosticsChars)
-                    diagnostics = "..." + diagnostics.Substring(diagnostics.Length - MaxDiagnosticsChars);
+                var stdoutTail = new RunnerStreamTail(64 * 1024, keepText: false);
+                var stderrTail = new RunnerStreamTail(MaxDiagnosticsChars);
+                stdout = ReadTailAsync(process.StandardOutput, stdoutTail, deadline.Token);
+                stderr = ReadTailAsync(process.StandardError, stderrTail, deadline.Token);
+                await process.WaitForExitAsync(deadline.Token).ConfigureAwait(false);
+                // Descendants may still hold the pipes after the runner has exited.
+                runnerJob.Dispose();
+                await Task.WhenAll(stdout, stderr).ConfigureAwait(false);
+                var outcome = DatasmithExportPlan.ParseRunnerOutput(stdoutTail.LastLine ?? "", process.ExitCode);
+                var diagnostics = stderrTail.Text;
                 if (!outcome.Ok && diagnostics.Length > 0)
                     outcome = outcome with { Error = outcome.Error + " " + diagnostics };
                 lock (_gate)
-                    Update(job.Complete(outcome, DateTime.UtcNow));
+                    if (!_disposed)
+                        Update(job.Complete(outcome, DateTime.UtcNow));
             }
             catch (Exception error)
             {
@@ -104,11 +167,9 @@ internal sealed class DatasmithExportJobService
                     : job.Fail("Automation runner failed: " + error.Message, DateTime.UtcNow);
                 try
                 {
-                    // This handle belongs only to the runner launched for this job.
-                    if (!process.HasExited)
-                        process.Kill(entireProcessTree: true);
+                    runnerJob.Dispose();
+                    EndRunner(process);
                 }
-                catch (InvalidOperationException) when (process.HasExited) { }
                 catch (Exception cleanupError)
                 {
                     failed = job.Fail(failed.ErrorMessage + " Runner cleanup failed: " + cleanupError.Message, DateTime.UtcNow);
@@ -116,7 +177,17 @@ internal sealed class DatasmithExportJobService
                         _cleanupBlockedOperationId = job.OperationId;
                 }
                 lock (_gate)
-                    Update(failed);
+                    if (!_disposed)
+                        Update(failed);
+            }
+            finally
+            {
+                // Cancel and observe readers even if waiting for the runner failed.
+                deadline.Cancel();
+                try { await Task.WhenAll(stdout, stderr).ConfigureAwait(false); }
+                catch (Exception) { /* The job already carries the monitor failure. */ }
+                lock (_gate)
+                    _runnerJobs.Remove(job.OperationId);
             }
         }
     }
