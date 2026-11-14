@@ -2263,6 +2263,53 @@ or superseded `operationId` returns `command_failed`. Like the other status
 polls it is never recorded in the operation history, so it cannot evict the
 call you actually care about from `last_operation_status`.
 
+## `start_datasmith_export`
+
+Exports a saved `.nwd`, `.nwf` or `.nwc` to Datasmith (`.udatasmith`), the format
+Twinmotion and Unreal open. Epic's exporter takes a target path only under the
+Navisworks Automation API, so the MCP server runs `NavisHelper.AutomationRunner.exe`
+(#440), which opens the file in a separate hidden Navisworks and runs the
+exporter. The live session is never touched: what is hidden and the section box
+are taken as saved in the file, not as they are on screen.
+
+| Input | Type | Default | Meaning |
+|---|---|---:|---|
+| `sourcePath` | string | required | Absolute path to an existing saved model. |
+| `outputPath` | string | required | Absolute path to the `.udatasmith` to write. |
+| `navisworksVersion` | string | `""` | `2024`, `2025` or `2026`; empty means `2026`. Navisworks 2027 has no Epic exporter. |
+| `mergeLevel` | int | `-1` | The exporter's merge level; `-1` leaves it to the exporter. |
+| `origin` | string | `""` | `x,y,z` with a decimal point; empty leaves the exporter's origin. |
+| `includeMetadata` | bool | `false` | Export item properties as Datasmith metadata. |
+| `overwrite` | bool | `false` | Replace an existing `outputPath`. |
+| `timeoutSeconds` | int | `0` | 60 to 14400; `0` means 3600. |
+
+Key outputs: `operationId`, `state` (`running`), `isRunning`, `sourcePath`,
+`outputPath`, `elapsedMs`, `message`. Start refuses an unsupported version, a
+missing Navisworks folder or Automation assembly, a missing runner, or a missing
+source file before anything runs. The runner looks for
+`<server folder>\AutomationRunner\NavisHelper.AutomationRunner.exe`; the
+environment variable `NAVISHELPER_AUTOMATION_RUNNER` names another path.
+
+One job at a time per server: a second start while one is `running` fails with
+the running `operationId`. At the deadline the server ends the runner's process
+tree and the job fails with `timed out after <n> s`.
+
+## `datasmith_export_status`
+
+Input: `operationId` (required).
+
+Key outputs: `operationId`, `state` (`running|completed|failed`), `isRunning`,
+`sourcePath`, `outputPath`, `fileSizeBytes`, `runnerExitCode`,
+`exporterReturnCode`, `elapsedMs`, `errorMessage`, `startedAtUtc`,
+`completedAtUtc`, `message`. Runner exit codes: 0 exported, 2 bad arguments or
+an existing output without `overwrite`, 3 Navisworks not found, 4 the exporter
+failed or wrote nothing new, 5 the runner crashed. A job counts as `completed`
+only when the runner's one-line JSON result says so and its process exited 0.
+
+Read-only and needs no Navisworks host: the server answers from its own job
+record without waiting for the process. It keeps the last 16 jobs; ids from an
+earlier server process are unknown.
+
 ## Overlay world markers
 
 `world_markers_set`, `world_markers_manage`, and `world_markers_list` drive the
