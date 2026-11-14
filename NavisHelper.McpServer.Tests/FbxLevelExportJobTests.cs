@@ -77,10 +77,13 @@ public sealed class FbxLevelExportJobTests
     private static FbxLevelExportJob Start(FbxLevelExportPlan plan, Host host, bool overwrite = false, FbxLevelExportJob previous = null) =>
         FbxLevelExportJob.Start("fbx-job-1", plan, Folder, overwrite, host, previous, T0);
 
+    // Step reads the clock at its start and again after the export (Codex review of beta1, P2).
+    private static bool Step(FbxLevelExportJob job, Host host, DateTime at) => job.Step(host, () => at);
+
     private static int RunToEnd(FbxLevelExportJob job, Host host)
     {
         var steps = 0;
-        while (job.Step(host, T0.AddSeconds(++steps)) && steps < 100) { }
+        while (Step(job, host, T0.AddSeconds(++steps)) && steps < 100) { }
         return steps;
     }
 
@@ -94,7 +97,7 @@ public sealed class FbxLevelExportJobTests
         Assert.True(job.IsRunning);
         Assert.Empty(host.Calls);
 
-        Assert.True(job.Step(host, T0.AddSeconds(1)));
+        Assert.True(Step(job, host, T0.AddSeconds(1)));
         Assert.Equal(new[] { "hide B,F2,a2", "export 001_a1.fbx", "unhide B,F2,a2" }, host.Calls);
 
         RunToEnd(job, host);
@@ -103,7 +106,7 @@ public sealed class FbxLevelExportJobTests
         Assert.Equal(9, host.Calls.Count);
         Assert.Equal(new[] { "export 001_a1.fbx", "export 002_a2.fbx", "export 003_b1.fbx" },
             host.Calls.Where(c => c.StartsWith("export ", StringComparison.Ordinal)));
-        Assert.False(job.Step(host, T0.AddMinutes(1)));
+        Assert.False(Step(job, host, T0.AddMinutes(1)));
         Assert.Equal(9, host.Calls.Count);
     }
 
@@ -114,7 +117,7 @@ public sealed class FbxLevelExportJobTests
         var host = new Host();
         var job = Start(plan, host);
 
-        job.Step(host, T0.AddSeconds(1));
+        Step(job, host, T0.AddSeconds(1));
         // B was hidden by the user: hidden again with the rest, never unhidden.
         Assert.Equal(new[] { "hide B,F2,a2", "export 001_a1.fbx", "unhide F2,a2" }, host.Calls);
         Assert.True(nodes["B"].IsHidden);
@@ -155,7 +158,7 @@ public sealed class FbxLevelExportJobTests
         var host = new Host { OnExport = _ => throw new InvalidOperationException("COM is gone") };
         var job = Start(plan, host);
 
-        Assert.False(job.Step(host, T0.AddSeconds(1)));
+        Assert.False(Step(job, host, T0.AddSeconds(1)));
         Assert.Equal(FbxLevelExportJobStates.Failed, job.State);
         Assert.Contains("COM is gone", job.BuildStatus(T0.AddSeconds(2)).ErrorMessage, StringComparison.Ordinal);
         Assert.Equal("unhide B,F2,a2", host.Calls.Last());
@@ -168,12 +171,12 @@ public sealed class FbxLevelExportJobTests
         var (plan, _) = Plan(3);
         var host = new Host();
         var job = Start(plan, host);
-        job.Step(host, T0.AddSeconds(1));
+        Step(job, host, T0.AddSeconds(1));
         var calls = host.Calls.Count;
 
         Assert.True(job.Cancel(T0.AddSeconds(2)));
         Assert.Equal(FbxLevelExportJobStates.Running, job.State);
-        Assert.False(job.Step(host, T0.AddSeconds(3)));
+        Assert.False(Step(job, host, T0.AddSeconds(3)));
         Assert.Equal(FbxLevelExportJobStates.Canceled, job.State);
         Assert.Equal(calls, host.Calls.Count);
         Assert.False(job.Cancel(T0.AddSeconds(4)));
@@ -186,7 +189,7 @@ public sealed class FbxLevelExportJobTests
         var host = new Host { Free = FbxLevelExportPlan.MinFreeBytes - 1 };
         var job = Start(plan, host);
 
-        Assert.False(job.Step(host, T0.AddSeconds(1)));
+        Assert.False(Step(job, host, T0.AddSeconds(1)));
         Assert.Equal(FbxLevelExportJobStates.Failed, job.State);
         Assert.Empty(host.Calls);
         Assert.Contains("free space", job.BuildStatus(T0.AddSeconds(2)).ErrorMessage, StringComparison.OrdinalIgnoreCase);
@@ -199,9 +202,9 @@ public sealed class FbxLevelExportJobTests
         var host = new Host { Free = 2_000_000_000L, Size = 1_400_000_000L };
         var job = Start(plan, host);
 
-        Assert.True(job.Step(host, T0.AddSeconds(1)));
+        Assert.True(Step(job, host, T0.AddSeconds(1)));
         // 2.0 GB free < 1.5 x 1.4 GB.
-        Assert.False(job.Step(host, T0.AddSeconds(2)));
+        Assert.False(Step(job, host, T0.AddSeconds(2)));
         Assert.Equal(FbxLevelExportJobStates.Failed, job.State);
         Assert.Single(host.Calls, c => c.StartsWith("export ", StringComparison.Ordinal));
     }
@@ -221,6 +224,47 @@ public sealed class FbxLevelExportJobTests
         var job = Start(plan, host, overwrite: true);
         RunToEnd(job, host);
         Assert.Equal(FbxLevelExportJobStates.Completed, job.State);
+    }
+
+    // Codex review of beta1, P2: a target created after Start must not be overwritten.
+    [Fact]
+    public void ATargetThatAppearsAfterStartIsNotOverwritten()
+    {
+        var (plan, _) = Plan(3);
+        var host = new Host();
+        var job = Start(plan, host);
+        Step(job, host, T0.AddSeconds(1));
+        host.Existing.Add(Path.Combine(Folder, "002_a2.fbx"));
+        var calls = host.Calls.Count;
+
+        Assert.False(Step(job, host, T0.AddSeconds(2)));
+        Assert.Equal(FbxLevelExportJobStates.Failed, job.State);
+        Assert.Equal(calls, host.Calls.Count);
+        var message = job.BuildStatus(T0.AddSeconds(3)).ErrorMessage;
+        Assert.Contains("002_a2.fbx", message, StringComparison.Ordinal);
+        Assert.Contains("overwrite", message, StringComparison.OrdinalIgnoreCase);
+
+        var again = Start(plan, host, overwrite: true);
+        RunToEnd(again, host);
+        Assert.Equal(FbxLevelExportJobStates.Completed, again.State);
+    }
+
+    // Codex review of beta1, P2: the completion time includes the last export's duration.
+    [Theory]
+    [InlineData(null, "completed")]
+    [InlineData("eExport_FAIL", "failed")]
+    public void TheCompletionTimeIsReadAfterTheExport(string exportError, string state)
+    {
+        var (plan, _) = Plan(1, "F2");
+        var clock = T0.AddSeconds(5);
+        var host = new Host { OnExport = _ => { clock = clock.AddMinutes(10); return exportError; } };
+        var job = Start(plan, host);
+
+        Assert.False(job.Step(host, () => clock));
+        Assert.Equal(state, job.State);
+        var status = job.BuildStatus(T0.AddHours(1));
+        Assert.Equal(T0.AddSeconds(5).AddMinutes(10), status.CompletedAtUtc);
+        Assert.Equal(605_000, status.ElapsedMs);
     }
 
     [Fact]
@@ -245,7 +289,7 @@ public sealed class FbxLevelExportJobTests
         var host = new Host();
         var job = Start(plan, host);
 
-        Assert.False(job.Step(host, T0.AddSeconds(1)));
+        Assert.False(Step(job, host, T0.AddSeconds(1)));
         Assert.Equal(FbxLevelExportJobStates.Completed, job.State);
         Assert.Empty(host.Calls);
         Assert.Equal(3, job.BuildStatus(T0.AddSeconds(2)).SkippedItems);
@@ -274,7 +318,7 @@ public sealed class FbxLevelExportJobTests
         Assert.Equal(T0, running.StartedAtUtc);
 
         for (var i = 1; i <= 25; i++)
-            job.Step(host, T0.AddSeconds(10 + i));
+            Step(job, host, T0.AddSeconds(10 + i));
         var done = job.BuildStatus(T0.AddHours(1));
         Assert.Equal(FbxLevelExportJobStates.Completed, done.State);
         Assert.False(done.IsRunning);

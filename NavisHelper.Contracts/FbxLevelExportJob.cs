@@ -23,6 +23,7 @@ namespace NavisHelper.Agent.Contracts
         private readonly object _gate = new object();
         private readonly FbxLevelExportPlan _plan;
         private readonly string _folder;
+        private readonly bool _overwrite;
         private readonly DateTime _startedAtUtc;
         private readonly List<FbxLevelExportFile> _files = new List<FbxLevelExportFile>();
         private string _state = FbxLevelExportJobStates.Running;
@@ -34,11 +35,12 @@ namespace NavisHelper.Agent.Contracts
         private bool _stepInProgress;
 
         private FbxLevelExportJob(string operationId, FbxLevelExportPlan plan,
-            string folder, DateTime nowUtc)
+            string folder, bool overwrite, DateTime nowUtc)
         {
             OperationId = operationId;
             _plan = plan;
             _folder = folder;
+            _overwrite = overwrite;
             _startedAtUtc = nowUtc;
         }
 
@@ -77,11 +79,16 @@ namespace NavisHelper.Agent.Contracts
                             + " already exists; enable overwrite to replace it.");
             }
 
-            return new FbxLevelExportJob(operationId, plan, folder, nowUtc);
+            return new FbxLevelExportJob(operationId, plan, folder, overwrite, nowUtc);
         }
 
-        public bool Step(IFbxExportHost host, DateTime nowUtc)
+        /// <summary>Exports at most one item. <paramref name="utcNow"/> is read at the start and
+        /// again after the export, so a long export counts toward the completion time.</summary>
+        public bool Step(IFbxExportHost host, Func<DateTime> utcNow)
         {
+            if (utcNow == null)
+                throw new ArgumentNullException(nameof(utcNow));
+            DateTime nowUtc = utcNow();
             FbxLevelExportPlanItem item;
             long largestFileBytes;
             lock (_gate)
@@ -112,7 +119,10 @@ namespace NavisHelper.Agent.Contracts
             var timer = Stopwatch.StartNew();
             try
             {
-                if (!FbxLevelExportPlan.HasRoomForNext(host.FreeBytes(_folder), largestFileBytes))
+                // Start checked the targets, but a file may appear while the job runs.
+                if (!_overwrite && host.FileExists(path))
+                    error = "already exists; enable overwrite to replace it.";
+                else if (!FbxLevelExportPlan.HasRoomForNext(host.FreeBytes(_folder), largestFileBytes))
                     error = "Insufficient free space for the next export.";
                 else
                 {
@@ -148,13 +158,14 @@ namespace NavisHelper.Agent.Contracts
                 timer.Stop();
             }
 
+            DateTime finishedUtc = utcNow();
             lock (_gate)
             {
                 _stepInProgress = false;
                 if (error != null)
                 {
                     _errorMessage = item.FileName + ": " + error;
-                    Finish(FbxLevelExportJobStates.Failed, nowUtc);
+                    Finish(FbxLevelExportJobStates.Failed, finishedUtc);
                     return false;
                 }
 
@@ -172,7 +183,7 @@ namespace NavisHelper.Agent.Contracts
                 _nextItem++;
                 if (_nextItem == _plan.Items.Count)
                 {
-                    Finish(FbxLevelExportJobStates.Completed, nowUtc);
+                    Finish(FbxLevelExportJobStates.Completed, finishedUtc);
                     return false;
                 }
                 return true;
