@@ -107,6 +107,21 @@ public sealed class DatasmithNavisworksJobTests
         Assert.Contains("NavisworksProcessSelection.SelectNew", runner + ReadRunnerSources(), StringComparison.Ordinal);
     }
 
+    // Codex review of slice delta, both P1: kill-on-close fires on the LAST job handle, so the runner
+    // may hold one only around an assignment; and NavisHelper activations are serialized, so a new
+    // -Embedding Roamer seen in the window belongs to this runner, not to a concurrent export.
+    [Fact]
+    public void TheJoinerHoldsNoJobHandleAndActivatesOneAtATime()
+    {
+        var joiner = File.ReadAllText(Path.Combine(RepositoryRoot(), "NavisHelper.AutomationRunner", "NavisworksJobJoiner.cs"));
+
+        Assert.DoesNotMatch(new Regex(@"private\s+(readonly\s+)?(NativeHandle|SafeHandle|IntPtr)\s+_job\b"), joiner);
+        Assert.Matches(new Regex(@"using\s*\(\s*var\s+\w+\s*=\s*OpenJobObject\("), joiner);
+        Assert.Contains(@"Local\NavisHelper-Datasmith-Activation", joiner, StringComparison.Ordinal);
+        Assert.Contains("AbandonedMutexException", joiner, StringComparison.Ordinal);
+        Assert.Contains("ReleaseMutex()", joiner, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TheNamedJobEndsAProcessAnotherProcessPutIntoIt()
     {

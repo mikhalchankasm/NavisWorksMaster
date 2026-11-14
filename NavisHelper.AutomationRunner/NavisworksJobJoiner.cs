@@ -10,34 +10,54 @@ using Microsoft.Win32.SafeHandles;
 
 namespace NavisHelper.AutomationRunner
 {
+    /// <summary>
+    /// Puts the Navisworks COM server (Roamer.exe -Embedding, started by DcomLaunch, not by this
+    /// runner) into the server's kill-on-close job while Activator.CreateInstance runs.
+    /// Two rules keep that job's kill-on-close meaningful and its reach narrow:
+    /// - The job handle is opened only around each AssignProcessToJobObject call. Kill-on-close
+    ///   fires on the LAST handle, so a handle held through a hung activation would keep the job,
+    ///   this runner and Navisworks alive after the server closed its own handle.
+    /// - NavisHelper runners activate Navisworks one at a time (a session-wide mutex), so a new
+    ///   -Embedding Roamer seen during the window is this runner's and never another export's.
+    ///   An activation by a non-NavisHelper Automation client in the same seconds is not covered.
+    /// </summary>
     internal sealed class NavisworksJobJoiner : IDisposable
     {
         private const uint JOB_OBJECT_ASSIGN_PROCESS = 0x0001;
         private const uint PROCESS_SET_QUOTA = 0x0100;
         private const uint PROCESS_TERMINATE = 0x0001;
-        private readonly NativeHandle _job;
-        private readonly int _openError;
+        private const string ActivationMutexName = @"Local\NavisHelper-Datasmith-Activation";
+        private static readonly TimeSpan ActivationWait = TimeSpan.FromMinutes(5);
+        private readonly string _jobName;
         private readonly HashSet<int> _existingBefore = new HashSet<int>();
         private readonly HashSet<int> _joined = new HashSet<int>();
         private readonly ManualResetEvent _stop = new ManualResetEvent(false);
+        private Mutex _activation;
         private Thread _thread;
         private bool _snapshotReady;
         private bool _disposed;
 
         public NavisworksJobJoiner(string jobName)
         {
-            _job = OpenJobObject(JOB_OBJECT_ASSIGN_PROCESS, false, jobName);
-            if (_job.IsInvalid)
-            {
-                _openError = Marshal.GetLastWin32Error();
-                Report(0, new Win32Exception(_openError).Message);
-            }
+            _jobName = jobName;
         }
 
+        /// <summary>Takes the activation turn, then records the Roamer processes that already run.
+        /// Throws when another NavisHelper activation holds the turn longer than five minutes.</summary>
         public void Snapshot()
         {
-            if (_disposed || _job.IsInvalid)
+            if (_disposed || _activation != null)
                 return;
+            var activation = new Mutex(false, ActivationMutexName);
+            bool owned;
+            try { owned = activation.WaitOne(ActivationWait); }
+            catch (AbandonedMutexException) { owned = true; }
+            if (!owned)
+            {
+                activation.Dispose();
+                throw new InvalidOperationException("Another NavisHelper Navisworks activation did not finish within 5 minutes.");
+            }
+            _activation = activation;
             try
             {
                 _existingBefore.Clear();
@@ -54,7 +74,7 @@ namespace NavisHelper.AutomationRunner
 
         public void Start()
         {
-            if (_disposed || !_snapshotReady || _job.IsInvalid || _thread != null)
+            if (_disposed || !_snapshotReady || _thread != null)
                 return;
             _thread = new Thread(() =>
             {
@@ -73,13 +93,18 @@ namespace NavisHelper.AutomationRunner
                 _stop.Set();
                 if (_thread != null)
                     _thread.Join();
-                if (_snapshotReady && !_job.IsInvalid)
+                if (_snapshotReady)
                     JoinNewProcesses();
             }
             finally
             {
-                _job.Dispose();
                 _stop.Dispose();
+                if (_activation != null)
+                {
+                    // Snapshot and Stop run on the runner's main thread, which owns the mutex.
+                    _activation.ReleaseMutex();
+                    _activation.Dispose();
+                }
             }
         }
 
@@ -134,8 +159,14 @@ namespace NavisHelper.AutomationRunner
                     {
                         using (var process = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, false, id))
                         {
-                            if (process.IsInvalid || !AssignProcessToJobObject(_job, process))
+                            if (process.IsInvalid)
                                 throw new Win32Exception(Marshal.GetLastWin32Error());
+                            // Held only for this call; see the class remarks.
+                            using (var job = OpenJobObject(JOB_OBJECT_ASSIGN_PROCESS, false, _jobName))
+                            {
+                                if (job.IsInvalid || !AssignProcessToJobObject(job, process))
+                                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                            }
                             _joined.Add(id);
                         }
                     }
