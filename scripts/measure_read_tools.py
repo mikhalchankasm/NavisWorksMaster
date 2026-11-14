@@ -147,6 +147,7 @@ SIZE_PLAN = [
         ("clash_root_matrix", {}, "limit includeAllStatuses"),
         ("clash_run_status", {"operationId": "$NO_SUCH_OPERATION"}, ""),
         ("current_viewpoint_info", {}, ""),
+        ("datasmith_export_status", {"operationId": "$NO_SUCH_OPERATION"}, ""),
         ("find_duplicate_geometry", {"matchHandles": ["$ROOT_HANDLE"]}, "maxGroups previewPerGroup"),
         ("find_items", {"query": "$ROOT_NAME", "comparison": "equals"}, "previewLimit"),
         ("find_items_by_bbox", {"min": "$ZONE_MIN", "max": "$ZONE_MAX"},

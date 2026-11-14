@@ -51,6 +51,7 @@ READ_ONLY_TOOLS = read_only_tools()
 # tool not listed here is called with no arguments at all.
 DEFAULT_ARGUMENTS = {
     "clash_run_status": {"operationId": "$NO_SUCH_OPERATION"},
+    "datasmith_export_status": {"operationId": "$NO_SUCH_OPERATION"},
     "find_duplicate_geometry": {"matchHandles": ["$ROOT_HANDLE"]},
     "find_items": {"query": "$ROOT_NAME", "comparison": "equals"},
     "find_items_by_bbox": {"min": "$ZONE_MIN", "max": "$ZONE_MAX"},
