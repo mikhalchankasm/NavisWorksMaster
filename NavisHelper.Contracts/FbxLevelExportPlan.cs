@@ -257,6 +257,19 @@ namespace NavisHelper.Agent.Contracts
             }
         }
 
+        /// <summary>True for a drive path (<c>C:\x</c>, <c>C:/x</c>) or a UNC path. False for
+        /// <c>C:x</c> and <c>\x</c>, which depend on the process's current directory.</summary>
+        public static bool IsFullyQualifiedFolder(string folder)
+        {
+            if (string.IsNullOrEmpty(folder))
+                return false;
+            if (folder.Length >= 3 && char.IsLetter(folder[0]) && folder[1] == ':'
+                && (folder[2] == '\\' || folder[2] == '/'))
+                return true;
+            return folder.Length >= 3 && (folder[0] == '\\' || folder[0] == '/')
+                && (folder[1] == '\\' || folder[1] == '/');
+        }
+
         /// <summary>Reserves at least 1 GiB or 150 percent of the largest written file.</summary>
         public static bool HasRoomForNext(long freeBytes, long largestWrittenBytes)
         {

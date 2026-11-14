@@ -229,6 +229,12 @@ namespace NavisHelper.Agent.Host
                 case HostRequestGateBypassKind.SaveDocumentStatus:
                     payload = AttachInstanceId(_saveDocumentJobService.Status(DeserializePayload<SaveDocumentStatusRequest>(payloadToken)));
                     break;
+                case HostRequestGateBypassKind.FbxLevelExportStatus:
+                    payload = AttachInstanceId(_fbxLevelExportJobService.Status(DeserializePayload<FbxLevelExportStatusRequest>(payloadToken)));
+                    break;
+                case HostRequestGateBypassKind.CancelFbxLevelExport:
+                    payload = AttachInstanceId(_fbxLevelExportJobService.Cancel(DeserializePayload<CancelFbxLevelExportRequest>(payloadToken)));
+                    break;
                 default:
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "Unsupported request gate bypass command: " + command);
             }
@@ -366,6 +372,13 @@ namespace NavisHelper.Agent.Host
         }
 
         private StartSaveDocumentResponse AttachInstanceId(StartSaveDocumentResponse response)
+        {
+            if (response != null)
+                response.InstanceId = _instanceId ?? string.Empty;
+            return response;
+        }
+
+        private FbxLevelExportStatusResponse AttachInstanceId(FbxLevelExportStatusResponse response)
         {
             if (response != null)
                 response.InstanceId = _instanceId ?? string.Empty;

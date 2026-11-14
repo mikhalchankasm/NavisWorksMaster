@@ -621,6 +621,8 @@
     <Compile Include="Agent\Services\ViewpointCameraCommandService.cs" />
     <Compile Include="Agent\Services\ViewDisplaySettingsService.cs" />
     <Compile Include="Agent\Services\SaveDocumentJobService.cs" />
+    <Compile Include="Agent\Services\FbxLevelExportJobService.cs" />
+    <Compile Include="Agent\Services\NavisworksFbxExportHost.cs" />
     <Compile Include="Agent\Services\WorldMarkerOverlayService.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.Visibility.cs" />
     <Compile Include="Agent\Services\SectionPlaneClippingJson.cs" />

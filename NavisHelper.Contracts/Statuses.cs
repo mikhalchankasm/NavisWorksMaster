@@ -114,6 +114,9 @@ namespace NavisHelper.Agent.Contracts
         public const string SaveDocumentAs = "save_document_as";
         public const string StartSaveDocument = "start_save_document";
         public const string SaveDocumentStatus = "save_document_status";
+        public const string StartFbxLevelExport = "start_fbx_level_export";
+        public const string FbxLevelExportStatus = "fbx_level_export_status";
+        public const string CancelFbxLevelExport = "cancel_fbx_level_export";
         public const string CloseNavisworks = "close_navisworks";
         public const string BuildMtrViewpoints = "build_mtr_viewpoints";
         public const string SelectionSetsBuildViewpoints = "selection_sets_build_viewpoints";

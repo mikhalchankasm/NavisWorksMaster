@@ -207,6 +207,7 @@ public sealed class ProtectedModeExecutionCheckTests
                 HostCommandNames.CancelClashReport, HostCommandNames.CancelClashRun, HostCommandNames.CancelSubtreeNamesDump,
                 HostCommandNames.ClashReportStatus, HostCommandNames.ClashRunStatus, HostCommandNames.DumpSubtreeNamesStatus,
                 HostCommandNames.LastOperationStatus, HostCommandNames.SaveDocumentStatus,
+                HostCommandNames.FbxLevelExportStatus, HostCommandNames.CancelFbxLevelExport,
             }.OrderBy(name => name, StringComparer.Ordinal),
             ProtectedModeGate.ExemptCommands.OrderBy(name => name, StringComparer.Ordinal));
     }

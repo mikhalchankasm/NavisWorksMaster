@@ -547,6 +547,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<StartSaveDocumentRequest>,
             (document, request) => AttachInstanceId(_saveDocumentJobService.Start(document, request)));
 
+        router.Register<StartFbxLevelExportRequest>(
+            HostCommandNames.StartFbxLevelExport,
+            true,
+            DeserializePayload<StartFbxLevelExportRequest>,
+            (document, request) => AttachInstanceId(_fbxLevelExportJobService.Start(document, request)));
+
         router.Register<CloseNavisworksRequest>(
             HostCommandNames.CloseNavisworks,
             false,

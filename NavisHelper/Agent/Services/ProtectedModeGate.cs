@@ -13,6 +13,7 @@ namespace NavisHelper.Agent.Services
             HostCommandNames.CancelClashReport, HostCommandNames.CancelClashRun, HostCommandNames.CancelSubtreeNamesDump,
             HostCommandNames.ClashReportStatus, HostCommandNames.ClashRunStatus, HostCommandNames.DumpSubtreeNamesStatus,
             HostCommandNames.LastOperationStatus, HostCommandNames.SaveDocumentStatus,
+            HostCommandNames.FbxLevelExportStatus, HostCommandNames.CancelFbxLevelExport,
         });
 
         internal static bool RequiresApproval(string command)

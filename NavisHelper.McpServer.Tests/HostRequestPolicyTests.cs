@@ -15,6 +15,8 @@ public sealed class HostRequestPolicyTests
         { HostCommandNames.ClashRunStatus, HostRequestGateBypassKind.ClashRunStatus, true },
         { HostCommandNames.CancelClashRun, HostRequestGateBypassKind.CancelClashRun, false },
         { HostCommandNames.SaveDocumentStatus, HostRequestGateBypassKind.SaveDocumentStatus, true },
+        { HostCommandNames.FbxLevelExportStatus, HostRequestGateBypassKind.FbxLevelExportStatus, true },
+        { HostCommandNames.CancelFbxLevelExport, HostRequestGateBypassKind.CancelFbxLevelExport, false },
     };
 
     [Theory]
@@ -58,15 +60,17 @@ public sealed class HostRequestPolicyTests
             .Select(field => (string)field.GetRawConstantValue()!)
             .ToArray();
 
-        Assert.Equal(111, commands.Length);
+        Assert.Equal(114, commands.Length);
         Assert.Equal(
             new[]
             {
                 HostCommandNames.CancelClashReport,
                 HostCommandNames.CancelClashRun,
+                HostCommandNames.CancelFbxLevelExport,
                 HostCommandNames.CancelSubtreeNamesDump,
                 HostCommandNames.ClashReportStatus,
                 HostCommandNames.ClashRunStatus,
+                HostCommandNames.FbxLevelExportStatus,
                 HostCommandNames.LastOperationStatus,
                 HostCommandNames.SaveDocumentStatus,
             },
@@ -76,6 +80,7 @@ public sealed class HostRequestPolicyTests
             {
                 HostCommandNames.ClashReportStatus,
                 HostCommandNames.ClashRunStatus,
+                HostCommandNames.FbxLevelExportStatus,
                 HostCommandNames.LastOperationStatus,
                 HostCommandNames.SaveDocumentStatus,
             },
