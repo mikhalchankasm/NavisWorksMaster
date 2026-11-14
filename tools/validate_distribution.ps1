@@ -104,6 +104,7 @@ $requiredFiles = @(
     "NavisHelper.bundle/Contents/AiWorker/Newtonsoft.Json.dll",
     "McpServer/NavisHelper.McpServer.exe",
     "McpServer/NavisHelper.McpServer.dll",
+    "McpServer/AutomationRunner/NavisHelper.AutomationRunner.exe",
     "McpConfigurator/NavisHelper.McpConfigurator.exe",
     "McpConfigurator/NavisHelper.McpConfigurator.dll"
 )

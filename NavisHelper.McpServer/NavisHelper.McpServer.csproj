@@ -19,4 +19,35 @@
     <ProjectReference Include="..\NavisHelper.Contracts\NavisHelper.Contracts.csproj" />
   </ItemGroup>
 
+  <!-- #440: the net48 Automation runner ships in the server's own output, at the path
+       DatasmithExportPlan.ResolveRunnerPath resolves. The server's global properties
+       (-r, self-contained, -o) must not reach a net48 build, so they are removed. -->
+  <Target Name="BuildAutomationRunner" AfterTargets="Build">
+    <!-- Restore in its own project instance: a build evaluated before restore misses its outputs. -->
+    <MSBuild Projects="..\NavisHelper.AutomationRunner\NavisHelper.AutomationRunner.csproj"
+             Targets="Restore"
+             Properties="Configuration=$(Configuration);NavisHelperRunnerRestore=true"
+             RemoveProperties="RuntimeIdentifier;SelfContained;PublishDir;OutputPath;OutDir;TargetFramework;Platform" />
+    <MSBuild Projects="..\NavisHelper.AutomationRunner\NavisHelper.AutomationRunner.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="RuntimeIdentifier;SelfContained;PublishDir;OutputPath;OutDir;TargetFramework;Platform">
+      <Output TaskParameter="TargetOutputs" ItemName="_AutomationRunnerOutput" />
+    </MSBuild>
+    <ItemGroup>
+      <_AutomationRunnerFiles Include="@(_AutomationRunnerOutput)" />
+      <_AutomationRunnerFiles Include="@(_AutomationRunnerOutput->'%(Identity).config')"
+                              Condition="Exists('%(_AutomationRunnerOutput.Identity).config')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AutomationRunnerFiles)"
+          DestinationFolder="$(OutDir)AutomationRunner\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="PublishAutomationRunner" AfterTargets="Publish" DependsOnTargets="BuildAutomationRunner">
+    <Copy SourceFiles="@(_AutomationRunnerFiles)"
+          DestinationFolder="$(PublishDir)AutomationRunner\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

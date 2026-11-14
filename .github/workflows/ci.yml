@@ -74,6 +74,14 @@ jobs:
       - name: Build Automation runner
         run: dotnet build NavisHelper.AutomationRunner/NavisHelper.AutomationRunner.csproj -c Release -m:1
 
+      - name: Publish MCP server with the Automation runner
+        shell: pwsh
+        run: |
+          $publishRoot = Join-Path $env:RUNNER_TEMP 'mcp-publish'
+          & tools/publish_mcp_server.ps1 -OutputRoot $publishRoot -CreateZip $false
+          $runner = Join-Path $publishRoot 'NavisHelper.McpServer-win-x64-framework-dependent/AutomationRunner/NavisHelper.AutomationRunner.exe'
+          if (-not (Test-Path -LiteralPath $runner -PathType Leaf)) { throw "Published Automation runner is missing: $runner" }
+
       - name: Smoke test scenario-library MCP lifecycle
         run: python scripts/navishelper_scenario_library_smoke.py
 
