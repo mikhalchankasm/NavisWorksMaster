@@ -30,16 +30,6 @@ internal sealed class DatasmithExportJobService : IDisposable
             throw new FileNotFoundException("Saved source model not found: " + request.SourcePath, request.SourcePath);
         if (!Path.IsPathFullyQualified(request.SourcePath) || !Path.IsPathFullyQualified(request.OutputPath ?? string.Empty))
             throw new ArgumentException("sourcePath and outputPath must be absolute paths.");
-        var startInfo = new ProcessStartInfo(runner)
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
-        foreach (var argument in DatasmithExportPlan.BuildRunnerArguments(request, directory))
-            startInfo.ArgumentList.Add(argument);
-
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -53,12 +43,22 @@ internal sealed class DatasmithExportJobService : IDisposable
             while (_history.Count > 16)
                 _jobs.Remove(_history.Dequeue());
 
-            var process = new Process { StartInfo = startInfo };
+            var process = new Process();
             RunnerJobObject runnerJob = null;
             var started = false;
             try
             {
                 runnerJob = new RunnerJobObject();
+                var startInfo = new ProcessStartInfo(runner)
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+                foreach (var argument in DatasmithExportPlan.BuildRunnerArguments(request, directory, runnerJob.Name))
+                    startInfo.ArgumentList.Add(argument);
+                process.StartInfo = startInfo;
                 if (!process.Start())
                     throw new InvalidOperationException("Automation runner did not start.");
                 started = true;

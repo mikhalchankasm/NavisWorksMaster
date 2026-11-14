@@ -78,7 +78,17 @@ namespace NavisHelper.AutomationRunner
             {
                 var assembly = Assembly.LoadFrom(automationPath);
                 var type = assembly.GetType("Autodesk.Navisworks.Api.Automation.NavisworksApplication", true);
-                object application = Activator.CreateInstance(type);
+                object application;
+                using (var joiner = parsed.JobName != null ? new NavisworksJobJoiner(parsed.JobName) : null)
+                {
+                    if (joiner != null)
+                    {
+                        joiner.Snapshot();
+                        joiner.Start();
+                    }
+                    try { application = Activator.CreateInstance(type); }
+                    finally { if (joiner != null) joiner.Stop(); }
+                }
                 try
                 {
                     try { type.GetProperty("Visible")?.SetValue(application, false, null); }

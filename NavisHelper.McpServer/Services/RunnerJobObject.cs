@@ -9,9 +9,11 @@ internal sealed class RunnerJobObject : IDisposable
 {
     private readonly JobHandle _handle;
 
+    public string Name { get; } = @"Local\NavisHelper-Datasmith-" + Guid.NewGuid().ToString("N");
+
     public RunnerJobObject()
     {
-        _handle = CreateJobObject(IntPtr.Zero, null);
+        _handle = CreateJobObject(IntPtr.Zero, Name);
         if (_handle.IsInvalid)
         {
             var error = new Win32Exception(Marshal.GetLastWin32Error());

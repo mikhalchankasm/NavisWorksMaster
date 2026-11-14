@@ -36,7 +36,7 @@ internal static class DatasmithExportPlan
         return seconds;
     }
 
-    internal static IReadOnlyList<string> BuildRunnerArguments(StartDatasmithExportRequest request, string navisworksDirectory)
+    internal static IReadOnlyList<string> BuildRunnerArguments(StartDatasmithExportRequest request, string navisworksDirectory, string jobName = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (request.MergeLevel < 0)
@@ -56,6 +56,8 @@ internal static class DatasmithExportPlan
             arguments.Add("--include-metadata");
         if (request.Overwrite)
             arguments.Add("--overwrite");
+        if (jobName != null)
+            arguments.AddRange(new[] { "--job", jobName });
         return arguments;
     }
 
