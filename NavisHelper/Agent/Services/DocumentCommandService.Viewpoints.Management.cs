@@ -445,14 +445,20 @@ namespace NavisHelper.Agent.Services
         {
             if (root == null)
                 throw new AgentCommandException(ErrorCodes.SavedViewpointNotFound, "The active document has no saved viewpoint root.");
-            if (!string.IsNullOrWhiteSpace(request.ItemId))
-                return ResolveSavedViewpointNode(root, new SavedViewpointsManageRequest { ItemId = request.ItemId }, item => item is GroupItem, "Folder was not found.").Item as GroupItem;
-
             var folderPath = NormalizeSavedItemPath(request.FolderPath);
-            if (string.IsNullOrWhiteSpace(folderPath))
+            if (string.IsNullOrWhiteSpace(request.ItemId) && string.IsNullOrWhiteSpace(folderPath))
                 return root;
 
-            return ResolveSavedViewpointNode(root, new SavedViewpointsManageRequest { PathOrName = folderPath }, item => item is GroupItem, "Folder was not found.").Item as GroupItem;
+            var node = ResolveSavedViewpointNode(root,
+                new SavedViewpointsManageRequest { ItemId = request.ItemId, PathOrName = folderPath },
+                item => item is FolderItem || item is SavedViewpointAnimation, "Folder was not found.");
+            if (node.Item is SavedViewpointAnimation)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, node.Path + " is a viewpoint animation, not a folder.");
+
+            var folder = node.Item as FolderItem;
+            if (folder == null)
+                throw new AgentCommandException(ErrorCodes.SavedViewpointNotFound, "Folder was not found.");
+            return folder;
         }
 
         private static void CollectFoldersForReorder(GroupItem folder, bool recursive, IList<GroupItem> folders)
@@ -466,7 +472,7 @@ namespace NavisHelper.Agent.Services
 
             foreach (SavedItem child in folder.Children)
             {
-                var childFolder = child as GroupItem;
+                var childFolder = child as FolderItem;
                 if (childFolder != null)
                     CollectFoldersForReorder(childFolder, true, folders);
             }
