@@ -56,7 +56,9 @@ internal sealed class DatasmithExportJobService : IDisposable
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
-                foreach (var argument in DatasmithExportPlan.BuildRunnerArguments(request, directory, runnerJob.Name))
+                foreach (var argument in DatasmithExportPlan.BuildRunnerArguments(request, directory, runnerJob.Name,
+                    DatasmithRunnerCommandLine.FindConvertNavisworksDirectory(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles))))
                     startInfo.ArgumentList.Add(argument);
                 process.StartInfo = startInfo;
                 if (!process.Start())

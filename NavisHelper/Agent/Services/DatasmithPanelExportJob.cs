@@ -60,8 +60,11 @@ namespace NavisHelper.Agent.Services
                 try
                 {
                     _job = new KillOnCloseJob(@"Local\NavisHelper-Datasmith-");
+                    var convertDirectory = DatasmithRunnerCommandLine.FindConvertNavisworksDirectory(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
                     var args = DatasmithRunnerCommandLine.BuildArguments(NavisworksDirectory,
-                        sourcePath, outputPath, null, null, false, true, _job.Name);
+                        sourcePath, outputPath, null, null, false, true, _job.Name,
+                        convertDirectory, convertDirectory == null ? (int?)null : 2026);
                     process = new Process
                     {
                         StartInfo = new ProcessStartInfo(RunnerPath, DatasmithRunnerCommandLine.Join(args))
