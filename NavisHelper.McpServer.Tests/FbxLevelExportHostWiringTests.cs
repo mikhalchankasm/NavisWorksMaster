@@ -13,9 +13,10 @@ public sealed class FbxLevelExportHostWiringTests
     [Fact]
     public void TheThreeCommandsHaveStableNames()
     {
-        Assert.Equal("start_fbx_level_export", HostCommandNames.StartFbxLevelExport);
-        Assert.Equal("fbx_level_export_status", HostCommandNames.FbxLevelExportStatus);
-        Assert.Equal("cancel_fbx_level_export", HostCommandNames.CancelFbxLevelExport);
+        // Renamed in the #444 redesign (slice epsilon2): the source is a list of items, not a level.
+        Assert.Equal("start_fbx_export", HostCommandNames.StartFbxLevelExport);
+        Assert.Equal("fbx_export_status", HostCommandNames.FbxLevelExportStatus);
+        Assert.Equal("cancel_fbx_export", HostCommandNames.CancelFbxLevelExport);
     }
 
     [Fact]
@@ -45,7 +46,7 @@ public sealed class FbxLevelExportHostWiringTests
         var router = Read("NavisHelper", "Agent", "Host", "AgentHostService.CommandRouter.cs");
         Assert.Contains("router.Register<StartFbxLevelExportRequest>(", router, StringComparison.Ordinal);
         Assert.Contains("HostCommandNames.StartFbxLevelExport", router, StringComparison.Ordinal);
-        Assert.Contains("_fbxLevelExportJobService.Start(", router, StringComparison.Ordinal);
+        Assert.Contains("_fbxLevelExportJobService.Start(document, request, _matchSessionStore)", router, StringComparison.Ordinal);
 
         var dispatch = Read("NavisHelper", "Agent", "Host", "AgentHostService.Dispatch.cs");
         Assert.Contains("case HostRequestGateBypassKind.FbxLevelExportStatus", dispatch, StringComparison.Ordinal);
@@ -63,10 +64,15 @@ public sealed class FbxLevelExportHostWiringTests
         var service = Read("NavisHelper", "Agent", "Services", "FbxLevelExportJobService.cs");
         foreach (var expected in new[]
                  {
-                     "FbxLevelExportPlan.Build(", "FbxLevelExportJob.Start(", ".Step(", "() => DateTime.UtcNow",
+                     "FbxLevelExportPlan.BuildFromItems(", "FbxLevelExportJob.Start(", ".Step(", "() => DateTime.UtcNow",
                      "_postToUi(", "BuildDocumentKey(", "Directory.CreateDirectory(", "Models.RootItems",
+                     // epsilon2: matchHandles or useSelection=true, resolved like find_duplicate_geometry.
+                     "ItemAppearanceRules.DescribeTargetError(", "CurrentSelection.SelectedItems",
+                     "ErrorCodes.StaleMatchReference",
                  })
             Assert.Contains(expected, service, StringComparison.Ordinal);
+        // The root-level mode is gone from the host (owner, 2026-11-15).
+        Assert.DoesNotContain("FbxLevelExportPlan.Build(", service, StringComparison.Ordinal);
         // The job owns the rules; the service must not grow its own loop over the plan.
         Assert.DoesNotContain("HideSet(", service, StringComparison.Ordinal);
         Assert.DoesNotContain("UnhideSet(", service, StringComparison.Ordinal);

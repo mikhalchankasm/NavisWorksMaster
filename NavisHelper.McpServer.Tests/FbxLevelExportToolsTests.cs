@@ -26,17 +26,17 @@ public sealed class FbxLevelExportToolsTests
     [Fact]
     public void TheThreeToolsCarryTheJobCapabilities()
     {
-        var start = Tool(nameof(NavisworksFbxLevelExportTools.StartFbxLevelExport)).GetCustomAttribute<ToolCapabilitiesAttribute>()!;
+        var start = Tool(nameof(NavisworksFbxLevelExportTools.StartFbxExport)).GetCustomAttribute<ToolCapabilitiesAttribute>()!;
         Assert.Equal(ToolEffects.Document | ToolEffects.Files, start.Effects);
         Assert.True(start.RequiresHost);
         Assert.True(start.RequiresDocument);
 
-        var status = Tool(nameof(NavisworksFbxLevelExportTools.FbxLevelExportStatus)).GetCustomAttribute<ToolCapabilitiesAttribute>()!;
+        var status = Tool(nameof(NavisworksFbxLevelExportTools.FbxExportStatus)).GetCustomAttribute<ToolCapabilitiesAttribute>()!;
         Assert.Equal(ToolEffects.None, status.Effects);
         Assert.True(status.RequiresHost);
         Assert.False(status.RequiresDocument);
 
-        var cancel = Tool(nameof(NavisworksFbxLevelExportTools.CancelFbxLevelExport)).GetCustomAttribute<ToolCapabilitiesAttribute>()!;
+        var cancel = Tool(nameof(NavisworksFbxLevelExportTools.CancelFbxExport)).GetCustomAttribute<ToolCapabilitiesAttribute>()!;
         Assert.Equal(ToolEffects.LocalState, cancel.Effects);
         Assert.True(cancel.RequiresHost);
         Assert.False(cancel.RequiresDocument);
@@ -45,17 +45,21 @@ public sealed class FbxLevelExportToolsTests
     [Fact]
     public void TheParametersMatchTheContracts()
     {
-        var start = Tool(nameof(NavisworksFbxLevelExportTools.StartFbxLevelExport));
-        Assert.Equal(new[] { "level", "folder", "overwrite", "instanceId", "navisworksVersion", "cancellationToken" }, Parameters(start));
+        var start = Tool(nameof(NavisworksFbxLevelExportTools.StartFbxExport));
+        Assert.Equal(new[] { "folder", "matchHandles", "useSelection", "depth", "overwrite", "instanceId", "navisworksVersion", "cancellationToken" }, Parameters(start));
         var parameters = start.GetParameters();
-        Assert.Equal(typeof(int), parameters[0].ParameterType);
+        Assert.Equal(typeof(string), parameters[0].ParameterType);
         Assert.False(parameters[0].HasDefaultValue);
-        Assert.Equal(typeof(string), parameters[1].ParameterType);
-        Assert.False(parameters[1].HasDefaultValue);
+        Assert.Equal(typeof(List<string>), parameters[1].ParameterType);
+        Assert.Null(parameters[1].DefaultValue);
         Assert.Equal(typeof(bool), parameters[2].ParameterType);
         Assert.Equal(false, parameters[2].DefaultValue);
+        Assert.Equal(typeof(int), parameters[3].ParameterType);
+        Assert.Equal(0, parameters[3].DefaultValue);
+        Assert.Equal(typeof(bool), parameters[4].ParameterType);
+        Assert.Equal(false, parameters[4].DefaultValue);
 
-        foreach (var name in new[] { nameof(NavisworksFbxLevelExportTools.FbxLevelExportStatus), nameof(NavisworksFbxLevelExportTools.CancelFbxLevelExport) })
+        foreach (var name in new[] { nameof(NavisworksFbxLevelExportTools.FbxExportStatus), nameof(NavisworksFbxLevelExportTools.CancelFbxExport) })
             Assert.Equal(new[] { "operationId", "instanceId", "navisworksVersion", "cancellationToken" }, Parameters(Tool(name)));
     }
 
@@ -64,11 +68,11 @@ public sealed class FbxLevelExportToolsTests
     {
         string Description(string name) => Tool(name).GetCustomAttribute<DescriptionAttribute>()!.Description;
 
-        var start = Description(nameof(NavisworksFbxLevelExportTools.StartFbxLevelExport));
-        foreach (var fact in new[] { "Level 1", "root items", "fbx_level_export_status", "cancel_fbx_level_export", "Options Editor", "NNN_", "overwrite" })
+        var start = Description(nameof(NavisworksFbxLevelExportTools.StartFbxExport));
+        foreach (var fact in new[] { "matchHandles", "useSelection", "depth", "find_items", "fbx_export_status", "cancel_fbx_export", "Options Editor", "NNN_", "overwrite" })
             Assert.Contains(fact, start, StringComparison.Ordinal);
-        Assert.Contains("host_busy", Description(nameof(NavisworksFbxLevelExportTools.FbxLevelExportStatus)), StringComparison.Ordinal);
-        Assert.Contains("next item", Description(nameof(NavisworksFbxLevelExportTools.CancelFbxLevelExport)), StringComparison.Ordinal);
+        Assert.Contains("host_busy", Description(nameof(NavisworksFbxLevelExportTools.FbxExportStatus)), StringComparison.Ordinal);
+        Assert.Contains("next item", Description(nameof(NavisworksFbxLevelExportTools.CancelFbxExport)), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -80,15 +84,19 @@ public sealed class FbxLevelExportToolsTests
             Assert.Contains(command, client, StringComparison.Ordinal);
 
         var tools = File.ReadAllText(Path.Combine(root, "NavisHelper.McpServer", "Tools", "NavisworksFbxLevelExportTools.cs"));
-        Assert.Contains("Level = level", tools, StringComparison.Ordinal);
+        Assert.Contains("MatchHandles = matchHandles", tools, StringComparison.Ordinal);
+        Assert.Contains("UseSelection = useSelection", tools, StringComparison.Ordinal);
+        Assert.Contains("Depth = depth", tools, StringComparison.Ordinal);
+        Assert.DoesNotContain("Level = ", tools, StringComparison.Ordinal);
         Assert.Contains("Folder = folder", tools, StringComparison.Ordinal);
         Assert.Contains("Overwrite = overwrite", tools, StringComparison.Ordinal);
 
         Assert.Contains("WithTools<NavisworksFbxLevelExportTools>()",
             File.ReadAllText(Path.Combine(root, "NavisHelper.McpServer", "Program.cs")), StringComparison.Ordinal);
         var lifecycle = McpToolProfile.Sets["lifecycle"];
-        Assert.Contains("start_fbx_level_export", lifecycle);
-        Assert.Contains("fbx_level_export_status", lifecycle);
-        Assert.Contains("cancel_fbx_level_export", lifecycle);
+        Assert.Contains("start_fbx_export", lifecycle);
+        Assert.Contains("fbx_export_status", lifecycle);
+        Assert.Contains("cancel_fbx_export", lifecycle);
+        Assert.DoesNotContain(lifecycle, name => name.Contains("fbx_level", StringComparison.Ordinal));
     }
 }

@@ -48,7 +48,8 @@ public sealed class FbxLevelExportPanelTests
         foreach (var expected in new[]
                  {
                      "AgentRuntime.FbxLevelExportJobs", ".Start(", ".Status(", ".Cancel(",
-                     "new StartFbxLevelExportRequest", "Overwrite =", "FolderPickerDialog.Show(",
+                     // epsilon2 stopgap: depth over the current selection; the list table is epsilon3.
+                     "CurrentSelection.SelectedItems", ".Start(document,", "FolderPickerDialog.Show(",
                      "DispatcherTimer", "FbxLevelExportJobStates.Running",
                  })
             Assert.Contains(expected, section, StringComparison.Ordinal);
