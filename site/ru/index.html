@@ -18,6 +18,7 @@
   <div class="wrap">
     <a class="brand" href="./"><img class="brand-mark" src="../assets/mark.svg" alt="">NavisHelper</a>
     <nav class="nav">
+      <a href="#new">Новое</a>
       <a href="#features">Возможности</a>
       <a href="#how">Как работает</a>
       <a href="#examples">Примеры</a>
@@ -31,7 +32,7 @@
   <div class="hero">
     <div class="wrap">
       <h1>Скажите AI, что сделать в <em>Navisworks</em>.</h1>
-      <p class="lead">NavisHelper подключает Claude, Codex, Cursor и другие AI-программы к открытому окну Navisworks. Просите обычными словами: найти элементы, разобрать коллизии, сохранить виды, выгрузить облёт.</p>
+      <p class="lead">NavisHelper подключает Claude, Codex, Cursor и другие AI-программы к открытому окну Navisworks. Просите обычными словами: найти элементы, разобрать коллизии, сохранить виды, выгрузить облёт, FBX или сцену для Twinmotion.</p>
       <div class="cta">
         <a class="btn primary" href="https://github.com/mikhalchankasm/NavisWorksMaster/releases/latest">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
@@ -53,11 +54,53 @@
     </div>
   </div>
 
+      <!-- showcase:start -->
+  <section id="new">
+    <div class="wrap">
+      <p class="eyebrow">Новые возможности</p>
+      <h2>Из Navisworks — в видео, FBX и Twinmotion</h2>
+      <p class="section-lead">Три новых способа вывести модель из Navisworks: облёт вдоль трассы, отдельный FBX на каждый элемент и сцена Datasmith для Twinmotion и Unreal Engine.</p>
+      <div class="showcase">
+        <article class="feature tone-cam">
+          <div class="feature-art"><svg class="art" viewBox="0 0 480 300" role="img" aria-label="Трасса трубы с тремя приборами; над ней по пунктиру движется камера и останавливается у каждого прибора."><defs><pattern id="g-cam" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" class="art-grid"/></pattern></defs><rect width="480" height="300" fill="url(#g-cam)"/><path class="art-pipe" d="M34 236 L150 178 L250 228 L362 172 L448 214"/><path class="art-pipe-hi" d="M34 236 L150 178 L250 228 L362 172 L448 214" transform="translate(0 -4)"/><path class="art-line" d="M150 114 L150 152"/><rect class="art-inst" x="140" y="152" width="20" height="16" rx="4"/><path d="M150 168 V172" stroke="currentColor" stroke-width="2" class="art-line" style="stroke-dasharray:none"/><text class="t-mono" x="164" y="164">FT-101</text><path class="art-line" d="M250 164 L250 202"/><rect class="art-inst" x="240" y="202" width="20" height="16" rx="4"/><path d="M250 218 V222" stroke="currentColor" stroke-width="2" class="art-line" style="stroke-dasharray:none"/><text class="t-mono" x="264" y="214">PT-102</text><path class="art-line" d="M362 110 L362 146"/><rect class="art-inst" x="352" y="146" width="20" height="16" rx="4"/><path d="M362 162 V166" stroke="currentColor" stroke-width="2" class="art-line" style="stroke-dasharray:none"/><text class="t-mono" x="376" y="158">TT-103</text><path id="cam-path" class="art-path" d="M34 150 C86 104 120 96 150 104 S220 150 250 154 S322 98 362 100 S428 132 448 138"/><circle class="art-ring art-pulse" cx="150" cy="104" r="6"/><circle class="art-ring art-pulse" cx="250" cy="154" r="6"/><circle class="art-ring art-pulse" cx="362" cy="100" r="6"/><g><rect class="art-tone" x="-12" y="-9" width="17" height="18" rx="4"/><path class="art-tone" d="M6 -4 L15 -9 V9 L6 4Z"/><circle cx="-3.5" cy="0" r="3.4" fill="var(--card)"/><animateMotion dur="9s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0.27;0.27;0.52;0.52;0.79;0.79;1" keyTimes="0;0.2;0.3;0.48;0.58;0.76;0.86;1"><mpath href="#cam-path"/></animateMotion></g><g transform="translate(300 252)"><rect class="art-panel" width="158" height="36" rx="8"/><rect class="art-tone-soft" x="10" y="7" width="30" height="22" rx="4"/><rect class="art-tone-soft" x="46" y="7" width="30" height="22" rx="4"/><rect class="art-tone-soft" x="82" y="7" width="30" height="22" rx="4"/><rect class="art-tone-soft" x="118" y="7" width="30" height="22" rx="4"/><text x="0" y="-8">кадры · PNG · JPG · AVI</text></g></svg></div>
+          <div class="feature-body">
+            <span class="tag">2.20</span>
+            <h3>Облёт вдоль трассы</h3>
+            <p>AI ставит вид на каждый прибор трассы, собирает анимацию с паузами у приборов и выгружает кадры PNG или JPG либо видео AVI. Сечения и пометки каждого вида видны в ролике.</p>
+            <ul class="ticks"><li>Вид на каждый элемент: <code>viewpoints_per_item</code></li><li>Паузы и сглаживание: <code>viewpoint_animation</code></li><li>Кадры или видео одним вызовом: <code>viewpoint_animation_export</code></li></ul>
+            <p class="prompt"><span>Попросите AI</span>«Сделай облёт вдоль трассы КИП с паузой у каждого прибора и выгрузи видео.»</p>
+          </div>
+        </article>
+        <article class="feature tone-fbx">
+          <div class="feature-art"><svg class="art" viewBox="0 0 480 300" role="img" aria-label="Дерево модели с тремя уровнями раскладывается в три файла FBX; скрытая кровля пропущена."><defs><pattern id="g-fbx" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" class="art-grid"/></pattern></defs><rect width="480" height="300" fill="url(#g-fbx)"/><rect class="art-panel" x="22" y="36" width="182" height="216" rx="12"/><text class="t-strong" x="38" y="66">▾ Модель.nwd</text><rect class="art-tone-soft" x="132" y="50" width="62" height="22" rx="11"/><text class="t-tone t-mono" x="163" y="65" text-anchor="middle">depth 1</text><rect class="art-tone" x="48" y="91" width="12" height="12" rx="3"/><text class="t-strong" x="68" y="102">Уровень 1</text><rect class="art-tone" x="48" y="129" width="12" height="12" rx="3"/><text class="t-strong" x="68" y="140">Уровень 2</text><rect class="art-tone" x="48" y="167" width="12" height="12" rx="3"/><text class="t-strong" x="68" y="178">Уровень 3</text><rect x="48" y="205" width="12" height="12" rx="3" fill="none" stroke="currentColor" class="art-line" style="stroke-dasharray:none"/><text class="t-off" x="68" y="216">Кровля (скрыта)</text><path class="art-flow" d="M204 97 C240 97 240 90 270 90"/><g transform="translate(270 72)"><rect class="art-panel" width="196" height="36" rx="9"/><rect class="art-tone" x="8" y="7" width="30" height="22" rx="5"/><text x="12" y="22" style="fill:#fff;font-size:9.5px;font-weight:700">FBX</text><text class="t-mono" x="46" y="23">001_Уровень 1.fbx</text></g><path class="art-flow" d="M204 135 C240 135 240 150 270 150"/><g transform="translate(270 132)"><rect class="art-panel" width="196" height="36" rx="9"/><rect class="art-tone" x="8" y="7" width="30" height="22" rx="5"/><text x="12" y="22" style="fill:#fff;font-size:9.5px;font-weight:700">FBX</text><text class="t-mono" x="46" y="23">002_Уровень 2.fbx</text></g><path class="art-flow" d="M204 173 C240 173 240 210 270 210"/><g transform="translate(270 192)"><rect class="art-panel" width="196" height="36" rx="9"/><rect class="art-tone" x="8" y="7" width="30" height="22" rx="5"/><text x="12" y="22" style="fill:#fff;font-size:9.5px;font-weight:700">FBX</text><text class="t-mono" x="46" y="23">003_Уровень 3.fbx</text></g><text x="68" y="236" style="font-size:11px">× пропущено</text><g transform="translate(270 250)"><rect class="art-tone-soft" width="196" height="8" rx="4"/><rect class="art-tone" width="196" height="8" rx="4"/><text x="0" y="26">3 из 3 · готово</text></g></svg></div>
+          <div class="feature-body">
+            <span class="tag">2.21</span>
+            <h3>Экспорт FBX по элементам</h3>
+            <p>Уровни, секции или установки — каждый в свой файл <code>NNN_имя.fbx</code>. Выберите элементы и глубину: 0 — сами элементы, 1 — их дочерние.</p>
+            <ul class="ticks"><li>Скрытые элементы пропускаются, видимость не меняется</li><li>Ход и «Отмена» в панели и через MCP</li><li>Настройки FBX — из Options Editor</li></ul>
+            <p class="prompt"><span>Попросите AI</span>«Выгрузи каждый уровень здания в отдельный FBX в папку D:\Export.»</p>
+          </div>
+        </article>
+        <article class="feature tone-ds">
+          <div class="feature-art"><svg class="art" viewBox="0 0 480 300" role="img" aria-label="Файл Navisworks, при необходимости скопированный в формат 2026, проходит через скрытый Navisworks и становится сценой Datasmith."><defs><pattern id="g-ds" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" class="art-grid"/></pattern></defs><rect width="480" height="300" fill="url(#g-ds)"/><g transform="translate(24 46)"><path class="art-panel" d="M0 8 Q0 0 8 0 H70 L92 22 V78 Q92 86 84 86 H8 Q0 86 0 78Z"/><path class="art-line" style="stroke-dasharray:none" d="M70 0 V22 H92"/><text class="t-strong" x="12" y="48">model.nwd</text><rect class="art-tone-soft" x="12" y="58" width="44" height="18" rx="9"/><text class="t-tone t-mono" x="19" y="71">2027</text></g><path class="art-flow" d="M70 134 V172"/><g transform="translate(18 176)"><rect width="106" height="44" rx="10" fill="var(--card)" stroke="var(--tone)" stroke-width="1.6" stroke-dasharray="5 4"/><text class="t-strong" x="12" y="20">копия 2026</text><text x="12" y="36" style="font-size:10.5px">при необходимости</text></g><path class="art-flow" d="M118 92 C150 92 150 150 176 150"/><path class="art-flow" d="M124 198 C152 198 152 160 176 160"/><g transform="translate(176 100)"><rect class="art-panel" width="118" height="110" rx="14"/><g transform="translate(59 40)" class="art-pulse"><circle r="15" class="art-tone-soft"/><circle r="7" fill="none" stroke="var(--tone)" stroke-width="3"/><path d="M0 -16 V-11 M0 11 V16 M-16 0 H-11 M11 0 H16 M-11 -11 L-8 -8 M8 8 L11 11 M-11 11 L-8 8 M8 -8 L11 -11" stroke="var(--tone)" stroke-width="3" stroke-linecap="round"/></g><text x="59" y="80" text-anchor="middle">скрытый</text><text class="t-strong" x="59" y="96" text-anchor="middle">Navisworks 2026</text></g><path class="art-flow" d="M294 155 H322"/><g transform="translate(322 44)"><rect class="art-panel" width="138" height="214" rx="14"/><rect class="art-scene-sky" x="8" y="8" width="122" height="140" rx="9"/><circle class="art-tone art-pulse" cx="102" cy="36" r="11"/><path class="art-scene-ground" d="M8 120 L50 96 L80 112 L112 92 L130 102 V148 H8Z"/><path class="art-scene-block" d="M30 128 L54 116 L78 128 V100 L54 88 L30 100Z"/><path class="art-scene-block" d="M30 100 L54 112 L78 100 M54 112 V128"/><path class="art-scene-block" d="M84 132 L100 124 L116 132 V114 L100 106 L84 114Z"/><text class="t-strong" x="69" y="176" text-anchor="middle">Twinmotion</text><text x="69" y="192" text-anchor="middle">Unreal Engine</text></g><g transform="translate(336 266)"><rect class="art-tone" width="110" height="24" rx="12"/><text x="55" y="16" text-anchor="middle" style="fill:#fff;font-family:var(--mono);font-size:11px;font-weight:600">.udatasmith</text></g></svg></div>
+          <div class="feature-body">
+            <span class="tag">2.21</span>
+            <h3>Twinmotion и Unreal: экспорт в Datasmith</h3>
+            <p>Сохранённый файл модели превращается в сцену <code>.udatasmith</code> для Twinmotion и Unreal Engine. Экспорт идёт в отдельном скрытом Navisworks — ваша работа не прерывается.</p>
+            <ul class="ticks"><li>Кнопка на вкладке «Экспорт» панели и инструмент MCP</li><li>Файлы Navisworks 2027 — через временную копию в формате 2026</li><li>«Отмена» сразу завершает скрытые процессы</li></ul>
+            <p class="prompt"><span>Попросите AI</span>«Экспортируй эту модель в Datasmith для Twinmotion.»</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+  <!-- showcase:end -->
+
   <section id="features">
     <div class="wrap">
       <p class="eyebrow">Что умеет</p>
       <h2>Ежедневная работа координатора — одной фразой</h2>
-      <p class="section-lead">За кадром 127 инструментов, вы описываете только результат. Без AI работает и сама панель NavisHelper.</p>
+      <p class="section-lead">За кадром 133 инструмента, вы описываете только результат. Без AI работает и сама панель NavisHelper.</p>
       <div class="grid">
         <div class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></div>
@@ -78,6 +121,11 @@
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c4-8 8 4 12-4s4-6 6-6" stroke-dasharray="3 3"/><circle cx="3.5" cy="17" r="2"/><circle cx="20.5" cy="7" r="2"/></svg></div>
           <h3>Облёты</h3>
           <p>Анимации из сохранённых видов с выгрузкой в PNG, JPG или AVI, готовые к сжатию в MP4.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6m0 0l-3-3m3 3l3-3"/></svg></div>
+          <h3>Экспорт</h3>
+          <p>FBX по элементам, Datasmith для Twinmotion и Unreal, NWD 2018 и свойства в Excel — на вкладке «Экспорт» или по запросу.</p>
         </div>
         <div class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
@@ -150,6 +198,7 @@
       <a href="https://github.com/mikhalchankasm/NavisWorksMaster/blob/main/LICENSE">MIT License</a>
     </div>
     <small>Autodesk и Navisworks являются зарегистрированными товарными знаками или товарными знаками Autodesk, Inc. и/или её дочерних и аффилированных компаний. NavisHelper — независимый проект; он не связан с Autodesk, не авторизован, не одобрен и не спонсируется Autodesk, Inc.</small>
+    <small>Twinmotion, Unreal Engine и Datasmith являются товарными знаками или зарегистрированными товарными знаками Epic Games, Inc.; NavisHelper не связан с Epic Games.</small>
   </div>
 </footer>
 
