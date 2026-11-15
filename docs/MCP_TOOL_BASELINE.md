@@ -1423,7 +1423,7 @@ Twenty-two tools, and the reason for each, so the gap is a decision rather than 
 | `clash_zones_markers` | New in #328; planner tests precede plugin SDK compilation and an agreed L3 append/remove/style window. |
 | `save_document`, `save_document_as` | not measured on purpose: every measurement window depends on the document not being saved. `save_document_as` ran in the 2.18 L3 only on a scratch worker document, for behaviour. The job pair that wraps the same save was measured on a scratch copy; see [the match-handle and save-job tools](#the-match-handle-and-save-job-tools-at-their-acceptance). |
 | `start_datasmith_export`, `datasmith_export_status` | New in #440 (slice β): a server-owned job that runs the Automation runner in a hidden Navisworks 2026; L0 only until the #440 L3 window on Navisworks 2026 with Epic's exporter. |
-| `start_fbx_level_export`, `fbx_level_export_status`, `cancel_fbx_level_export` | New in #444: host-owned FBX-by-level job; not measured, L3 pending. |
+| `start_fbx_export`, `fbx_export_status`, `cancel_fbx_export` | New in #444: host-owned FBX job for matchHandles or useSelection=true at depth 0..20; not measured, L3 pending. |
 | `clash_batchtest_import` | needs a Navisworks-authored `nw-exchange-12.0` XML; no tool in the product writes one. |
 | `saved_viewpoints_import` | needs Navisworks-authored Saved Viewpoints XML, for the same reason. Its refusal path was measured; the import path was not. |
 
@@ -1433,7 +1433,7 @@ more than the count:
 - **out of reach** — `save_document` and `save_document_as`, because every window depends
   on the document not being saved; `clash_batchtest_import` and `saved_viewpoints_import`,
   because each needs a Navisworks-authored XML that no tool in the product writes.
-- **one short window away** — the remaining **18**: `start_fbx_level_export`, `fbx_level_export_status`, `cancel_fbx_level_export`, `start_datasmith_export`, `datasmith_export_status`, `viewpoint_animation_export`, `viewpoint_animation`, `viewpoints_per_item`, `section_planes`,
+- **one short window away** — the remaining **18**: `start_fbx_export`, `fbx_export_status`, `cancel_fbx_export`, `start_datasmith_export`, `datasmith_export_status`, `viewpoint_animation_export`, `viewpoint_animation`, `viewpoints_per_item`, `section_planes`,
   `set_view_display_settings`, `clash_one_vs_rest`,
   `clash_group_rename`, `clash_zones_export`, `clash_zones_markers`, `appearance_profile_apply`,
   `item_appearance`, `reset_appearance` and `selection_sets_apply_appearance`. The three previously here landed with #129

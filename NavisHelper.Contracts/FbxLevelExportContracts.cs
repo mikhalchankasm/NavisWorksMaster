@@ -12,10 +12,12 @@ namespace NavisHelper.Agent.Contracts
         public const string Canceled = "canceled";
     }
 
-    /// <summary>Starts exporting Selection Tree items at the requested level.</summary>
+    /// <summary>Starts exporting listed items or the current selection at the requested depth.</summary>
     public sealed class StartFbxLevelExportRequest
     {
-        public int Level { get; set; }
+        public List<string> MatchHandles { get; set; } = new List<string>();
+        public bool? UseSelection { get; set; }
+        public int Depth { get; set; }
         public string Folder { get; set; }
         public bool Overwrite { get; set; }
     }
@@ -50,7 +52,7 @@ namespace NavisHelper.Agent.Contracts
         public string InstanceId { get; set; }
         public string State { get; set; }
         public bool IsRunning { get; set; }
-        public int Level { get; set; }
+        public int Depth { get; set; }
         public string Folder { get; set; }
         public int TotalItems { get; set; }
         public int ExportedItems { get; set; }

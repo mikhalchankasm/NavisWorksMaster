@@ -2587,9 +2587,9 @@ Unique names: {2}</value></data>
   <data name="Settings_Service_Developers_Expander" xml:space="preserve"><value>For developers</value></data>
   <data name="Settings_Ai_Status_Error_Compact" xml:space="preserve"><value>Error</value></data>
   <data name="Settings_Ai_Status_Connecting_Compact" xml:space="preserve"><value>Connecting…</value></data>
-  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>FBX by tree level</value></data>
-  <data name="Panel_Model_FbxLevel_Label" xml:space="preserve"><value>Level</value></data>
-  <data name="Panel_Model_FbxLevel_ToolTip" xml:space="preserve"><value>1 = files at the root of the Selection Tree, 2 = their children</value></data>
+  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>FBX export of selected items</value></data>
+  <data name="Panel_Model_FbxLevel_Label" xml:space="preserve"><value>Depth</value></data>
+  <data name="Panel_Model_FbxLevel_ToolTip" xml:space="preserve"><value>0 = the selected items, 1 = their children</value></data>
   <data name="Panel_Model_FbxFolder_Label" xml:space="preserve"><value>Folder</value></data>
   <data name="Panel_Model_FbxFolder_Prompt" xml:space="preserve"><value>Choose the folder for FBX files</value></data>
   <data name="Panel_Model_FbxOverwrite_Label" xml:space="preserve"><value>Replace existing files</value></data>

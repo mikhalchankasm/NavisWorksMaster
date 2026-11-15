@@ -2587,9 +2587,9 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Settings_Service_Developers_Expander" xml:space="preserve"><value>Для разработчиков</value></data>
   <data name="Settings_Ai_Status_Error_Compact" xml:space="preserve"><value>Ошибка</value></data>
   <data name="Settings_Ai_Status_Connecting_Compact" xml:space="preserve"><value>Подключение…</value></data>
-  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>FBX по уровню дерева</value></data>
-  <data name="Panel_Model_FbxLevel_Label" xml:space="preserve"><value>Уровень</value></data>
-  <data name="Panel_Model_FbxLevel_ToolTip" xml:space="preserve"><value>1 = файлы в корне дерева выбора, 2 = их дочерние элементы</value></data>
+  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>Экспорт выбранного в FBX</value></data>
+  <data name="Panel_Model_FbxLevel_Label" xml:space="preserve"><value>Глубина</value></data>
+  <data name="Panel_Model_FbxLevel_ToolTip" xml:space="preserve"><value>0 = выбранные элементы, 1 = их дочерние элементы</value></data>
   <data name="Panel_Model_FbxFolder_Label" xml:space="preserve"><value>Папка</value></data>
   <data name="Panel_Model_FbxFolder_Prompt" xml:space="preserve"><value>Выберите папку для FBX-файлов</value></data>
   <data name="Panel_Model_FbxOverwrite_Label" xml:space="preserve"><value>Заменять существующие файлы</value></data>

@@ -551,7 +551,7 @@ namespace NavisHelper.Agent.Host
             HostCommandNames.StartFbxLevelExport,
             true,
             DeserializePayload<StartFbxLevelExportRequest>,
-            (document, request) => AttachInstanceId(_fbxLevelExportJobService.Start(document, request)));
+            (document, request) => AttachInstanceId(_fbxLevelExportJobService.Start(document, request, _matchSessionStore)));
 
         router.Register<CloseNavisworksRequest>(
             HostCommandNames.CloseNavisworks,

@@ -36,7 +36,7 @@ If `NAVISHELPER_INSTANCE_ID` is set, the MCP server treats it as a strict target
 
 ## Narrowing the Advertised Tool Surface
 
-The full surface is 133 tools and 209 KB of JSON in `tools/list`, roughly 61,900
+The full surface is 133 tools and 209 KB of JSON in `tools/list`, roughly 62,000
 tokens by the estimate below. How much of this reaches the model, and how often,
 depends on the client's caching and tool discovery. A session that only
 queries and navigates the model does not need the Clash Detective surface, and a
@@ -50,12 +50,12 @@ Set `NAVISHELPER_MCP_TOOLS` in the MCP client configuration, or pass
 present. The default is the full surface, so an existing configuration keeps
 behaving exactly as before.
 
-Measured 2026-11-15 on `a57e063` (#444 added `start_fbx_level_export`, `fbx_level_export_status` and `cancel_fbx_level_export` to `lifecycle`) (compact UTF-8
+Measured 2026-11-15 on `265d94e` (#444: `start_fbx_export`, `fbx_export_status` and `cancel_fbx_export` in `lifecycle`, taking matchHandles, useSelection and depth) (compact UTF-8
 JSON-RPC response bytes, decimal KB = 1000 bytes; token counts use the approximate 3.375 bytes/token ratio):
 
 | Spec | Tools | `tools/list` | Approx. tokens |
 |---|---:|---:|---:|
-| unset, or `all` | 133 | 209.0 KB | ~61,900 |
+| unset, or `all` | 133 | 209.1 KB | ~62,000 |
 | `core,clash` | 81 | 119.0 KB | ~35,300 |
 | `core` | 48 | 54.6 KB | **~16,200** |
 

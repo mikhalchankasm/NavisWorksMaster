@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -17,7 +18,7 @@ namespace NavisHelper.WPF
         private readonly Action<string, Brush, object[]> _setStatusResource;
         private readonly DispatcherTimer _timer;
         private readonly StackPanel _root = new StackPanel();
-        private readonly ComboBox _level = new ComboBox();
+        private readonly ComboBox _depth = new ComboBox();
         private readonly TextBox _folder = new TextBox();
         private readonly CheckBox _overwrite = new CheckBox();
         private readonly ProgressBar _progress = new ProgressBar { Height = 8, Minimum = 0 };
@@ -52,10 +53,10 @@ namespace NavisHelper.WPF
             _bindings.BindText(header, "Panel_Model_Group_FbxByLevel");
             _root.Children.Add(header);
             _root.Children.Add(Label("Panel_Model_FbxLevel_Label"));
-            for (var level = 1; level <= 20; level++) _level.Items.Add(level);
-            _level.SelectedIndex = 0;
-            _bindings.BindToolTip(_level, "Panel_Model_FbxLevel_ToolTip");
-            _root.Children.Add(_level);
+            for (var depth = 0; depth <= 20; depth++) _depth.Items.Add(depth);
+            _depth.SelectedIndex = 0;
+            _bindings.BindToolTip(_depth, "Panel_Model_FbxLevel_ToolTip");
+            _root.Children.Add(_depth);
             _root.Children.Add(Label("Panel_Model_FbxFolder_Label"));
 
             _browse = Button("CommonBrowse", OnBrowse);
@@ -133,12 +134,9 @@ namespace NavisHelper.WPF
                     ShowStatus("Panel_Model_FbxNoDocument_Status", UiTheme.Warning);
                     return;
                 }
-                var response = _service.Start(document, new StartFbxLevelExportRequest
-                {
-                    Level = (int)_level.SelectedItem,
-                    Folder = _folder.Text,
-                    Overwrite = _overwrite.IsChecked == true
-                });
+                var items = document.CurrentSelection.SelectedItems.ToList();
+                var response = _service.Start(document, items, (int)_depth.SelectedItem,
+                    _folder.Text, _overwrite.IsChecked == true);
                 _service.Changed -= OnJobChanged;
                 _service.Changed += OnJobChanged;
                 Update(response);

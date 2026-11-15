@@ -311,7 +311,7 @@ public sealed class FbxLevelExportJobTests
         Assert.Equal("fbx-job-25", running.OperationId);
         Assert.Equal(FbxLevelExportJobStates.Running, running.State);
         Assert.True(running.IsRunning);
-        Assert.Equal(2, running.Level);
+        Assert.Equal(2, running.Depth);
         Assert.Equal(Folder, running.Folder);
         Assert.Equal(25, running.TotalItems);
         Assert.Equal(0, running.ExportedItems);
