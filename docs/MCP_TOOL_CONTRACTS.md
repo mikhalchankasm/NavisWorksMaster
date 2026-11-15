@@ -864,7 +864,7 @@ Status polls -- `last_operation_status`, `clash_report_status`, `clash_run_statu
 - **If a status poll is itself the call whose reply was lost, a no-argument ask answers about an older, unrelated operation.** It cannot do better; the poll was never recorded. This is why `command` is in the response and why checking it is not optional.
 | `responseType`, `startedAtUtc`, `completedAtUtc`, `elapsedMs`, `message` | scalar | Execution diagnostics. |
 
-The history is process-local and bounded; it is reset when Navisworks exits. A timeout entry can initially show `failed/request_timeout` and later be overwritten to `completed` if the UI callback finishes after the client timed out; a completed timeout record is not overwritten back to failed.
+The history is process-local and bounded; it is reset when Navisworks exits. A request whose UI callback is still queued at the host timeout is not executed and stays `failed/request_timeout`, while a callback that already started may later change the entry to `completed`; a completed timeout record is not overwritten back to failed.
 
 ### `host_status` process diagnostics
 

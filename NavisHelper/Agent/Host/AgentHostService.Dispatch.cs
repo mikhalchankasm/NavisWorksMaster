@@ -271,10 +271,16 @@ namespace NavisHelper.Agent.Host
 
                 T resultFromControl = default(T);
                 var controlCompletion = new TaskCompletionSource<T>();
+                var controlAdmission = new UiCallbackAdmission();
                 try
                 {
                     uiControl.BeginInvoke(new Action(() =>
                     {
+                        if (!controlAdmission.TryStart())
+                        {
+                            controlCompletion.TrySetCanceled();
+                            return;
+                        }
                         try
                         {
                             resultFromControl = callback();
@@ -303,6 +309,12 @@ namespace NavisHelper.Agent.Host
                     {
                         if (!controlCompletion.Task.Wait(timeoutMs))
                         {
+                            if (controlAdmission.TryAbandon())
+                            {
+                                var message = "The request exceeded the timeout of " + timeoutMs + " ms and was not executed.";
+                                RecordOperationFailed(requestId, command, ErrorCodes.RequestTimeout, message);
+                                throw new AgentCommandException(ErrorCodes.RequestTimeout, message);
+                            }
                             var dispatcherControl = uiControl;
                             RecordDeferredOperationCompletion(controlCompletion.Task, requestId, command, startedAt);
                             requestGateLease.DeferRelease(
@@ -333,9 +345,15 @@ namespace NavisHelper.Agent.Host
 
             T result = default(T);
             var completion = new TaskCompletionSource<T>();
+            var admission = new UiCallbackAdmission();
 
             uiContext.Post(_ =>
             {
+                if (!admission.TryStart())
+                {
+                    completion.TrySetCanceled();
+                    return;
+                }
                 try
                 {
                     result = callback();
@@ -351,6 +369,12 @@ namespace NavisHelper.Agent.Host
             {
                 if (!completion.Task.Wait(timeoutMs))
                 {
+                    if (admission.TryAbandon())
+                    {
+                        var message = "The request exceeded the timeout of " + timeoutMs + " ms and was not executed.";
+                        RecordOperationFailed(requestId, command, ErrorCodes.RequestTimeout, message);
+                        throw new AgentCommandException(ErrorCodes.RequestTimeout, message);
+                    }
                     RecordDeferredOperationCompletion(completion.Task, requestId, command, startedAt);
                     requestGateLease.DeferRelease(completion.Task, timeoutMs + DeferredGateReleaseGraceMs, requestId, command);
                     throw new AgentCommandException(ErrorCodes.RequestTimeout, "The request exceeded the timeout of " + timeoutMs + " ms.");
