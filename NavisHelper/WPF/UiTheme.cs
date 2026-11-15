@@ -41,6 +41,11 @@ namespace NavisHelper.WPF
         public static readonly Brush PanelBg = Rgb(0xF0, 0xF0, 0xF0);
         public static readonly Brush BusyBg = Rgb(0xFF, 0xF4, 0xD6);
         public static readonly Brush CardBg = Freeze(new SolidColorBrush(Colors.White));
+        public static readonly Brush GroupNavigation = Rgb(0x53, 0x4A, 0xB7);
+        public static readonly Brush GroupSelection = Rgb(0x0F, 0x6E, 0x56);
+        public static readonly Brush GroupInfo = Rgb(0x5F, 0x5E, 0x5A);
+        public static readonly Brush GroupImport = Rgb(0x99, 0x3C, 0x1D);
+        public static readonly Brush GroupExport = Rgb(0x18, 0x5F, 0xA5);
         public static readonly Brush Success = Freeze(new SolidColorBrush(Colors.DarkGreen));
         public static readonly Brush Warning = Freeze(new SolidColorBrush(Colors.DarkOrange));
         public static readonly Brush Error = Freeze(new SolidColorBrush(Colors.DarkRed));

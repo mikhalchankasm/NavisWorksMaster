@@ -494,6 +494,18 @@ while navigating</value>
   <data name="Panel_Model_Group_Import" xml:space="preserve">
     <value>Import</value>
   </data>
+  <data name="Panel_Model_Group_Selection" xml:space="preserve">
+    <value>Selection</value>
+  </data>
+  <data name="Panel_Model_Group_SelectionInfo" xml:space="preserve">
+    <value>About the selection</value>
+  </data>
+  <data name="Panel_Export_Group_ModelFile" xml:space="preserve">
+    <value>Model file</value>
+  </data>
+  <data name="Panel_Export_Group_Properties" xml:space="preserve">
+    <value>Properties</value>
+  </data>
   <data name="Panel_Model_Group_SearchSets" xml:space="preserve">
     <value>Search sets</value>
   </data>
@@ -781,6 +793,9 @@ Keeps only geometric objects on the lowest level.</value>
   </data>
   <data name="Panel_Tab_Model" xml:space="preserve">
     <value>🌳 Model</value>
+  </data>
+  <data name="Panel_Tab_Export" xml:space="preserve">
+    <value>📤 Export</value>
   </data>
   <data name="Panel_Tab_Settings" xml:space="preserve">
     <value>⚙ Settings</value>

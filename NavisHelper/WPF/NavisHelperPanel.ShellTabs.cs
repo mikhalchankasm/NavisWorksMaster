@@ -47,45 +47,14 @@ namespace NavisHelper.WPF
         {
             var stack = new StackPanel { Margin = new Thickness(8) };
 
-            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_TreeNavigation"));
             var navRow1 = new WrapPanel();
             navRow1.Children.Add(NavBtn("parent", "\U00002B06", "Panel_Parent", "Ctrl+Q", "Panel_Model_Parent_ToolTip", TreeNavigation.SelectParents, requiresSelection: true));
             navRow1.Children.Add(NavBtn("child", "\U00002B07", "Panel_Child", "Ctrl+W", "Panel_Model_Child_ToolTip", TreeNavigation.SelectChildren, requiresSelection: true));
             navRow1.Children.Add(NavBtn("sibling", "\U00002194", "Panel_Sibling", "Ctrl+E", "Panel_Model_Siblings_ToolTip", TreeNavigation.SelectSiblings, requiresSelection: true));
-            stack.Children.Add(navRow1);
 
             var navRow2 = new WrapPanel();
             navRow2.Children.Add(NavBtn("leaf", "\U0001F343", "Panel_Leaf", null, "Panel_Model_Leaves_ToolTip", TreeNavigation.SelectLeafNodes, requiresSelection: true));
             navRow2.Children.Add(NavBtn("all_under", "\U0001F4C2", "Panel_AllUnder", null, "Panel_Model_AllDescendants_ToolTip", TreeNavigation.SelectAllUnder, requiresSelection: true));
-            stack.Children.Add(navRow2);
-
-            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_SearchSets"));
-            var searchSetRow = new WrapPanel();
-            searchSetRow.Children.Add(ActionBtn("selection_search_set", "\U0001F4C1", "Panel_SaveSearch", "Panel_Colors_SearchSet_Action_ToolTip", OnCreateSearchSelectionSet));
-            stack.Children.Add(searchSetRow);
-
-            var copyFilterRow = new WrapPanel();
-            copyFilterRow.Children.Add(Btn("copy_names", "\U0001F4CB", "Panel_CopyNames", "Panel_Model_CopyNames_ToolTip", "CopySelectedNames.CBC", requiresSelection: true));
-            copyFilterRow.Children.Add(ActionBtn("selection_bounds_info", "\U0001F4D0", "Panel_Bounds", "Panel_Model_BoundsInfo_ToolTip", ShowAndCopySelectionBounds, requiresSelection: true));
-            copyFilterRow.Children.Add(Btn("filter", "\U0001F50D", "Panel_Model_FilterList_Action", "Panel_Model_FilterList_ToolTip", "FilterModels.COMPANY"));
-            stack.Children.Add(copyFilterRow);
-
-            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_SelectionMemory"));
-            var memoryRow = new WrapPanel();
-            memoryRow.Children.Add(ActionBtn("selection_save", "\U0001F4BE", "Panel_Remember", "Panel_Model_MemorySave_ToolTip", () => SaveSelectionSetSlot(0), requiresSelection: true));
-            memoryRow.Children.Add(ActionBtn("selection_recall", "\U000021A9", "Panel_Restore", "Panel_Model_MemoryRestore_ToolTip", () => RecallSelectionSetSlot(0)));
-            stack.Children.Add(memoryRow);
-            _selectionMemoryText = new TextBlock
-            {
-                FontSize = 11,
-                Foreground = Brushes.Gray,
-                Margin = new Thickness(2, 2, 0, 8)
-            };
-            stack.Children.Add(_selectionMemoryText);
-            _panelLocalizationBindings.BindAction(
-                _selectionMemoryText,
-                "SelectionMemory.Status",
-                UpdateSelectionMemoryIndicator);
 
             var hotkeys = new TextBlock
             {
@@ -96,7 +65,31 @@ namespace NavisHelper.WPF
             _panelLocalizationBindings.BindText(
                 hotkeys,
                 "Panel_Model_TreeHotkeys_Help");
-            stack.Children.Add(hotkeys);
+            stack.Children.Add(CreateGroupCard("Panel_Model_Group_TreeNavigation", "\U0001F333", UiTheme.GroupNavigation,
+                navRow1, navRow2, hotkeys));
+
+            var memoryRow = new WrapPanel();
+            memoryRow.Children.Add(ActionBtn("selection_save", "\U0001F4BE", "Panel_Remember", "Panel_Model_MemorySave_ToolTip", () => SaveSelectionSetSlot(0), kind: ButtonKind.Primary, requiresSelection: true));
+            memoryRow.Children.Add(ActionBtn("selection_recall", "\U000021A9", "Panel_Restore", "Panel_Model_MemoryRestore_ToolTip", () => RecallSelectionSetSlot(0)));
+            memoryRow.Children.Add(ActionBtn("selection_search_set", "\U0001F4C1", "Panel_SaveSearch", "Panel_Colors_SearchSet_Action_ToolTip", OnCreateSearchSelectionSet));
+            _selectionMemoryText = new TextBlock
+            {
+                FontSize = 11,
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(2, 2, 0, 8)
+            };
+            _panelLocalizationBindings.BindAction(
+                _selectionMemoryText,
+                "SelectionMemory.Status",
+                UpdateSelectionMemoryIndicator);
+            stack.Children.Add(CreateGroupCard("Panel_Model_Group_Selection", "\U0001F4C1", UiTheme.GroupSelection,
+                memoryRow, _selectionMemoryText));
+
+            var copyFilterRow = new WrapPanel();
+            copyFilterRow.Children.Add(Btn("copy_names", "\U0001F4CB", "Panel_CopyNames", "Panel_Model_CopyNames_ToolTip", "CopySelectedNames.CBC", requiresSelection: true));
+            copyFilterRow.Children.Add(ActionBtn("selection_bounds_info", "\U0001F4D0", "Panel_Bounds", "Panel_Model_BoundsInfo_ToolTip", ShowAndCopySelectionBounds, requiresSelection: true));
+            copyFilterRow.Children.Add(Btn("filter", "\U0001F50D", "Panel_Model_FilterList_Action", "Panel_Model_FilterList_ToolTip", "FilterModels.COMPANY"));
+            stack.Children.Add(CreateGroupCard("Panel_Model_Group_SelectionInfo", "\U00002139", UiTheme.GroupInfo, copyFilterRow));
 
             return stack;
         }

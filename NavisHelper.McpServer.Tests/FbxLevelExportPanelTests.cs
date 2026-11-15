@@ -122,7 +122,7 @@ public sealed class FbxLevelExportPanelTests
     }
 
     [Fact]
-    public void TheModelTabHostsTheSectionAndThePanelDisposesIt()
+    public void TheExportTabHostsTheSectionAndThePanelDisposesIt()
     {
         var panel = Read("NavisHelper", "WPF", "NavisHelperPanel.cs");
         Assert.Contains("new FbxLevelExportSection(", panel, StringComparison.Ordinal);
@@ -132,11 +132,11 @@ public sealed class FbxLevelExportPanelTests
         var dispose = section.Substring(section.IndexOf("public void Dispose()", StringComparison.Ordinal));
         Assert.Contains("CollectionChanged -=", dispose, StringComparison.Ordinal);
 
-        int modelTab = panel.IndexOf("private TabItem CreateModelTab()", StringComparison.Ordinal);
+        int exportTab = panel.IndexOf("private TabItem CreateExportTab()", StringComparison.Ordinal);
         int colorsTab = panel.IndexOf("private TabItem CreateColorsTab()", StringComparison.Ordinal);
         int build = panel.IndexOf("_fbxLevelExportSection.Build()", StringComparison.Ordinal);
-        Assert.True(modelTab >= 0 && modelTab < build && build < colorsTab,
-            "The section is added in CreateModelTab.");
+        Assert.True(exportTab >= 0 && exportTab < build && build < colorsTab,
+            "The section is added in CreateExportTab.");
     }
 
     [Fact]

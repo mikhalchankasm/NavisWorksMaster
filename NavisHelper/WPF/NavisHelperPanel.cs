@@ -349,16 +349,31 @@ namespace NavisHelper.WPF
         {
             var stack = new StackPanel();
             stack.Children.Add(CreateNavigationContent());
-            stack.Children.Add(CreateSeparator());
             stack.Children.Add(CreateImportExportContent());
-            stack.Children.Add(CreateSeparator());
-            _fbxLevelExportSection = new FbxLevelExportSection(_panelLocalizationBindings, Dispatcher,
-                (k, c, a) => SetGlobalStatusResource(k, c, a));
-            stack.Children.Add(_fbxLevelExportSection.Build());
 
             _modelTab = new TabItem { Content = WrapInScroll(stack) };
             _panelLocalizationBindings.BindHeader(_modelTab, "Panel_Tab_Model");
             return _modelTab;
+        }
+
+        private TabItem CreateExportTab()
+        {
+            var stack = new StackPanel { Margin = new Thickness(8) };
+            var modelFileRow = new WrapPanel();
+            modelFileRow.Children.Add(Btn("save_nwd2018", "\U0001F4BE", "Panel_Model_Save2018_Action", "Panel_Model_Save2018_ToolTip", "SaveAsNavis2018.MS", ButtonKind.Primary));
+            modelFileRow.Children.Add(Btn("save_hierarchy", "\U0001F4BE", "Panel_SaveHierarchy", "Panel_Model_ExportTree_ToolTip", "SaveHierarhy.COMPANY"));
+            stack.Children.Add(CreateGroupCard("Panel_Export_Group_ModelFile", "\U0001F4BE", UiTheme.GroupExport, modelFileRow));
+
+            var propertiesRow = new WrapPanel();
+            propertiesRow.Children.Add(ActionBtn("export_selected_props", "\U0001F4BE", "Panel_Model_ExportProperties_Action", "Panel_Model_ExportProperties_ToolTip", ExportSelectedPropertiesToExcelLikeFile, requiresSelection: true));
+            stack.Children.Add(CreateGroupCard("Panel_Export_Group_Properties", "\U0001F4CB", UiTheme.GroupExport, propertiesRow));
+
+            _fbxLevelExportSection = new FbxLevelExportSection(_panelLocalizationBindings, Dispatcher,
+                (k, c, a) => SetGlobalStatusResource(k, c, a), () => ClearGlobalStatus());
+            stack.Children.Add(_fbxLevelExportSection.Build());
+            var tab = new TabItem { Content = WrapInScroll(stack) };
+            _panelLocalizationBindings.BindHeader(tab, "Panel_Tab_Export");
+            return tab;
         }
 
         private TabItem CreateColorsTab()
@@ -503,6 +518,7 @@ namespace NavisHelper.WPF
 
             _mainTabControl = new TabControl { Margin = new Thickness(2), FontSize = 11.5 };
             _mainTabControl.Items.Add(CreateModelTab());
+            _mainTabControl.Items.Add(CreateExportTab());
             _mainTabControl.Items.Add(CreateColorsTab());
             _mainTabControl.Items.Add(CreateViewsTab());
             _mainTabControl.Items.Add(CreateClashTab());
@@ -864,6 +880,14 @@ namespace NavisHelper.WPF
 
             return UiLocalizedArgument.FromResource(
                 "Panel_CommandPalette_" + command.ResourceId + "_Title");
+        }
+
+        private void ClearGlobalStatus()
+        {
+            _globalStatusResourceKey = null;
+            _globalStatusArguments = new object[0];
+            if (_globalStatusBar != null)
+                _globalStatusBar.Text = string.Empty;
         }
 
         private void SetGlobalStatusResource(
