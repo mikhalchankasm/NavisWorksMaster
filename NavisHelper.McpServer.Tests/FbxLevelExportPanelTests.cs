@@ -27,6 +27,14 @@ public sealed class FbxLevelExportPanelTests
         "Panel_Model_FbxFailed_Status",
         "Panel_Model_FbxNoDocument_Status",
         "Panel_Model_FbxUnavailable_Status",
+        // epsilon3: the export list (owner, 2026-11-15).
+        "Panel_Model_FbxAddSelected_Action",
+        "Panel_Model_FbxRemove_Action",
+        "Panel_Model_FbxClear_Action",
+        "Panel_Model_FbxListCount_Label",
+        "Panel_Model_FbxListEmpty_Status",
+        "Panel_Model_FbxNothingSelected_Status",
+        "Panel_Model_FbxListReset_Status",
     };
 
     [Fact]
@@ -48,7 +56,8 @@ public sealed class FbxLevelExportPanelTests
         foreach (var expected in new[]
                  {
                      "AgentRuntime.FbxLevelExportJobs", ".Start(", ".Status(", ".Cancel(",
-                     // epsilon2 stopgap: depth over the current selection; the list table is epsilon3.
+                     // epsilon3: "Add selected" fills a list; Export sends the list.
+                     "FbxExportList<ModelItem>", "new ListBox", ".BindTo(document)",
                      "CurrentSelection.SelectedItems", ".Start(document,", "FolderPickerDialog.Show(",
                      "DispatcherTimer", "FbxLevelExportJobStates.Running",
                  })
@@ -66,6 +75,19 @@ public sealed class FbxLevelExportPanelTests
             .Where(path => !path.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
             .Sum(path => Regex.Matches(File.ReadAllText(path), @"new\s+FbxLevelExportJobService\s*\(").Count);
         Assert.Equal(1, creations);
+    }
+
+    [Fact]
+    public void ExportSendsTheListNotTheCurrentSelection()
+    {
+        var section = Read("NavisHelper", "WPF", "FbxLevelExportSection.cs");
+        int start = section.IndexOf("private void OnStart(", StringComparison.Ordinal);
+        int end = section.IndexOf("private void OnCancel(", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var onStart = section.Substring(start, end - start);
+        Assert.DoesNotContain("CurrentSelection", onStart, StringComparison.Ordinal);
+        Assert.Contains(".Items", onStart, StringComparison.Ordinal);
+        Assert.Contains(".BindTo(document)", onStart, StringComparison.Ordinal);
     }
 
     [Fact]
