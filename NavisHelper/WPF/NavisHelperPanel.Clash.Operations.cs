@@ -1056,7 +1056,10 @@ namespace NavisHelper.WPF
                             folder,
                             PersistedModelNames.ClashResetViewpoint);
                         resetMs += MeasureElapsedMilliseconds(() =>
-                            SavedViewpointAppearanceHelper.SaveCurrentViewpointOnlyAtStart(doc, folder, resetName));
+                        {
+                            SectionBoxHelper.Disable();
+                            SavedViewpointAppearanceHelper.SaveCurrentResetViewpointAtStart(doc, folder, folderName, resetName);
+                        });
                         resetCreated++;
                     }
                     folderCache[folderName] = FindOrCreateSavedViewpointFolder(doc, folderName);
