@@ -20,6 +20,10 @@ namespace NavisHelper.Agent.Services
         public string Name => Item.DisplayName;
         public string ClassName => Item.ClassDisplayName;
         public bool IsHidden => Item.IsHidden;
+        public IFbxTreeNode Parent => Item.Parent == null ? null : new ModelItemFbxNode(Item.Parent);
+
+        public override bool Equals(object obj) => obj is ModelItemFbxNode other && Item.Equals(other.Item);
+        public override int GetHashCode() => Item.GetHashCode();
 
         public IEnumerable<IFbxTreeNode> Children
         {
