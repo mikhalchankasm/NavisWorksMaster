@@ -41,8 +41,12 @@ public sealed class FbxLevelExportYieldTests
         var section = Read("NavisHelper", "WPF", "FbxLevelExportSection.cs");
         Assert.Contains(".Changed += OnJobChanged", section, StringComparison.Ordinal);
         Assert.Contains(".Changed -= OnJobChanged", section, StringComparison.Ordinal);
-        Assert.True(Count(section, ".Changed -= OnJobChanged") >= 2,
-            "The panel unsubscribes when the job stops and when it is disposed.");
+        // The panel unsubscribes when the job stops and when it is disposed; Start's own
+        // "-= then +=" guard against a double subscription does not count for either.
+        var update = Between(section, "private void Update(", "private void SetRunning(");
+        Assert.Contains(".Changed -= OnJobChanged", update, StringComparison.Ordinal);
+        var dispose = section.Substring(section.IndexOf("public void Dispose()", StringComparison.Ordinal));
+        Assert.Contains(".Changed -= OnJobChanged", dispose, StringComparison.Ordinal);
     }
 
     [Fact]
