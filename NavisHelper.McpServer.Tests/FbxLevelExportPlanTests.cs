@@ -21,11 +21,14 @@ public sealed class FbxLevelExportPlanTests
             ClassName = className;
             IsHidden = hidden;
             _children.AddRange(children);
+            foreach (var child in children)
+                child.Parent = this;
         }
 
         public string Name { get; }
         public string ClassName { get; }
         public bool IsHidden { get; }
+        public IFbxTreeNode? Parent { get; private set; }
         public IEnumerable<IFbxTreeNode> Children => _children;
     }
 
