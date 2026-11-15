@@ -86,49 +86,6 @@ namespace NavisHelper.Agent.Contracts
             }
         }
 
-        /// <summary>Walks only as far as the target level, then names its visible items.</summary>
-        public static FbxLevelExportPlan Build(IReadOnlyList<IFbxTreeNode> rootItems,
-            int level, out string error)
-        {
-            error = null;
-            if (level < 1 || level > MaxLevel)
-            {
-                error = "Export level must be between 1 and " + MaxLevel + ".";
-                return null;
-            }
-
-            var candidates = new List<Branch>();
-            int total = 0;
-            CollectLevel(rootItems ?? Array.Empty<IFbxTreeNode>(), null, 1, level,
-                candidates, ref total);
-            if (total == 0)
-            {
-                error = "There are no items at the requested level.";
-                return null;
-            }
-            if (total > MaxItems)
-            {
-                error = "The requested level has " + total.ToString(CultureInfo.InvariantCulture)
-                    + " items; the limit is " + MaxItems + ".";
-                return null;
-            }
-
-            var items = new List<FbxLevelExportPlanItem>();
-            var skipped = new List<FbxLevelExportSkip>();
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                Branch branch = candidates[i];
-                int index = i + 1;
-                if (branch.Hidden)
-                    skipped.Add(new FbxLevelExportSkip(index, branch.Node,
-                        "The item or an ancestor is hidden."));
-                else
-                    items.Add(new FbxLevelExportPlanItem(index, branch,
-                        FileName(index, total, branch.Node)));
-            }
-            return new FbxLevelExportPlan(level, total, items, skipped);
-        }
-
         /// <summary>Plans exports at a depth below the picked items, retaining their ancestors.</summary>
         public static FbxLevelExportPlan BuildFromItems(IReadOnlyList<IFbxTreeNode> rootItems,
             IReadOnlyList<IFbxTreeNode> items, int depth, out string error)
@@ -231,34 +188,6 @@ namespace NavisHelper.Agent.Contracts
                     Siblings = children,
                     Hidden = node.IsHidden || branch.Hidden
                 }, depth - 1, candidates, seen);
-        }
-
-        private static void CollectLevel(IReadOnlyList<IFbxTreeNode> siblings, Branch parent,
-            int depth, int level, List<Branch> candidates, ref int total)
-        {
-            foreach (IFbxTreeNode node in siblings)
-            {
-                var branch = new Branch
-                {
-                    Node = node,
-                    Siblings = siblings,
-                    Parent = parent,
-                    Hidden = node.IsHidden || (parent != null && parent.Hidden)
-                };
-                if (depth == level)
-                {
-                    total++;
-                    if (total <= MaxItems)
-                        candidates.Add(branch);
-                }
-                else
-                {
-                    IEnumerable<IFbxTreeNode> children = node.Children;
-                    if (children != null)
-                        CollectLevel(new List<IFbxTreeNode>(children), branch, depth + 1,
-                            level, candidates, ref total);
-                }
-            }
         }
 
         /// <summary>Returns siblings along the branch, excluding the branch itself.</summary>
