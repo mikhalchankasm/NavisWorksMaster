@@ -773,6 +773,7 @@
     <Compile Include="Core\ClashApiCompat.cs" />
     <Compile Include="Core\ClashSettings.cs" />
     <Compile Include="Core\PanelUiSettings.cs" />
+    <Compile Include="Core\PanelTabSelection.cs" />
     <Compile Include="Core\NaturalStringComparer.cs" />
     <Compile Include="Core\RedlineJsonSanitizer.cs" />
     <Compile Include="Core\ScreenUpdateSuppressor.cs" />

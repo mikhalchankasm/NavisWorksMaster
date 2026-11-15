@@ -56,15 +56,6 @@ namespace NavisHelper.WPF
             };
             _timer.Tick += OnTick;
 
-            var header = new TextBlock
-            {
-                FontSize = UiTheme.FontHeader,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = UiTheme.TextPrimary,
-                Margin = new Thickness(0, 6, 0, 6)
-            };
-            _bindings.BindText(header, "Panel_Model_Group_FbxByLevel");
-            _root.Children.Add(header);
             _root.Children.Add(_listBox);
             _bindings.BindFormattedText(_count, "Panel_Model_FbxListCount_Label", () => new object[] { _list.Count });
             _root.Children.Add(_count);
