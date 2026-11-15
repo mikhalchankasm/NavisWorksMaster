@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -145,7 +146,7 @@ namespace NavisHelper.WPF
                     ShowStatus("Panel_Model_FbxNoDocument_Status", UiTheme.Warning);
                     return;
                 }
-                var reset = _list.BindTo(document);
+                var reset = _list.BindTo(OwnerKey(document));
                 var selection = document.CurrentSelection.SelectedItems;
                 if (selection.Count == 0)
                     ShowStatus("Panel_Model_FbxNothingSelected_Status", UiTheme.Warning);
@@ -168,6 +169,17 @@ namespace NavisHelper.WPF
         private void OnClear(object sender, RoutedEventArgs args)
         {
             Execute(() => { _list.Clear(); RefreshList(); });
+        }
+
+        // Navisworks keeps one Document instance when another file is opened or a model is removed,
+        // so the list is bound to the document's identity, file name and model count (review P2).
+        private static string OwnerKey(Document document)
+        {
+            string fileName;
+            try { fileName = document.FileName ?? string.Empty; }
+            catch (Exception) { fileName = string.Empty; }
+            return RuntimeHelpers.GetHashCode(document).ToString(CultureInfo.InvariantCulture) + "|" + fileName
+                + "|" + document.Models.Count.ToString(CultureInfo.InvariantCulture);
         }
 
         private void RefreshList()
@@ -199,7 +211,7 @@ namespace NavisHelper.WPF
                     ShowStatus("Panel_Model_FbxNoDocument_Status", UiTheme.Warning);
                     return;
                 }
-                if (_list.BindTo(document))
+                if (_list.BindTo(OwnerKey(document)))
                 {
                     RefreshList();
                     ShowStatus("Panel_Model_FbxListReset_Status", UiTheme.Warning);

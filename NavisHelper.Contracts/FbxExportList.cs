@@ -62,11 +62,13 @@ namespace NavisHelper.Agent.Contracts
         }
 
         /// <summary>Binds an owner, clearing a nonempty list when its owner changes.</summary>
-        /// <param name="owner">The model owner, compared by reference identity.</param>
+        /// <param name="owner">The model owner, compared by equality (the panel passes a key of the
+        /// document's identity, file name and model count, since Navisworks keeps one Document
+        /// instance when another file is opened).</param>
         /// <returns>True if items were cleared because the owner changed.</returns>
         public bool BindTo(object owner)
         {
-            var reset = Count > 0 && !ReferenceEquals(Owner, owner);
+            var reset = Count > 0 && !Equals(Owner, owner);
             if (reset) Clear();
             Owner = owner;
             return reset;
