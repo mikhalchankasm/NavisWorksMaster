@@ -37,8 +37,9 @@ public sealed class PanelExportTabTests
     public void EachExportButtonExistsOnceSoTheModelTabNoLongerHasIt()
     {
         var all = AllPanelSources();
+        // Count the button calls: the icon map in NavisHelperPanel.Resources.cs also names each icon.
         foreach (var button in ExportButtons)
-            Assert.Equal(1, Count(all, button));
+            Assert.Equal(1, Count(all, "Btn(" + button));
         Assert.Equal(1, Count(all, "_fbxLevelExportSection.Build()"));
         Assert.DoesNotContain("_fbxLevelExportSection.Build()", Body(all, "private TabItem CreateModelTab()"), StringComparison.Ordinal);
     }
