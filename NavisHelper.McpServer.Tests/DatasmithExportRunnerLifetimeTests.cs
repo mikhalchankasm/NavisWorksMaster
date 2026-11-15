@@ -89,7 +89,7 @@ public sealed class DatasmithExportRunnerLifetimeTests
         Assert.True(typeof(IDisposable).IsAssignableFrom(typeof(RunnerJobObject)));
 
         var root = RepositoryPaths.Root;
-        var job = File.ReadAllText(Path.Combine(root, "NavisHelper.McpServer", "Services", "RunnerJobObject.cs"));
+        var job = File.ReadAllText(Path.Combine(root, "NavisHelper.Contracts", "KillOnCloseJob.cs"));
         Assert.Contains("CreateJobObject", job, StringComparison.Ordinal);
         Assert.Contains("SetInformationJobObject", job, StringComparison.Ordinal);
         Assert.Contains("AssignProcessToJobObject", job, StringComparison.Ordinal);
