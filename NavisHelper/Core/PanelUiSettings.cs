@@ -10,7 +10,8 @@ namespace NavisHelper.Core
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "NavisHelper", "panel_ui.ini");
 
-        public int MainTabIndex { get; set; } = 0;
+        public string MainTab { get; set; }
+        public int? MainTabIndex { get; set; }
         public int ColorsSegment { get; set; } = 0;
         public int ViewsSegment { get; set; } = 0;
 
@@ -23,7 +24,7 @@ namespace NavisHelper.Core
 
                 var lines = new[]
                 {
-                    $"MainTabIndex={MainTabIndex}",
+                    $"MainTab={MainTab}",
                     $"ColorsSegment={ColorsSegment}",
                     $"ViewsSegment={ViewsSegment}"
                 };
@@ -50,7 +51,8 @@ namespace NavisHelper.Core
 
                     switch (key)
                     {
-                        case "MainTabIndex": int.TryParse(val, out var t); s.MainTabIndex = t; break;
+                        case "MainTab": s.MainTab = val; break;
+                        case "MainTabIndex": if (int.TryParse(val, out var t)) s.MainTabIndex = t; break;
                         case "ColorsSegment": int.TryParse(val, out var c); s.ColorsSegment = c; break;
                         case "ViewsSegment": int.TryParse(val, out var v); s.ViewsSegment = v; break;
                     }

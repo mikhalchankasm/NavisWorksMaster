@@ -144,7 +144,9 @@ public sealed class FbxLevelExportPanelTests
     {
         var neutral = Values("Resources.resx");
         var russian = Values("Resources.ru.resx");
-        var section = Read("NavisHelper", "WPF", "FbxLevelExportSection.cs");
+        // Since #486 the section's header is its card's header, set in CreateExportTab.
+        var section = Read("NavisHelper", "WPF", "FbxLevelExportSection.cs") +
+            Read("NavisHelper", "WPF", "NavisHelperPanel.cs");
         foreach (var key in ResourceKeys)
         {
             Assert.True(neutral.TryGetValue(key, out var en) && !string.IsNullOrWhiteSpace(en), "neutral " + key);

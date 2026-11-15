@@ -52,6 +52,7 @@
              Link="Core\ClashOperationProtocolReason.cs" />
     <Compile Include="..\NavisHelper\Core\PersistedModelNames.cs"
              Link="Core\PersistedModelNames.cs" />
+    <Compile Include="..\NavisHelper\Core\PanelTabSelection.cs" Link="Core\PanelTabSelection.cs" />
     <Compile Include="..\NavisHelper\Core\ProtectedModeSettingsStore.cs"
              Link="Core\ProtectedModeSettingsStore.cs" />
     <Compile Include="..\NavisHelper\Core\Import\CsvAttributeReader.cs"

@@ -371,7 +371,7 @@ namespace NavisHelper.WPF
 
             _fbxLevelExportSection = new FbxLevelExportSection(_panelLocalizationBindings, Dispatcher,
                 (k, c, a) => SetGlobalStatusResource(k, c, a), () => ClearGlobalStatus());
-            stack.Children.Add(_fbxLevelExportSection.Build());
+            stack.Children.Add(CreateGroupCard("Panel_Model_Group_FbxByLevel", "\U0001F4E6", UiTheme.GroupExport, _fbxLevelExportSection.Build()));
             _datasmithExportSection = new DatasmithExportSection(_panelLocalizationBindings, Dispatcher,
                 (k, c, a) => SetGlobalStatusResource(k, c, a));
             stack.Children.Add(CreateGroupCard("Panel_Export_Group_Datasmith", "\U0001F3AC", UiTheme.GroupExport, _datasmithExportSection.Build()));
@@ -527,12 +527,21 @@ namespace NavisHelper.WPF
             _mainTabControl.Items.Add(CreateViewsTab());
             _mainTabControl.Items.Add(CreateClashTab());
             _mainTabControl.Items.Add(CreateSettingsTab());
-            if (_panelUiSettings.MainTabIndex >= 0 && _panelUiSettings.MainTabIndex < _mainTabControl.Items.Count)
-                _mainTabControl.SelectedIndex = _panelUiSettings.MainTabIndex;
+            var tabKeys = new[]
+            {
+                "Panel_Tab_Model", "Panel_Tab_Export", "Panel_Tab_Colors",
+                "Panel_Tab_Views", "Panel_Tab_Clashes", "Panel_Tab_Settings"
+            };
+            for (var i = 0; i < tabKeys.Length; i++)
+                ((TabItem)_mainTabControl.Items[i]).Tag = tabKeys[i];
+            var selectedKey = PanelTabSelection.Resolve(_panelUiSettings.MainTab, _panelUiSettings.MainTabIndex, tabKeys);
+            _mainTabControl.SelectedItem = _mainTabControl.Items.Cast<TabItem>().First(tab => (string)tab.Tag == selectedKey);
+            _panelUiSettings.MainTab = selectedKey;
             _mainTabControl.SelectionChanged += (s, e) =>
             {
                 if (!ReferenceEquals(e.OriginalSource, _mainTabControl)) return;
-                _panelUiSettings.MainTabIndex = _mainTabControl.SelectedIndex;
+                if (!(_mainTabControl.SelectedItem is TabItem selectedTab)) return;
+                _panelUiSettings.MainTab = (string)selectedTab.Tag;
                 _panelUiSettings.Save();
             };
             root.Children.Add(_mainTabControl);
