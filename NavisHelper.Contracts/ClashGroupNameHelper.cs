@@ -43,16 +43,23 @@ namespace NavisHelper.Agent.Contracts
             if (string.IsNullOrWhiteSpace(value))
                 return string.Empty;
 
-            return Regex.Replace(value.Trim(), @"^\s*(?:[\[\(]?\d+[\]\)]?)(?:\s*[-_.:]\s*|\s+)", string.Empty).Trim();
+            return Regex.Replace(value.Trim(), @"^\d+\s+-\s+", string.Empty).Trim();
         }
 
         public static string BuildMatchKey(string groupName)
+        {
+            return BuildMatchKey(groupName, stripExistingNumber: true);
+        }
+
+        private static string BuildMatchKey(string groupName, bool stripExistingNumber)
         {
             if (string.IsNullOrWhiteSpace(groupName))
                 return string.Empty;
 
             var tag = ExtractSideTag(groupName);
-            var cleanName = StripLeadingNumber(RemoveSideTag(groupName));
+            var cleanName = RemoveSideTag(groupName);
+            if (stripExistingNumber)
+                cleanName = StripLeadingNumber(cleanName);
             return NormalizeKey(cleanName) + "|" + NormalizeKey(tag);
         }
 
@@ -68,7 +75,7 @@ namespace NavisHelper.Agent.Contracts
             if (exact != null)
                 return exact;
 
-            var expectedKey = BuildMatchKey(requestedGroupName);
+            var expectedKey = BuildMatchKey(requestedGroupName, stripExistingNumber: false);
             if (string.IsNullOrWhiteSpace(expectedKey))
                 return null;
 
