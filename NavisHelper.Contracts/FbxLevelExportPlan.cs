@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 
 namespace NavisHelper.Agent.Contracts
 {
@@ -11,6 +10,8 @@ namespace NavisHelper.Agent.Contracts
         string Name { get; }
         string ClassName { get; }
         bool IsHidden { get; }
+        /// <summary>The parent node, or null for a root item.</summary>
+        IFbxTreeNode Parent { get; }
         IEnumerable<IFbxTreeNode> Children { get; }
     }
 
@@ -75,6 +76,14 @@ namespace NavisHelper.Agent.Contracts
             internal IReadOnlyList<IFbxTreeNode> Siblings;
             internal Branch Parent;
             internal bool Hidden;
+            // The node's children, read once and shared as the Siblings of every child branch.
+            internal IReadOnlyList<IFbxTreeNode> ChildList;
+
+            internal IReadOnlyList<IFbxTreeNode> ReadChildren()
+            {
+                return ChildList ?? (ChildList = new List<IFbxTreeNode>(
+                    Node.Children ?? Array.Empty<IFbxTreeNode>()));
+            }
         }
 
         /// <summary>Walks only as far as the target level, then names its visible items.</summary>
@@ -118,6 +127,110 @@ namespace NavisHelper.Agent.Contracts
                         FileName(index, total, branch.Node)));
             }
             return new FbxLevelExportPlan(level, total, items, skipped);
+        }
+
+        /// <summary>Plans exports at a depth below the picked items, retaining their ancestors.</summary>
+        public static FbxLevelExportPlan BuildFromItems(IReadOnlyList<IFbxTreeNode> rootItems,
+            IReadOnlyList<IFbxTreeNode> items, int depth, out string error)
+        {
+            error = null;
+            if (depth < 0 || depth > MaxLevel)
+            {
+                error = "Export depth must be between 0 and " + MaxLevel + ".";
+                return null;
+            }
+            if (items == null || items.Count == 0)
+            {
+                error = "Select at least one item to export.";
+                return null;
+            }
+
+            var seenItems = new HashSet<IFbxTreeNode>(NodeIdentity.Instance);
+            var seenCandidates = new HashSet<IFbxTreeNode>(NodeIdentity.Instance);
+            var candidates = new List<Branch>();
+            var branches = new Dictionary<IFbxTreeNode, Branch>(NodeIdentity.Instance);
+            foreach (IFbxTreeNode item in items)
+                if (seenItems.Add(item))
+                    CollectItemsLevel(CreateBranch(rootItems, item, branches), depth, candidates, seenCandidates);
+
+            int total = seenCandidates.Count;
+            if (total == 0)
+            {
+                error = "The selected items have no descendants at depth "
+                    + depth.ToString(CultureInfo.InvariantCulture) + ".";
+                return null;
+            }
+            if (total > MaxItems)
+            {
+                error = "The selection expands to " + total.ToString(CultureInfo.InvariantCulture)
+                    + " items; the limit is " + MaxItems + ".";
+                return null;
+            }
+
+            var exports = new List<FbxLevelExportPlanItem>();
+            var skipped = new List<FbxLevelExportSkip>();
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                Branch branch = candidates[i];
+                int index = i + 1;
+                if (branch.Hidden)
+                    skipped.Add(new FbxLevelExportSkip(index, branch.Node,
+                        "The item or an ancestor is hidden."));
+                else
+                    exports.Add(new FbxLevelExportPlanItem(index, branch,
+                        FileName(index, total, branch.Node)));
+            }
+            return new FbxLevelExportPlan(depth, total, exports, skipped);
+        }
+
+        // Branches are cached by node, so items that share ancestors share their branches and each
+        // parent's children are read once (Codex review P2: per-item copies were quadratic).
+        private static Branch CreateBranch(IReadOnlyList<IFbxTreeNode> rootItems, IFbxTreeNode item,
+            Dictionary<IFbxTreeNode, Branch> branches)
+        {
+            var ancestors = new Stack<IFbxTreeNode>();
+            Branch branch = null;
+            for (IFbxTreeNode node = item; node != null; node = node.Parent)
+            {
+                if (branches.TryGetValue(node, out branch))
+                    break;
+                ancestors.Push(node);
+            }
+
+            while (ancestors.Count > 0)
+            {
+                IFbxTreeNode node = ancestors.Pop();
+                branch = new Branch
+                {
+                    Node = node,
+                    Parent = branch,
+                    Siblings = branch == null ? rootItems ?? Array.Empty<IFbxTreeNode>() : branch.ReadChildren(),
+                    Hidden = node.IsHidden || (branch != null && branch.Hidden)
+                };
+                branches[node] = branch;
+            }
+            return branch;
+        }
+
+        private static void CollectItemsLevel(Branch branch, int depth, List<Branch> candidates,
+            HashSet<IFbxTreeNode> seen)
+        {
+            if (depth == 0)
+            {
+                if (seen.Add(branch.Node) && seen.Count <= MaxItems)
+                    candidates.Add(branch);
+                return;
+            }
+
+            IReadOnlyList<IFbxTreeNode> children = branch.ReadChildren();
+            foreach (IFbxTreeNode node in children)
+                CollectItemsLevel(new Branch
+                {
+                    Node = node,
+                    Parent = branch,
+                    Siblings = children,
+                    Hidden = node.IsHidden || branch.Hidden
+                }, depth - 1, candidates, seen);
         }
 
         private static void CollectLevel(IReadOnlyList<IFbxTreeNode> siblings, Branch parent,
@@ -282,8 +395,8 @@ namespace NavisHelper.Agent.Contracts
         private sealed class NodeIdentity : IEqualityComparer<IFbxTreeNode>
         {
             internal static readonly NodeIdentity Instance = new NodeIdentity();
-            public bool Equals(IFbxTreeNode x, IFbxTreeNode y) { return ReferenceEquals(x, y); }
-            public int GetHashCode(IFbxTreeNode obj) { return RuntimeHelpers.GetHashCode(obj); }
+            public bool Equals(IFbxTreeNode x, IFbxTreeNode y) { return object.Equals(x, y); }
+            public int GetHashCode(IFbxTreeNode obj) { return obj == null ? 0 : obj.GetHashCode(); }
         }
     }
 }

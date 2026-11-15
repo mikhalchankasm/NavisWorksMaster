@@ -21,11 +21,14 @@ public sealed class FbxLevelExportJobTests
         {
             Name = name;
             _children.AddRange(children);
+            foreach (var child in children)
+                child.Parent = this;
         }
 
         public string Name { get; }
         public string ClassName => "Group";
         public bool IsHidden { get; set; }
+        public IFbxTreeNode? Parent { get; private set; }
         public IEnumerable<IFbxTreeNode> Children => _children;
     }
 
