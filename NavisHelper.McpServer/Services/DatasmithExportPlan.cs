@@ -39,26 +39,8 @@ internal static class DatasmithExportPlan
     internal static IReadOnlyList<string> BuildRunnerArguments(StartDatasmithExportRequest request, string navisworksDirectory, string jobName = null)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.MergeLevel < 0)
-            throw new ArgumentException("mergeLevel must be nonnegative when supplied.");
-        if (request.Origin != null && (request.Origin.Length != 3 || request.Origin.Any(value => !double.IsFinite(value))))
-            throw new ArgumentException("origin requires three finite numbers: x,y,z.");
-        var arguments = new List<string>
-        {
-            "datasmith-export", "--navisworks-dir", navisworksDirectory,
-            "--source", request.SourcePath, "--output", request.OutputPath,
-        };
-        if (request.MergeLevel.HasValue)
-            arguments.AddRange(new[] { "--merge", request.MergeLevel.Value.ToString(CultureInfo.InvariantCulture) });
-        if (request.Origin != null)
-            arguments.AddRange(new[] { "--origin", string.Join(",", request.Origin.Select(value => value.ToString("R", CultureInfo.InvariantCulture))) });
-        if (request.IncludeMetadata)
-            arguments.Add("--include-metadata");
-        if (request.Overwrite)
-            arguments.Add("--overwrite");
-        if (jobName != null)
-            arguments.AddRange(new[] { "--job", jobName });
-        return arguments;
+        return DatasmithRunnerCommandLine.BuildArguments(navisworksDirectory, request.SourcePath, request.OutputPath,
+            request.MergeLevel, request.Origin, request.IncludeMetadata, request.Overwrite, jobName);
     }
 
     internal static DatasmithRunnerOutcome ParseRunnerOutput(string stdout, int exitCode)
