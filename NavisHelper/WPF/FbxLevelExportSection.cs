@@ -175,8 +175,9 @@ namespace NavisHelper.WPF
         }
 
         // Navisworks keeps one Document instance when another file is opened, the same file is
-        // reopened or a model is swapped, so the list is bound to the document's identity, file name,
-        // model count and a generation bumped by every change of its models (Codex review P2, twice).
+        // reopened or a model is swapped, so the list is bound to the document's identity and a
+        // generation bumped by every change of its models. Not the file name: Save As renames the
+        // document while its items stay valid (Codex reviews of epsilon3).
         private void Watch(Document document)
         {
             if (!ReferenceEquals(_watchedModels, document.Models))
@@ -203,11 +204,7 @@ namespace NavisHelper.WPF
         private string OwnerKey(Document document)
         {
             Watch(document);
-            string fileName;
-            try { fileName = document.FileName ?? string.Empty; }
-            catch (Exception) { fileName = string.Empty; }
-            return RuntimeHelpers.GetHashCode(document).ToString(CultureInfo.InvariantCulture) + "|" + fileName
-                + "|" + document.Models.Count.ToString(CultureInfo.InvariantCulture)
+            return RuntimeHelpers.GetHashCode(document).ToString(CultureInfo.InvariantCulture)
                 + "|" + _modelsGeneration.ToString(CultureInfo.InvariantCulture);
         }
 
