@@ -494,6 +494,18 @@
   <data name="Panel_Model_Group_Import" xml:space="preserve">
     <value>Импорт</value>
   </data>
+  <data name="Panel_Model_Group_Selection" xml:space="preserve">
+    <value>Выборка</value>
+  </data>
+  <data name="Panel_Model_Group_SelectionInfo" xml:space="preserve">
+    <value>Сведения о выбранном</value>
+  </data>
+  <data name="Panel_Export_Group_ModelFile" xml:space="preserve">
+    <value>Файл модели</value>
+  </data>
+  <data name="Panel_Export_Group_Properties" xml:space="preserve">
+    <value>Свойства</value>
+  </data>
   <data name="Panel_Model_Group_SearchSets" xml:space="preserve">
     <value>Поисковые наборы</value>
   </data>
@@ -781,6 +793,9 @@
   </data>
   <data name="Panel_Tab_Model" xml:space="preserve">
     <value>🌳 Модель</value>
+  </data>
+  <data name="Panel_Tab_Export" xml:space="preserve">
+    <value>📤 Экспорт</value>
   </data>
   <data name="Panel_Tab_Settings" xml:space="preserve">
     <value>⚙ Настройки</value>

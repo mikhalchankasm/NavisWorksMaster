@@ -41,15 +41,10 @@ namespace NavisHelper.WPF
         {
             var stack = new StackPanel { Margin = new Thickness(8) };
 
-            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_Import"));
-            stack.Children.Add(Btn("csv_import", "\U0001F4CA", "Panel_Model_ImportCsv_Action", "Panel_Model_ImportCsv_ToolTip", "CsvAttributeLoader.CSVL"));
-            stack.Children.Add(Btn("import_ps", "\U0001F4C4", "Panel_Model_ImportPsLists_Action", "Panel_Model_ImportPsLists_ToolTip", "ImportPslists.CBC"));
-
-            stack.Children.Add(CreateSeparator());
-            stack.Children.Add(CreateGroupHeader("Panel_Model_Group_Export"));
-            stack.Children.Add(Btn("save_hierarchy", "\U0001F4BE", "Panel_SaveHierarchy", "Panel_Model_ExportTree_ToolTip", "SaveHierarhy.COMPANY"));
-            stack.Children.Add(Btn("save_nwd2018", "\U0001F4BE", "Panel_Model_Save2018_Action", "Panel_Model_Save2018_ToolTip", "SaveAsNavis2018.MS"));
-            stack.Children.Add(ActionBtn("export_selected_props", "\U0001F4BE", "Panel_Model_ExportProperties_Action", "Panel_Model_ExportProperties_ToolTip", ExportSelectedPropertiesToExcelLikeFile, requiresSelection: true));
+            var importRow = new WrapPanel();
+            importRow.Children.Add(Btn("csv_import", "\U0001F4CA", "Panel_Model_ImportCsv_Action", "Panel_Model_ImportCsv_ToolTip", "CsvAttributeLoader.CSVL"));
+            importRow.Children.Add(Btn("import_ps", "\U0001F4C4", "Panel_Model_ImportPsLists_Action", "Panel_Model_ImportPsLists_ToolTip", "ImportPslists.CBC"));
+            stack.Children.Add(CreateGroupCard("Panel_Model_Group_Import", "\U0001F4E5", UiTheme.GroupImport, importRow));
 
             return stack;
         }

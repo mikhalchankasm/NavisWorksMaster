@@ -18,6 +18,7 @@ namespace NavisHelper.WPF
     {
         private readonly PanelLocalizationBindings _bindings;
         private readonly Action<string, Brush, object[]> _setStatusResource;
+        private readonly Action _clearSharedStatus;
         private readonly DispatcherTimer _timer;
         private readonly StackPanel _root = new StackPanel();
         private readonly FbxExportList<ModelItem> _list = new FbxExportList<ModelItem>();
@@ -44,10 +45,11 @@ namespace NavisHelper.WPF
         private bool _running;
 
         internal FbxLevelExportSection(PanelLocalizationBindings bindings, Dispatcher dispatcher,
-            Action<string, Brush, object[]> setStatusResource)
+            Action<string, Brush, object[]> setStatusResource, Action clearSharedStatus)
         {
             _bindings = bindings;
             _setStatusResource = setStatusResource;
+            _clearSharedStatus = clearSharedStatus;
             _timer = new DispatcherTimer(DispatcherPriority.Background, dispatcher)
             {
                 Interval = TimeSpan.FromMilliseconds(500)
@@ -340,6 +342,7 @@ namespace NavisHelper.WPF
             _statusKey = null;
             _status.Text = string.Empty;
             _progress.Value = 0;
+            _clearSharedStatus?.Invoke();
         }
 
         private void ShowStatus(string key, Brush color, params object[] arguments)

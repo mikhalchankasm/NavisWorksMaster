@@ -262,6 +262,36 @@ namespace NavisHelper.WPF
             }, resourceKey);
         }
 
+        private Border CreateGroupCard(string headerResourceKey, string icon, Brush accent, params UIElement[] content)
+        {
+            var stack = new StackPanel();
+            var header = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            header.Children.Add(new TextBlock
+            {
+                Text = icon, Foreground = accent, FontWeight = FontWeights.SemiBold,
+                FontSize = UiTheme.FontHeader, Margin = new Thickness(0, 0, 6, 0)
+            });
+            header.Children.Add(BindPanelText(new TextBlock
+            {
+                Foreground = accent, FontWeight = FontWeights.SemiBold,
+                FontSize = UiTheme.FontHeader
+            }, headerResourceKey));
+            stack.Children.Add(header);
+            foreach (var element in content)
+                stack.Children.Add(element);
+            return new Border
+            {
+                CornerRadius = new CornerRadius(4), BorderBrush = UiTheme.Border,
+                BorderThickness = new Thickness(1), Background = UiTheme.CardBg,
+                Padding = new Thickness(8), Margin = new Thickness(0, 4, 0, 4),
+                Child = stack
+            };
+        }
+
         private static Border CreateSeparator()
         {
             return new Border
