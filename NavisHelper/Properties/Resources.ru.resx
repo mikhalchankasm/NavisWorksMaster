@@ -2587,4 +2587,18 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Settings_Service_Developers_Expander" xml:space="preserve"><value>Для разработчиков</value></data>
   <data name="Settings_Ai_Status_Error_Compact" xml:space="preserve"><value>Ошибка</value></data>
   <data name="Settings_Ai_Status_Connecting_Compact" xml:space="preserve"><value>Подключение…</value></data>
+  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>FBX по уровню дерева</value></data>
+  <data name="Panel_Model_FbxLevel_Label" xml:space="preserve"><value>Уровень</value></data>
+  <data name="Panel_Model_FbxLevel_ToolTip" xml:space="preserve"><value>1 = файлы в корне дерева выбора, 2 = их дочерние элементы</value></data>
+  <data name="Panel_Model_FbxFolder_Label" xml:space="preserve"><value>Папка</value></data>
+  <data name="Panel_Model_FbxFolder_Prompt" xml:space="preserve"><value>Выберите папку для FBX-файлов</value></data>
+  <data name="Panel_Model_FbxOverwrite_Label" xml:space="preserve"><value>Заменять существующие файлы</value></data>
+  <data name="Panel_Model_FbxStart_Action" xml:space="preserve"><value>Экспорт</value></data>
+  <data name="Panel_Model_FbxCancel_Action" xml:space="preserve"><value>Отмена</value></data>
+  <data name="Panel_Model_FbxProgress_Status" xml:space="preserve"><value>Готово {0} из {1}: {2}</value></data>
+  <data name="Panel_Model_FbxCompleted_Status" xml:space="preserve"><value>Экспорт FBX завершён: файлов {0}, пропущено {1}</value></data>
+  <data name="Panel_Model_FbxCanceled_Status" xml:space="preserve"><value>Экспорт FBX отменён после {0} из {1}</value></data>
+  <data name="Panel_Model_FbxFailed_Status" xml:space="preserve"><value>Экспорт FBX не выполнен: {0}</value></data>
+  <data name="Panel_Model_FbxNoDocument_Status" xml:space="preserve"><value>Сначала откройте модель</value></data>
+  <data name="Panel_Model_FbxUnavailable_Status" xml:space="preserve"><value>Хост NavisHelper не запущен</value></data>
 </root>

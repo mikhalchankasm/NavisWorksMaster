@@ -21,6 +21,15 @@ namespace NavisHelper.Agent
             new ProtectedModeApprovals(() => DateTime.UtcNow, NextApprovalCode);
         public static volatile string CurrentDocumentKey = string.Empty;
 
+        internal static FbxLevelExportJobService FbxLevelExportJobs
+        {
+            get
+            {
+                lock (Sync)
+                    return _hostService?.FbxLevelExportJobs;
+            }
+        }
+
         static AgentRuntime()
         {
             ProtectedModeApprovals.Enabled = ProtectedModeSettingsStore.CreateDefault().ReadEnabled();

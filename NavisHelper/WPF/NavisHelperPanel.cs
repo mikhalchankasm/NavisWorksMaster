@@ -49,6 +49,7 @@ namespace NavisHelper.WPF
         private ComboBox _modelCombo;
 
         private NavisHelperSettingsTabBuilder _settingsTabBuilder;
+        private FbxLevelExportSection _fbxLevelExportSection;
 
 
         private TextBox _aiResponseLog;
@@ -350,6 +351,10 @@ namespace NavisHelper.WPF
             stack.Children.Add(CreateNavigationContent());
             stack.Children.Add(CreateSeparator());
             stack.Children.Add(CreateImportExportContent());
+            stack.Children.Add(CreateSeparator());
+            _fbxLevelExportSection = new FbxLevelExportSection(_panelLocalizationBindings, Dispatcher,
+                (k, c, a) => SetGlobalStatusResource(k, c, a));
+            stack.Children.Add(_fbxLevelExportSection.Build());
 
             _modelTab = new TabItem { Content = WrapInScroll(stack) };
             _panelLocalizationBindings.BindHeader(_modelTab, "Panel_Tab_Model");
@@ -605,6 +610,7 @@ namespace NavisHelper.WPF
 
             AIColorOperationCoordinator.Current.CancelCurrent();
             _settingsTabBuilder?.Dispose();
+            _fbxLevelExportSection?.Dispose();
             _settingsTabBuilder = null;
             Loaded -= OnPanelLoaded;
             Unloaded -= OnPanelUnloaded;
