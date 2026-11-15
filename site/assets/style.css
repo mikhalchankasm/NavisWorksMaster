@@ -95,6 +95,8 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--line);
 }
 .hero-art img { display: block; width: 100%; height: auto; }
+.hero-video video, .demo-video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #0e1319; }
+.demo-video { margin-top: 28px; border-radius: 18px; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--line); }
 
 /* sections */
 section { padding: 64px 0; }

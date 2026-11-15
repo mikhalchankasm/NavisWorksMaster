@@ -127,7 +127,7 @@ background:
   Do not reach for the larger number because the smaller one is inconvenient. Use
   it only when you can say what makes that review cheaper.
 - Files over 80 KB: targeted patches only, never a whole rewrite. Today these are
-  `NavisHelper/Properties/Resources*.resx` and the large `docs/` files.
+  `NavisHelper/Properties/Resources*.resx`, large `docs/` files, `site/assets/video/`.
 
 ## 4. Verification levels
 

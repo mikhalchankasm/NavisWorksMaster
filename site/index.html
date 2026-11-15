@@ -44,15 +44,27 @@
         </a>
       </div>
       <div class="meta"><span>Free and open source (MIT)</span><span>Navisworks Manage 2024–2027</span><span id="version">Latest release on GitHub</span></div>
-      <div class="hero-art">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-          <img src="assets/banner-light.svg" alt="An isometric pipe route with a fly-through camera path, a section plane and the names of NavisHelper tools" width="1280" height="320">
-        </picture>
+      <div class="hero-art hero-video">
+        <video id="teaser" autoplay muted loop playsinline preload="auto" width="1280" height="720" poster="assets/video/teaser-en.jpg" aria-label="NavisHelper colours a sample plant model by system, builds a clash matrix, zooms into a pipe clashing with steel and flies through the model">
+          <source src="assets/video/teaser-en.webm" type="video/webm">
+          <source src="assets/video/teaser-en.mp4" type="video/mp4">
+        </video>
       </div>
-      <!-- Promo video: the fly-through clip goes here once the demo model is ready. -->
     </div>
   </div>
+
+  <section id="demo">
+    <div class="wrap">
+      <p class="eyebrow">See it work</p>
+      <h2>One model, five requests, about a minute</h2>
+      <p class="section-lead">A real session on a sample plant model (16,691 items) in Navisworks 2027: colour by system, a clash matrix across eight disciplines, clash groups named after the items, close-ups and a fly-through video. The times on screen were measured in this session.</p>
+      <div class="demo-video">
+        <video controls preload="none" playsinline width="1280" height="720" poster="assets/video/demo-en.jpg" aria-label="A one-minute NavisHelper demo in Navisworks 2027">
+          <source src="assets/video/demo-en.mp4" type="video/mp4">
+        </video>
+      </div>
+    </div>
+  </section>
 
       <!-- showcase:start -->
   <section id="new">
@@ -209,6 +221,19 @@
       if (release && release.tag_name) document.getElementById("version").textContent = "Latest: " + release.tag_name.replace(/^v/, "");
     })
     .catch(function () {});
+</script>
+<script>
+  (function () {
+    var v = document.getElementById("teaser");
+    if (!v) return;
+    var m = window.matchMedia("(prefers-reduced-motion: reduce)");
+    function apply() {
+      if (m.matches) { v.removeAttribute("autoplay"); v.pause(); v.controls = true; }
+      else { v.controls = false; var p = v.play(); if (p) p.catch(function () {}); }
+    }
+    apply();
+    if (m.addEventListener) m.addEventListener("change", apply);
+  })();
 </script>
 </body>
 </html>

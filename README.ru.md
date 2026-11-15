@@ -17,7 +17,8 @@
 
 </div>
 
-<!-- Промо-ролик: сюда встанет короткий ролик облёта. -->
+<p align="center"><img src="docs/assets/flythrough.gif" width="640" alt="NavisHelper раскрашивает демо-модель по системам, показывает трубу, пересекающую металл, и облетает модель"><br>
+<a href="https://mikhalchankasm.github.io/NavisWorksMaster/ru/#demo">Посмотреть минутное демо</a></p>
 
 ## Что умеет
 

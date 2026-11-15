@@ -17,7 +17,8 @@ Tell Claude, Codex or Cursor what to do with your model, and NavisHelper does it
 
 </div>
 
-<!-- Promo video: a short fly-through clip goes here. -->
+<p align="center"><img src="docs/assets/flythrough.gif" width="640" alt="NavisHelper colours a sample plant model by system, zooms into a pipe clashing with steel and flies through the model"><br>
+<a href="https://mikhalchankasm.github.io/NavisWorksMaster/#demo">Watch the one-minute demo</a></p>
 
 ## What it does
 
