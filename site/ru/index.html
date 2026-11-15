@@ -44,15 +44,27 @@
         </a>
       </div>
       <div class="meta"><span>Бесплатно, открытый код (MIT)</span><span>Navisworks Manage 2024–2027</span><span id="version">Последний выпуск на GitHub</span></div>
-      <div class="hero-art">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="../assets/banner-dark.svg">
-          <img src="../assets/banner-light.svg" alt="Изометрическая трасса труб с путём камеры облёта, секущей плоскостью и названиями инструментов NavisHelper" width="1280" height="320">
-        </picture>
+      <div class="hero-art hero-video">
+        <video id="teaser" autoplay muted loop playsinline preload="auto" width="1280" height="720" poster="../assets/video/teaser-ru.jpg" aria-label="NavisHelper раскрашивает демо-модель установки по системам, строит матрицу коллизий, показывает трубу, пересекающую металл, и облетает модель">
+          <source src="../assets/video/teaser-ru.webm" type="video/webm">
+          <source src="../assets/video/teaser-ru.mp4" type="video/mp4">
+        </video>
       </div>
-      <!-- Промо-ролик: сюда встанет ролик облёта, когда будет готова демо-модель. -->
     </div>
   </div>
+
+  <section id="demo">
+    <div class="wrap">
+      <p class="eyebrow">Посмотрите в работе</p>
+      <h2>Одна модель, пять запросов, около минуты</h2>
+      <p class="section-lead">Реальная сессия на демо-модели установки (16 691 элемент) в Navisworks 2027: покраска по системам, матрица коллизий по восьми дисциплинам, группы коллизий с именами по элементам, крупные планы и ролик облёта. Время на экране замерено в этой сессии.</p>
+      <div class="demo-video">
+        <video controls preload="none" playsinline width="1280" height="720" poster="../assets/video/demo-ru.jpg" aria-label="Минутное демо NavisHelper в Navisworks 2027">
+          <source src="../assets/video/demo-ru.mp4" type="video/mp4">
+        </video>
+      </div>
+    </div>
+  </section>
 
       <!-- showcase:start -->
   <section id="new">
@@ -209,6 +221,19 @@
       if (release && release.tag_name) document.getElementById("version").textContent = "Последний выпуск: " + release.tag_name.replace(/^v/, "");
     })
     .catch(function () {});
+</script>
+<script>
+  (function () {
+    var v = document.getElementById("teaser");
+    if (!v) return;
+    var m = window.matchMedia("(prefers-reduced-motion: reduce)");
+    function apply() {
+      if (m.matches) { v.removeAttribute("autoplay"); v.pause(); v.controls = true; }
+      else { v.controls = false; var p = v.play(); if (p) p.catch(function () {}); }
+    }
+    apply();
+    if (m.addEventListener) m.addEventListener("change", apply);
+  })();
 </script>
 </body>
 </html>
