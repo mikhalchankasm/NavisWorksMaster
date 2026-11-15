@@ -39,6 +39,7 @@ builder.Services
     .WithPrompts<NavisworksWorkflowPrompts>()
     .WithTools<NavisworksDocumentTools>()
     .WithTools<NavisworksSaveJobTools>()
+    .WithTools<NavisworksFbxLevelExportTools>()
     .WithTools<NavisworksHostTools>()
     .WithTools<NavisworksMarkupTools>()
     .WithTools<NavisworksMatchHandleTools>()
