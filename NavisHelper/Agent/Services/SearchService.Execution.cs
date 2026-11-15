@@ -139,60 +139,68 @@ namespace NavisHelper.Agent.Services
             var accumulateMs = 0L;
             var sortMs = 0L;
 
-            foreach (var condition in orderedConditions)
+            if (hasConditionLevelLogic)
             {
-                if (combineAll && accumulator != null && CanFilterAccumulator(condition))
+                accumulator = ToMatchSet(FindItemsCombinePlan.Evaluate(
+                    search.Conditions,
+                    index => ExecuteConditionSearch(document, search.Conditions[index]),
+                    EqualityComparer<ModelItem>.Default));
+            }
+            else
+            {
+                foreach (var condition in orderedConditions)
                 {
-                    var beforeCount = accumulator.Count;
+                    if (combineAll && accumulator != null && CanFilterAccumulator(condition))
+                    {
+                        var beforeCount = accumulator.Count;
+                        Logger.Info(
+                            "find_items condition_stage_start query=\"" + search.Query + "\" mode=manual_filter accumulator=" + beforeCount + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
+                            "AgentHost");
+
+                        FilterAccumulator(accumulator, condition, searchStarted);
+                        Logger.Info(
+                            "find_items condition_stage_done query=\"" + search.Query + "\" mode=manual_filter before=" + beforeCount + " after=" + accumulator.Count + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
+                            "AgentHost");
+
+                        if (accumulator.Count == 0)
+                            break;
+
+                        continue;
+                    }
+
+                    var conditionStarted = Stopwatch.StartNew();
                     Logger.Info(
-                        "find_items condition_stage_start query=\"" + search.Query + "\" mode=manual_filter accumulator=" + beforeCount + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
+                        "find_items condition_stage_start query=\"" + search.Query + "\" mode=native_condition accumulator=" + (accumulator == null ? -1 : accumulator.Count) + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
                         "AgentHost");
 
-                    FilterAccumulator(accumulator, condition, searchStarted);
+                    var currentMatches = ExecuteConditionSearch(document, condition);
+                    conditionStarted.Stop();
                     Logger.Info(
-                        "find_items condition_stage_done query=\"" + search.Query + "\" mode=manual_filter before=" + beforeCount + " after=" + accumulator.Count + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
+                        "find_items condition_stage_done query=\"" + search.Query + "\" mode=native_condition hits=" + currentMatches.Count + " condition_elapsed_ms=" + conditionStarted.ElapsedMilliseconds + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
                         "AgentHost");
 
-                    if (accumulator.Count == 0)
+                    var accumulateStarted = Stopwatch.StartNew();
+                    var currentMap = ToMatchSet(currentMatches);
+
+                    if (accumulator == null)
+                    {
+                        accumulator = currentMap;
+                    }
+                    else if (!combineAll)
+                    {
+                        accumulator.UnionWith(currentMap);
+                    }
+                    else
+                    {
+                        accumulator.IntersectWith(currentMap);
+                    }
+
+                    accumulateStarted.Stop();
+                    accumulateMs += accumulateStarted.ElapsedMilliseconds;
+
+                    if (combineAll && accumulator.Count == 0)
                         break;
-
-                    continue;
                 }
-
-                var conditionStarted = Stopwatch.StartNew();
-                Logger.Info(
-                    "find_items condition_stage_start query=\"" + search.Query + "\" mode=native_condition accumulator=" + (accumulator == null ? -1 : accumulator.Count) + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
-                    "AgentHost");
-
-                var currentMatches = ExecuteConditionSearch(document, condition);
-                conditionStarted.Stop();
-                Logger.Info(
-                    "find_items condition_stage_done query=\"" + search.Query + "\" mode=native_condition hits=" + currentMatches.Count + " condition_elapsed_ms=" + conditionStarted.ElapsedMilliseconds + " condition=\"" + BuildConditionLabel(condition) + "\" elapsed_ms=" + GetElapsedMilliseconds(searchStarted),
-                    "AgentHost");
-
-                var accumulateStarted = Stopwatch.StartNew();
-                var currentMap = ToMatchSet(currentMatches);
-
-                if (accumulator == null)
-                {
-                    accumulator = currentMap;
-                }
-                else if (hasConditionLevelLogic
-                    ? string.Equals(condition.LogicalOperator, FindItemsConditionOptionsHelper.Or, StringComparison.OrdinalIgnoreCase)
-                    : !combineAll)
-                {
-                    accumulator.UnionWith(currentMap);
-                }
-                else
-                {
-                    accumulator.IntersectWith(currentMap);
-                }
-
-                accumulateStarted.Stop();
-                accumulateMs += accumulateStarted.ElapsedMilliseconds;
-
-                if (!hasConditionLevelLogic && combineAll && accumulator.Count == 0)
-                    break;
             }
 
             if (accumulator == null || accumulator.Count == 0)
