@@ -39,7 +39,8 @@ namespace NavisHelper.Agent.Services
                 return new ClashSavedViewpointCreationResult();
 
             var resetName = MakeUniqueSavedItemName(target.Folder, "0000 Базовый вид");
-            SavedViewpointAppearanceHelper.SaveCurrentViewpointOnlyAtStart(document, target.Folder, resetName);
+            SectionBoxHelper.Disable();
+            SavedViewpointAppearanceHelper.SaveCurrentResetViewpointAtStart(document, target.Folder, target.FolderPath, resetName);
             RefreshTargetFolder(document, target);
             return new ClashSavedViewpointCreationResult
             {
