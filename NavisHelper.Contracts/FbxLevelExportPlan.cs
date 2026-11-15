@@ -76,6 +76,14 @@ namespace NavisHelper.Agent.Contracts
             internal IReadOnlyList<IFbxTreeNode> Siblings;
             internal Branch Parent;
             internal bool Hidden;
+            // The node's children, read once and shared as the Siblings of every child branch.
+            internal IReadOnlyList<IFbxTreeNode> ChildList;
+
+            internal IReadOnlyList<IFbxTreeNode> ReadChildren()
+            {
+                return ChildList ?? (ChildList = new List<IFbxTreeNode>(
+                    Node.Children ?? Array.Empty<IFbxTreeNode>()));
+            }
         }
 
         /// <summary>Walks only as far as the target level, then names its visible items.</summary>
@@ -140,9 +148,10 @@ namespace NavisHelper.Agent.Contracts
             var seenItems = new HashSet<IFbxTreeNode>(NodeIdentity.Instance);
             var seenCandidates = new HashSet<IFbxTreeNode>(NodeIdentity.Instance);
             var candidates = new List<Branch>();
+            var branches = new Dictionary<IFbxTreeNode, Branch>(NodeIdentity.Instance);
             foreach (IFbxTreeNode item in items)
                 if (seenItems.Add(item))
-                    CollectItemsLevel(CreateBranch(rootItems, item), depth, candidates, seenCandidates);
+                    CollectItemsLevel(CreateBranch(rootItems, item, branches), depth, candidates, seenCandidates);
 
             int total = seenCandidates.Count;
             if (total == 0)
@@ -174,13 +183,20 @@ namespace NavisHelper.Agent.Contracts
             return new FbxLevelExportPlan(depth, total, exports, skipped);
         }
 
-        private static Branch CreateBranch(IReadOnlyList<IFbxTreeNode> rootItems, IFbxTreeNode item)
+        // Branches are cached by node, so items that share ancestors share their branches and each
+        // parent's children are read once (Codex review P2: per-item copies were quadratic).
+        private static Branch CreateBranch(IReadOnlyList<IFbxTreeNode> rootItems, IFbxTreeNode item,
+            Dictionary<IFbxTreeNode, Branch> branches)
         {
             var ancestors = new Stack<IFbxTreeNode>();
-            for (IFbxTreeNode node = item; node != null; node = node.Parent)
-                ancestors.Push(node);
-
             Branch branch = null;
+            for (IFbxTreeNode node = item; node != null; node = node.Parent)
+            {
+                if (branches.TryGetValue(node, out branch))
+                    break;
+                ancestors.Push(node);
+            }
+
             while (ancestors.Count > 0)
             {
                 IFbxTreeNode node = ancestors.Pop();
@@ -188,10 +204,10 @@ namespace NavisHelper.Agent.Contracts
                 {
                     Node = node,
                     Parent = branch,
-                    Siblings = branch == null ? rootItems ?? Array.Empty<IFbxTreeNode>()
-                        : new List<IFbxTreeNode>(branch.Node.Children ?? Array.Empty<IFbxTreeNode>()),
+                    Siblings = branch == null ? rootItems ?? Array.Empty<IFbxTreeNode>() : branch.ReadChildren(),
                     Hidden = node.IsHidden || (branch != null && branch.Hidden)
                 };
+                branches[node] = branch;
             }
             return branch;
         }
@@ -206,7 +222,7 @@ namespace NavisHelper.Agent.Contracts
                 return;
             }
 
-            var children = new List<IFbxTreeNode>(branch.Node.Children ?? Array.Empty<IFbxTreeNode>());
+            IReadOnlyList<IFbxTreeNode> children = branch.ReadChildren();
             foreach (IFbxTreeNode node in children)
                 CollectItemsLevel(new Branch
                 {
