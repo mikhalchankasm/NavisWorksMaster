@@ -37,18 +37,22 @@ namespace NavisHelper.Agent.Services
             var error = ItemAppearanceRules.DescribeTargetError(request.MatchHandles, request.UseSelection);
             if (error != null)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, error);
+            // Repeated handles and items are dropped before wrapping (Codex review P3): a handle of
+            // 5000 items passed 1000 times must not become five million wrappers.
             var items = new List<ModelItem>();
+            var seen = new HashSet<ModelItem>();
             if (request.UseSelection == true)
-                items.AddRange(document.CurrentSelection.SelectedItems);
+                items.AddRange(document.CurrentSelection.SelectedItems.Where(item => item != null && seen.Add(item)));
             else
             {
-                foreach (var handle in request.MatchHandles.Where(value => !string.IsNullOrWhiteSpace(value)))
+                foreach (var handle in request.MatchHandles.Where(value => !string.IsNullOrWhiteSpace(value))
+                             .Distinct(StringComparer.Ordinal))
                 {
                     IList<ModelItem> resolved;
                     if (!sessionStore.TryGet(handle, out resolved) || resolved == null)
                         throw new AgentCommandException(ErrorCodes.StaleMatchReference,
                             "matchHandle is stale or was not found: " + handle + ". Re-run find_items and retry.");
-                    items.AddRange(resolved);
+                    items.AddRange(resolved.Where(item => item != null && seen.Add(item)));
                 }
             }
             return Start(document, items, request.Depth, request.Folder, request.Overwrite);
