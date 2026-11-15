@@ -156,6 +156,45 @@ public sealed class FbxExportItemsPlanTests
         Assert.Equal("The selected items have no descendants at depth 1.", leaf);
     }
 
+    private sealed class Leaf : IFbxTreeNode
+    {
+        public Leaf(string name, IFbxTreeNode parent) { Name = name; Parent = parent; }
+        public string Name { get; }
+        public string ClassName => "Group";
+        public bool IsHidden => false;
+        public IFbxTreeNode? Parent { get; }
+        public IEnumerable<IFbxTreeNode> Children => Array.Empty<IFbxTreeNode>();
+    }
+
+    private sealed class CountingParent : IFbxTreeNode
+    {
+        public readonly List<IFbxTreeNode> Kids = new();
+        public int Reads;
+        public string Name => "Layer";
+        public string ClassName => "Group";
+        public bool IsHidden => false;
+        public IFbxTreeNode? Parent => null;
+        public IEnumerable<IFbxTreeNode> Children { get { Reads++; return Kids; } }
+    }
+
+    // Codex review of epsilon1, P2: selecting every item of one layer copied the layer's children
+    // once per selected item, quadratic in the selection, before the MaxItems check could refuse it.
+    [Fact]
+    public void SiblingsShareOneReadOfTheirParent()
+    {
+        var layer = new CountingParent();
+        for (int i = 0; i < 200; i++)
+            layer.Kids.Add(new Leaf("item" + i, layer));
+
+        var plan = FbxLevelExportPlan.BuildFromItems(new IFbxTreeNode[] { layer }, layer.Kids, 0, out var error);
+
+        Assert.Null(error);
+        Assert.Equal(200, plan.Items.Count);
+        Assert.True(layer.Reads <= 2, "the layer's children were read " + layer.Reads + " times");
+        // The other 199 items; the layer itself is the item's ancestor and stays visible.
+        Assert.Equal(199, FbxLevelExportPlan.HideSet(plan.Items[0]).Count);
+    }
+
     [Fact]
     public void TheAdapterClimbsParentsAndComparesModelItems()
     {
