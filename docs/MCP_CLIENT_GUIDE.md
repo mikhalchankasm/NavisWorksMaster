@@ -50,7 +50,7 @@ Set `NAVISHELPER_MCP_TOOLS` in the MCP client configuration, or pass
 present. The default is the full surface, so an existing configuration keeps
 behaving exactly as before.
 
-Measured 2026-11-15 on `a57e063` (#444 added `start_fbx_level_export`, `fbx_level_export_status` and `cancel_fbx_level_export` to `lifecycle`) (compact UTF-8
+Measured 2026-11-15 on `a57e063` (#444 added `start_fbx_export`, `fbx_export_status` and `cancel_fbx_export` to `lifecycle`) (compact UTF-8
 JSON-RPC response bytes, decimal KB = 1000 bytes; token counts use the approximate 3.375 bytes/token ratio):
 
 | Spec | Tools | `tools/list` | Approx. tokens |

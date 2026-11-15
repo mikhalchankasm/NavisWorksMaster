@@ -222,7 +222,7 @@ namespace NavisHelper.Agent.Contracts
                     OperationId = OperationId,
                     State = _state,
                     IsRunning = running,
-                    Level = _plan.Level,
+                    Depth = _plan.Level,
                     Folder = _folder,
                     TotalItems = _plan.TotalItems,
                     ExportedItems = _nextItem,

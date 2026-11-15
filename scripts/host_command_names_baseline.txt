@@ -96,9 +96,9 @@ save_document
 save_document_as
 start_save_document
 save_document_status
-start_fbx_level_export
-fbx_level_export_status
-cancel_fbx_level_export
+start_fbx_export
+fbx_export_status
+cancel_fbx_export
 close_navisworks
 build_mtr_viewpoints
 selection_sets_build_viewpoints

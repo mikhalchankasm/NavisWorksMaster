@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.Agent.Session;
 using NavisHelper.Core;
 
 namespace NavisHelper.Agent.Services
@@ -23,7 +25,8 @@ namespace NavisHelper.Agent.Services
             _postToUi = postToUi ?? throw new ArgumentNullException(nameof(postToUi));
         }
 
-        public FbxLevelExportStatusResponse Start(Document document, StartFbxLevelExportRequest request)
+        public FbxLevelExportStatusResponse Start(Document document, StartFbxLevelExportRequest request,
+            MatchSessionStore sessionStore)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -31,13 +34,43 @@ namespace NavisHelper.Agent.Services
                 throw new AgentCommandException(ErrorCodes.SchemaViolation,
                     @"A fully qualified folder path is required, such as D:\export\fbx or \\server\share\fbx.");
 
-            var folder = Path.GetFullPath(request.Folder);
+            var error = ItemAppearanceRules.DescribeTargetError(request.MatchHandles, request.UseSelection);
+            if (error != null)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, error);
+            var items = new List<ModelItem>();
+            if (request.UseSelection == true)
+                items.AddRange(document.CurrentSelection.SelectedItems);
+            else
+            {
+                foreach (var handle in request.MatchHandles.Where(value => !string.IsNullOrWhiteSpace(value)))
+                {
+                    IList<ModelItem> resolved;
+                    if (!sessionStore.TryGet(handle, out resolved) || resolved == null)
+                        throw new AgentCommandException(ErrorCodes.StaleMatchReference,
+                            "matchHandle is stale or was not found: " + handle + ". Re-run find_items and retry.");
+                    items.AddRange(resolved);
+                }
+            }
+            return Start(document, items, request.Depth, request.Folder, request.Overwrite);
+        }
+
+        public FbxLevelExportStatusResponse Start(Document document, IReadOnlyList<ModelItem> items,
+            int depth, string folder, bool overwrite)
+        {
+            if (document == null)
+                throw new ArgumentNullException(nameof(document));
+            if (!FbxLevelExportPlan.IsFullyQualifiedFolder(folder))
+                throw new AgentCommandException(ErrorCodes.SchemaViolation,
+                    @"A fully qualified folder path is required, such as D:\export\fbx or \\server\share\fbx.");
+
+            folder = Path.GetFullPath(folder);
             Directory.CreateDirectory(folder);
             var roots = new List<IFbxTreeNode>();
             foreach (ModelItem item in document.Models.RootItems)
                 roots.Add(new ModelItemFbxNode(item));
             string error;
-            var plan = FbxLevelExportPlan.Build(roots, request.Level, out error);
+            var nodes = items.Select(item => (IFbxTreeNode)new ModelItemFbxNode(item)).ToList();
+            var plan = FbxLevelExportPlan.BuildFromItems(roots, nodes, depth, out error);
             if (error != null)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, error);
 
@@ -49,7 +82,7 @@ namespace NavisHelper.Agent.Services
                 try
                 {
                     job = FbxLevelExportJob.Start("fbx-job-" + Guid.NewGuid().ToString("N"),
-                        plan, folder, request.Overwrite, host, _job, DateTime.UtcNow);
+                        plan, folder, overwrite, host, _job, DateTime.UtcNow);
                 }
                 catch (InvalidOperationException exception)
                 {
@@ -63,7 +96,7 @@ namespace NavisHelper.Agent.Services
             lock (_sync)
             {
                 var response = BuildStatus(job);
-                response.Message = "FBX export started; poll fbx_level_export_status.";
+                response.Message = "FBX export started; poll fbx_export_status.";
                 return response;
             }
         }
