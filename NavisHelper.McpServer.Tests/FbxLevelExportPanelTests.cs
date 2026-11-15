@@ -58,10 +58,9 @@ public sealed class FbxLevelExportPanelTests
                      "AgentRuntime.FbxLevelExportJobs", ".Start(", ".Status(", ".Cancel(",
                      // epsilon3: "Add selected" fills a list; Export sends the list.
                      "FbxExportList<ModelItem>", "new ListBox", ".BindTo(OwnerKey(document))",
-                     // review P2: one Document instance survives opening another file.
-                     "document.FileName", "document.Models.Count",
-                     // second review P2: reopening the same file or swapping a model keeps that key, so
-                     // every change of the document's models bumps a generation in it.
+                     // Reviews of epsilon3: one Document instance survives opening another file, and
+                     // reopening the same file keeps its name, so every change of the document's
+                     // models bumps a generation in the owner key.
                      "Models.CollectionChanged +=", "_modelsGeneration",
                      "CurrentSelection.SelectedItems", ".Start(document,", "FolderPickerDialog.Show(",
                      "DispatcherTimer", "FbxLevelExportJobStates.Running",
@@ -108,6 +107,14 @@ public sealed class FbxLevelExportPanelTests
         Assert.Contains("_list.Clear()", handler, StringComparison.Ordinal);
         Assert.Contains("RefreshList()", handler, StringComparison.Ordinal);
         Assert.Contains("Panel_Model_FbxListReset_Status", handler, StringComparison.Ordinal);
+
+        // Fourth review, P2: Save As changes FileName while the models stay valid, so the owner key
+        // is the document's identity and the models generation, not its file name or model count.
+        int key = section.IndexOf("private string OwnerKey(", StringComparison.Ordinal);
+        var ownerKey = section.Substring(key, section.IndexOf("private ", key + 10, StringComparison.Ordinal) - key);
+        Assert.Contains("_modelsGeneration", ownerKey, StringComparison.Ordinal);
+        Assert.DoesNotContain("FileName", ownerKey, StringComparison.Ordinal);
+        Assert.DoesNotContain("Models.Count", ownerKey, StringComparison.Ordinal);
 
         int add = section.IndexOf("private void OnAddSelected(", StringComparison.Ordinal);
         var onAdd = section.Substring(add, section.IndexOf("private void OnRemove(", add, StringComparison.Ordinal) - add);
