@@ -118,6 +118,7 @@ namespace NavisHelper.WPF
 
         private void OnStart(object sender, RoutedEventArgs args)
         {
+            _progress.Value = 0;
             Execute(() =>
             {
                 _service = AgentRuntime.FbxLevelExportJobs;
@@ -132,12 +133,15 @@ namespace NavisHelper.WPF
                     ShowStatus("Panel_Model_FbxNoDocument_Status", UiTheme.Warning);
                     return;
                 }
-                Update(_service.Start(document, new StartFbxLevelExportRequest
+                var response = _service.Start(document, new StartFbxLevelExportRequest
                 {
                     Level = (int)_level.SelectedItem,
                     Folder = _folder.Text,
                     Overwrite = _overwrite.IsChecked == true
-                }));
+                });
+                _service.Changed -= OnJobChanged;
+                _service.Changed += OnJobChanged;
+                Update(response);
             });
         }
 
@@ -157,6 +161,14 @@ namespace NavisHelper.WPF
             })));
         }
 
+        private void OnJobChanged(object sender, EventArgs args)
+        {
+            Execute(() => Update(_service.Status(new FbxLevelExportStatusRequest
+            {
+                OperationId = _operationId
+            })));
+        }
+
         private void Execute(Action action)
         {
             if (_disposed) return;
@@ -169,6 +181,7 @@ namespace NavisHelper.WPF
         {
             _operationId = response.OperationId;
             var running = response.State == FbxLevelExportJobStates.Running;
+            if (!running) _service.Changed -= OnJobChanged;
             SetRunning(running);
             var done = response.ExportedItems + response.SkippedItems;
             _progress.Maximum = Math.Max(1, response.TotalItems);
@@ -220,6 +233,7 @@ namespace NavisHelper.WPF
         {
             if (_disposed) return;
             _disposed = true;
+            if (_service != null) _service.Changed -= OnJobChanged;
             _timer.Stop();
             _timer.Tick -= OnTick;
             _browse.Click -= OnBrowse;
