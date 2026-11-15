@@ -264,7 +264,8 @@ namespace NavisHelper.AI
                 Formatting.None,
                 new JsonSerializerSettings
                 {
-                    NullValueHandling = NullValueHandling.Ignore
+                    NullValueHandling = NullValueHandling.Ignore,
+                    StringEscapeHandling = StringEscapeHandling.EscapeNonAscii
                 });
         }
 

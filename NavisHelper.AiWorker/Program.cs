@@ -43,13 +43,7 @@ namespace NavisHelper.AI
                     OpenRouterFailureKind.WorkerInternalFailure);
             }
 
-            Console.Out.WriteLine(JsonConvert.SerializeObject(
-                response,
-                Formatting.None,
-                new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Ignore
-                }));
+            Console.Out.WriteLine(AiWorkerProtocol.SerializeResponse(response));
             return 0;
         }
     }

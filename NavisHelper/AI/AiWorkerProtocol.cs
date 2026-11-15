@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace NavisHelper.AI
 {
@@ -9,6 +10,18 @@ namespace NavisHelper.AI
         internal const string KeyEnvironmentVariable = "OPEN_ROUTER_NW_KEY";
         internal const string WorkerDirectoryName = "AiWorker";
         internal const string WorkerExecutableName = "NavisHelper.AiWorker.exe";
+
+        internal static string SerializeResponse(AiWorkerResponseEnvelope response)
+        {
+            return JsonConvert.SerializeObject(
+                response,
+                Formatting.None,
+                new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore,
+                    StringEscapeHandling = StringEscapeHandling.EscapeNonAscii
+                });
+        }
     }
 
     internal enum AiWorkerOperation
