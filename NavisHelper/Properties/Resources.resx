@@ -2587,9 +2587,16 @@ Unique names: {2}</value></data>
   <data name="Settings_Service_Developers_Expander" xml:space="preserve"><value>For developers</value></data>
   <data name="Settings_Ai_Status_Error_Compact" xml:space="preserve"><value>Error</value></data>
   <data name="Settings_Ai_Status_Connecting_Compact" xml:space="preserve"><value>Connecting…</value></data>
-  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>FBX export of selected items</value></data>
+  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>FBX export of listed items</value></data>
+  <data name="Panel_Model_FbxAddSelected_Action" xml:space="preserve"><value>Add selected</value></data>
+  <data name="Panel_Model_FbxRemove_Action" xml:space="preserve"><value>Remove</value></data>
+  <data name="Panel_Model_FbxClear_Action" xml:space="preserve"><value>Clear</value></data>
+  <data name="Panel_Model_FbxListCount_Label" xml:space="preserve"><value>Items in the list: {0}</value></data>
+  <data name="Panel_Model_FbxListEmpty_Status" xml:space="preserve"><value>Add items first: select them in the model and press Add selected</value></data>
+  <data name="Panel_Model_FbxNothingSelected_Status" xml:space="preserve"><value>Nothing is selected in the model</value></data>
+  <data name="Panel_Model_FbxListReset_Status" xml:space="preserve"><value>The list belonged to another model and was cleared</value></data>
   <data name="Panel_Model_FbxLevel_Label" xml:space="preserve"><value>Depth</value></data>
-  <data name="Panel_Model_FbxLevel_ToolTip" xml:space="preserve"><value>0 = the selected items, 1 = their children</value></data>
+  <data name="Panel_Model_FbxLevel_ToolTip" xml:space="preserve"><value>0 = the listed items, 1 = their children</value></data>
   <data name="Panel_Model_FbxFolder_Label" xml:space="preserve"><value>Folder</value></data>
   <data name="Panel_Model_FbxFolder_Prompt" xml:space="preserve"><value>Choose the folder for FBX files</value></data>
   <data name="Panel_Model_FbxOverwrite_Label" xml:space="preserve"><value>Replace existing files</value></data>
