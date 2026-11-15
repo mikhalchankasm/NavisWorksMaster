@@ -95,6 +95,25 @@ public sealed class FbxLevelExportPanelTests
         Assert.Contains(".BindTo(OwnerKey(document))", onStart, StringComparison.Ordinal);
     }
 
+    // Third Codex review of epsilon3: after a model change the rows still held the old ModelItems,
+    // and Remove or a refresh read them before any owner check. The list is now emptied in the
+    // models-changed handler itself, and a duplicate-only Add does not rebuild the rows (P3).
+    [Fact]
+    public void AModelChangeEmptiesTheListAtOnceAndRepeatsDoNotRebuildIt()
+    {
+        var section = Read("NavisHelper", "WPF", "FbxLevelExportSection.cs");
+        int changed = section.IndexOf("private void OnModelsChanged(", StringComparison.Ordinal);
+        Assert.True(changed >= 0);
+        var handler = section.Substring(changed, section.IndexOf("private ", changed + 10, StringComparison.Ordinal) - changed);
+        Assert.Contains("_list.Clear()", handler, StringComparison.Ordinal);
+        Assert.Contains("RefreshList()", handler, StringComparison.Ordinal);
+        Assert.Contains("Panel_Model_FbxListReset_Status", handler, StringComparison.Ordinal);
+
+        int add = section.IndexOf("private void OnAddSelected(", StringComparison.Ordinal);
+        var onAdd = section.Substring(add, section.IndexOf("private void OnRemove(", add, StringComparison.Ordinal) - add);
+        Assert.Contains("var added = _list.Add(", onAdd, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TheModelTabHostsTheSectionAndThePanelDisposesIt()
     {
