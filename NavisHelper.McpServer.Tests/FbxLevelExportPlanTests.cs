@@ -48,9 +48,10 @@ public sealed class FbxLevelExportPlanTests
         return (new[] { f1, f2 }, nodes);
     }
 
+    // Level N of the tree is depth N-1 below the root items (the level-only planner was removed).
     private static FbxLevelExportPlan Build(IReadOnlyList<IFbxTreeNode> roots, int level)
     {
-        var plan = FbxLevelExportPlan.Build(roots, level, out var error);
+        var plan = FbxLevelExportPlan.BuildFromItems(roots, roots, level - 1, out var error);
         Assert.True(error == null, error);
         Assert.NotNull(plan);
         return plan;
@@ -100,29 +101,11 @@ public sealed class FbxLevelExportPlanTests
         Assert.Equal(new[] { "F2", "G" }, Names(FbxLevelExportPlan.UnhideSet(hide)));
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(21)]
-    public void ALevelOutsideOneToTwentyIsRefused(int level)
-    {
-        var (roots, _) = Model();
-        Assert.Null(FbxLevelExportPlan.Build(roots, level, out var error));
-        Assert.Contains("level", error, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void ALevelWithNoItemsIsRefused()
-    {
-        var (roots, _) = Model();
-        Assert.Null(FbxLevelExportPlan.Build(roots, 4, out var error));
-        Assert.Contains("no items", error, StringComparison.OrdinalIgnoreCase);
-    }
-
     [Fact]
     public void MoreThanFiveThousandItemsIsRefusedWithTheCount()
     {
         var wide = new Node("F", "File", false, Enumerable.Range(1, 5001).Select(i => new Node("n" + i)).ToArray());
-        Assert.Null(FbxLevelExportPlan.Build(new IFbxTreeNode[] { wide }, 2, out var error));
+        Assert.Null(FbxLevelExportPlan.BuildFromItems(new IFbxTreeNode[] { wide }, new IFbxTreeNode[] { wide }, 1, out var error));
         Assert.Contains("5001", error, StringComparison.Ordinal);
 
         var limit = new Node("F", "File", false, Enumerable.Range(1, 5000).Select(i => new Node("n" + i)).ToArray());

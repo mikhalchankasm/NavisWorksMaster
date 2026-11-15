@@ -72,7 +72,7 @@ public sealed class FbxLevelExportJobTests
             return node;
         }
         var roots = new IFbxTreeNode[] { N("F1", N("A", N("a1"), N("a2")), N("B", N("b1"))), N("F2", N("C")) };
-        var plan = FbxLevelExportPlan.Build(roots, level, out var error);
+        var plan = FbxLevelExportPlan.BuildFromItems(roots, roots, level - 1, out var error);
         Assert.True(error == null, error);
         return (plan, nodes);
     }
@@ -303,7 +303,7 @@ public sealed class FbxLevelExportJobTests
     public void TheStatusReportsProgressAndTheLastTwentyFiles()
     {
         var root = new Node("F", Enumerable.Range(1, 25).Select(i => new Node("n" + i)).ToArray());
-        var plan = FbxLevelExportPlan.Build(new IFbxTreeNode[] { root }, 2, out _);
+        var plan = FbxLevelExportPlan.BuildFromItems(new IFbxTreeNode[] { root }, new IFbxTreeNode[] { root }, 1, out _);
         var host = new Host();
         var job = FbxLevelExportJob.Start("fbx-job-25", plan, Folder, false, host, null, T0);
 
@@ -311,7 +311,7 @@ public sealed class FbxLevelExportJobTests
         Assert.Equal("fbx-job-25", running.OperationId);
         Assert.Equal(FbxLevelExportJobStates.Running, running.State);
         Assert.True(running.IsRunning);
-        Assert.Equal(2, running.Depth);
+        Assert.Equal(1, running.Depth); // level 2 of the tree is depth 1 below the root
         Assert.Equal(Folder, running.Folder);
         Assert.Equal(25, running.TotalItems);
         Assert.Equal(0, running.ExportedItems);

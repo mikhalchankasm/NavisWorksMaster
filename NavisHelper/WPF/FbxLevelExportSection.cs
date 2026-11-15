@@ -41,6 +41,7 @@ namespace NavisHelper.WPF
         private string _statusKey;
         private object[] _statusArguments = new object[0];
         private bool _disposed;
+        private bool _running;
 
         internal FbxLevelExportSection(PanelLocalizationBindings bindings, Dispatcher dispatcher,
             Action<string, Brush, object[]> setStatusResource)
@@ -155,7 +156,10 @@ namespace NavisHelper.WPF
                     ShowStatus("Panel_Model_FbxNothingSelected_Status", UiTheme.Warning);
                 // A duplicate-only Add leaves the rows as they are (Codex review P3).
                 if (added > 0 || reset)
+                {
+                    ClearStaleStatus();
                     RefreshList();
+                }
                 if (reset) ShowStatus("Panel_Model_FbxListReset_Status", UiTheme.Warning);
             });
         }
@@ -165,13 +169,14 @@ namespace NavisHelper.WPF
             Execute(() =>
             {
                 _list.Remove(_listBox.SelectedItems.Cast<ListBoxItem>().Select(row => (ModelItem)row.Tag));
+                ClearStaleStatus();
                 RefreshList();
             });
         }
 
         private void OnClear(object sender, RoutedEventArgs args)
         {
-            Execute(() => { _list.Clear(); RefreshList(); });
+            Execute(() => { _list.Clear(); ClearStaleStatus(); RefreshList(); });
         }
 
         // Navisworks keeps one Document instance when another file is opened, the same file is
@@ -197,6 +202,7 @@ namespace NavisHelper.WPF
             if (_disposed || _list.Count == 0)
                 return;
             _list.Clear();
+            ClearStaleStatus();
             RefreshList();
             ShowStatus("Panel_Model_FbxListReset_Status", UiTheme.Warning);
         }
@@ -314,6 +320,7 @@ namespace NavisHelper.WPF
 
         private void SetRunning(bool running)
         {
+            _running = running;
             _start.IsEnabled = !running;
             _cancel.IsEnabled = running;
             if (!running) _timer.Stop();
@@ -323,6 +330,16 @@ namespace NavisHelper.WPF
         {
             SetRunning(false);
             ShowStatus("Panel_Model_FbxFailed_Status", UiTheme.Error, message);
+        }
+
+        // An edit of the list makes the last job's result and its full progress bar stale (#444
+        // L3); a running job keeps its progress line.
+        private void ClearStaleStatus()
+        {
+            if (_running) return;
+            _statusKey = null;
+            _status.Text = string.Empty;
+            _progress.Value = 0;
         }
 
         private void ShowStatus(string key, Brush color, params object[] arguments)

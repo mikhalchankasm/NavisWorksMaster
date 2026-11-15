@@ -68,7 +68,6 @@ namespace NavisHelper.Agent.Services
                     @"A fully qualified folder path is required, such as D:\export\fbx or \\server\share\fbx.");
 
             folder = Path.GetFullPath(folder);
-            Directory.CreateDirectory(folder);
             var roots = new List<IFbxTreeNode>();
             foreach (ModelItem item in document.Models.RootItems)
                 roots.Add(new ModelItemFbxNode(item));
@@ -92,6 +91,9 @@ namespace NavisHelper.Agent.Services
                 {
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, exception.Message);
                 }
+                // Only an accepted start creates the folder (#444 L3: a refused one left it empty).
+                // A folder that cannot be created throws here, before the job is published.
+                Directory.CreateDirectory(folder);
                 _job = job;
                 _serviceError = null;
             }
