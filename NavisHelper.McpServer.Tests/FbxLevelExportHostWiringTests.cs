@@ -69,6 +69,8 @@ public sealed class FbxLevelExportHostWiringTests
                      // epsilon2: matchHandles or useSelection=true, resolved like find_duplicate_geometry.
                      "ItemAppearanceRules.DescribeTargetError(", "CurrentSelection.SelectedItems",
                      "ErrorCodes.StaleMatchReference",
+                     // Codex review of epsilon2, P3: repeated handles and items are dropped before wrapping.
+                     ".Distinct(StringComparer.Ordinal)", "seen.Add(item)",
                  })
             Assert.Contains(expected, service, StringComparison.Ordinal);
         // The root-level mode is gone from the host (owner, 2026-11-15).
