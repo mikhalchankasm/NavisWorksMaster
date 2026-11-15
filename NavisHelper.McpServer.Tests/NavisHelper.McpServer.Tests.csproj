@@ -27,6 +27,8 @@
              Link="HostServices\FindItemsMatchSet.cs" />
     <Compile Include="..\NavisHelper.AutomationRunner\DatasmithExportArguments.cs"
              Link="AutomationRunner\DatasmithExportArguments.cs" />
+    <Compile Include="..\NavisHelper.AutomationRunner\NwdCopyArguments.cs"
+             Link="AutomationRunner\NwdCopyArguments.cs" />
     <Compile Include="..\NavisHelper.AutomationRunner\RunnerResult.cs"
              Link="AutomationRunner\RunnerResult.cs" />
     <Compile Include="..\NavisHelper.AutomationRunner\NavisworksProcessSelection.cs"

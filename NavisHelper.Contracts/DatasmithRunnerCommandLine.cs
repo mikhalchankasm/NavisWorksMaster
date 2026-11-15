@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -9,8 +10,11 @@ namespace NavisHelper.Agent.Contracts
     public static class DatasmithRunnerCommandLine
     {
         public static IReadOnlyList<string> BuildArguments(string navisworksDirectory, string sourcePath,
-            string outputPath, int? mergeLevel, double[] origin, bool includeMetadata, bool overwrite, string jobName)
+            string outputPath, int? mergeLevel, double[] origin, bool includeMetadata, bool overwrite, string jobName,
+            string convertNavisworksDirectory = null, int? convertFileVersion = null)
         {
+            if ((convertNavisworksDirectory == null) != !convertFileVersion.HasValue)
+                throw new ArgumentException("convertNavisworksDirectory and convertFileVersion must be supplied together.");
             if (mergeLevel < 0)
                 throw new ArgumentException("mergeLevel must be nonnegative when supplied.");
             if (origin != null && (origin.Length != 3 || origin.Any(value => double.IsNaN(value) || double.IsInfinity(value))))
@@ -30,7 +34,16 @@ namespace NavisHelper.Agent.Contracts
                 arguments.Add("--overwrite");
             if (jobName != null)
                 arguments.AddRange(new[] { "--job", jobName });
+            if (convertNavisworksDirectory != null)
+                arguments.AddRange(new[] { "--convert-navisworks-dir", convertNavisworksDirectory,
+                    "--convert-file-version", convertFileVersion.Value.ToString(CultureInfo.InvariantCulture) });
             return arguments;
+        }
+
+        public static string FindConvertNavisworksDirectory(string programFiles)
+        {
+            var directory = Path.Combine(programFiles, "Autodesk", "Navisworks Manage 2027");
+            return File.Exists(Path.Combine(directory, "Autodesk.Navisworks.Automation.dll")) ? directory : null;
         }
 
         public static string Join(IEnumerable<string> arguments) => string.Join(" ", arguments.Select(Quote));

@@ -16,6 +16,8 @@ namespace NavisHelper.AutomationRunner
         public bool IncludeMetadata { get; set; }
         public bool Overwrite { get; set; }
         public string JobName { get; set; }
+        public string ConvertNavisworksDirectory { get; set; }
+        public int? ConvertFileVersion { get; set; }
 
         public static DatasmithExportArguments Parse(string[] args, out string error)
         {
@@ -36,6 +38,8 @@ namespace NavisHelper.AutomationRunner
                     case "--merge":
                     case "--origin":
                     case "--job":
+                    case "--convert-navisworks-dir":
+                    case "--convert-file-version":
                     case "--include-metadata":
                     case "--overwrite":
                         break;
@@ -65,6 +69,13 @@ namespace NavisHelper.AutomationRunner
                     case "--navisworks-dir": parsed.NavisworksDirectory = value; break;
                     case "--source": parsed.SourcePath = value; break;
                     case "--output": parsed.OutputPath = value; break;
+                    case "--convert-navisworks-dir": parsed.ConvertNavisworksDirectory = value; break;
+                    case "--convert-file-version":
+                        int version;
+                        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out version) || version < 2015)
+                            return Fail("--convert-file-version must be an integer >= 2015.", out error);
+                        parsed.ConvertFileVersion = version;
+                        break;
                     case "--job":
                         if (!Regex.IsMatch(value, @"\ALocal\\NavisHelper-Datasmith-[0-9a-f]{32}\z", RegexOptions.CultureInvariant))
                             return Fail("--job must be a server Datasmith job name.", out error);
@@ -102,6 +113,10 @@ namespace NavisHelper.AutomationRunner
                 return Fail("--source must be an absolute drive or UNC path.", out error);
             if (!IsAbsolute(parsed.OutputPath))
                 return Fail("--output must be an absolute drive or UNC path.", out error);
+            if ((parsed.ConvertNavisworksDirectory == null) != !parsed.ConvertFileVersion.HasValue)
+                return Fail("--convert-navisworks-dir and --convert-file-version must be supplied together.", out error);
+            if (parsed.ConvertNavisworksDirectory != null && !IsAbsolute(parsed.ConvertNavisworksDirectory))
+                return Fail("--convert-navisworks-dir must be an absolute drive or UNC path.", out error);
 
             string extension = Path.GetExtension(parsed.SourcePath);
             if (!string.Equals(extension, ".nwd", StringComparison.OrdinalIgnoreCase) &&
@@ -128,7 +143,7 @@ namespace NavisHelper.AutomationRunner
             return parameters.ToArray();
         }
 
-        private static bool IsAbsolute(string path)
+        internal static bool IsAbsolute(string path)
         {
             try
             {

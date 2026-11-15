@@ -36,11 +36,14 @@ internal static class DatasmithExportPlan
         return seconds;
     }
 
-    internal static IReadOnlyList<string> BuildRunnerArguments(StartDatasmithExportRequest request, string navisworksDirectory, string jobName = null)
+    internal static IReadOnlyList<string> BuildRunnerArguments(StartDatasmithExportRequest request, string navisworksDirectory,
+        string jobName = null, string convertNavisworksDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         return DatasmithRunnerCommandLine.BuildArguments(navisworksDirectory, request.SourcePath, request.OutputPath,
-            request.MergeLevel, request.Origin, request.IncludeMetadata, request.Overwrite, jobName);
+            request.MergeLevel, request.Origin, request.IncludeMetadata, request.Overwrite, jobName, convertNavisworksDirectory,
+            convertNavisworksDirectory == null ? null : int.Parse(string.IsNullOrWhiteSpace(request.NavisworksVersion)
+                ? DefaultNavisworksVersion : request.NavisworksVersion.Trim(), CultureInfo.InvariantCulture));
     }
 
     internal static DatasmithRunnerOutcome ParseRunnerOutput(string stdout, int exitCode)
