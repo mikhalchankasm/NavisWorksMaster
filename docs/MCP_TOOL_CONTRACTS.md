@@ -100,6 +100,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `build_mtr_viewpoints` | View, Document | Yes | Yes | Yes |
 | `cancel_clash_report` | LocalState | Yes | No | No |
 | `cancel_clash_run` | LocalState | Yes | No | No |
+| `cancel_fbx_level_export` | LocalState | Yes | No | No |
 | `cancel_subtree_names_dump` | Files, LocalState | Yes | No | No |
 | `capture_current_view` | Files | Yes | Yes | Yes |
 | `clash_batchtest_import` | Document | Yes | Yes | Yes |
@@ -142,6 +143,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `delete_scenario` | Files, LocalState | No | No | Yes |
 | `dump_subtree_names` | Files | Yes | Yes | No |
 | `dump_subtree_names_status` | Files, LocalState | Yes | Yes | No |
+| `fbx_level_export_status` | None | Yes | No | No |
 | `find_duplicate_geometry` | None | Yes | Yes | No |
 | `find_items` | None | Yes | Yes | No |
 | `find_items_by_bbox` | None | Yes | Yes | No |
@@ -212,6 +214,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `set_view_display_settings` | View, Document | Yes | Yes | Yes |
 | `show_all` | View | Yes | Yes | Yes |
 | `start_datasmith_export` | Files, Host | No | No | No |
+| `start_fbx_level_export` | Document, Files | Yes | Yes | No |
 | `start_navisworks` | Host | No | No | No |
 | `start_save_document` | Document, Files | Yes | Yes | No |
 | `start_subtree_names_dump` | Files, LocalState | Yes | Yes | No |
@@ -2262,6 +2265,55 @@ Navisworks UI thread, so it replies while the save is still writing. An unknown
 or superseded `operationId` returns `command_failed`. Like the other status
 polls it is never recorded in the operation history, so it cannot evict the
 call you actually care about from `last_operation_status`.
+
+## `start_fbx_level_export`
+
+Starts a host-owned job exporting every Selection Tree item at one level of the
+active model to its own FBX file. Returns immediately with `operationId` and
+`instanceId`; pass both to status and cancellation calls to target the owning host.
+
+| Input | Type | Default | Meaning |
+|---|---|---:|---|
+| `level` | int | required | Selection Tree level, 1..20. Level 1 is the root items (model files); level 2 is their children. |
+| `folder` | string | required | Fully qualified output folder, created if missing. |
+| `overwrite` | bool | `false` | Allow replacing existing target FBX files. |
+| `instanceId` | string | `""` | Explicit host instance from `list_navisworks_hosts`. |
+| `navisworksVersion` | string | `""` | Host version; use only when exactly one host of that version is running. |
+
+For each item the job hides everything else, exports, then restores visibility.
+Items hidden by the user are skipped. Files are named `NNN_<name>.fbx` in tree
+order. Existing targets are refused unless `overwrite=true`; levels containing
+more than 5000 items are refused. FBX settings come from
+Options Editor > File Exporters > FBX. A single item can keep Navisworks busy for
+minutes; poll status while it runs.
+
+All three tools return `FbxLevelExportStatusResponse`: `operationId`, `instanceId`,
+`state` (`running|completed|failed|canceled`), `isRunning`, `level`, `folder`,
+`totalItems`, `exportedItems`, `skippedItems`, `currentItem`, `files`,
+`errorMessage`, `elapsedMs`, `startedAtUtc`, `completedAtUtc`, `message`.
+`files` contains the last 20 exported files, each with `index`, `name`, `path`,
+`bytes` and `elapsedMs`; the counts describe the whole job.
+
+The exporter probe used `DriveIOPlugin` / `LcFbxExporterPlugin` without a dialog
+and observed about 11 MB/s on a 908 MB model. These are exporter probe facts,
+not MCP round-trip measurements; L3 validation of these tools is pending.
+
+## `fbx_level_export_status`
+
+Inputs: required `operationId`, optional `instanceId` and `navisworksVersion`
+(both default to `""`). Returns the shared status response above, including state,
+counts, current item and the last 20 files. Read-only; requires the owning host
+but no active document. Bypasses `host_busy` and answers without the Navisworks
+UI thread while an item is being exported.
+
+## `cancel_fbx_level_export`
+
+Inputs: required `operationId`, optional `instanceId` and `navisworksVersion`
+(both default to `""`). Requires the owning host but no active document. Requests
+cancellation before the next item and returns the shared status response.
+The running export cannot be interrupted; visibility is restored after every
+item. Poll `fbx_level_export_status` until the job reaches a terminal state;
+the cancellation response can still be `running`.
 
 ## `start_datasmith_export`
 

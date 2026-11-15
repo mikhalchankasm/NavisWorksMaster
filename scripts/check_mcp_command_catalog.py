@@ -105,7 +105,7 @@ def check_documented_tool_counts(root: Path, tool_count: int) -> list[str]:
             (r"generated (\d+)-row index", tool_count),
         ],
         "README.ru.md": [
-            (r"В исходниках зарегистрировано \*\*(\d+) разных MCP-инструментов\*\*", tool_count),
+            (r"В исходниках зарегистрировано \*\*(\d+) разных MCP-инструмент(?:а|ов)\*\*", tool_count),
             (r"из (\d+) методов `\[McpServerTool\]`", tool_count),
             (r"индекс из (\d+) строк", tool_count),
         ],
@@ -119,7 +119,7 @@ def check_documented_tool_counts(root: Path, tool_count: int) -> list[str]:
         ],
         "docs/reference/README_FULL.ru.md": [
             (r"Не требуется для (\d+) зарегистрированных MCP-инструментов", tool_count),
-            (r"Текущий сервер регистрирует (\d+) инструментов\.", tool_count),
+            (r"Текущий сервер регистрирует (\d+) инструмент(?:а|ов)\.", tool_count),
         ],
     }
     errors = []
