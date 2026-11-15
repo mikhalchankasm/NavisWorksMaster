@@ -21,6 +21,8 @@ namespace NavisHelper.WPF
         private readonly DispatcherTimer _timer;
         private readonly StackPanel _root = new StackPanel();
         private readonly FbxExportList<ModelItem> _list = new FbxExportList<ModelItem>();
+        private DocumentModels _watchedModels;
+        private int _modelsGeneration;
         private readonly ListBox _listBox = new ListBox { Height = 140, SelectionMode = SelectionMode.Extended };
         private readonly TextBlock _count = new TextBlock();
         private readonly Button _addSelected;
@@ -171,15 +173,34 @@ namespace NavisHelper.WPF
             Execute(() => { _list.Clear(); RefreshList(); });
         }
 
-        // Navisworks keeps one Document instance when another file is opened or a model is removed,
-        // so the list is bound to the document's identity, file name and model count (review P2).
-        private static string OwnerKey(Document document)
+        // Navisworks keeps one Document instance when another file is opened, the same file is
+        // reopened or a model is swapped, so the list is bound to the document's identity, file name,
+        // model count and a generation bumped by every change of its models (Codex review P2, twice).
+        private void Watch(Document document)
         {
+            if (!ReferenceEquals(_watchedModels, document.Models))
+            {
+                if (_watchedModels != null)
+                    _watchedModels.CollectionChanged -= OnModelsChanged;
+                _watchedModels = document.Models;
+                _watchedModels.CollectionChanged += OnModelsChanged;
+            }
+        }
+
+        private void OnModelsChanged(object sender, EventArgs args)
+        {
+            _modelsGeneration++;
+        }
+
+        private string OwnerKey(Document document)
+        {
+            Watch(document);
             string fileName;
             try { fileName = document.FileName ?? string.Empty; }
             catch (Exception) { fileName = string.Empty; }
             return RuntimeHelpers.GetHashCode(document).ToString(CultureInfo.InvariantCulture) + "|" + fileName
-                + "|" + document.Models.Count.ToString(CultureInfo.InvariantCulture);
+                + "|" + document.Models.Count.ToString(CultureInfo.InvariantCulture)
+                + "|" + _modelsGeneration.ToString(CultureInfo.InvariantCulture);
         }
 
         private void RefreshList()
@@ -324,6 +345,7 @@ namespace NavisHelper.WPF
             _browse.Click -= OnBrowse;
             _start.Click -= OnStart;
             _cancel.Click -= OnCancel;
+            if (_watchedModels != null) _watchedModels.CollectionChanged -= OnModelsChanged;
             _addSelected.Click -= OnAddSelected;
             _remove.Click -= OnRemove;
             _clear.Click -= OnClear;
