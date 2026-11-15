@@ -1216,12 +1216,17 @@ namespace NavisHelper.Agent.Services
             GroupItem currentFolder = savedViewpoints.RootItem;
             foreach (var segment in segments)
             {
-                var nextFolder = FindChildGroupByName(currentFolder, segment);
+                var nextFolder = FindChildViewpointFolder(currentFolder, segment);
                 if (nextFolder != null)
                 {
                     currentFolder = nextFolder;
                     continue;
                 }
+
+                if (currentFolder.Children.OfType<GroupItem>().Any(item => !(item is FolderItem)
+                    && string.Equals(item.DisplayName, segment, StringComparison.OrdinalIgnoreCase)))
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation,
+                        "'" + segment + "' in folderPath is a viewpoint animation, not a folder.");
 
                 folderExists = false;
                 if (!createIfMissing)
@@ -1235,7 +1240,7 @@ namespace NavisHelper.Agent.Services
                     DisplayName = segment,
                 });
 
-                nextFolder = FindChildGroupByName(currentFolder, segment);
+                nextFolder = FindChildViewpointFolder(currentFolder, segment);
                 if (nextFolder == null)
                     throw new AgentCommandException(ErrorCodes.CommandFailed, "Failed to create viewpoint folder: " + segment);
 
@@ -1245,6 +1250,16 @@ namespace NavisHelper.Agent.Services
 
             targetFolder = currentFolder;
             return true;
+        }
+
+        private static GroupItem FindChildViewpointFolder(GroupItem parent, string name)
+        {
+            if (parent == null || string.IsNullOrWhiteSpace(name))
+                return null;
+
+            return parent.Children
+                .OfType<FolderItem>()
+                .FirstOrDefault(item => string.Equals(item.DisplayName, name, StringComparison.OrdinalIgnoreCase));
         }
 
         private static GroupItem FindChildGroupByName(GroupItem parent, string name)
