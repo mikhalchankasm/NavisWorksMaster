@@ -60,6 +60,9 @@ public sealed class FbxLevelExportPanelTests
                      "FbxExportList<ModelItem>", "new ListBox", ".BindTo(OwnerKey(document))",
                      // review P2: one Document instance survives opening another file.
                      "document.FileName", "document.Models.Count",
+                     // second review P2: reopening the same file or swapping a model keeps that key, so
+                     // every change of the document's models bumps a generation in it.
+                     "Models.CollectionChanged +=", "_modelsGeneration",
                      "CurrentSelection.SelectedItems", ".Start(document,", "FolderPickerDialog.Show(",
                      "DispatcherTimer", "FbxLevelExportJobStates.Running",
                  })
@@ -99,6 +102,9 @@ public sealed class FbxLevelExportPanelTests
         Assert.Contains("new FbxLevelExportSection(", panel, StringComparison.Ordinal);
         Assert.Contains("_fbxLevelExportSection.Build()", panel, StringComparison.Ordinal);
         Assert.Contains("_fbxLevelExportSection?.Dispose()", panel, StringComparison.Ordinal);
+        var section = Read("NavisHelper", "WPF", "FbxLevelExportSection.cs");
+        var dispose = section.Substring(section.IndexOf("public void Dispose()", StringComparison.Ordinal));
+        Assert.Contains("CollectionChanged -=", dispose, StringComparison.Ordinal);
 
         int modelTab = panel.IndexOf("private TabItem CreateModelTab()", StringComparison.Ordinal);
         int colorsTab = panel.IndexOf("private TabItem CreateColorsTab()", StringComparison.Ordinal);
