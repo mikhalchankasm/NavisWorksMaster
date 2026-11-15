@@ -27,6 +27,11 @@ public sealed class SelectBySearchParentScopeAcceptanceTests
         var walk = Member("private static List<ModelItem> CollectParentScopeMatches(ModelItem parent, FindItemsSearch search, bool directChildrenOnly)");
 
         Assert.Contains("PrepareManualSearch(search)", walk, StringComparison.Ordinal);
+        // L3 on 6501.5 (2026-11-15): raw conditions carry `comparison` only, and the manual matcher
+        // reads the normalized Operator, so a wildcard matched nothing until the walk normalized them.
+        int normalize = walk.IndexOf("search = NormalizeStructuredSearch(search);", StringComparison.Ordinal);
+        Assert.True(normalize > 0 && normalize < walk.IndexOf("PrepareManualSearch(search)", StringComparison.Ordinal),
+            "the walk normalizes the conditions before preparing the manual matcher");
         Assert.Contains("MatchesSearchManually(", walk, StringComparison.Ordinal);
         Assert.Contains(".Children", walk, StringComparison.Ordinal);
         Assert.Contains("MaxScopedTraversalMilliseconds", walk, StringComparison.Ordinal);
