@@ -31,6 +31,22 @@ public sealed class ClashRenumberNameHelperTests
         Assert.Equal("0001 - Pump Station [NH:B]", result);
     }
 
+    [Theory]
+    [InlineData("12470-14-1400 [NH:B]", "0001 - 12470-14-1400 [NH:B]")]
+    [InlineData("01 Pipe", "0001 - 01 Pipe")]
+    [InlineData("12. Pump Station", "0001 - 12. Pump Station")]
+    [InlineData("[003] Pump Station", "0001 - [003] Pump Station")]
+    [InlineData("0007- Pump Station", "0001 - 0007- Pump Station")]
+    [InlineData("0007 -Pump Station", "0001 - 0007 -Pump Station")]
+    public void BuildName_PreservesLeadingNumbersOutsideRenumberPrefix(string oldName, string expected)
+    {
+        var result = ClashRenumberNameHelper.BuildName(
+            oldName, "0001", "", "", " - ",
+            preserveExistingName: true, stripExistingNumber: true);
+
+        Assert.Equal(expected, result);
+    }
+
     [Fact]
     public void BuildName_CanKeepExistingNumberInsidePreservedName()
     {

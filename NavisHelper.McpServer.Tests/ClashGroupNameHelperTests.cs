@@ -28,9 +28,15 @@ public sealed class ClashGroupNameHelperTests
 
     [Theory]
     [InlineData("0001 - Pump Station", "Pump Station")]
-    [InlineData("12. Pump Station", "Pump Station")]
-    [InlineData("[003] Pump Station", "Pump Station")]
-    [InlineData("(004): Pump Station", "Pump Station")]
+    [InlineData("12. Pump Station", "12. Pump Station")]
+    [InlineData("[003] Pump Station", "[003] Pump Station")]
+    [InlineData("(004): Pump Station", "(004): Pump Station")]
+    [InlineData("12470-14-1400", "12470-14-1400")]
+    [InlineData("0001 - X", "X")]
+    [InlineData("01 Pipe", "01 Pipe")]
+    [InlineData("0001- X", "0001- X")]
+    [InlineData("0001 -X", "0001 -X")]
+    [InlineData("1\t-\tX", "X")]
     [InlineData("NHX-0001 Pump Station", "NHX-0001 Pump Station")]
     [InlineData("Pump Station", "Pump Station")]
     public void StripLeadingNumber_RemovesOnlyLeadingRenumberPrefix(string value, string expected)
@@ -67,6 +73,16 @@ public sealed class ClashGroupNameHelperTests
             "Pump Station [NH:B]");
 
         Assert.Equal("0001 - Pump Station [NH:B]", match);
+    }
+
+    [Theory]
+    [InlineData("12470-14-1400 [NH:B]", "12471-14-1400 [NH:B]")]
+    [InlineData("01 Pipe [NH:B]", "02 Pipe [NH:B]")]
+    [InlineData("Pump Station [NH:B]", "0003 - Pump Station [NH:B]")]
+    [InlineData("0001 - Pump Station [NH:B]", "0003 - Pump Station [NH:B]")]
+    public void FindMatchingGroupName_PreservesCallerSuppliedLeadingNumber(string existing, string requested)
+    {
+        Assert.Null(ClashGroupNameHelper.FindMatchingGroupName(new[] { existing }, requested));
     }
 
     [Fact]
