@@ -1,10 +1,12 @@
 using System;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Autodesk.Navisworks.Api;
 using NavisHelper.Agent;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Agent.Services;
@@ -18,6 +20,14 @@ namespace NavisHelper.WPF
         private readonly Action<string, Brush, object[]> _setStatusResource;
         private readonly DispatcherTimer _timer;
         private readonly StackPanel _root = new StackPanel();
+        private readonly FbxExportList<ModelItem> _list = new FbxExportList<ModelItem>();
+        private Autodesk.Navisworks.Api.DocumentParts.DocumentModels _watchedModels;
+        private int _modelsGeneration;
+        private readonly ListBox _listBox = new ListBox { Height = 140, SelectionMode = SelectionMode.Extended };
+        private readonly TextBlock _count = new TextBlock();
+        private readonly Button _addSelected;
+        private readonly Button _remove;
+        private readonly Button _clear;
         private readonly ComboBox _depth = new ComboBox();
         private readonly TextBox _folder = new TextBox();
         private readonly CheckBox _overwrite = new CheckBox();
@@ -52,6 +62,17 @@ namespace NavisHelper.WPF
             };
             _bindings.BindText(header, "Panel_Model_Group_FbxByLevel");
             _root.Children.Add(header);
+            _root.Children.Add(_listBox);
+            _bindings.BindFormattedText(_count, "Panel_Model_FbxListCount_Label", () => new object[] { _list.Count });
+            _root.Children.Add(_count);
+            _addSelected = Button("Panel_Model_FbxAddSelected_Action", OnAddSelected);
+            _remove = Button("Panel_Model_FbxRemove_Action", OnRemove);
+            _clear = Button("Panel_Model_FbxClear_Action", OnClear);
+            var listActions = new StackPanel { Orientation = Orientation.Horizontal };
+            listActions.Children.Add(_addSelected);
+            listActions.Children.Add(_remove);
+            listActions.Children.Add(_clear);
+            _root.Children.Add(listActions);
             _root.Children.Add(Label("Panel_Model_FbxLevel_Label"));
             for (var depth = 0; depth <= 20; depth++) _depth.Items.Add(depth);
             _depth.SelectedIndex = 0;
@@ -117,6 +138,88 @@ namespace NavisHelper.WPF
             });
         }
 
+        private void OnAddSelected(object sender, RoutedEventArgs args)
+        {
+            Execute(() =>
+            {
+                var document = Autodesk.Navisworks.Api.Application.ActiveDocument;
+                if (document == null || document.IsClear)
+                {
+                    ShowStatus("Panel_Model_FbxNoDocument_Status", UiTheme.Warning);
+                    return;
+                }
+                var reset = _list.BindTo(OwnerKey(document));
+                var selection = document.CurrentSelection.SelectedItems;
+                var added = _list.Add(selection);
+                if (selection.Count == 0)
+                    ShowStatus("Panel_Model_FbxNothingSelected_Status", UiTheme.Warning);
+                // A duplicate-only Add leaves the rows as they are (Codex review P3).
+                if (added > 0 || reset)
+                    RefreshList();
+                if (reset) ShowStatus("Panel_Model_FbxListReset_Status", UiTheme.Warning);
+            });
+        }
+
+        private void OnRemove(object sender, RoutedEventArgs args)
+        {
+            Execute(() =>
+            {
+                _list.Remove(_listBox.SelectedItems.Cast<ListBoxItem>().Select(row => (ModelItem)row.Tag));
+                RefreshList();
+            });
+        }
+
+        private void OnClear(object sender, RoutedEventArgs args)
+        {
+            Execute(() => { _list.Clear(); RefreshList(); });
+        }
+
+        // Navisworks keeps one Document instance when another file is opened, the same file is
+        // reopened or a model is swapped, so the list is bound to the document's identity and a
+        // generation bumped by every change of its models. Not the file name: Save As renames the
+        // document while its items stay valid (Codex reviews of epsilon3).
+        private void Watch(Document document)
+        {
+            if (!ReferenceEquals(_watchedModels, document.Models))
+            {
+                if (_watchedModels != null)
+                    _watchedModels.CollectionChanged -= OnModelsChanged;
+                _watchedModels = document.Models;
+                _watchedModels.CollectionChanged += OnModelsChanged;
+            }
+        }
+
+        private void OnModelsChanged(object sender, EventArgs args)
+        {
+            _modelsGeneration++;
+            // Drop the old ModelItems at once: Remove and the row text must never read them after
+            // their model was unloaded (third Codex review, P2).
+            if (_disposed || _list.Count == 0)
+                return;
+            _list.Clear();
+            RefreshList();
+            ShowStatus("Panel_Model_FbxListReset_Status", UiTheme.Warning);
+        }
+
+        private string OwnerKey(Document document)
+        {
+            Watch(document);
+            return RuntimeHelpers.GetHashCode(document).ToString(CultureInfo.InvariantCulture)
+                + "|" + _modelsGeneration.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private void RefreshList()
+        {
+            _listBox.Items.Clear();
+            foreach (var item in _list.Items)
+            {
+                var text = string.IsNullOrEmpty(item.DisplayName) ? item.ClassDisplayName : item.DisplayName;
+                if (item.Parent != null) text += " — " + item.Parent.DisplayName;
+                _listBox.Items.Add(new ListBoxItem { Content = text, ToolTip = text, Tag = item });
+            }
+            _bindings.Refresh();
+        }
+
         private void OnStart(object sender, RoutedEventArgs args)
         {
             _progress.Value = 0;
@@ -134,8 +237,18 @@ namespace NavisHelper.WPF
                     ShowStatus("Panel_Model_FbxNoDocument_Status", UiTheme.Warning);
                     return;
                 }
-                var items = document.CurrentSelection.SelectedItems.ToList();
-                var response = _service.Start(document, items, (int)_depth.SelectedItem,
+                if (_list.BindTo(OwnerKey(document)))
+                {
+                    RefreshList();
+                    ShowStatus("Panel_Model_FbxListReset_Status", UiTheme.Warning);
+                    return;
+                }
+                if (_list.Count == 0)
+                {
+                    ShowStatus("Panel_Model_FbxListEmpty_Status", UiTheme.Warning);
+                    return;
+                }
+                var response = _service.Start(document, _list.Items, (int)_depth.SelectedItem,
                     _folder.Text, _overwrite.IsChecked == true);
                 _service.Changed -= OnJobChanged;
                 _service.Changed += OnJobChanged;
@@ -237,6 +350,10 @@ namespace NavisHelper.WPF
             _browse.Click -= OnBrowse;
             _start.Click -= OnStart;
             _cancel.Click -= OnCancel;
+            if (_watchedModels != null) _watchedModels.CollectionChanged -= OnModelsChanged;
+            _addSelected.Click -= OnAddSelected;
+            _remove.Click -= OnRemove;
+            _clear.Click -= OnClear;
             _bindings.UnbindAction(this, "FbxLevelExport.Status");
         }
     }

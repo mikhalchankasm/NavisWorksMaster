@@ -27,6 +27,14 @@ public sealed class FbxLevelExportPanelTests
         "Panel_Model_FbxFailed_Status",
         "Panel_Model_FbxNoDocument_Status",
         "Panel_Model_FbxUnavailable_Status",
+        // epsilon3: the export list (owner, 2026-11-15).
+        "Panel_Model_FbxAddSelected_Action",
+        "Panel_Model_FbxRemove_Action",
+        "Panel_Model_FbxClear_Action",
+        "Panel_Model_FbxListCount_Label",
+        "Panel_Model_FbxListEmpty_Status",
+        "Panel_Model_FbxNothingSelected_Status",
+        "Panel_Model_FbxListReset_Status",
     };
 
     [Fact]
@@ -48,7 +56,12 @@ public sealed class FbxLevelExportPanelTests
         foreach (var expected in new[]
                  {
                      "AgentRuntime.FbxLevelExportJobs", ".Start(", ".Status(", ".Cancel(",
-                     // epsilon2 stopgap: depth over the current selection; the list table is epsilon3.
+                     // epsilon3: "Add selected" fills a list; Export sends the list.
+                     "FbxExportList<ModelItem>", "new ListBox", ".BindTo(OwnerKey(document))",
+                     // Reviews of epsilon3: one Document instance survives opening another file, and
+                     // reopening the same file keeps its name, so every change of the document's
+                     // models bumps a generation in the owner key.
+                     "Models.CollectionChanged +=", "_modelsGeneration",
                      "CurrentSelection.SelectedItems", ".Start(document,", "FolderPickerDialog.Show(",
                      "DispatcherTimer", "FbxLevelExportJobStates.Running",
                  })
@@ -69,12 +82,55 @@ public sealed class FbxLevelExportPanelTests
     }
 
     [Fact]
+    public void ExportSendsTheListNotTheCurrentSelection()
+    {
+        var section = Read("NavisHelper", "WPF", "FbxLevelExportSection.cs");
+        int start = section.IndexOf("private void OnStart(", StringComparison.Ordinal);
+        int end = section.IndexOf("private void OnCancel(", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var onStart = section.Substring(start, end - start);
+        Assert.DoesNotContain("CurrentSelection", onStart, StringComparison.Ordinal);
+        Assert.Contains(".Items", onStart, StringComparison.Ordinal);
+        Assert.Contains(".BindTo(OwnerKey(document))", onStart, StringComparison.Ordinal);
+    }
+
+    // Third Codex review of epsilon3: after a model change the rows still held the old ModelItems,
+    // and Remove or a refresh read them before any owner check. The list is now emptied in the
+    // models-changed handler itself, and a duplicate-only Add does not rebuild the rows (P3).
+    [Fact]
+    public void AModelChangeEmptiesTheListAtOnceAndRepeatsDoNotRebuildIt()
+    {
+        var section = Read("NavisHelper", "WPF", "FbxLevelExportSection.cs");
+        int changed = section.IndexOf("private void OnModelsChanged(", StringComparison.Ordinal);
+        Assert.True(changed >= 0);
+        var handler = section.Substring(changed, section.IndexOf("private ", changed + 10, StringComparison.Ordinal) - changed);
+        Assert.Contains("_list.Clear()", handler, StringComparison.Ordinal);
+        Assert.Contains("RefreshList()", handler, StringComparison.Ordinal);
+        Assert.Contains("Panel_Model_FbxListReset_Status", handler, StringComparison.Ordinal);
+
+        // Fourth review, P2: Save As changes FileName while the models stay valid, so the owner key
+        // is the document's identity and the models generation, not its file name or model count.
+        int key = section.IndexOf("private string OwnerKey(", StringComparison.Ordinal);
+        var ownerKey = section.Substring(key, section.IndexOf("private ", key + 10, StringComparison.Ordinal) - key);
+        Assert.Contains("_modelsGeneration", ownerKey, StringComparison.Ordinal);
+        Assert.DoesNotContain("FileName", ownerKey, StringComparison.Ordinal);
+        Assert.DoesNotContain("Models.Count", ownerKey, StringComparison.Ordinal);
+
+        int add = section.IndexOf("private void OnAddSelected(", StringComparison.Ordinal);
+        var onAdd = section.Substring(add, section.IndexOf("private void OnRemove(", add, StringComparison.Ordinal) - add);
+        Assert.Contains("var added = _list.Add(", onAdd, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TheModelTabHostsTheSectionAndThePanelDisposesIt()
     {
         var panel = Read("NavisHelper", "WPF", "NavisHelperPanel.cs");
         Assert.Contains("new FbxLevelExportSection(", panel, StringComparison.Ordinal);
         Assert.Contains("_fbxLevelExportSection.Build()", panel, StringComparison.Ordinal);
         Assert.Contains("_fbxLevelExportSection?.Dispose()", panel, StringComparison.Ordinal);
+        var section = Read("NavisHelper", "WPF", "FbxLevelExportSection.cs");
+        var dispose = section.Substring(section.IndexOf("public void Dispose()", StringComparison.Ordinal));
+        Assert.Contains("CollectionChanged -=", dispose, StringComparison.Ordinal);
 
         int modelTab = panel.IndexOf("private TabItem CreateModelTab()", StringComparison.Ordinal);
         int colorsTab = panel.IndexOf("private TabItem CreateColorsTab()", StringComparison.Ordinal);
