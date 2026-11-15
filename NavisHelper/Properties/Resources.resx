@@ -2641,4 +2641,14 @@ Unique names: {2}</value></data>
   <data name="Panel_Model_FbxFailed_Status" xml:space="preserve"><value>FBX export failed: {0}</value></data>
   <data name="Panel_Model_FbxNoDocument_Status" xml:space="preserve"><value>Open a model first</value></data>
   <data name="Panel_Model_FbxUnavailable_Status" xml:space="preserve"><value>The NavisHelper host is not running</value></data>
+  <data name="Panel_Export_Group_Datasmith" xml:space="preserve"><value>Twinmotion (Datasmith)</value></data>
+  <data name="Panel_Datasmith_Export_Action" xml:space="preserve"><value>Export to Datasmith...</value></data>
+  <data name="Panel_Datasmith_Cancel_Action" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Panel_Datasmith_Dialog_Title" xml:space="preserve"><value>Export the saved model to Datasmith</value></data>
+  <data name="Panel_Datasmith_Running_Status" xml:space="preserve"><value>Exporting through a hidden Navisworks 2026: {0} s</value></data>
+  <data name="Panel_Datasmith_Completed_Status" xml:space="preserve"><value>Exported: {0} ({1} MB)</value></data>
+  <data name="Panel_Datasmith_Failed_Status" xml:space="preserve"><value>Datasmith export failed: {0}</value></data>
+  <data name="Panel_Datasmith_Canceled_Status" xml:space="preserve"><value>Datasmith export canceled</value></data>
+  <data name="Panel_Datasmith_NotSaved_Status" xml:space="preserve"><value>Save the model first: the saved file is exported, not unsaved changes</value></data>
+  <data name="Panel_Datasmith_Unavailable_Status" xml:space="preserve"><value>Datasmith export is unavailable: {0} not found</value></data>
 </root>

@@ -50,6 +50,7 @@ namespace NavisHelper.WPF
 
         private NavisHelperSettingsTabBuilder _settingsTabBuilder;
         private FbxLevelExportSection _fbxLevelExportSection;
+        private DatasmithExportSection _datasmithExportSection;
 
 
         private TextBox _aiResponseLog;
@@ -371,6 +372,9 @@ namespace NavisHelper.WPF
             _fbxLevelExportSection = new FbxLevelExportSection(_panelLocalizationBindings, Dispatcher,
                 (k, c, a) => SetGlobalStatusResource(k, c, a), () => ClearGlobalStatus());
             stack.Children.Add(_fbxLevelExportSection.Build());
+            _datasmithExportSection = new DatasmithExportSection(_panelLocalizationBindings, Dispatcher,
+                (k, c, a) => SetGlobalStatusResource(k, c, a));
+            stack.Children.Add(CreateGroupCard("Panel_Export_Group_Datasmith", "\U0001F3AC", UiTheme.GroupExport, _datasmithExportSection.Build()));
             var tab = new TabItem { Content = WrapInScroll(stack) };
             _panelLocalizationBindings.BindHeader(tab, "Panel_Tab_Export");
             return tab;
@@ -627,6 +631,7 @@ namespace NavisHelper.WPF
             AIColorOperationCoordinator.Current.CancelCurrent();
             _settingsTabBuilder?.Dispose();
             _fbxLevelExportSection?.Dispose();
+            _datasmithExportSection?.Dispose();
             _settingsTabBuilder = null;
             Loaded -= OnPanelLoaded;
             Unloaded -= OnPanelUnloaded;
