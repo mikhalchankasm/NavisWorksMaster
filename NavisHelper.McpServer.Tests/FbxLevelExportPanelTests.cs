@@ -57,7 +57,9 @@ public sealed class FbxLevelExportPanelTests
                  {
                      "AgentRuntime.FbxLevelExportJobs", ".Start(", ".Status(", ".Cancel(",
                      // epsilon3: "Add selected" fills a list; Export sends the list.
-                     "FbxExportList<ModelItem>", "new ListBox", ".BindTo(document)",
+                     "FbxExportList<ModelItem>", "new ListBox", ".BindTo(OwnerKey(document))",
+                     // review P2: one Document instance survives opening another file.
+                     "document.FileName", "document.Models.Count",
                      "CurrentSelection.SelectedItems", ".Start(document,", "FolderPickerDialog.Show(",
                      "DispatcherTimer", "FbxLevelExportJobStates.Running",
                  })
@@ -87,7 +89,7 @@ public sealed class FbxLevelExportPanelTests
         var onStart = section.Substring(start, end - start);
         Assert.DoesNotContain("CurrentSelection", onStart, StringComparison.Ordinal);
         Assert.Contains(".Items", onStart, StringComparison.Ordinal);
-        Assert.Contains(".BindTo(document)", onStart, StringComparison.Ordinal);
+        Assert.Contains(".BindTo(OwnerKey(document))", onStart, StringComparison.Ordinal);
     }
 
     [Fact]

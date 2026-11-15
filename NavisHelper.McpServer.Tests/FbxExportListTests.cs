@@ -58,6 +58,22 @@ public sealed class FbxExportListTests
         Assert.Same(DocA, list.Owner);
     }
 
+    // Codex review of epsilon3, P2: Navisworks keeps one Document instance when another file is
+    // opened, so the panel binds the list to a key of the document's identity, file name and model
+    // count. Owners are therefore compared by equality: an equal key built again keeps the list.
+    [Fact]
+    public void OwnersAreComparedByEquality()
+    {
+        var list = new FbxExportList<Item>();
+        list.BindTo(string.Concat("7|", "a.nwd|1"));
+        list.Add(new[] { new Item("a") });
+
+        Assert.False(list.BindTo(string.Concat("7|", "a.nwd|1")));
+        Assert.Single(list.Items);
+        Assert.True(list.BindTo("7|b.nwd|1"));
+        Assert.Empty(list.Items);
+    }
+
     [Fact]
     public void ItemsIsASnapshotTheCallerCannotChange()
     {
