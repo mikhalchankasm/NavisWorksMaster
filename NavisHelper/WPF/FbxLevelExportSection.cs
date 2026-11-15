@@ -21,7 +21,7 @@ namespace NavisHelper.WPF
         private readonly DispatcherTimer _timer;
         private readonly StackPanel _root = new StackPanel();
         private readonly FbxExportList<ModelItem> _list = new FbxExportList<ModelItem>();
-        private DocumentModels _watchedModels;
+        private Autodesk.Navisworks.Api.DocumentParts.DocumentModels _watchedModels;
         private int _modelsGeneration;
         private readonly ListBox _listBox = new ListBox { Height = 140, SelectionMode = SelectionMode.Extended };
         private readonly TextBlock _count = new TextBlock();
