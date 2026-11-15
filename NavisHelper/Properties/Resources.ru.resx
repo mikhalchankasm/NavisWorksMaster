@@ -2641,4 +2641,14 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Panel_Model_FbxFailed_Status" xml:space="preserve"><value>Экспорт FBX не выполнен: {0}</value></data>
   <data name="Panel_Model_FbxNoDocument_Status" xml:space="preserve"><value>Сначала откройте модель</value></data>
   <data name="Panel_Model_FbxUnavailable_Status" xml:space="preserve"><value>Хост NavisHelper не запущен</value></data>
+  <data name="Panel_Export_Group_Datasmith" xml:space="preserve"><value>Twinmotion (Datasmith)</value></data>
+  <data name="Panel_Datasmith_Export_Action" xml:space="preserve"><value>Экспорт в Datasmith...</value></data>
+  <data name="Panel_Datasmith_Cancel_Action" xml:space="preserve"><value>Отмена</value></data>
+  <data name="Panel_Datasmith_Dialog_Title" xml:space="preserve"><value>Экспорт сохранённой модели в Datasmith</value></data>
+  <data name="Panel_Datasmith_Running_Status" xml:space="preserve"><value>Экспорт через скрытый Navisworks 2026: {0} с</value></data>
+  <data name="Panel_Datasmith_Completed_Status" xml:space="preserve"><value>Экспортировано: {0} ({1} МБ)</value></data>
+  <data name="Panel_Datasmith_Failed_Status" xml:space="preserve"><value>Экспорт в Datasmith не выполнен: {0}</value></data>
+  <data name="Panel_Datasmith_Canceled_Status" xml:space="preserve"><value>Экспорт в Datasmith отменён</value></data>
+  <data name="Panel_Datasmith_NotSaved_Status" xml:space="preserve"><value>Сначала сохраните модель: экспортируется сохранённый файл, без несохранённых изменений</value></data>
+  <data name="Panel_Datasmith_Unavailable_Status" xml:space="preserve"><value>Экспорт в Datasmith недоступен: не найден {0}</value></data>
 </root>

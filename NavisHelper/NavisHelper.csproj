@@ -622,6 +622,7 @@
     <Compile Include="Agent\Services\ViewDisplaySettingsService.cs" />
     <Compile Include="Agent\Services\SaveDocumentJobService.cs" />
     <Compile Include="Agent\Services\FbxLevelExportJobService.cs" />
+    <Compile Include="Agent\Services\DatasmithPanelExportJob.cs" />
     <Compile Include="Agent\Services\NavisworksFbxExportHost.cs" />
     <Compile Include="Agent\Services\WorldMarkerOverlayService.cs" />
     <Compile Include="Agent\Services\DocumentCommandService.Visibility.cs" />
@@ -755,6 +756,7 @@
     <Compile Include="WPF\NavisHelperSettingsTabBuilder.cs" />
     <Compile Include="WPF\ProtectedModeSection.cs" />
     <Compile Include="WPF\FbxLevelExportSection.cs" />
+    <Compile Include="WPF\DatasmithExportSection.cs" />
     <Compile Include="WPF\OpenRouterConnectionPanel.cs" />
     <Compile Include="WPF\OpenRouterModelSelector.cs" />
     <Compile Include="CopySelectedNames.cs" />
