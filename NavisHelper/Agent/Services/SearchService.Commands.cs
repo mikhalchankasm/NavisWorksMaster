@@ -165,6 +165,10 @@ namespace NavisHelper.Agent.Services
         private static List<ModelItem> CollectParentScopeMatches(ModelItem parent, FindItemsSearch search, bool directChildrenOnly)
         {
             var started = Stopwatch.StartNew();
+            // The manual matcher reads normalized conditions (Operator, IgnoreCase defaults), as the
+            // scoped find_items route gets them from NormalizeSearches; raw select_by_search
+            // conditions carry `comparison` only, so a wildcard fell back to equals (#459 L3).
+            search = NormalizeStructuredSearch(search);
             var prepared = PrepareManualSearch(search);
             var matched = new List<ModelItem>();
             var stack = new Stack<ModelItem>(parent.Children.Cast<ModelItem>().Reverse());
