@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.Core;
 
 namespace NavisHelper.Agent.Services
 {
@@ -14,6 +15,8 @@ namespace NavisHelper.Agent.Services
         private readonly Action<Action> _postToUi;
         private FbxLevelExportJob _job;
         private string _serviceError;
+
+        public event EventHandler Changed;
 
         public FbxLevelExportJobService(Action<Action> postToUi)
         {
@@ -117,12 +120,32 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private void ProcessNext(FbxLevelExportJob job, IFbxExportHost host, string documentKey)
+        private void ScheduleAfterInput(FbxLevelExportJob job, IFbxExportHost host, string documentKey)
         {
-            if (!job.IsRunning)
-                return;
             try
             {
+                // WM_TIMER runs after posted, input and paint messages.
+                var timer = new System.Windows.Forms.Timer { Interval = 1 };
+                timer.Tick += (sender, args) =>
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    ProcessNext(job, host, documentKey);
+                };
+                timer.Start();
+            }
+            catch (Exception ex)
+            {
+                Fail(job, host, "The FBX export could not be scheduled on the UI thread: " + ex.Message);
+            }
+        }
+
+        private void ProcessNext(FbxLevelExportJob job, IFbxExportHost host, string documentKey)
+        {
+            try
+            {
+                if (!job.IsRunning)
+                    return;
                 var document = Autodesk.Navisworks.Api.Application.ActiveDocument;
                 if (!string.Equals(BuildDocumentKey(document), documentKey, StringComparison.Ordinal))
                 {
@@ -131,11 +154,24 @@ namespace NavisHelper.Agent.Services
                 }
                 // Do not hold _sync during export: status and cancel must remain available.
                 if (job.Step(host, () => DateTime.UtcNow))
-                    Schedule(job, host, documentKey);
+                    ScheduleAfterInput(job, host, documentKey);
             }
             catch (Exception ex)
             {
                 Fail(job, host, ex.Message);
+            }
+            finally
+            {
+                RaiseChanged();
+            }
+        }
+
+        private void RaiseChanged()
+        {
+            try { Changed?.Invoke(this, EventArgs.Empty); }
+            catch (Exception ex)
+            {
+                Logger.Warn("FBX export change handler failed: " + ex.Message, "FbxLevelExport");
             }
         }
 
