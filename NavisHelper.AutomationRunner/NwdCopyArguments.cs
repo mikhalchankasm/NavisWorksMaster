@@ -103,9 +103,12 @@ namespace NavisHelper.AutomationRunner
 
         internal static bool DeleteCopyDirectory(string tempRoot, string directory)
         {
-            string root = Path.GetFullPath(tempRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            // Trim both sides the same way: with TEMP=C:\ the parent of the copy folder is "C:\".
+            char[] separators = { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+            string root = Path.GetFullPath(tempRoot).TrimEnd(separators);
             string target = Path.GetFullPath(directory);
-            if (!string.Equals(Path.GetDirectoryName(target), root, StringComparison.OrdinalIgnoreCase) ||
+            string parent = Path.GetDirectoryName(target);
+            if (parent == null || !string.Equals(parent.TrimEnd(separators), root, StringComparison.OrdinalIgnoreCase) ||
                 !Regex.IsMatch(Path.GetFileName(target), CopyFolderPattern, RegexOptions.CultureInvariant) ||
                 !Directory.Exists(target) || (File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0)
                 return false;
