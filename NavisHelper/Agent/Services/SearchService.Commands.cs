@@ -160,41 +160,34 @@ namespace NavisHelper.Agent.Services
         }
 
         /// <summary>
-        /// Whether a match lies inside the requested scope, asked of the match rather
-        /// than of the subtree.
-        ///
-        /// The scope used to be built the other way round: every child, or every
-        /// descendant, of the parent went into a HashSet and the matches were
-        /// intersected against it. That makes the cost of a scoped selection the size
-        /// of the scope instead of the size of the answer. Measured live on
-        /// `6501.5.nwd`, selecting 4 items under a parent with roughly 88 000
-        /// descendants took 4 462 ms, nearly all of it spent materializing a subtree in
-        /// order to discard it.
-        ///
-        /// Walking up from the match costs the number of matches times the depth, which
-        /// is bounded by the answer rather than by the model, and allocates nothing that
-        /// outlives the call.
-        ///
-        /// The set is identical, not merely similar. `parent.Children` is exactly the
-        /// items whose `Parent` is the parent, and `parent.Descendants` is exactly the
-        /// items strictly below it -- which is what an ancestor walk starting at
-        /// `item.Parent` finds. Both exclude the parent itself, before and after.
+        /// Matches below the parent in pre-order, continuing below every match.
         /// </summary>
-        private static bool IsWithinSelectionScope(ModelItem item, ModelItem parent, bool directChildrenOnly)
+        private static List<ModelItem> CollectParentScopeMatches(ModelItem parent, FindItemsSearch search, bool directChildrenOnly)
         {
-            if (item == null || parent == null)
-                return false;
-
-            if (directChildrenOnly)
-                return parent.Equals(item.Parent);
-
-            for (var ancestor = item.Parent; ancestor != null; ancestor = ancestor.Parent)
+            var started = Stopwatch.StartNew();
+            var prepared = PrepareManualSearch(search);
+            var matched = new List<ModelItem>();
+            var stack = new Stack<ModelItem>(parent.Children.Cast<ModelItem>().Reverse());
+            var scanned = 0;
+            var scope = directChildrenOnly ? "direct_children_of" : "descendants_of";
+            while (stack.Count > 0)
             {
-                if (parent.Equals(ancestor))
-                    return true;
+                if (started.ElapsedMilliseconds > MaxScopedTraversalMilliseconds || scanned >= MaxScopedScannedItems)
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation,
+                        "select_by_search (scope=" + scope + ") exceeded the traversal budget. Narrow the parent.");
+                var item = stack.Pop();
+                if (item == null)
+                    continue;
+                scanned++;
+                if (MatchesSearchManually(item, prepared))
+                    matched.Add(item);
+                if (!directChildrenOnly)
+                {
+                    foreach (ModelItem child in item.Children.Cast<ModelItem>().Reverse())
+                        stack.Push(child);
+                }
             }
-
-            return false;
+            return matched;
         }
 
         public SelectBySearchResponse SelectBySearch(Document document, SelectBySearchRequest request)
@@ -226,9 +219,10 @@ namespace NavisHelper.Agent.Services
                 Conditions = conditions,
             };
             EnsureSearchIsSafeToExecute(search);
-            var matched = ExecuteSearch(document, search, Stopwatch.StartNew());
-
-            if (scope != SelectBySearchScopes.WholeModel)
+            List<ModelItem> matched;
+            if (scope == SelectBySearchScopes.WholeModel)
+                matched = ExecuteSearch(document, search, Stopwatch.StartNew());
+            else
             {
                 var parentConditions = request.ParentConditions ?? new List<FindItemsCondition>();
                 if (parentConditions.Count == 0)
@@ -250,9 +244,7 @@ namespace NavisHelper.Agent.Services
 
                 var parent = parents[0];
                 var directChildrenOnly = scope == SelectBySearchScopes.DirectChildrenOf;
-                matched = matched
-                    .Where(item => IsWithinSelectionScope(item, parent, directChildrenOnly))
-                    .ToList();
+                matched = CollectParentScopeMatches(parent, search, directChildrenOnly);
             }
 
             var maxMatchedItems = request.MaxMatchedItems.GetValueOrDefault(5000);
