@@ -1,10 +1,11 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
-using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.Plugins;
+using NavisHelper.Agent.Services;
 using Application = Autodesk.Navisworks.Api.Application;
 using NavisHelper.Core;
+using NavisHelper.Core.Localization;
 
 namespace NavisHelper
 {
@@ -17,50 +18,62 @@ namespace NavisHelper
             try
             {
                 var document = Application.ActiveDocument;
-                string modelPath = document.FileName;
-                if (string.IsNullOrEmpty(modelPath))
+                if (document == null || document.IsClear)
                 {
-                    // Сохраняем во временную папку
-                    string tempPath = Path.Combine(Path.GetTempPath(), $"temp_{Guid.NewGuid()}.nwd");
-                    try
-                    {
-                        document.SaveFile(tempPath);
-                        modelPath = tempPath;
-                        Logger.Info($"Файл не был сохранён ранее. Сохранили во временную папку: {tempPath}", "SaveAsNavis2018", modelPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error($"Ошибка при сохранении во временную папку: {ex.Message}", "SaveAsNavis2018");
-                        return -1;
-                    }
-                }
-                else
-                {
-                    // logPath не нужен, логгер сам определит путь
-                }
-                bool result = false;
-                try
-                {
-                    result = document.TrySaveFile(modelPath, DocumentFileVersion.Navisworks2018);
-                    if (!result)
-                    {
-                        Logger.Error($"Не удалось сохранить файл как Navisworks 2018: {modelPath}", "SaveAsNavis2018", modelPath);
-                        return -1;
-                    }
-                    Logger.Info($"Файл успешно пересохранён как Navisworks 2018: {modelPath}", "SaveAsNavis2018", modelPath);
+                    MessageBox.Show(
+                        UiLocalizationService.Current.GetString("Save2018_NoDocument_Message"),
+                        UiLocalizationService.Current.GetString("Save2018_Dialog_Title"),
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return 0;
                 }
-                catch (Exception ex)
+
+                var modelPath = document.FileName;
+                var name = Path.GetFileNameWithoutExtension(modelPath);
+                if (string.IsNullOrWhiteSpace(name))
+                    name = string.IsNullOrWhiteSpace(document.Title) ? "model" : document.Title;
+                using (var dialog = new SaveFileDialog
                 {
-                    Logger.Error($"Ошибка при сохранении как Navisworks 2018: {ex.Message}", "SaveAsNavis2018", modelPath);
-                    return -1;
+                    Title = UiLocalizationService.Current.GetString("Save2018_Dialog_Title"),
+                    Filter = UiLocalizationService.Current.GetString("Save2018_Dialog_Filter"),
+                    DefaultExt = "nwd",
+                    AddExtension = true,
+                    OverwritePrompt = true,
+                    InitialDirectory = string.IsNullOrWhiteSpace(modelPath)
+                        ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                        : Path.GetDirectoryName(modelPath),
+                    FileName = name + "_2018.nwd"
+                })
+                {
+                    if (dialog.ShowDialog() != DialogResult.OK)
+                        return 0;
+                    if (!string.Equals(Path.GetExtension(dialog.FileName), ".nwd", StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrWhiteSpace(modelPath) && string.Equals(Path.GetFullPath(dialog.FileName),
+                            Path.GetFullPath(modelPath), StringComparison.OrdinalIgnoreCase)))
+                    {
+                        MessageBox.Show(
+                            string.Format(UiLocalizationService.Current.GetString("Save2018_SameFile_Message"), dialog.FileName),
+                            UiLocalizationService.Current.GetString("Save2018_Dialog_Title"),
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return -1;
+                    }
+
+                    DocumentCommandService.SaveDocumentAsToPath(document, dialog.FileName, true, false, "2018");
+                    MessageBox.Show(
+                        string.Format(UiLocalizationService.Current.GetString("Save2018_Saved_Message"), dialog.FileName),
+                        UiLocalizationService.Current.GetString("Save2018_Dialog_Title"),
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return 0;
                 }
             }
             catch (Exception ex)
             {
                 Logger.Error($"Критическая ошибка: {ex.Message}", "SaveAsNavis2018");
+                MessageBox.Show(
+                    string.Format(UiLocalizationService.Current.GetString("Save2018_Failed_Message"), ex.Message),
+                    UiLocalizationService.Current.GetString("Save2018_Dialog_Title"),
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return -1;
             }
         }
     }
-} 
+}
