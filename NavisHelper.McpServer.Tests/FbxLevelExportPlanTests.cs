@@ -200,10 +200,10 @@ public sealed class FbxLevelExportPlanTests
         Assert.Equal("failed", FbxLevelExportJobStates.Failed);
         Assert.Equal("canceled", FbxLevelExportJobStates.Canceled);
 
-        AssertProperties(typeof(StartFbxLevelExportRequest), "Level", "Folder", "Overwrite");
+        AssertProperties(typeof(StartFbxLevelExportRequest), "MatchHandles", "UseSelection", "Depth", "Folder", "Overwrite");
         AssertProperties(typeof(FbxLevelExportStatusRequest), "OperationId");
         AssertProperties(typeof(CancelFbxLevelExportRequest), "OperationId");
-        AssertProperties(typeof(FbxLevelExportStatusResponse), "OperationId", "InstanceId", "State", "IsRunning", "Level",
+        AssertProperties(typeof(FbxLevelExportStatusResponse), "OperationId", "InstanceId", "State", "IsRunning", "Depth",
             "Folder", "TotalItems", "ExportedItems", "SkippedItems", "CurrentItem", "Files", "ErrorMessage", "ElapsedMs",
             "StartedAtUtc", "CompletedAtUtc", "Message");
         AssertProperties(typeof(FbxLevelExportFile), "Index", "Name", "Path", "Bytes", "ElapsedMs");
