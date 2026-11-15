@@ -59,6 +59,7 @@ namespace NavisHelper.Agent.Host
         private readonly ClashBatchRunService _clashBatchRunService;
         private readonly SaveDocumentJobService _saveDocumentJobService;
         private readonly FbxLevelExportJobService _fbxLevelExportJobService;
+        internal FbxLevelExportJobService FbxLevelExportJobs => _fbxLevelExportJobService;
         private readonly NavisworksApplicationCloseService _applicationCloseService;
         private readonly MatchSessionStore _matchSessionStore = new MatchSessionStore();
         private readonly MatchHandleItemsService _matchHandleItemsService;
