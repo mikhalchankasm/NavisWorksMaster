@@ -10,6 +10,10 @@ public sealed class AiWorkerProcessTests
     private static string PowerShell => Path.Combine(Environment.SystemDirectory,
         "WindowsPowerShell", "v1.0", "powershell.exe");
 
+    // Only a hang may fail these tests: a loaded CI runner can take well over 10 s to start
+    // powershell.exe (#481), so every wait on a real process start is this generous.
+    private static readonly TimeSpan ProcessStartLimit = TimeSpan.FromSeconds(60);
+
     [Fact]
     public async Task Cancellation_UnblocksLargeStdinWriteAndStopsOwnedChild()
     {
@@ -26,9 +30,9 @@ public sealed class AiWorkerProcessTests
                 "'); Start-Sleep -Seconds 30\r\n#" + new string('x', 2 * 1024 * 1024);
             run = new AiWorkerProcessRunner().RunAsync(PowerShell, script, "", cancellation.Token);
             var deadline = Stopwatch.StartNew();
-            while (!File.Exists(pidPath) && deadline.Elapsed < TimeSpan.FromSeconds(10))
+            while (!File.Exists(pidPath) && deadline.Elapsed < ProcessStartLimit)
                 await Task.Delay(25, TestContext.Current.CancellationToken);
-            Assert.True(File.Exists(pidPath), "Owned worker did not start within 10 seconds.");
+            Assert.True(File.Exists(pidPath), "Owned worker did not start within " + ProcessStartLimit.TotalSeconds + " seconds.");
             child = Process.GetProcessById(int.Parse(await File.ReadAllTextAsync(pidPath, TestContext.Current.CancellationToken)));
             Assert.False(run.IsCompleted);
 
@@ -69,7 +73,7 @@ public sealed class AiWorkerProcessTests
     {
         var result = await new AiWorkerProcessRunner().RunAsync(PowerShell,
             "[Console]::Out.WriteLine('worker-response'); exit 0\r\n", "", CancellationToken.None)
-            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            .WaitAsync(ProcessStartLimit, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Contains("worker-response", result.StandardOutput);
     }
