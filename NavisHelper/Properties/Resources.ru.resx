@@ -620,7 +620,25 @@
     <value>Убрать временные Graphics-метки.</value>
   </data>
   <data name="Panel_Model_Save2018_ToolTip" xml:space="preserve">
-    <value>Пересохранить текущий файл в формате Navisworks 2018 (совместимость со старыми версиями)</value>
+    <value>Сохранить копию в формате Navisworks 2018 в выбранный файл, не изменяя открытый файл.</value>
+  </data>
+  <data name="Save2018_Dialog_Title" xml:space="preserve">
+    <value>Сохранить отдельную копию NWD 2018</value>
+  </data>
+  <data name="Save2018_Dialog_Filter" xml:space="preserve">
+    <value>Файл Navisworks NWD (*.nwd)|*.nwd</value>
+  </data>
+  <data name="Save2018_Saved_Message" xml:space="preserve">
+    <value>Копия NWD 2018 сохранена: {0}</value>
+  </data>
+  <data name="Save2018_Failed_Message" xml:space="preserve">
+    <value>Не удалось сохранить копию NWD 2018: {0}</value>
+  </data>
+  <data name="Save2018_SameFile_Message" xml:space="preserve">
+    <value>Выберите файл .nwd, отличный от открытой модели: {0}</value>
+  </data>
+  <data name="Save2018_NoDocument_Message" xml:space="preserve">
+    <value>Откройте модель перед сохранением копии NWD 2018.</value>
   </data>
   <data name="Panel_Reset" xml:space="preserve">
     <value>Сброс</value>
@@ -2091,7 +2109,7 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
     <value>Save NWD 2018</value>
   </data>
   <data name="Panel_CommandPalette_SaveNwd2018_Description" xml:space="preserve">
-    <value>Экспортировать как Navisworks 2018</value>
+    <value>Сохранить копию в формате Navisworks 2018 в выбранный файл, не изменяя открытый файл.</value>
   </data>
   <data name="Panel_CommandPalette_ExportProperties_Title" xml:space="preserve">
     <value>Export properties to Excel</value>

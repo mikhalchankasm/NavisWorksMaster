@@ -620,7 +620,25 @@ Restart Navisworks after running setx.</value>
     <value>Remove temporary Graphics labels.</value>
   </data>
   <data name="Panel_Model_Save2018_ToolTip" xml:space="preserve">
-    <value>Resave the current file in Navisworks 2018 format for compatibility with older versions</value>
+    <value>Save a copy in Navisworks 2018 format to a chosen file without changing the open file.</value>
+  </data>
+  <data name="Save2018_Dialog_Title" xml:space="preserve">
+    <value>Save a separate NWD 2018 copy</value>
+  </data>
+  <data name="Save2018_Dialog_Filter" xml:space="preserve">
+    <value>Navisworks NWD (*.nwd)|*.nwd</value>
+  </data>
+  <data name="Save2018_Saved_Message" xml:space="preserve">
+    <value>The NWD 2018 copy was saved to: {0}</value>
+  </data>
+  <data name="Save2018_Failed_Message" xml:space="preserve">
+    <value>Could not save the NWD 2018 copy: {0}</value>
+  </data>
+  <data name="Save2018_SameFile_Message" xml:space="preserve">
+    <value>Choose a .nwd file other than the open model: {0}</value>
+  </data>
+  <data name="Save2018_NoDocument_Message" xml:space="preserve">
+    <value>Open a model before saving an NWD 2018 copy.</value>
   </data>
   <data name="Panel_Reset" xml:space="preserve">
     <value>Reset</value>
@@ -2091,7 +2109,7 @@ Waiting for a response…
     <value>Save NWD 2018</value>
   </data>
   <data name="Panel_CommandPalette_SaveNwd2018_Description" xml:space="preserve">
-    <value>Export in Navisworks 2018 format</value>
+    <value>Save a copy in Navisworks 2018 format to a chosen file without changing the open file.</value>
   </data>
   <data name="Panel_CommandPalette_ExportProperties_Title" xml:space="preserve">
     <value>Export properties to Excel</value>
