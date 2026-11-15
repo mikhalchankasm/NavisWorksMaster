@@ -150,11 +150,12 @@ namespace NavisHelper.WPF
                 }
                 var reset = _list.BindTo(OwnerKey(document));
                 var selection = document.CurrentSelection.SelectedItems;
+                var added = _list.Add(selection);
                 if (selection.Count == 0)
                     ShowStatus("Panel_Model_FbxNothingSelected_Status", UiTheme.Warning);
-                else
-                    _list.Add(selection);
-                RefreshList();
+                // A duplicate-only Add leaves the rows as they are (Codex review P3).
+                if (added > 0 || reset)
+                    RefreshList();
                 if (reset) ShowStatus("Panel_Model_FbxListReset_Status", UiTheme.Warning);
             });
         }
@@ -190,6 +191,13 @@ namespace NavisHelper.WPF
         private void OnModelsChanged(object sender, EventArgs args)
         {
             _modelsGeneration++;
+            // Drop the old ModelItems at once: Remove and the row text must never read them after
+            // their model was unloaded (third Codex review, P2).
+            if (_disposed || _list.Count == 0)
+                return;
+            _list.Clear();
+            RefreshList();
+            ShowStatus("Panel_Model_FbxListReset_Status", UiTheme.Warning);
         }
 
         private string OwnerKey(Document document)
