@@ -2620,7 +2620,10 @@ Unique names: {2}</value></data>
   <data name="Settings_Service_Developers_Expander" xml:space="preserve"><value>For developers</value></data>
   <data name="Settings_Ai_Status_Error_Compact" xml:space="preserve"><value>Error</value></data>
   <data name="Settings_Ai_Status_Connecting_Compact" xml:space="preserve"><value>Connecting…</value></data>
-  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>FBX export of listed items</value></data>
+  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>Export list: FBX and Datasmith</value></data>
+  <data name="Panel_Export_FormatFbx_Label" xml:space="preserve"><value>FBX</value></data>
+  <data name="Panel_Export_FormatDatasmith_Label" xml:space="preserve"><value>Datasmith (Twinmotion, Unreal)</value></data>
+  <data name="Panel_Export_NoFormat_Status" xml:space="preserve"><value>Tick FBX, Datasmith or both.</value></data>
   <data name="Panel_Model_FbxAddSelected_Action" xml:space="preserve"><value>Add selected</value></data>
   <data name="Panel_Model_FbxRemove_Action" xml:space="preserve"><value>Remove</value></data>
   <data name="Panel_Model_FbxClear_Action" xml:space="preserve"><value>Clear</value></data>
@@ -2631,14 +2634,14 @@ Unique names: {2}</value></data>
   <data name="Panel_Model_FbxLevel_Label" xml:space="preserve"><value>Depth</value></data>
   <data name="Panel_Model_FbxLevel_ToolTip" xml:space="preserve"><value>0 = the listed items, 1 = their children</value></data>
   <data name="Panel_Model_FbxFolder_Label" xml:space="preserve"><value>Folder</value></data>
-  <data name="Panel_Model_FbxFolder_Prompt" xml:space="preserve"><value>Choose the folder for FBX files</value></data>
+  <data name="Panel_Model_FbxFolder_Prompt" xml:space="preserve"><value>Choose the export folder</value></data>
   <data name="Panel_Model_FbxOverwrite_Label" xml:space="preserve"><value>Replace existing files</value></data>
   <data name="Panel_Model_FbxStart_Action" xml:space="preserve"><value>Export</value></data>
   <data name="Panel_Model_FbxCancel_Action" xml:space="preserve"><value>Cancel</value></data>
   <data name="Panel_Model_FbxProgress_Status" xml:space="preserve"><value>{0} of {1} done: {2}</value></data>
-  <data name="Panel_Model_FbxCompleted_Status" xml:space="preserve"><value>FBX export finished: {0} files, {1} skipped</value></data>
-  <data name="Panel_Model_FbxCanceled_Status" xml:space="preserve"><value>FBX export canceled after {0} of {1}</value></data>
-  <data name="Panel_Model_FbxFailed_Status" xml:space="preserve"><value>FBX export failed: {0}</value></data>
+  <data name="Panel_Model_FbxCompleted_Status" xml:space="preserve"><value>Export finished: {0} files, {1} skipped</value></data>
+  <data name="Panel_Model_FbxCanceled_Status" xml:space="preserve"><value>Export canceled after {0} of {1}</value></data>
+  <data name="Panel_Model_FbxFailed_Status" xml:space="preserve"><value>Export failed: {0}</value></data>
   <data name="Panel_Model_FbxNoDocument_Status" xml:space="preserve"><value>Open a model first</value></data>
   <data name="Panel_Model_FbxUnavailable_Status" xml:space="preserve"><value>The NavisHelper host is not running</value></data>
   <data name="Panel_Export_Group_Datasmith" xml:space="preserve"><value>Twinmotion (Datasmith)</value></data>

@@ -3,26 +3,23 @@ using Xunit;
 
 namespace NavisHelper.McpServer.Tests;
 
-// Curator-owned acceptance for #478 slice beta: the Export tab gets a "Twinmotion (Datasmith)" card
-// that exports the open, saved model file through the installed AutomationRunner and a hidden
-// Navisworks 2026, with Cancel. The plugin cannot compile in L0, so it is pinned by source; L3 runs it.
+// #495 replaces the separate whole-file card with format choices in the export list.
+// Keep the runner guard: whole-file export remains available through MCP.
 public sealed class DatasmithExportSectionTests
 {
     private static readonly string[] Keys =
     {
-        "Panel_Export_Group_Datasmith", "Panel_Datasmith_Export_Action", "Panel_Datasmith_Cancel_Action",
-        "Panel_Datasmith_Dialog_Title", "Panel_Datasmith_Running_Status", "Panel_Datasmith_Completed_Status",
-        "Panel_Datasmith_Failed_Status", "Panel_Datasmith_Canceled_Status", "Panel_Datasmith_NotSaved_Status",
+        "Panel_Export_FormatFbx_Label", "Panel_Export_FormatDatasmith_Label", "Panel_Export_NoFormat_Status",
         "Panel_Datasmith_Unavailable_Status",
     };
 
     [Fact]
-    public void TheSectionIsItsOwnCompiledType()
+    public void TheListReplacesTheSeparateCompiledSection()
     {
-        var section = Read("NavisHelper", "WPF", "DatasmithExportSection.cs");
-        Assert.Contains("internal sealed class DatasmithExportSection : IDisposable", section, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(Root(), "NavisHelper", "WPF", "DatasmithExportSection.cs")));
         var project = Read("NavisHelper", "NavisHelper.csproj");
-        Assert.Contains(@"<Compile Include=""WPF\DatasmithExportSection.cs"" />", project, StringComparison.Ordinal);
+        Assert.DoesNotContain(@"<Compile Include=""WPF\DatasmithExportSection.cs"" />", project, StringComparison.Ordinal);
+        Assert.Contains(@"<Compile Include=""WPF\FbxLevelExportSection.cs"" />", project, StringComparison.Ordinal);
         Assert.Contains(@"<Compile Include=""Agent\Services\DatasmithPanelExportJob.cs"" />", project, StringComparison.Ordinal);
     }
 
@@ -44,26 +41,28 @@ public sealed class DatasmithExportSectionTests
     }
 
     [Fact]
-    public void TheExportTabHostsTheCardAndThePanelDisposesIt()
+    public void TheExportTabHostsOnlyTheListAndThePanelDisposesIt()
     {
         var panel = string.Join("\n", Directory.GetFiles(Path.Combine(Root(), "NavisHelper", "WPF"), "NavisHelperPanel*.cs").Select(File.ReadAllText));
         int tab = panel.IndexOf("private TabItem CreateExportTab()", StringComparison.Ordinal);
         Assert.True(tab >= 0);
         var export = panel.Substring(tab, panel.IndexOf("\n        }", tab, StringComparison.Ordinal) - tab);
-        Assert.Contains("new DatasmithExportSection(", export, StringComparison.Ordinal);
-        Assert.Contains("\"Panel_Export_Group_Datasmith\"", export, StringComparison.Ordinal);
-        Assert.Contains("_datasmithExportSection?.Dispose()", panel, StringComparison.Ordinal);
+        Assert.Contains("new FbxLevelExportSection(", export, StringComparison.Ordinal);
+        Assert.DoesNotContain("DatasmithExportSection", panel, StringComparison.Ordinal);
+        Assert.Contains("_fbxLevelExportSection?.Dispose()", panel, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void TheSectionExportsOnlyASavedFileAndAsksForTheTarget()
+    public void TheListDefaultsToFbxAndDisablesDatasmithWhenADependencyIsMissing()
     {
-        var section = Read("NavisHelper", "WPF", "DatasmithExportSection.cs");
-        Assert.Contains("new SaveFileDialog", section, StringComparison.Ordinal);
-        Assert.Contains(".udatasmith", section, StringComparison.Ordinal);
-        Assert.Contains("OverwritePrompt = true", section, StringComparison.Ordinal);
-        Assert.Contains("Panel_Datasmith_NotSaved_Status", section, StringComparison.Ordinal);
-        Assert.Contains("FileName", section, StringComparison.Ordinal);
+        var section = Read("NavisHelper", "WPF", "FbxLevelExportSection.cs");
+        Assert.Contains("_fbx = new CheckBox { IsChecked = true }", section, StringComparison.Ordinal);
+        Assert.Contains("DatasmithPanelExportJob.MissingDependency()", section, StringComparison.Ordinal);
+        Assert.Contains("_datasmith.IsEnabled = missing == null", section, StringComparison.Ordinal);
+        Assert.Contains("ToolTipService.SetShowOnDisabled(_datasmith, true)", section, StringComparison.Ordinal);
+        Assert.Contains("_bindings.Text(\"Panel_Datasmith_Unavailable_Status\"), missing)", section, StringComparison.Ordinal);
+        Assert.Contains("_datasmith.IsEnabled && _datasmith.IsChecked == true", section, StringComparison.Ordinal);
+        foreach (var key in Keys) Assert.Contains("\"" + key + "\"", section, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -74,7 +73,8 @@ public sealed class DatasmithExportSectionTests
         foreach (var key in Keys)
         {
             Assert.True(english.TryGetValue(key, out var en) && en.Length > 0, key + " in Resources.resx");
-            Assert.True(russian.TryGetValue(key, out var ru) && ru.Any(c => c >= 'А' && c <= 'я') || key == "Panel_Export_Group_Datasmith",
+            Assert.True(russian.TryGetValue(key, out var ru) && ru.Length > 0 &&
+                (ru.Any(c => c >= 'А' && c <= 'я') || key == "Panel_Export_FormatFbx_Label" || key == "Panel_Export_FormatDatasmith_Label"),
                 key + " in Russian");
         }
     }

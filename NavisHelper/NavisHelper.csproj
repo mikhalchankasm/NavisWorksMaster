@@ -756,7 +756,6 @@
     <Compile Include="WPF\NavisHelperSettingsTabBuilder.cs" />
     <Compile Include="WPF\ProtectedModeSection.cs" />
     <Compile Include="WPF\FbxLevelExportSection.cs" />
-    <Compile Include="WPF\DatasmithExportSection.cs" />
     <Compile Include="WPF\OpenRouterConnectionPanel.cs" />
     <Compile Include="WPF\OpenRouterModelSelector.cs" />
     <Compile Include="CopySelectedNames.cs" />
