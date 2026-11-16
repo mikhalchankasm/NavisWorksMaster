@@ -24,6 +24,7 @@ namespace NavisHelper.Agent.Contracts
         private readonly FbxLevelExportPlan _plan;
         private readonly string _folder;
         private readonly bool _overwrite;
+        private readonly ItemExportFormats _formats;
         private readonly DateTime _startedAtUtc;
         private readonly List<FbxLevelExportFile> _files = new List<FbxLevelExportFile>();
         private string _state = FbxLevelExportJobStates.Running;
@@ -35,12 +36,13 @@ namespace NavisHelper.Agent.Contracts
         private bool _stepInProgress;
 
         private FbxLevelExportJob(string operationId, FbxLevelExportPlan plan,
-            string folder, bool overwrite, DateTime nowUtc)
+            string folder, bool overwrite, DateTime nowUtc, ItemExportFormats formats)
         {
             OperationId = operationId;
             _plan = plan;
             _folder = folder;
             _overwrite = overwrite;
+            _formats = formats;
             _startedAtUtc = nowUtc;
         }
 
@@ -60,6 +62,13 @@ namespace NavisHelper.Agent.Contracts
             string folder, bool overwrite, IFbxExportHost host, FbxLevelExportJob previous,
             DateTime nowUtc)
         {
+            return Start(operationId, plan, folder, overwrite, host, previous, nowUtc, ItemExportFormats.Fbx);
+        }
+
+        public static FbxLevelExportJob Start(string operationId, FbxLevelExportPlan plan,
+            string folder, bool overwrite, IFbxExportHost host, FbxLevelExportJob previous,
+            DateTime nowUtc, ItemExportFormats formats)
+        {
             if (previous != null && previous.IsRunning)
                 throw new InvalidOperationException("An FBX export job is already running.");
             if (string.IsNullOrWhiteSpace(operationId))
@@ -70,16 +79,29 @@ namespace NavisHelper.Agent.Contracts
                 throw new ArgumentNullException(nameof(folder));
             if (host == null)
                 throw new ArgumentNullException(nameof(host));
+            if (formats == ItemExportFormats.None || (formats & ~(ItemExportFormats.Fbx | ItemExportFormats.Datasmith)) != 0)
+                throw new ArgumentException("At least one supported export format is required.", nameof(formats));
+            if ((formats & ItemExportFormats.Datasmith) != 0 && !(host is IItemExportHost))
+                throw new ArgumentException("Datasmith requires an item export host.", nameof(host));
 
             if (!overwrite)
             {
                 foreach (FbxLevelExportPlanItem item in plan.Items)
-                    if (host.FileExists(Path.Combine(folder, item.FileName)))
-                        throw new InvalidOperationException(item.FileName
-                            + " already exists; enable overwrite to replace it.");
+                    foreach (string name in OutputNames(item, formats))
+                        if (host.FileExists(Path.Combine(folder, name)))
+                            throw new InvalidOperationException(name
+                                + " already exists; enable overwrite to replace it.");
             }
 
-            return new FbxLevelExportJob(operationId, plan, folder, overwrite, nowUtc);
+            return new FbxLevelExportJob(operationId, plan, folder, overwrite, nowUtc, formats);
+        }
+
+        private static IEnumerable<string> OutputNames(FbxLevelExportPlanItem item, ItemExportFormats formats)
+        {
+            if ((formats & ItemExportFormats.Fbx) != 0)
+                yield return item.FileName;
+            if ((formats & ItemExportFormats.Datasmith) != 0)
+                yield return Path.ChangeExtension(item.FileName, ".udatasmith");
         }
 
         /// <summary>Exports at most one item. <paramref name="utcNow"/> is read at the start and
@@ -115,16 +137,25 @@ namespace NavisHelper.Agent.Contracts
 
             string error = null;
             string path = Path.Combine(_folder, item.FileName);
-            long bytes = 0;
+            string errorName = item.FileName;
+            string copy = null;
+            var itemHost = host as IItemExportHost;
+            var writtenPaths = new List<string>();
+            var writtenFiles = new List<FbxLevelExportFile>();
             var timer = Stopwatch.StartNew();
             try
             {
                 // Start checked the targets, but a file may appear while the job runs.
-                if (!_overwrite && host.FileExists(path))
-                    error = "already exists; enable overwrite to replace it.";
-                else if (!FbxLevelExportPlan.HasRoomForNext(host.FreeBytes(_folder), largestFileBytes))
+                foreach (string name in OutputNames(item, _formats))
+                    if (!_overwrite && host.FileExists(Path.Combine(_folder, name)))
+                    {
+                        errorName = name;
+                        error = "already exists; enable overwrite to replace it.";
+                        break;
+                    }
+                if (error == null && !FbxLevelExportPlan.HasRoomForNext(host.FreeBytes(_folder), largestFileBytes))
                     error = "Insufficient free space for the next export.";
-                else
+                if (error == null)
                 {
                     IReadOnlyList<IFbxTreeNode> hide = FbxLevelExportPlan.HideSet(item);
                     // IsHidden is live: capture the user's visibility before hiding.
@@ -133,7 +164,18 @@ namespace NavisHelper.Agent.Contracts
                     {
                         if (hide.Count > 0)
                             host.SetHidden(hide, true);
-                        error = host.Export(path);
+                        if ((_formats & ItemExportFormats.Fbx) != 0)
+                        {
+                            error = host.Export(path);
+                            if (error == null)
+                                writtenPaths.Add(path);
+                        }
+                        if (error == null && (_formats & ItemExportFormats.Datasmith) != 0)
+                        {
+                            errorName = Path.ChangeExtension(item.FileName, ".udatasmith");
+                            copy = Path.Combine(itemHost.TempFolder, Path.ChangeExtension(item.FileName, ".nwd"));
+                            error = itemHost.PublishCopy(copy);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -145,8 +187,13 @@ namespace NavisHelper.Agent.Contracts
                             host.SetHidden(unhide, false);
                     }
 
-                    if (error == null)
-                        bytes = host.FileSize(path);
+                    if (error == null && copy != null)
+                    {
+                        string output = Path.Combine(_folder, errorName);
+                        error = itemHost.ExportDatasmith(copy, output);
+                        if (error == null)
+                            writtenPaths.Add(output);
+                    }
                 }
             }
             catch (Exception ex)
@@ -155,6 +202,32 @@ namespace NavisHelper.Agent.Contracts
             }
             finally
             {
+                try
+                {
+                    if (copy != null)
+                        itemHost.DeleteFile(copy);
+                }
+                catch (Exception ex)
+                {
+                    error = error == null ? ex.Message : error + "; " + ex.Message;
+                }
+                try
+                {
+                    if (error != null && _formats == ItemExportFormats.Fbx)
+                        writtenPaths.Clear();
+                    foreach (string writtenPath in writtenPaths)
+                        writtenFiles.Add(new FbxLevelExportFile
+                        {
+                            Index = item.Index,
+                            Name = Path.GetFileName(writtenPath),
+                            Path = writtenPath,
+                            Bytes = host.FileSize(writtenPath)
+                        });
+                }
+                catch (Exception ex)
+                {
+                    error = error ?? ex.Message;
+                }
                 timer.Stop();
             }
 
@@ -162,24 +235,21 @@ namespace NavisHelper.Agent.Contracts
             lock (_gate)
             {
                 _stepInProgress = false;
+                foreach (FbxLevelExportFile file in writtenFiles)
+                {
+                    file.ElapsedMs = timer.ElapsedMilliseconds;
+                    _files.Add(file);
+                    if (_files.Count > StatusFileLimit)
+                        _files.RemoveAt(0);
+                    _largestFileBytes = Math.Max(_largestFileBytes, file.Bytes);
+                }
                 if (error != null)
                 {
-                    _errorMessage = item.FileName + ": " + error;
+                    _errorMessage = errorName + ": " + error;
                     Finish(FbxLevelExportJobStates.Failed, finishedUtc);
                     return false;
                 }
 
-                _files.Add(new FbxLevelExportFile
-                {
-                    Index = item.Index,
-                    Name = item.FileName,
-                    Path = path,
-                    Bytes = bytes,
-                    ElapsedMs = timer.ElapsedMilliseconds
-                });
-                if (_files.Count > StatusFileLimit)
-                    _files.RemoveAt(0);
-                _largestFileBytes = Math.Max(_largestFileBytes, bytes);
                 _nextItem++;
                 if (_nextItem == _plan.Items.Count)
                 {

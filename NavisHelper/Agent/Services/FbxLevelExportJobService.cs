@@ -26,7 +26,7 @@ namespace NavisHelper.Agent.Services
         }
 
         public FbxLevelExportStatusResponse Start(Document document, StartFbxLevelExportRequest request,
-            MatchSessionStore sessionStore)
+            MatchSessionStore sessionStore, ItemExportFormats formats = ItemExportFormats.Fbx)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -55,11 +55,11 @@ namespace NavisHelper.Agent.Services
                     items.AddRange(resolved.Where(item => item != null && seen.Add(item)));
                 }
             }
-            return Start(document, items, request.Depth, request.Folder, request.Overwrite);
+            return Start(document, items, request.Depth, request.Folder, request.Overwrite, formats);
         }
 
         public FbxLevelExportStatusResponse Start(Document document, IReadOnlyList<ModelItem> items,
-            int depth, string folder, bool overwrite)
+            int depth, string folder, bool overwrite, ItemExportFormats formats = ItemExportFormats.Fbx)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -77,15 +77,16 @@ namespace NavisHelper.Agent.Services
             if (error != null)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, error);
 
-            var host = new NavisworksFbxExportHost(document);
+            var operationId = "fbx-job-" + Guid.NewGuid().ToString("N");
+            var host = new NavisworksFbxExportHost(document, operationId);
             var documentKey = BuildDocumentKey(document);
             FbxLevelExportJob job;
             lock (_sync)
             {
                 try
                 {
-                    job = FbxLevelExportJob.Start("fbx-job-" + Guid.NewGuid().ToString("N"),
-                        plan, folder, overwrite, host, _job, DateTime.UtcNow);
+                    job = FbxLevelExportJob.Start(operationId,
+                        plan, folder, overwrite, host, _job, DateTime.UtcNow, formats);
                 }
                 catch (InvalidOperationException exception)
                 {
@@ -147,7 +148,7 @@ namespace NavisHelper.Agent.Services
             return response;
         }
 
-        private void Schedule(FbxLevelExportJob job, IFbxExportHost host, string documentKey)
+        private void Schedule(FbxLevelExportJob job, NavisworksFbxExportHost host, string documentKey)
         {
             try
             {
@@ -159,7 +160,7 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private void ScheduleAfterInput(FbxLevelExportJob job, IFbxExportHost host, string documentKey)
+        private void ScheduleAfterInput(FbxLevelExportJob job, NavisworksFbxExportHost host, string documentKey)
         {
             try
             {
@@ -179,7 +180,7 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private void ProcessNext(FbxLevelExportJob job, IFbxExportHost host, string documentKey)
+        private void ProcessNext(FbxLevelExportJob job, NavisworksFbxExportHost host, string documentKey)
         {
             try
             {
@@ -201,6 +202,8 @@ namespace NavisHelper.Agent.Services
             }
             finally
             {
+                if (!job.IsRunning)
+                    Cleanup(host);
                 RaiseChanged();
             }
         }
@@ -214,7 +217,16 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private void Fail(FbxLevelExportJob job, IFbxExportHost host, string message)
+        private static void Cleanup(NavisworksFbxExportHost host)
+        {
+            try { host.Cleanup(); }
+            catch (Exception ex)
+            {
+                Logger.Warn("Item export temporary folder cleanup failed: " + ex.Message, "FbxLevelExport");
+            }
+        }
+
+        private void Fail(FbxLevelExportJob job, NavisworksFbxExportHost host, string message)
         {
             lock (_sync)
             {
@@ -224,6 +236,7 @@ namespace NavisHelper.Agent.Services
                 if (ReferenceEquals(job, _job))
                     _serviceError = message;
             }
+            Cleanup(host);
         }
 
         private static string BuildDocumentKey(Document document)
