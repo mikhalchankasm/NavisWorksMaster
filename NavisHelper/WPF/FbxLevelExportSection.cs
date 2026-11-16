@@ -29,7 +29,8 @@ namespace NavisHelper.WPF
         private readonly Button _addSelected;
         private readonly Button _remove;
         private readonly Button _clear;
-        private readonly ComboBox _depth = new ComboBox();
+        private readonly CheckBox _fbx = new CheckBox { IsChecked = true };
+        private readonly CheckBox _datasmith = new CheckBox();
         private readonly TextBox _folder = new TextBox();
         private readonly CheckBox _overwrite = new CheckBox();
         private readonly ProgressBar _progress = new ProgressBar { Height = 8, Minimum = 0 };
@@ -56,6 +57,19 @@ namespace NavisHelper.WPF
             };
             _timer.Tick += OnTick;
 
+            _bindings.BindContent(_fbx, "Panel_Export_FormatFbx_Label");
+            _bindings.BindContent(_datasmith, "Panel_Export_FormatDatasmith_Label");
+            var missing = DatasmithPanelExportJob.MissingDependency();
+            _datasmith.IsEnabled = missing == null;
+            if (missing != null)
+            {
+                ToolTipService.SetShowOnDisabled(_datasmith, true);
+                _bindings.BindAction(this, "ExportList.Dependency", () =>
+                    _datasmith.ToolTip = string.Format(CultureInfo.CurrentCulture,
+                        _bindings.Text("Panel_Datasmith_Unavailable_Status"), missing));
+            }
+            _root.Children.Add(_fbx);
+            _root.Children.Add(_datasmith);
             _root.Children.Add(_listBox);
             _bindings.BindFormattedText(_count, "Panel_Model_FbxListCount_Label", () => new object[] { _list.Count });
             _root.Children.Add(_count);
@@ -67,11 +81,6 @@ namespace NavisHelper.WPF
             listActions.Children.Add(_remove);
             listActions.Children.Add(_clear);
             _root.Children.Add(listActions);
-            _root.Children.Add(Label("Panel_Model_FbxLevel_Label"));
-            for (var depth = 0; depth <= 20; depth++) _depth.Items.Add(depth);
-            _depth.SelectedIndex = 0;
-            _bindings.BindToolTip(_depth, "Panel_Model_FbxLevel_ToolTip");
-            _root.Children.Add(_depth);
             _root.Children.Add(Label("Panel_Model_FbxFolder_Label"));
 
             _browse = Button("CommonBrowse", OnBrowse);
@@ -224,6 +233,14 @@ namespace NavisHelper.WPF
             _progress.Value = 0;
             Execute(() =>
             {
+                var formats = ItemExportFormats.None;
+                if (_fbx.IsChecked == true) formats |= ItemExportFormats.Fbx;
+                if (_datasmith.IsEnabled && _datasmith.IsChecked == true) formats |= ItemExportFormats.Datasmith;
+                if (formats == ItemExportFormats.None)
+                {
+                    ShowStatus("Panel_Export_NoFormat_Status", UiTheme.Warning);
+                    return;
+                }
                 _service = AgentRuntime.FbxLevelExportJobs;
                 if (_service == null)
                 {
@@ -247,8 +264,8 @@ namespace NavisHelper.WPF
                     ShowStatus("Panel_Model_FbxListEmpty_Status", UiTheme.Warning);
                     return;
                 }
-                var response = _service.Start(document, _list.Items, (int)_depth.SelectedItem,
-                    _folder.Text, _overwrite.IsChecked == true);
+                var response = _service.Start(document, _list.Items, 0,
+                    _folder.Text, _overwrite.IsChecked == true, formats);
                 _service.Changed -= OnJobChanged;
                 _service.Changed += OnJobChanged;
                 Update(response);
@@ -366,6 +383,7 @@ namespace NavisHelper.WPF
             _remove.Click -= OnRemove;
             _clear.Click -= OnClear;
             _bindings.UnbindAction(this, "FbxLevelExport.Status");
+            _bindings.UnbindAction(this, "ExportList.Dependency");
         }
     }
 }

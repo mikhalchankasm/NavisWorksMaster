@@ -14,8 +14,8 @@ public sealed class FbxLevelExportPanelTests
     private static readonly string[] ResourceKeys =
     {
         "Panel_Model_Group_FbxByLevel",
-        "Panel_Model_FbxLevel_Label",
-        "Panel_Model_FbxLevel_ToolTip",
+        "Panel_Export_NoFormat_Status",
+        "Panel_Datasmith_Unavailable_Status",
         "Panel_Model_FbxFolder_Label",
         "Panel_Model_FbxFolder_Prompt",
         "Panel_Model_FbxOverwrite_Label",
@@ -91,6 +91,12 @@ public sealed class FbxLevelExportPanelTests
         var onStart = section.Substring(start, end - start);
         Assert.DoesNotContain("CurrentSelection", onStart, StringComparison.Ordinal);
         Assert.Contains(".Items", onStart, StringComparison.Ordinal);
+        Assert.Contains(".Start(document, _list.Items, 0,", onStart, StringComparison.Ordinal);
+        Assert.Contains("_overwrite.IsChecked == true, formats)", onStart, StringComparison.Ordinal);
+        int noFormat = onStart.IndexOf("if (formats == ItemExportFormats.None)", StringComparison.Ordinal);
+        int service = onStart.IndexOf("_service = AgentRuntime.FbxLevelExportJobs", StringComparison.Ordinal);
+        Assert.True(noFormat >= 0 && service > noFormat);
+        Assert.Contains("return;", onStart.Substring(noFormat, service - noFormat), StringComparison.Ordinal);
         Assert.Contains(".BindTo(OwnerKey(document))", onStart, StringComparison.Ordinal);
     }
 

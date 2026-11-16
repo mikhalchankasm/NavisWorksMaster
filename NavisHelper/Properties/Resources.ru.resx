@@ -2620,7 +2620,10 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Settings_Service_Developers_Expander" xml:space="preserve"><value>Для разработчиков</value></data>
   <data name="Settings_Ai_Status_Error_Compact" xml:space="preserve"><value>Ошибка</value></data>
   <data name="Settings_Ai_Status_Connecting_Compact" xml:space="preserve"><value>Подключение…</value></data>
-  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>Экспорт списка в FBX</value></data>
+  <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>Экспорт списка: FBX и Datasmith</value></data>
+  <data name="Panel_Export_FormatFbx_Label" xml:space="preserve"><value>FBX</value></data>
+  <data name="Panel_Export_FormatDatasmith_Label" xml:space="preserve"><value>Datasmith (Twinmotion, Unreal)</value></data>
+  <data name="Panel_Export_NoFormat_Status" xml:space="preserve"><value>Отметьте FBX, Datasmith или оба формата.</value></data>
   <data name="Panel_Model_FbxAddSelected_Action" xml:space="preserve"><value>Добавить выбранные</value></data>
   <data name="Panel_Model_FbxRemove_Action" xml:space="preserve"><value>Удалить</value></data>
   <data name="Panel_Model_FbxClear_Action" xml:space="preserve"><value>Очистить</value></data>
@@ -2631,14 +2634,14 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Panel_Model_FbxLevel_Label" xml:space="preserve"><value>Глубина</value></data>
   <data name="Panel_Model_FbxLevel_ToolTip" xml:space="preserve"><value>0 = элементы списка, 1 = их дочерние элементы</value></data>
   <data name="Panel_Model_FbxFolder_Label" xml:space="preserve"><value>Папка</value></data>
-  <data name="Panel_Model_FbxFolder_Prompt" xml:space="preserve"><value>Выберите папку для FBX-файлов</value></data>
+  <data name="Panel_Model_FbxFolder_Prompt" xml:space="preserve"><value>Выберите папку для экспорта</value></data>
   <data name="Panel_Model_FbxOverwrite_Label" xml:space="preserve"><value>Заменять существующие файлы</value></data>
   <data name="Panel_Model_FbxStart_Action" xml:space="preserve"><value>Экспорт</value></data>
   <data name="Panel_Model_FbxCancel_Action" xml:space="preserve"><value>Отмена</value></data>
   <data name="Panel_Model_FbxProgress_Status" xml:space="preserve"><value>Готово {0} из {1}: {2}</value></data>
-  <data name="Panel_Model_FbxCompleted_Status" xml:space="preserve"><value>Экспорт FBX завершён: файлов {0}, пропущено {1}</value></data>
-  <data name="Panel_Model_FbxCanceled_Status" xml:space="preserve"><value>Экспорт FBX отменён после {0} из {1}</value></data>
-  <data name="Panel_Model_FbxFailed_Status" xml:space="preserve"><value>Экспорт FBX не выполнен: {0}</value></data>
+  <data name="Panel_Model_FbxCompleted_Status" xml:space="preserve"><value>Экспорт завершён: файлов {0}, пропущено {1}</value></data>
+  <data name="Panel_Model_FbxCanceled_Status" xml:space="preserve"><value>Экспорт отменён после {0} из {1}</value></data>
+  <data name="Panel_Model_FbxFailed_Status" xml:space="preserve"><value>Экспорт не выполнен: {0}</value></data>
   <data name="Panel_Model_FbxNoDocument_Status" xml:space="preserve"><value>Сначала откройте модель</value></data>
   <data name="Panel_Model_FbxUnavailable_Status" xml:space="preserve"><value>Хост NavisHelper не запущен</value></data>
   <data name="Panel_Export_Group_Datasmith" xml:space="preserve"><value>Twinmotion (Datasmith)</value></data>
