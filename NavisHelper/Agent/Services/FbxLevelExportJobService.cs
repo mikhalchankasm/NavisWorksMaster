@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Agent.Session;
@@ -16,6 +17,7 @@ namespace NavisHelper.Agent.Services
         private readonly object _sync = new object();
         private readonly Action<Action> _postToUi;
         private FbxLevelExportJob _job;
+        private NavisworksFbxExportHost _host;
         private string _serviceError;
 
         public event EventHandler Changed;
@@ -78,7 +80,8 @@ namespace NavisHelper.Agent.Services
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, error);
 
             var operationId = "fbx-job-" + Guid.NewGuid().ToString("N");
-            var host = new NavisworksFbxExportHost(document, operationId);
+            var host = new NavisworksFbxExportHost(document, operationId)
+                { HasConversions = (formats & ItemExportFormats.Datasmith) != 0 };
             var documentKey = BuildDocumentKey(document);
             FbxLevelExportJob job;
             lock (_sync)
@@ -96,9 +99,12 @@ namespace NavisHelper.Agent.Services
                 // A folder that cannot be created throws here, before the job is published.
                 Directory.CreateDirectory(folder);
                 _job = job;
+                _host = host;
                 _serviceError = null;
             }
 
+            if (host.HasConversions)
+                _ = Task.Run(() => ConvertCopies(job, host));
             Schedule(job, host, documentKey);
             lock (_sync)
             {
@@ -119,9 +125,14 @@ namespace NavisHelper.Agent.Services
             lock (_sync)
             {
                 var job = FindJob(request == null ? null : request.OperationId);
-                job.Cancel(DateTime.UtcNow);
+                if (job.Cancel(DateTime.UtcNow) && _host.HasConversions)
+                {
+                    _host.CancelConversion();
+                    _host.ConversionReady.Release();
+                }
                 var response = BuildStatus(job);
-                response.Message = "Cancellation requested. The current export cannot be interrupted; "
+                response.Message = _host.HasConversions ? "Cancellation requested; Datasmith conversion is stopping." :
+                    "Cancellation requested. The current export cannot be interrupted; "
                     + "cancellation takes effect before the next item.";
                 return response;
             }
@@ -202,10 +213,31 @@ namespace NavisHelper.Agent.Services
             }
             finally
             {
-                if (!job.IsRunning)
+                if (!job.IsRunning && !host.HasConversions)
                     Cleanup(host);
+                if (host.HasConversions)
+                {
+                    if (!job.IsRunning) host.CancelConversion();
+                    host.ConversionReady.Release();
+                }
                 RaiseChanged();
             }
+        }
+
+        private async Task ConvertCopies(FbxLevelExportJob job, NavisworksFbxExportHost host)
+        {
+            try
+            {
+                bool more;
+                do
+                {
+                    await host.ConversionReady.WaitAsync().ConfigureAwait(false);
+                    more = job.ConvertNext(host, () => DateTime.UtcNow);
+                    RaiseChanged();
+                } while (more);
+            }
+            catch (Exception ex) { Fail(job, host, ex.Message); }
+            finally { Cleanup(host); }
         }
 
         private void RaiseChanged()
@@ -236,7 +268,12 @@ namespace NavisHelper.Agent.Services
                 if (ReferenceEquals(job, _job))
                     _serviceError = message;
             }
-            Cleanup(host);
+            if (host.HasConversions)
+            {
+                host.CancelConversion();
+                host.ConversionReady.Release();
+            }
+            else Cleanup(host);
         }
 
         private static string BuildDocumentKey(Document document)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Autodesk.Navisworks.Api;
 using Autodesk.Navisworks.Api.ComApi;
@@ -42,6 +43,11 @@ namespace NavisHelper.Agent.Services
     internal sealed class NavisworksFbxExportHost : IFbxExportHost, IItemExportHost
     {
         private readonly Document _document;
+        private readonly object _runnerGate = new object();
+        private KillOnCloseJob _runnerJob;
+        private bool _runnerCanceled;
+        internal readonly SemaphoreSlim ConversionReady = new SemaphoreSlim(0);
+        internal bool HasConversions { get; set; }
 
         public NavisworksFbxExportHost(Document document, string operationId)
         {
@@ -106,8 +112,13 @@ namespace NavisHelper.Agent.Services
                 })
                 {
                     var timer = Stopwatch.StartNew();
-                    process.Start();
-                    job.Assign(process);
+                    lock (_runnerGate)
+                    {
+                        if (_runnerCanceled) return "Datasmith export canceled.";
+                        process.Start();
+                        job.Assign(process);
+                        _runnerJob = job;
+                    }
                     var stdout = process.StandardOutput.ReadToEndAsync();
                     var stderr = process.StandardError.ReadToEndAsync();
                     if (!process.WaitForExit(timeoutMs)
@@ -126,6 +137,15 @@ namespace NavisHelper.Agent.Services
         }
 
         public void DeleteFile(string path) => File.Delete(path);
+
+        internal void CancelConversion()
+        {
+            lock (_runnerGate)
+            {
+                _runnerCanceled = true;
+                _runnerJob?.Dispose();
+            }
+        }
 
         internal void Cleanup()
         {

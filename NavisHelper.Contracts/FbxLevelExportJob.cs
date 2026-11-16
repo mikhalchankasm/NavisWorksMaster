@@ -34,6 +34,9 @@ namespace NavisHelper.Agent.Contracts
         private long _largestFileBytes;
         private bool _cancelRequested;
         private bool _stepInProgress;
+        private bool _conversionInProgress;
+        private readonly Queue<KeyValuePair<string, FbxLevelExportFile>> _copies =
+            new Queue<KeyValuePair<string, FbxLevelExportFile>>();
 
         private FbxLevelExportJob(string operationId, FbxLevelExportPlan plan,
             string folder, bool overwrite, DateTime nowUtc, ItemExportFormats formats)
@@ -122,12 +125,14 @@ namespace NavisHelper.Agent.Contracts
                     return true;
                 if (_cancelRequested)
                 {
-                    Finish(FbxLevelExportJobStates.Canceled, nowUtc);
+                    if (_copies.Count == 0 && !_conversionInProgress)
+                        Finish(FbxLevelExportJobStates.Canceled, nowUtc);
                     return false;
                 }
                 if (_nextItem == _plan.Items.Count)
                 {
-                    Finish(FbxLevelExportJobStates.Completed, nowUtc);
+                    if (_copies.Count == 0 && !_conversionInProgress)
+                        Finish(FbxLevelExportJobStates.Completed, nowUtc);
                     return false;
                 }
                 item = _plan.Items[_nextItem];
@@ -186,14 +191,6 @@ namespace NavisHelper.Agent.Contracts
                         if (unhide.Count > 0)
                             host.SetHidden(unhide, false);
                     }
-
-                    if (error == null && copy != null)
-                    {
-                        string output = Path.Combine(_folder, errorName);
-                        error = itemHost.ExportDatasmith(copy, output);
-                        if (error == null)
-                            writtenPaths.Add(output);
-                    }
                 }
             }
             catch (Exception ex)
@@ -202,15 +199,6 @@ namespace NavisHelper.Agent.Contracts
             }
             finally
             {
-                try
-                {
-                    if (copy != null)
-                        itemHost.DeleteFile(copy);
-                }
-                catch (Exception ex)
-                {
-                    error = error == null ? ex.Message : error + "; " + ex.Message;
-                }
                 try
                 {
                     if (error != null && _formats == ItemExportFormats.Fbx)
@@ -228,6 +216,15 @@ namespace NavisHelper.Agent.Contracts
                 {
                     error = error ?? ex.Message;
                 }
+                try
+                {
+                    if (copy != null && error != null)
+                        itemHost.DeleteFile(copy);
+                }
+                catch (Exception ex)
+                {
+                    error = error + "; " + ex.Message;
+                }
                 timer.Stop();
             }
 
@@ -235,6 +232,10 @@ namespace NavisHelper.Agent.Contracts
             lock (_gate)
             {
                 _stepInProgress = false;
+                if (copy != null && error == null)
+                    _copies.Enqueue(new KeyValuePair<string, FbxLevelExportFile>(copy,
+                        new FbxLevelExportFile { Index = item.Index, Name = errorName,
+                            Path = Path.Combine(_folder, errorName) }));
                 foreach (FbxLevelExportFile file in writtenFiles)
                 {
                     file.ElapsedMs = timer.ElapsedMilliseconds;
@@ -253,11 +254,82 @@ namespace NavisHelper.Agent.Contracts
                 _nextItem++;
                 if (_nextItem == _plan.Items.Count)
                 {
-                    Finish(FbxLevelExportJobStates.Completed, finishedUtc);
+                    if (_copies.Count == 0 && !_conversionInProgress && _state == FbxLevelExportJobStates.Running)
+                        Finish(FbxLevelExportJobStates.Completed, finishedUtc);
                     return false;
                 }
-                return true;
+                return _formats == ItemExportFormats.Fbx
+                    || (_state == FbxLevelExportJobStates.Running && !_cancelRequested);
             }
+        }
+
+        /// <summary>Converts one queued copy off the UI thread; no Navisworks API calls are made.</summary>
+        public bool ConvertNext(IItemExportHost host, Func<DateTime> utcNow)
+        {
+            if (utcNow == null) throw new ArgumentNullException(nameof(utcNow));
+            KeyValuePair<string, FbxLevelExportFile> copy;
+            lock (_gate)
+            {
+                if (_conversionInProgress) return true;
+                if (_cancelRequested || _state != FbxLevelExportJobStates.Running || _copies.Count == 0)
+                    return FinishConversions(host, utcNow());
+                copy = _copies.Dequeue();
+                _conversionInProgress = true;
+            }
+            string error = null;
+            var timer = Stopwatch.StartNew();
+            try
+            {
+                error = host.ExportDatasmith(copy.Key, copy.Value.Path);
+                if (error == null) copy.Value.Bytes = host.FileSize(copy.Value.Path);
+            }
+            catch (Exception ex) { error = ex.Message; }
+            finally
+            {
+                try { host.DeleteFile(copy.Key); }
+                catch (Exception ex) { error = error ?? ex.Message; }
+            }
+            lock (_gate)
+            {
+                _conversionInProgress = false;
+                if (!_cancelRequested && _state == FbxLevelExportJobStates.Running)
+                {
+                    if (error != null)
+                    {
+                        _errorMessage = copy.Value.Name + ": " + error;
+                        Finish(FbxLevelExportJobStates.Failed, utcNow());
+                    }
+                    else
+                    {
+                        copy.Value.ElapsedMs = timer.ElapsedMilliseconds;
+                        _files.Add(copy.Value);
+                        if (_files.Count > StatusFileLimit) _files.RemoveAt(0);
+                        _largestFileBytes = Math.Max(_largestFileBytes, copy.Value.Bytes);
+                    }
+                }
+                return FinishConversions(host, utcNow());
+            }
+        }
+
+        // Called under _gate, including after a publishing failure or cancellation.
+        private bool FinishConversions(IItemExportHost host, DateTime nowUtc)
+        {
+            if (_cancelRequested || _state != FbxLevelExportJobStates.Running)
+                while (_copies.Count > 0)
+                {
+                    var copy = _copies.Dequeue();
+                    try { host.DeleteFile(copy.Key); }
+                    catch (Exception ex)
+                    {
+                        _errorMessage = _errorMessage ?? copy.Value.Name + ": " + ex.Message;
+                        Finish(FbxLevelExportJobStates.Failed, nowUtc);
+                    }
+                }
+            if (_stepInProgress || _conversionInProgress) return true;
+            if (_state != FbxLevelExportJobStates.Running) return false;
+            if (!_cancelRequested && (_copies.Count > 0 || _nextItem < _plan.Items.Count)) return true;
+            Finish(_cancelRequested ? FbxLevelExportJobStates.Canceled : FbxLevelExportJobStates.Completed, nowUtc);
+            return false;
         }
 
         public bool Cancel(DateTime nowUtc)
