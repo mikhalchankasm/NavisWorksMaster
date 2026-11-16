@@ -2621,6 +2621,7 @@ Center: {11:0.######}; {12:0.######}; {13:0.######}</value>
   <data name="Settings_Ai_Status_Error_Compact" xml:space="preserve"><value>Ошибка</value></data>
   <data name="Settings_Ai_Status_Connecting_Compact" xml:space="preserve"><value>Подключение…</value></data>
   <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>Экспорт списка: FBX и Datasmith</value></data>
+  <data name="Panel_Export_Formats_Header" xml:space="preserve"><value>Форматы</value></data>
   <data name="Panel_Export_FormatFbx_Label" xml:space="preserve"><value>FBX</value></data>
   <data name="Panel_Export_FormatDatasmith_Label" xml:space="preserve"><value>Datasmith (Twinmotion, Unreal)</value></data>
   <data name="Panel_Export_NoFormat_Status" xml:space="preserve"><value>Отметьте FBX, Datasmith или оба формата.</value></data>
