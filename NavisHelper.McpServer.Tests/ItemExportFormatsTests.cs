@@ -4,8 +4,9 @@ using Xunit;
 namespace NavisHelper.McpServer.Tests;
 
 // #494: the listed-item export job writes Datasmith per item alongside FBX. A Datasmith step publishes
-// an NWD copy of the isolated state (Publish keeps the open document's file name; probe 2026-11-16), then
-// the runner exports that copy after visibility is restored, and the copy is deleted.
+// an NWD copy of the isolated state (Publish keeps the open document's file name; probe 2026-11-16).
+// Review P1: the runner can take minutes per copy, so Step (UI thread) only hides, exports FBX, publishes
+// and restores; ConvertNext (a background thread) runs the runner on queued copies and deletes them.
 public sealed class ItemExportFormatsTests
 {
     private static readonly DateTime T0 = new(2026, 11, 16, 12, 0, 0, DateTimeKind.Utc);
@@ -54,28 +55,34 @@ public sealed class ItemExportFormatsTests
     }
 
     // Root { A, B }: the list holds A and B themselves (depth 0).
-    private static (FbxLevelExportPlan plan, Node a, Node b) Plan()
+    private static FbxLevelExportPlan Plan()
     {
         var a = new Node("A");
         var b = new Node("B");
         var root = new Node("Root", a, b);
         var plan = FbxLevelExportPlan.BuildFromItems(new IFbxTreeNode[] { root }, new IFbxTreeNode[] { a, b }, 0, out var error);
         Assert.True(error == null, error);
-        return (plan, a, b);
+        return plan;
+    }
+
+    private static int PublishAll(FbxLevelExportJob job, IItemExportHost host)
+    {
+        var steps = 0;
+        while (job.Step(host, () => T0.AddSeconds(++steps)) && steps < 100) { }
+        return steps;
     }
 
     private static void RunToEnd(FbxLevelExportJob job, IItemExportHost host)
     {
-        var steps = 0;
-        while (job.Step(host, () => T0.AddSeconds(++steps)) && steps < 100) { }
+        var steps = PublishAll(job, host);
+        while (job.ConvertNext(host, () => T0.AddSeconds(++steps)) && steps < 200) { }
     }
 
     [Fact]
-    public void BothFormats_WriteFbxAndDatasmithPerItem_InOrder()
+    public void BothFormats_PublishOnStep_ConvertInTheBackground()
     {
-        var (plan, _, _) = Plan();
         var host = new Host();
-        var job = FbxLevelExportJob.Start("items-1", plan, Folder, false, host, null, T0,
+        var job = FbxLevelExportJob.Start("items-1", Plan(), Folder, false, host, null, T0,
             ItemExportFormats.Fbx | ItemExportFormats.Datasmith);
 
         RunToEnd(job, host);
@@ -84,19 +91,63 @@ public sealed class ItemExportFormatsTests
         Assert.Equal(new[]
         {
             "hide B", "fbx 001_A.fbx", @"publish D:\tmp\nh-items\001_A.nwd", "unhide B",
-            @"datasmith 001_A.nwd -> D:\out\items\001_A.udatasmith", @"delete D:\tmp\nh-items\001_A.nwd",
             "hide A", "fbx 002_B.fbx", @"publish D:\tmp\nh-items\002_B.nwd", "unhide A",
+            @"datasmith 001_A.nwd -> D:\out\items\001_A.udatasmith", @"delete D:\tmp\nh-items\001_A.nwd",
             @"datasmith 002_B.nwd -> D:\out\items\002_B.udatasmith", @"delete D:\tmp\nh-items\002_B.nwd",
         }, host.Calls);
         Assert.DoesNotContain(host.Existing, path => path.StartsWith(Temp, StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
+    public void Step_NeverRunsTheRunner_TheJobWaitsForConversions()
+    {
+        var host = new Host();
+        var job = FbxLevelExportJob.Start("items-5", Plan(), Folder, false, host, null, T0, ItemExportFormats.Datasmith);
+
+        PublishAll(job, host);
+
+        Assert.DoesNotContain(host.Calls, call => call.StartsWith("datasmith ", StringComparison.Ordinal));
+        Assert.Equal(FbxLevelExportJobStates.Running, job.State);
+        Assert.True(job.ConvertNext(host, () => T0.AddSeconds(50)));
+        Assert.Equal(@"delete D:\tmp\nh-items\001_A.nwd", host.Calls[^1]);
+        Assert.False(job.ConvertNext(host, () => T0.AddSeconds(51)));
+        Assert.Equal(FbxLevelExportJobStates.Completed, job.State);
+    }
+
+    [Fact]
+    public void ConvertNext_CanRunWhileLaterItemsAreStillPublished()
+    {
+        var host = new Host();
+        var job = FbxLevelExportJob.Start("items-7", Plan(), Folder, false, host, null, T0, ItemExportFormats.Datasmith);
+
+        Assert.True(job.Step(host, () => T0.AddSeconds(1)));
+        Assert.True(job.ConvertNext(host, () => T0.AddSeconds(2)));
+        Assert.Contains(@"datasmith 001_A.nwd -> D:\out\items\001_A.udatasmith", host.Calls);
+        Assert.DoesNotContain(host.Calls, call => call.Contains("002_B", StringComparison.Ordinal));
+        Assert.Equal(FbxLevelExportJobStates.Running, job.State);
+    }
+
+    [Fact]
+    public void Cancel_DeletesQueuedCopiesWithoutConverting()
+    {
+        var host = new Host();
+        var job = FbxLevelExportJob.Start("items-6", Plan(), Folder, false, host, null, T0, ItemExportFormats.Datasmith);
+        var steps = PublishAll(job, host);
+
+        job.Cancel(T0.AddSeconds(60));
+        while (job.ConvertNext(host, () => T0.AddSeconds(61)) && steps++ < 100) { }
+
+        Assert.DoesNotContain(host.Calls, call => call.StartsWith("datasmith ", StringComparison.Ordinal));
+        Assert.Contains(@"delete D:\tmp\nh-items\001_A.nwd", host.Calls);
+        Assert.Contains(@"delete D:\tmp\nh-items\002_B.nwd", host.Calls);
+        Assert.Equal(FbxLevelExportJobStates.Canceled, job.State);
+    }
+
+    [Fact]
     public void DatasmithOnly_WritesNoFbx()
     {
-        var (plan, _, _) = Plan();
         var host = new Host();
-        var job = FbxLevelExportJob.Start("items-2", plan, Folder, false, host, null, T0, ItemExportFormats.Datasmith);
+        var job = FbxLevelExportJob.Start("items-2", Plan(), Folder, false, host, null, T0, ItemExportFormats.Datasmith);
 
         RunToEnd(job, host);
 
@@ -106,13 +157,24 @@ public sealed class ItemExportFormatsTests
     }
 
     [Fact]
+    public void FbxOnly_CompletesOnTheLastStep()
+    {
+        var host = new Host();
+        var job = FbxLevelExportJob.Start("items-8", Plan(), Folder, false, host, null, T0, ItemExportFormats.Fbx);
+
+        PublishAll(job, host);
+
+        Assert.Equal(FbxLevelExportJobStates.Completed, job.State);
+        Assert.False(job.ConvertNext(host, () => T0.AddSeconds(90)));
+    }
+
+    [Fact]
     public void ExistingDatasmithTarget_IsRefusedWithoutOverwrite()
     {
-        var (plan, _, _) = Plan();
         var host = new Host();
         host.Existing.Add(@"D:\out\items\001_A.udatasmith");
 
-        var ex = Assert.Throws<InvalidOperationException>(() => FbxLevelExportJob.Start("items-3", plan, Folder, false, host, null, T0,
+        var ex = Assert.Throws<InvalidOperationException>(() => FbxLevelExportJob.Start("items-3", Plan(), Folder, false, host, null, T0,
             ItemExportFormats.Fbx | ItemExportFormats.Datasmith));
         Assert.Contains("001_A.udatasmith", ex.Message);
     }
@@ -120,7 +182,6 @@ public sealed class ItemExportFormatsTests
     [Fact]
     public void NoFormat_IsRefused()
     {
-        var (plan, _, _) = Plan();
-        Assert.Throws<ArgumentException>(() => FbxLevelExportJob.Start("items-4", plan, Folder, false, new Host(), null, T0, ItemExportFormats.None));
+        Assert.Throws<ArgumentException>(() => FbxLevelExportJob.Start("items-4", Plan(), Folder, false, new Host(), null, T0, ItemExportFormats.None));
     }
 }
