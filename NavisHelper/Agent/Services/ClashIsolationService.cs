@@ -351,6 +351,8 @@ namespace NavisHelper.Agent.Services
                 string warning;
                 if (!TryCaptureImageAtomically(document, outputPath, options, request.Overwrite == true, out warning))
                     throw new AgentCommandException(ErrorCodes.CommandFailed, "Current view screenshot failed: " + warning);
+                if (!string.IsNullOrWhiteSpace(warning))
+                    response.Warnings.Add(warning);
             }
             finally
             {
@@ -558,6 +560,8 @@ namespace NavisHelper.Agent.Services
                     response.ImageWidth = image.Width;
                     response.ImageHeight = image.Height;
                 }
+                if (!string.IsNullOrWhiteSpace(warning))
+                    response.Warnings.Add(warning);
             }
             else if (!string.IsNullOrWhiteSpace(warning))
                 response.Warnings.Add("Screenshot was not captured: " + warning);
