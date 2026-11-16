@@ -116,7 +116,7 @@ public sealed class ClashReportOptionHelperTests
     }
 
     [Theory]
-    [InlineData("unknown", null, null, null, null, "Unsupported screenshotProfile 'unknown'. Use compact, fullhd, large, or source.")]
+    [InlineData("unknown", null, null, null, null, "Unsupported screenshotProfile 'unknown'. Use compact, fullhd, large, extra_high, or source.")]
     [InlineData("compact", "gif", null, null, null, "Unsupported screenshotFormat 'gif'. Use jpg, png, or bmp.")]
     [InlineData("compact", null, -1, null, null, "screenshotMaxWidth must be 0 or greater.")]
     [InlineData("compact", null, 319, null, null, "screenshotMaxWidth must be between 320 and 10000 pixels, or 0 to disable that bound.")]

@@ -55,6 +55,8 @@ namespace NavisHelper.Agent.Contracts
         public string IsolationStatus { get; set; }
         public string ScreenshotPath { get; set; }
         public bool ScreenshotCaptured { get; set; }
+        public int ImageWidth { get; set; }
+        public int ImageHeight { get; set; }
         public bool CanReset { get; set; }
         public string Message { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
@@ -99,6 +101,8 @@ namespace NavisHelper.Agent.Contracts
         public int ScreenshotJpegQuality { get; set; }
         public bool Captured { get; set; }
         public long FileSizeBytes { get; set; }
+        public int ImageWidth { get; set; }
+        public int ImageHeight { get; set; }
         public string Message { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
     }

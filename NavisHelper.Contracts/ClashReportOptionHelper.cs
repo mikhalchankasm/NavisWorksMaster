@@ -42,6 +42,9 @@ namespace NavisHelper.Agent.Contracts
         public const int DefaultLargeScreenshotMaxWidth = 2560;
         public const int DefaultLargeScreenshotMaxHeight = 1440;
         public const int DefaultLargeScreenshotJpegQuality = 88;
+        public const int DefaultExtraHighScreenshotMaxWidth = 3840;
+        public const int DefaultExtraHighScreenshotMaxHeight = 2160;
+        public const int DefaultExtraHighScreenshotJpegQuality = 90;
 
         public static int ClampClusterMembersInHtml(int? limit)
         {
@@ -160,6 +163,14 @@ namespace NavisHelper.Agent.Contracts
                     options.MaxHeight = DefaultLargeScreenshotMaxHeight;
                     options.JpegQuality = DefaultLargeScreenshotJpegQuality;
                     break;
+                case "extra_high":
+                case "ultra":
+                case "4k":
+                    options.Profile = "extra_high";
+                    options.MaxWidth = DefaultExtraHighScreenshotMaxWidth;
+                    options.MaxHeight = DefaultExtraHighScreenshotMaxHeight;
+                    options.JpegQuality = DefaultExtraHighScreenshotJpegQuality;
+                    break;
                 case "source":
                 case "bmp":
                 case "legacy":
@@ -171,7 +182,7 @@ namespace NavisHelper.Agent.Contracts
                     options.JpegQuality = 100;
                     break;
                 default:
-                    errorMessage = "Unsupported screenshotProfile '" + profile + "'. Use compact, fullhd, large, or source.";
+                    errorMessage = "Unsupported screenshotProfile '" + profile + "'. Use compact, fullhd, large, extra_high, or source.";
                     return null;
             }
 
@@ -261,6 +272,13 @@ namespace NavisHelper.Agent.Contracts
 
             result = value;
             return true;
+        }
+
+        public static void ResolveRenderSize(ClashReportScreenshotOptions options, int viewWidth, int viewHeight, out int width, out int height)
+        {
+            var hasRenderSize = options != null && options.MaxWidth > 0 && options.MaxHeight > 0;
+            width = hasRenderSize ? options.MaxWidth : viewWidth;
+            height = hasRenderSize ? options.MaxHeight : viewHeight;
         }
 
         public static void CalculateImageTargetSize(int sourceWidth, int sourceHeight, int maxWidth, int maxHeight, out int targetWidth, out int targetHeight)
