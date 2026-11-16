@@ -51,7 +51,8 @@ public sealed class ItemExportFormatsTests
         public void DeleteFile(string path) { Calls.Add("delete " + path); Existing.Remove(path); }
         public bool FileExists(string path) => Existing.Contains(path);
         public long FileSize(string path) => Existing.Contains(path) ? 1000 : 0;
-        public long FreeBytes(string folder) => 100L * 1024 * 1024 * 1024;
+        public Func<string, long> Free = _ => 100L * 1024 * 1024 * 1024;
+        public long FreeBytes(string folder) => Free(folder);
     }
 
     // Root { A, B }: the list holds A and B themselves (depth 0).
@@ -183,5 +184,34 @@ public sealed class ItemExportFormatsTests
     public void NoFormat_IsRefused()
     {
         Assert.Throws<ArgumentException>(() => FbxLevelExportJob.Start("items-4", Plan(), Folder, false, new Host(), null, T0, ItemExportFormats.None));
+    }
+
+    [Fact]
+    public void ATargetThatAppearsBeforeConversion_FailsWithoutOverwrite()
+    {
+        var host = new Host();
+        var job = FbxLevelExportJob.Start("items-9", Plan(), Folder, false, host, null, T0, ItemExportFormats.Datasmith);
+        Assert.True(job.Step(host, () => T0.AddSeconds(1)));
+        host.Existing.Add(@"D:\out\items\001_A.udatasmith");
+
+        Assert.False(job.ConvertNext(host, () => T0.AddSeconds(2)));
+
+        Assert.Equal(FbxLevelExportJobStates.Failed, job.State);
+        Assert.DoesNotContain(host.Calls, call => call.StartsWith("datasmith ", StringComparison.Ordinal));
+        Assert.Contains(@"delete D:\tmp\nh-items\001_A.nwd", host.Calls);
+    }
+
+    [Fact]
+    public void ALowTemporaryDrive_StopsBeforePublishing()
+    {
+        var host = new Host();
+        host.Free = folder => folder.StartsWith(@"D:\tmp", StringComparison.OrdinalIgnoreCase) || folder == @"D:\"
+            ? 512L * 1024 * 1024 : 100L * 1024 * 1024 * 1024;
+        var job = FbxLevelExportJob.Start("items-10", Plan(), Folder, false, host, null, T0, ItemExportFormats.Datasmith);
+
+        Assert.False(job.Step(host, () => T0.AddSeconds(1)));
+
+        Assert.Equal(FbxLevelExportJobStates.Failed, job.State);
+        Assert.DoesNotContain(host.Calls, call => call.StartsWith("publish ", StringComparison.Ordinal));
     }
 }

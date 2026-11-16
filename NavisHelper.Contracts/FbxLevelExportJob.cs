@@ -32,6 +32,7 @@ namespace NavisHelper.Agent.Contracts
         private DateTime? _completedAtUtc;
         private int _nextItem;
         private long _largestFileBytes;
+        private long _largestCopyBytes;
         private bool _cancelRequested;
         private bool _stepInProgress;
         private bool _conversionInProgress;
@@ -116,6 +117,7 @@ namespace NavisHelper.Agent.Contracts
             DateTime nowUtc = utcNow();
             FbxLevelExportPlanItem item;
             long largestFileBytes;
+            long largestCopyBytes;
             lock (_gate)
             {
                 if (_state != FbxLevelExportJobStates.Running)
@@ -137,6 +139,7 @@ namespace NavisHelper.Agent.Contracts
                 }
                 item = _plan.Items[_nextItem];
                 largestFileBytes = _largestFileBytes;
+                largestCopyBytes = _largestCopyBytes;
                 _stepInProgress = true;
             }
 
@@ -144,6 +147,7 @@ namespace NavisHelper.Agent.Contracts
             string path = Path.Combine(_folder, item.FileName);
             string errorName = item.FileName;
             string copy = null;
+            long copyBytes = 0;
             var itemHost = host as IItemExportHost;
             var writtenPaths = new List<string>();
             var writtenFiles = new List<FbxLevelExportFile>();
@@ -160,6 +164,11 @@ namespace NavisHelper.Agent.Contracts
                     }
                 if (error == null && !FbxLevelExportPlan.HasRoomForNext(host.FreeBytes(_folder), largestFileBytes))
                     error = "Insufficient free space for the next export.";
+                // Copies wait for the background runner, so the temporary drive is checked too (review P2).
+                if (error == null && itemHost != null && (_formats & ItemExportFormats.Datasmith) != 0
+                    && !FbxLevelExportPlan.HasRoomForNext(
+                        host.FreeBytes(Path.GetPathRoot(itemHost.TempFolder) ?? itemHost.TempFolder), largestCopyBytes))
+                    error = "Insufficient free space in the temporary folder for the next NWD copy.";
                 if (error == null)
                 {
                     IReadOnlyList<IFbxTreeNode> hide = FbxLevelExportPlan.HideSet(item);
@@ -180,6 +189,8 @@ namespace NavisHelper.Agent.Contracts
                             errorName = Path.ChangeExtension(item.FileName, ".udatasmith");
                             copy = Path.Combine(itemHost.TempFolder, Path.ChangeExtension(item.FileName, ".nwd"));
                             error = itemHost.PublishCopy(copy);
+                            if (error == null)
+                                copyBytes = host.FileSize(copy);
                         }
                     }
                     catch (Exception ex)
@@ -233,6 +244,8 @@ namespace NavisHelper.Agent.Contracts
             {
                 _stepInProgress = false;
                 if (copy != null && error == null)
+                    _largestCopyBytes = Math.Max(_largestCopyBytes, copyBytes);
+                if (copy != null && error == null)
                     _copies.Enqueue(new KeyValuePair<string, FbxLevelExportFile>(copy,
                         new FbxLevelExportFile { Index = item.Index, Name = errorName,
                             Path = Path.Combine(_folder, errorName) }));
@@ -280,7 +293,11 @@ namespace NavisHelper.Agent.Contracts
             var timer = Stopwatch.StartNew();
             try
             {
-                error = host.ExportDatasmith(copy.Key, copy.Value.Path);
+                // The target was checked when the copy was published, possibly minutes ago (review P2).
+                if (!_overwrite && host.FileExists(copy.Value.Path))
+                    error = "already exists; enable overwrite to replace it.";
+                else
+                    error = host.ExportDatasmith(copy.Key, copy.Value.Path);
                 if (error == null) copy.Value.Bytes = host.FileSize(copy.Value.Path);
             }
             catch (Exception ex) { error = ex.Message; }
