@@ -74,6 +74,8 @@ namespace NavisHelper.Agent.Services
                 capture.ScreenshotPath = ClashReportOutputHelper.BuildScreenshotRelativePath(fileName);
                 capture.ScreenshotCaptured = true;
                 capture.CapturedCount++;
+                if (!string.IsNullOrWhiteSpace(warning))
+                    capture.Warnings.Add("Screenshot " + globalIndex + ": " + warning);
             }
             else if (!string.IsNullOrWhiteSpace(warning))
             {
@@ -103,6 +105,8 @@ namespace NavisHelper.Agent.Services
                 capture.TopViewScreenshotPath = ClashReportOutputHelper.BuildScreenshotRelativePath(topFileName);
                 capture.TopViewScreenshotCaptured = true;
                 capture.CapturedCount++;
+                if (!string.IsNullOrWhiteSpace(warning))
+                    capture.Warnings.Add("Top view screenshot " + globalIndex + ": " + warning);
             }
             else if (!string.IsNullOrWhiteSpace(warning))
             {

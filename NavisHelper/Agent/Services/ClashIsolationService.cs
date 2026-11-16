@@ -351,6 +351,8 @@ namespace NavisHelper.Agent.Services
                 string warning;
                 if (!TryCaptureImageAtomically(document, outputPath, options, request.Overwrite == true, out warning))
                     throw new AgentCommandException(ErrorCodes.CommandFailed, "Current view screenshot failed: " + warning);
+                if (!string.IsNullOrWhiteSpace(warning))
+                    response.Warnings.Add(warning);
             }
             finally
             {
@@ -363,6 +365,11 @@ namespace NavisHelper.Agent.Services
 
             response.Captured = true;
             response.FileSizeBytes = new FileInfo(outputPath).Length;
+            using (var image = System.Drawing.Image.FromFile(outputPath))
+            {
+                response.ImageWidth = image.Width;
+                response.ImageHeight = image.Height;
+            }
             response.Message = "Current Navisworks view captured.";
             return response;
         }
@@ -546,7 +553,16 @@ namespace NavisHelper.Agent.Services
             string warning;
             var document = Autodesk.Navisworks.Api.Application.ActiveDocument;
             if (TryCaptureImageAtomically(document, response.ScreenshotPath, options, overwrite, out warning))
+            {
                 response.ScreenshotCaptured = true;
+                using (var image = System.Drawing.Image.FromFile(response.ScreenshotPath))
+                {
+                    response.ImageWidth = image.Width;
+                    response.ImageHeight = image.Height;
+                }
+                if (!string.IsNullOrWhiteSpace(warning))
+                    response.Warnings.Add(warning);
+            }
             else if (!string.IsNullOrWhiteSpace(warning))
                 response.Warnings.Add("Screenshot was not captured: " + warning);
         }

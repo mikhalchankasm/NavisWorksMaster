@@ -2007,9 +2007,9 @@ Inputs share the same test/status/batch, box, color, marker, and exclusion field
 | `createViewpoints` | bool | `true` | Create report-managed Saved Viewpoints. |
 | `captureScreenshots` | bool | `true` | Capture screenshots when Navisworks export is available. |
 | `captureTopViewScreenshots` | bool | `false` | Capture additional orthographic top view images. |
-| `screenshotProfile` | string | `compact` | `compact`, `fullhd` / `standard`, `large`, or `source`. |
+| `screenshotProfile` | string | `compact` | Render at `compact` (1280x720), `fullhd` / `standard` (1920x1080), `large` / `high` / `max` (2560x1440), `extra_high` / `ultra` / `4k` (3840x2160), or `source` (active view size). `extra_high` defaults to JPEG quality 90; existing profile qualities are unchanged. `source` defaults to BMP; others to JPEG. |
 | `screenshotFormat` | string | `""` | `jpg`/`jpeg`, `png`, or `bmp`; empty uses profile default. |
-| `screenshotMaxWidth`, `screenshotMaxHeight` | int | `0` | 0 uses profile default; images are not upscaled. |
+| `screenshotMaxWidth`, `screenshotMaxHeight` | int | `0` | 0 uses profile default. Two positive resolved bounds set the exact render size; otherwise render at active view size. Post-processing only shrinks. |
 | `screenshotJpegQuality` | int | `0` | 1..100; 0 uses profile default. |
 | `groupMode` | string | `none` | Optional cluster mode: `none`, `hybrid`, `object_pair`, or `spatial`. |
 | `artifactGranularity` | string | `result` | `result` creates one visual artifact per raw clash. `cluster` creates one shared viewpoint/screenshot set per cluster and requires a non-`none` `groupMode`, `resultOffset=0`, `append=false`, and the complete filtered scope in one call. |
@@ -2057,7 +2057,7 @@ Creates a transient interactive preview for one existing Clash Detective result 
 | `overwriteScreenshot` | bool | `false` | Allows replacing an existing image. |
 | `apply` | bool | `false` | Apply changes to the transient active view. |
 
-The response includes resolved test/result metadata, clash point and planned box in both dry-run and apply responses, effective settings, isolation counts/timing, screenshot outcome, and `canReset`.
+The response includes resolved test/result metadata, clash point and planned box in both dry-run and apply responses, effective settings, isolation counts/timing, screenshot outcome, and `canReset`. `imageWidth` and `imageHeight` report the written screenshot dimensions (0 when no screenshot was captured). Screenshot rendering uses the shared profile sizes, including `extra_high` at 3840x2160; the Image Export dialog's stored options are restored after capture.
 
 ## `clash_reset_isolation`
 
@@ -2068,6 +2068,8 @@ Restores the original viewpoint, section box, A/B appearance overrides, and temp
 Captures the current Navisworks view exactly as displayed, including a manually adjusted camera after `clash_isolate_result`.
 
 `outputPath` is a required absolute `.png`, `.jpg`, `.jpeg`, or `.bmp` path. Screenshot profile/format/size/quality parameters match `clash_generate_report`; `overwrite=false` and `apply=false` are the defaults.
+
+Rendering uses the profile's exact size, including `extra_high` / `ultra` / `4k` at 3840x2160, or the active view size for `source`. Two positive resolved size bounds override the render dimensions; if either dimension is unavailable, the exporter's stored size is left unchanged. Post-processing only shrinks. The Image Export dialog's stored options are restored in a `finally` after each capture, including failed exports. `imageWidth` and `imageHeight` report dimensions read from the written file, or 0 in dry-run responses.
 
 `hideSelectionHighlight=true` clears the selection for the capture, so its highlight does not cover model colours, and restores it afterwards (`selectionHighlightHidden` in the response). A dry run does not touch the selection (#357).
 
