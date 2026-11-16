@@ -95,7 +95,7 @@ namespace NavisHelper.Agent.Services
         // Navisworks 2026; the 2024 and 2025 API has neither, and one source builds for all four
         // versions. So the whole publish path goes through reflection, and the texture switch is
         // a private SetEmbedTextures on NwdExportOptions in any case (#363).
-        private static bool TryPublishWithEmbeddedTextures(Document document, string path, int? fileVersion)
+        internal static bool TryPublishWithEmbeddedTextures(Document document, string path, int? fileVersion)
         {
             var api = typeof(Document).Assembly;
             var optionsType = api.GetType("Autodesk.Navisworks.Api.NwdExportOptions");

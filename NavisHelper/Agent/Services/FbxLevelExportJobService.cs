@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
 using NavisHelper.Agent.Session;
@@ -16,6 +17,7 @@ namespace NavisHelper.Agent.Services
         private readonly object _sync = new object();
         private readonly Action<Action> _postToUi;
         private FbxLevelExportJob _job;
+        private NavisworksFbxExportHost _host;
         private string _serviceError;
 
         public event EventHandler Changed;
@@ -26,7 +28,7 @@ namespace NavisHelper.Agent.Services
         }
 
         public FbxLevelExportStatusResponse Start(Document document, StartFbxLevelExportRequest request,
-            MatchSessionStore sessionStore)
+            MatchSessionStore sessionStore, ItemExportFormats formats = ItemExportFormats.Fbx)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -55,11 +57,11 @@ namespace NavisHelper.Agent.Services
                     items.AddRange(resolved.Where(item => item != null && seen.Add(item)));
                 }
             }
-            return Start(document, items, request.Depth, request.Folder, request.Overwrite);
+            return Start(document, items, request.Depth, request.Folder, request.Overwrite, formats);
         }
 
         public FbxLevelExportStatusResponse Start(Document document, IReadOnlyList<ModelItem> items,
-            int depth, string folder, bool overwrite)
+            int depth, string folder, bool overwrite, ItemExportFormats formats = ItemExportFormats.Fbx)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -77,15 +79,17 @@ namespace NavisHelper.Agent.Services
             if (error != null)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, error);
 
-            var host = new NavisworksFbxExportHost(document);
+            var operationId = "fbx-job-" + Guid.NewGuid().ToString("N");
+            var host = new NavisworksFbxExportHost(document, operationId)
+                { HasConversions = (formats & ItemExportFormats.Datasmith) != 0 };
             var documentKey = BuildDocumentKey(document);
             FbxLevelExportJob job;
             lock (_sync)
             {
                 try
                 {
-                    job = FbxLevelExportJob.Start("fbx-job-" + Guid.NewGuid().ToString("N"),
-                        plan, folder, overwrite, host, _job, DateTime.UtcNow);
+                    job = FbxLevelExportJob.Start(operationId,
+                        plan, folder, overwrite, host, _job, DateTime.UtcNow, formats);
                 }
                 catch (InvalidOperationException exception)
                 {
@@ -95,9 +99,12 @@ namespace NavisHelper.Agent.Services
                 // A folder that cannot be created throws here, before the job is published.
                 Directory.CreateDirectory(folder);
                 _job = job;
+                _host = host;
                 _serviceError = null;
             }
 
+            if (host.HasConversions)
+                _ = Task.Run(() => ConvertCopies(job, host));
             Schedule(job, host, documentKey);
             lock (_sync)
             {
@@ -118,9 +125,14 @@ namespace NavisHelper.Agent.Services
             lock (_sync)
             {
                 var job = FindJob(request == null ? null : request.OperationId);
-                job.Cancel(DateTime.UtcNow);
+                if (job.Cancel(DateTime.UtcNow) && _host.HasConversions)
+                {
+                    _host.CancelConversion();
+                    _host.ConversionReady.Release();
+                }
                 var response = BuildStatus(job);
-                response.Message = "Cancellation requested. The current export cannot be interrupted; "
+                response.Message = _host.HasConversions ? "Cancellation requested; Datasmith conversion is stopping." :
+                    "Cancellation requested. The current export cannot be interrupted; "
                     + "cancellation takes effect before the next item.";
                 return response;
             }
@@ -147,7 +159,7 @@ namespace NavisHelper.Agent.Services
             return response;
         }
 
-        private void Schedule(FbxLevelExportJob job, IFbxExportHost host, string documentKey)
+        private void Schedule(FbxLevelExportJob job, NavisworksFbxExportHost host, string documentKey)
         {
             try
             {
@@ -159,7 +171,7 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private void ScheduleAfterInput(FbxLevelExportJob job, IFbxExportHost host, string documentKey)
+        private void ScheduleAfterInput(FbxLevelExportJob job, NavisworksFbxExportHost host, string documentKey)
         {
             try
             {
@@ -179,7 +191,7 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private void ProcessNext(FbxLevelExportJob job, IFbxExportHost host, string documentKey)
+        private void ProcessNext(FbxLevelExportJob job, NavisworksFbxExportHost host, string documentKey)
         {
             try
             {
@@ -201,8 +213,31 @@ namespace NavisHelper.Agent.Services
             }
             finally
             {
+                if (!job.IsRunning && !host.HasConversions)
+                    Cleanup(host);
+                if (host.HasConversions)
+                {
+                    if (!job.IsRunning) host.CancelConversion();
+                    host.ConversionReady.Release();
+                }
                 RaiseChanged();
             }
+        }
+
+        private async Task ConvertCopies(FbxLevelExportJob job, NavisworksFbxExportHost host)
+        {
+            try
+            {
+                bool more;
+                do
+                {
+                    await host.ConversionReady.WaitAsync().ConfigureAwait(false);
+                    more = job.ConvertNext(host, () => DateTime.UtcNow);
+                    RaiseChanged();
+                } while (more);
+            }
+            catch (Exception ex) { Fail(job, host, ex.Message); }
+            finally { Cleanup(host); }
         }
 
         private void RaiseChanged()
@@ -214,7 +249,16 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private void Fail(FbxLevelExportJob job, IFbxExportHost host, string message)
+        private static void Cleanup(NavisworksFbxExportHost host)
+        {
+            try { host.Cleanup(); }
+            catch (Exception ex)
+            {
+                Logger.Warn("Item export temporary folder cleanup failed: " + ex.Message, "FbxLevelExport");
+            }
+        }
+
+        private void Fail(FbxLevelExportJob job, NavisworksFbxExportHost host, string message)
         {
             lock (_sync)
             {
@@ -224,6 +268,12 @@ namespace NavisHelper.Agent.Services
                 if (ReferenceEquals(job, _job))
                     _serviceError = message;
             }
+            if (host.HasConversions)
+            {
+                host.CancelConversion();
+                host.ConversionReady.Release();
+            }
+            else Cleanup(host);
         }
 
         private static string BuildDocumentKey(Document document)
