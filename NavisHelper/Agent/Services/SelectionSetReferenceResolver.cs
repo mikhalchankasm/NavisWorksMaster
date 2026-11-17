@@ -27,7 +27,8 @@ namespace NavisHelper.Agent.Services
             if (reference == null)
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Selection set reference is required.");
 
-            if (!string.IsNullOrWhiteSpace(reference.RootName) || !string.IsNullOrWhiteSpace(reference.SourceFile))
+            if (!string.IsNullOrWhiteSpace(reference.RootName) || !string.IsNullOrWhiteSpace(reference.SourceFile) ||
+                !string.IsNullOrWhiteSpace(reference.ChildName))
                 return ResolveModelRoot(document, reference);
 
             var nodes = Build(document.SelectionSets.RootItem);
@@ -99,8 +100,39 @@ namespace NavisHelper.Agent.Services
             return true;
         }
 
+        /// <summary>The document's models as <see cref="ModelRootCandidate"/>s, in <c>document.Models</c> order.</summary>
+        internal static List<ModelRootCandidate> ModelRootCandidates(IList<Model> models)
+        {
+            return models.Select(candidate => new ModelRootCandidate
+            {
+                RootName = candidate == null || candidate.RootItem == null ? string.Empty : candidate.RootItem.DisplayName,
+                SourceFile = candidate == null ? string.Empty : candidate.SourceFileName,
+                FileName = candidate == null ? string.Empty : candidate.FileName,
+                // Read on first use only (see ModelRootCandidate.LoadChildNames).
+                LoadChildNames = () => candidate == null || candidate.RootItem == null ? new List<string>() : candidate.RootItem.Children.Cast<ModelItem>()
+                    .Select(item => item.DisplayName).ToList(),
+            }).ToList();
+        }
+
         private static ResolvedSelectionSetReference ResolveModelRoot(Document document, SelectionSetReference reference)
         {
+            if (!string.IsNullOrWhiteSpace(reference.ChildName))
+            {
+                var models = document.Models.Cast<Model>().ToList();
+                var candidates = ModelRootCandidates(models);
+                var match = ModelRootChildLocator.Locate(candidates, reference.RootName, reference.SourceFile, reference.ChildName);
+                var recordedModel = string.IsNullOrWhiteSpace(reference.RootName) && string.IsNullOrWhiteSpace(reference.SourceFile)
+                    ? string.Empty
+                    : " (recorded model '" + (reference.RootName ?? string.Empty).Trim() + "', " + (reference.SourceFile ?? string.Empty).Trim() + ")";
+                if (match.Kind == ModelRootChildMatchKind.NotFound)
+                    throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, "Model root child '" + reference.ChildName.Trim() + "' was not found" + recordedModel + ".");
+                if (match.Kind == ModelRootChildMatchKind.Ambiguous)
+                    throw new AgentCommandException(ErrorCodes.SavedItemAmbiguous, "Model root child '" + reference.ChildName.Trim() + "' matches more than one item" + recordedModel + "; export from the target document again.");
+                var matchedModel = models[match.ModelIndex];
+                var matchedChild = match.Kind == ModelRootChildMatchKind.Child
+                    ? matchedModel.RootItem.Children.Cast<ModelItem>().ElementAt(match.ChildIndex) : null;
+                return DescribeModelSelection(matchedModel, matchedChild);
+            }
             var matches = document.Models.Cast<Model>().Where(candidate =>
                 (string.IsNullOrWhiteSpace(reference.RootName) || string.Equals(candidate.RootItem == null ? string.Empty : candidate.RootItem.DisplayName, reference.RootName.Trim(), StringComparison.OrdinalIgnoreCase)) &&
                 (string.IsNullOrWhiteSpace(reference.SourceFile) ||
@@ -119,21 +151,15 @@ namespace NavisHelper.Agent.Services
             }
             if (matches.Count > 1)
                 throw new AgentCommandException(ErrorCodes.SavedItemAmbiguous, "More than one model root matched; pass occurrence or a more specific sourceFile path.");
-            var model = matches[0];
+            return DescribeModelSelection(matches[0], null);
+        }
+
+        private static ResolvedSelectionSetReference DescribeModelSelection(Model model, ModelItem resolvedChild)
+        {
             var items = new ModelItemCollection();
             var source = !string.IsNullOrWhiteSpace(model.SourceFileName) ? model.SourceFileName : model.FileName;
-            if (!string.IsNullOrWhiteSpace(reference.ChildName))
+            if (resolvedChild != null)
             {
-                var childName = reference.ChildName.Trim();
-                var children = model.RootItem == null ? new List<ModelItem>() : model.RootItem.Children.Cast<ModelItem>()
-                    .Where(child => string.Equals((child.DisplayName ?? string.Empty).Trim(), childName, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                var modelName = model.RootItem == null ? source : model.RootItem.DisplayName;
-                if (children.Count == 0)
-                    throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, "Model root child '" + childName + "' was not found in model '" + modelName + "' (" + source + ").");
-                if (children.Count > 1)
-                    throw new AgentCommandException(ErrorCodes.SavedItemAmbiguous, "Model root child '" + childName + "' is ambiguous in model '" + modelName + "' (" + source + ").");
-                var resolvedChild = children[0];
                 items.Add(resolvedChild);
                 return new ResolvedSelectionSetReference
                 {

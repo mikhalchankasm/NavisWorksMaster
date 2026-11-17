@@ -48,9 +48,12 @@ namespace NavisHelper.Agent.Services
             };
             plan.Warnings.Add("Clash results, saved result viewpoints, comments, calculation status, and historical review data are not transferred.");
 
+            // One snapshot of the models' child names for the whole export, built on first use.
+            var candidates = new Lazy<List<ModelRootCandidate>>(() =>
+                SelectionSetReferenceResolver.ModelRootCandidates(document.Models.Cast<Model>().ToList()));
             foreach (var entry in selected)
             {
-                var definition = ExportTest(document, entry.Item1, entry.Item2);
+                var definition = ExportTest(document, entry.Item1, entry.Item2, candidates);
                 plan.Tests.Add(definition);
             }
 
@@ -96,7 +99,7 @@ namespace NavisHelper.Agent.Services
             return response;
         }
 
-        private static ClashTestTransferDefinition ExportTest(Document document, ClashTest test, int testIndex)
+        private static ClashTestTransferDefinition ExportTest(Document document, ClashTest test, int testIndex, Lazy<List<ModelRootCandidate>> candidates)
         {
             var definition = new ClashTestTransferDefinition
             {
@@ -113,8 +116,8 @@ namespace NavisHelper.Agent.Services
                 return definition;
             }
 
-            definition.A = TryExportSide(document, test.SelectionA.Selection, "A", test.SelectionA.SelfIntersect);
-            definition.B = TryExportSide(document, test.SelectionB.Selection, "B", test.SelectionB.SelfIntersect);
+            definition.A = TryExportSide(document, test.SelectionA.Selection, "A", test.SelectionA.SelfIntersect, candidates);
+            definition.B = TryExportSide(document, test.SelectionB.Selection, "B", test.SelectionB.SelfIntersect, candidates);
             var unsupportedRules = test.IgnoreRules.Cast<Rule>()
                 .Where(rule => rule != null && rule.IsEnabled && !ClashNativeIgnoreRuleService.IsSameFileRule(rule.DisplayName))
                 .Select(rule => "ignore_rule:" + (rule.DisplayName ?? string.Empty))
@@ -127,7 +130,7 @@ namespace NavisHelper.Agent.Services
             return definition;
         }
 
-        private static ClashTestTransferSide ExportSide(Document document, Selection selection, string sideName, bool selfIntersect)
+        private static ClashTestTransferSide ExportSide(Document document, Selection selection, string sideName, bool selfIntersect, Lazy<List<ModelRootCandidate>> candidates)
         {
             var side = new ClashTestTransferSide
             {
@@ -224,6 +227,16 @@ namespace NavisHelper.Agent.Services
                         side.Kind = ClashTransferSideKinds.ModelRootChild;
                         side.RootName = model.RootItem.DisplayName;
                         side.SourceFile = !string.IsNullOrWhiteSpace(model.SourceFileName) ? model.SourceFileName : model.FileName;
+                        // Drop the document name and temp path only when this model is the one document root
+                        // (an appended model may share the name) and the child name alone is unique in this
+                        // document; otherwise the recorded model keeps the reference unambiguous.
+                        if (ModelRootChildLocator.IsDocumentRoot(model.RootItem.DisplayName, document.FileName) &&
+                            candidates.Value.Count(candidate => ModelRootChildLocator.IsDocumentRoot(candidate.RootName, document.FileName)) == 1 &&
+                            ModelRootChildLocator.Locate(candidates.Value, string.Empty, string.Empty, childName).Kind == ModelRootChildMatchKind.Child)
+                        {
+                            side.RootName = string.Empty;
+                            side.SourceFile = string.Empty;
+                        }
                         side.ChildName = childName;
                         side.Name = childName;
                         side.Supported = true;
@@ -237,11 +250,11 @@ namespace NavisHelper.Agent.Services
             return side;
         }
 
-        private static ClashTestTransferSide TryExportSide(Document document, Selection selection, string sideName, bool selfIntersect)
+        private static ClashTestTransferSide TryExportSide(Document document, Selection selection, string sideName, bool selfIntersect, Lazy<List<ModelRootCandidate>> candidates)
         {
             try
             {
-                return ExportSide(document, selection, sideName, selfIntersect);
+                return ExportSide(document, selection, sideName, selfIntersect, candidates);
             }
             catch (Exception ex)
             {

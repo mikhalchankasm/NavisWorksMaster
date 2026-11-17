@@ -49,8 +49,7 @@ namespace NavisHelper.Agent.Contracts
             if (string.Equals(side.Kind, ClashTransferSideKinds.ModelRoot, StringComparison.OrdinalIgnoreCase))
                 return !string.IsNullOrWhiteSpace(side.RootName) || !string.IsNullOrWhiteSpace(side.SourceFile);
             if (string.Equals(side.Kind, ClashTransferSideKinds.ModelRootChild, StringComparison.OrdinalIgnoreCase))
-                return !string.IsNullOrWhiteSpace(side.ChildName) &&
-                       (!string.IsNullOrWhiteSpace(side.RootName) || !string.IsNullOrWhiteSpace(side.SourceFile));
+                return !string.IsNullOrWhiteSpace(side.ChildName);
             if (string.Equals(side.Kind, ClashTransferSideKinds.SelectionSet, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(side.Kind, ClashTransferSideKinds.SearchSet, StringComparison.OrdinalIgnoreCase))
                 return !string.IsNullOrWhiteSpace(side.Path);

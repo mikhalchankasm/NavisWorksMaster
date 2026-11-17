@@ -36,10 +36,11 @@ public sealed class ClashTransferModelRootChildTests
     {
         var noChild = ChildSide("A", "");
         Assert.False(ClashTransferPlanHelper.IsPortableSide(noChild));
-        var noModel = ChildSide("A", "A.rvm");
-        noModel.SourceFile = "";
-        noModel.RootName = "";
-        Assert.False(ClashTransferPlanHelper.IsPortableSide(noModel));
+        // #522: a child of the document root is exported by its child name alone, and that is portable.
+        var childOnly = ChildSide("A", "A.rvm");
+        childOnly.SourceFile = "";
+        childOnly.RootName = "";
+        Assert.True(ClashTransferPlanHelper.IsPortableSide(childOnly));
     }
 
     [Fact]
