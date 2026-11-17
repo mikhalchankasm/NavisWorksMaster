@@ -433,6 +433,9 @@ ways: its own json, that json renamed `.xml`, and the default csv all fail with
 (`navishelper_json`) against `clash_batchtest_import` (`nw-exchange-12.0`). Both pairs are
 individually documented and correct; it is the naming symmetry that misleads. Recorded
 here so the next reader does not spend the window discovering it a third time.
+Since #510, `saved_viewpoints_export format=xml` writes that XML (its writer is tested by
+round trip through the import's camera parser), so the viewpoint pair is a round trip
+now; the clash pair still is not.
 
 **A structured refusal arrives with `navishelper_timing.status: "ok"`.** `delete_scenario`
 without `expectedSha256` answered `ok: false`, `applied: false`,
@@ -1426,15 +1429,15 @@ Twenty-three tools, and the reason for each, so the gap is a decision rather tha
 | `start_datasmith_export`, `datasmith_export_status` | New in #440 (slice β): a server-owned job that runs the Automation runner in a hidden Navisworks 2026; L0 only until the #440 L3 window on Navisworks 2026 with Epic's exporter. |
 | `start_fbx_export`, `fbx_export_status`, `cancel_fbx_export` | New in #444: host-owned FBX job for matchHandles or useSelection=true at depth 0..20; not measured, L3 pending. |
 | `clash_batchtest_import` | needs a Navisworks-authored `nw-exchange-12.0` XML; no tool in the product writes one. |
-| `saved_viewpoints_import` | needs Navisworks-authored Saved Viewpoints XML, for the same reason. Its refusal path was measured; the import path was not. |
+| `saved_viewpoints_import` | Its refusal path was measured; the import path was not. Since #510 its input comes from `saved_viewpoints_export format=xml`, so it needs only a window. |
 
-**4** of those are not reachable in a window at all, and saying which is which matters
+**3** of those are not reachable in a window at all, and saying which is which matters
 more than the count:
 
 - **out of reach** — `save_document` and `save_document_as`, because every window depends
-  on the document not being saved; `clash_batchtest_import` and `saved_viewpoints_import`,
-  because each needs a Navisworks-authored XML that no tool in the product writes.
-- **one short window away** — the remaining **19**: `background_job_status`, `start_fbx_export`, `fbx_export_status`, `cancel_fbx_export`, `start_datasmith_export`, `datasmith_export_status`, `viewpoint_animation_export`, `viewpoint_animation`, `viewpoints_per_item`, `section_planes`,
+  on the document not being saved; `clash_batchtest_import`, because it needs a
+  Navisworks-authored XML that no tool in the product writes.
+- **one short window away** — the remaining **20**: `saved_viewpoints_import`, `background_job_status`, `start_fbx_export`, `fbx_export_status`, `cancel_fbx_export`, `start_datasmith_export`, `datasmith_export_status`, `viewpoint_animation_export`, `viewpoint_animation`, `viewpoints_per_item`, `section_planes`,
   `set_view_display_settings`, `clash_one_vs_rest`,
   `clash_group_rename`, `clash_zones_export`, `clash_zones_markers`, `appearance_profile_apply`,
   `item_appearance`, `reset_appearance` and `selection_sets_apply_appearance`. The three previously here landed with #129
