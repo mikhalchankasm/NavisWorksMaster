@@ -68,6 +68,7 @@ namespace NavisHelper.Agent.Contracts
         public int FolderCount { get; set; }
         public int ViewpointCount { get; set; }
         public bool Written { get; set; }
+        public List<string> Warnings { get; set; } = new List<string>();
     }
 
     public sealed class SavedViewpointsImportRequest

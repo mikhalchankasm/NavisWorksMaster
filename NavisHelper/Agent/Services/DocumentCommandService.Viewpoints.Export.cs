@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.Core;
 using Newtonsoft.Json;
 
 namespace NavisHelper.Agent.Services
@@ -14,6 +15,7 @@ namespace NavisHelper.Agent.Services
         private const string SavedViewpointsExportFormatCsv = "csv";
         private const string SavedViewpointsExportFormatJson = "json";
         private const string SavedViewpointsExportFormatMarkdown = "md";
+        private const string SavedViewpointsExportFormatXml = "xml";
 
         public SavedViewpointsExportResponse SavedViewpointsExport(Document document, SavedViewpointsExportRequest request)
         {
@@ -34,6 +36,7 @@ namespace NavisHelper.Agent.Services
                     node.Info.ItemId = null;
             }
 
+            var xmlWarnings = new List<string>();
             string outputPath;
             string format;
             try
@@ -52,6 +55,9 @@ namespace NavisHelper.Agent.Services
                     File.WriteAllText(outputPath, JsonConvert.SerializeObject(nodes.Select(node => node.Info).ToList(), Formatting.Indented), Encoding.UTF8);
                 else if (string.Equals(format, SavedViewpointsExportFormatMarkdown, StringComparison.OrdinalIgnoreCase))
                     File.WriteAllText(outputPath, BuildSavedViewpointsMarkdown(nodes), Encoding.UTF8);
+                else if (string.Equals(format, SavedViewpointsExportFormatXml, StringComparison.OrdinalIgnoreCase))
+                    SavedViewpointsXmlWriter.Write(BuildSavedViewpointsXmlNodes(document.SavedViewpoints.RootItem, string.Empty, xmlWarnings),
+                        SavedViewpointsXmlUnits(document)).Save(outputPath);
                 else
                     File.WriteAllText(outputPath, BuildSavedViewpointsCsv(nodes), Encoding.UTF8);
             }
@@ -72,6 +78,9 @@ namespace NavisHelper.Agent.Services
                 FolderCount = nodes.Count(node => node.Item is GroupItem),
                 ViewpointCount = nodes.Count(node => node.Item is SavedViewpoint),
                 Written = true,
+                Warnings = format == SavedViewpointsExportFormatXml
+                    ? new[] { "XML keeps cameras and folders; redlines, section planes and hide/override states are not written." }.Concat(xmlWarnings).ToList()
+                    : new List<string>(),
             };
         }
 
@@ -84,10 +93,128 @@ namespace NavisHelper.Agent.Services
                 value = SavedViewpointsExportFormatCsv;
             if (value == "markdown")
                 value = SavedViewpointsExportFormatMarkdown;
-            if (value == SavedViewpointsExportFormatCsv || value == SavedViewpointsExportFormatJson || value == SavedViewpointsExportFormatMarkdown)
+            if (value == SavedViewpointsExportFormatCsv || value == SavedViewpointsExportFormatJson || value == SavedViewpointsExportFormatMarkdown || value == SavedViewpointsExportFormatXml)
                 return value;
 
-            throw new AgentCommandException(ErrorCodes.SchemaViolation, "Unsupported export format. Use csv, json, or md.");
+            throw new AgentCommandException(ErrorCodes.SchemaViolation, "Unsupported export format. Use csv, json, md, or xml.");
+        }
+
+        private static List<SavedViewpointsXmlNode> BuildSavedViewpointsXmlNodes(GroupItem root, string parentPath, List<string> warnings)
+        {
+            var nodes = new List<SavedViewpointsXmlNode>();
+            foreach (var item in root.Children)
+            {
+                if (item is GroupItem folder)
+                    nodes.Add(new SavedViewpointsXmlNode
+                    {
+                        Name = folder.DisplayName, IsFolder = true,
+                        Children = BuildSavedViewpointsXmlNodes(folder, parentPath + "/" + folder.DisplayName, warnings),
+                    });
+                else if (item is SavedViewpoint saved)
+                {
+                    var node = new SavedViewpointsXmlNode { Name = saved.DisplayName };
+                    ReadSavedViewpointsXmlValue(() => node.Camera = ReadSavedViewpointsXmlCamera(saved.Viewpoint));
+                    // A view without a readable position and rotation is left out and named, never written
+                    // with default coordinates that would import as a wrong camera.
+                    if (node.Camera == null)
+                        warnings.Add("Viewpoint '" + parentPath + "/" + saved.DisplayName + "' was not written: its camera could not be read.");
+                    nodes.Add(node);
+                }
+            }
+            return nodes;
+        }
+
+        private static SavedViewpointCameraParseResult ReadSavedViewpointsXmlCamera(Viewpoint viewpoint)
+        {
+            if (viewpoint == null)
+                return null;
+            var c = new SavedViewpointCameraParseResult { RotationA = 1 };
+            var pose = false;
+            ReadSavedViewpointsXmlValue(() =>
+            {
+                var position = viewpoint.Position;
+                var rotation = viewpoint.Rotation;
+                c.PositionX = position.X; c.PositionY = position.Y; c.PositionZ = position.Z;
+                c.RotationA = rotation.A; c.RotationB = rotation.B; c.RotationC = rotation.C; c.RotationD = rotation.D;
+                pose = true;
+            });
+            if (!pose)
+                return null;
+            ReadSavedViewpointsXmlValue(() => c.Projection = viewpoint.Projection == ViewpointProjection.Orthographic
+                ? SavedViewpointProjectionKind.Orthographic : SavedViewpointProjectionKind.Perspective);
+            ReadSavedViewpointsXmlValue(() => c.NearPlaneDistance = viewpoint.NearPlaneDistance);
+            ReadSavedViewpointsXmlValue(() => c.FarPlaneDistance = viewpoint.FarPlaneDistance);
+            ReadSavedViewpointsXmlValue(() => c.AspectRatio = viewpoint.AspectRatio);
+            ReadSavedViewpointsXmlValue(() => c.HeightField = viewpoint.HeightField);
+            // Optional values are written only when the viewpoint holds them: an unset world-up
+            // vector reads as zero and would come back from import as an invalid UnitVector3D.
+            ReadSavedViewpointsXmlValue(() => { if (viewpoint.HasFocalDistance) c.FocalDistance = viewpoint.FocalDistance; });
+            ReadSavedViewpointsXmlValue(() => { if (viewpoint.HasLinearSpeed) c.LinearSpeed = viewpoint.LinearSpeed; });
+            ReadSavedViewpointsXmlValue(() => { if (viewpoint.HasAngularSpeed) c.AngularSpeed = viewpoint.AngularSpeed; });
+            ReadSavedViewpointsXmlValue(() =>
+            {
+                if (!viewpoint.HasWorldUpVector)
+                    return;
+                var up = viewpoint.WorldUpVector;
+                c.WorldUpX = up.X; c.WorldUpY = up.Y; c.WorldUpZ = up.Z;
+                c.HasWorldUpVector = true;
+            });
+            ReadSavedViewpointsXmlValue(() => { if (viewpoint.HasRenderStyle) c.RenderStyle = ToSavedViewpointRenderStyleKind(viewpoint.RenderStyle); });
+            ReadSavedViewpointsXmlValue(() => { if (viewpoint.HasLighting) c.Lighting = ToSavedViewpointLightingKind(viewpoint.Lighting); });
+            ReadSavedViewpointsXmlValue(() =>
+            {
+                if (!viewpoint.HasViewer)
+                    return;
+                c.ViewerCameraMode = viewpoint.ViewerCameraMode == CameraMode.ThirdPerson
+                    ? SavedViewpointCameraModeKind.ThirdPerson
+                    : SavedViewpointCameraModeKind.FirstPerson;
+                c.ViewerAvatar = viewpoint.ViewerAvatar;
+            });
+            return c;
+        }
+
+        private static SavedViewpointRenderStyleKind ToSavedViewpointRenderStyleKind(ViewpointRenderStyle value)
+        {
+            switch (value)
+            {
+                case ViewpointRenderStyle.FullRender: return SavedViewpointRenderStyleKind.FullRender;
+                case ViewpointRenderStyle.Wireframe: return SavedViewpointRenderStyleKind.Wireframe;
+                case ViewpointRenderStyle.HiddenLine: return SavedViewpointRenderStyleKind.HiddenLine;
+                default: return SavedViewpointRenderStyleKind.Shaded;
+            }
+        }
+
+        private static SavedViewpointLightingKind ToSavedViewpointLightingKind(ViewpointLighting value)
+        {
+            switch (value)
+            {
+                case ViewpointLighting.Headlight: return SavedViewpointLightingKind.Headlight;
+                case ViewpointLighting.FullLights: return SavedViewpointLightingKind.FullLights;
+                case ViewpointLighting.None: return SavedViewpointLightingKind.None;
+                default: return SavedViewpointLightingKind.SceneLights;
+            }
+        }
+
+        private static void ReadSavedViewpointsXmlValue(Action read)
+        {
+            try { read(); }
+            catch (Exception ex)
+            {
+                Logger.Error("Failed to read saved viewpoint XML camera value: " + ex.Message, "ViewpointsMcp");
+            }
+        }
+
+        private static string SavedViewpointsXmlUnits(Document document)
+        {
+            switch (document.Units)
+            {
+                case Units.Meters: return "m";
+                case Units.Centimeters: return "cm";
+                case Units.Millimeters: return "mm";
+                case Units.Feet: return "ft";
+                case Units.Inches: return "in";
+                default: return null;
+            }
         }
 
         private static string BuildSavedViewpointsCsv(IEnumerable<SavedViewpointNode> nodes)
