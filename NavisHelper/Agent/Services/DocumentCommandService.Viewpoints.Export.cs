@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Autodesk.Navisworks.Api;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.Core;
 using Newtonsoft.Json;
 
 namespace NavisHelper.Agent.Services
@@ -35,6 +36,7 @@ namespace NavisHelper.Agent.Services
                     node.Info.ItemId = null;
             }
 
+            var xmlWarnings = new List<string>();
             string outputPath;
             string format;
             try
@@ -54,7 +56,7 @@ namespace NavisHelper.Agent.Services
                 else if (string.Equals(format, SavedViewpointsExportFormatMarkdown, StringComparison.OrdinalIgnoreCase))
                     File.WriteAllText(outputPath, BuildSavedViewpointsMarkdown(nodes), Encoding.UTF8);
                 else if (string.Equals(format, SavedViewpointsExportFormatXml, StringComparison.OrdinalIgnoreCase))
-                    SavedViewpointsXmlWriter.Write(BuildSavedViewpointsXmlNodes(document.SavedViewpoints.RootItem),
+                    SavedViewpointsXmlWriter.Write(BuildSavedViewpointsXmlNodes(document.SavedViewpoints.RootItem, string.Empty, xmlWarnings),
                         SavedViewpointsXmlUnits(document)).Save(outputPath);
                 else
                     File.WriteAllText(outputPath, BuildSavedViewpointsCsv(nodes), Encoding.UTF8);
@@ -77,7 +79,7 @@ namespace NavisHelper.Agent.Services
                 ViewpointCount = nodes.Count(node => node.Item is SavedViewpoint),
                 Written = true,
                 Warnings = format == SavedViewpointsExportFormatXml
-                    ? new List<string> { "XML keeps cameras and folders; redlines, section planes and hide/override states are not written." }
+                    ? new[] { "XML keeps cameras and folders; redlines, section planes and hide/override states are not written." }.Concat(xmlWarnings).ToList()
                     : new List<string>(),
             };
         }
@@ -97,7 +99,7 @@ namespace NavisHelper.Agent.Services
             throw new AgentCommandException(ErrorCodes.SchemaViolation, "Unsupported export format. Use csv, json, md, or xml.");
         }
 
-        private static List<SavedViewpointsXmlNode> BuildSavedViewpointsXmlNodes(GroupItem root)
+        private static List<SavedViewpointsXmlNode> BuildSavedViewpointsXmlNodes(GroupItem root, string parentPath, List<string> warnings)
         {
             var nodes = new List<SavedViewpointsXmlNode>();
             foreach (var item in root.Children)
@@ -105,12 +107,17 @@ namespace NavisHelper.Agent.Services
                 if (item is GroupItem folder)
                     nodes.Add(new SavedViewpointsXmlNode
                     {
-                        Name = folder.DisplayName, IsFolder = true, Children = BuildSavedViewpointsXmlNodes(folder),
+                        Name = folder.DisplayName, IsFolder = true,
+                        Children = BuildSavedViewpointsXmlNodes(folder, parentPath + "/" + folder.DisplayName, warnings),
                     });
                 else if (item is SavedViewpoint saved)
                 {
                     var node = new SavedViewpointsXmlNode { Name = saved.DisplayName };
                     ReadSavedViewpointsXmlValue(() => node.Camera = ReadSavedViewpointsXmlCamera(saved.Viewpoint));
+                    // A view without a readable position and rotation is left out and named, never written
+                    // with default coordinates that would import as a wrong camera.
+                    if (node.Camera == null)
+                        warnings.Add("Viewpoint '" + parentPath + "/" + saved.DisplayName + "' was not written: its camera could not be read.");
                     nodes.Add(node);
                 }
             }
@@ -122,16 +129,17 @@ namespace NavisHelper.Agent.Services
             if (viewpoint == null)
                 return null;
             var c = new SavedViewpointCameraParseResult { RotationA = 1 };
+            var pose = false;
             ReadSavedViewpointsXmlValue(() =>
             {
                 var position = viewpoint.Position;
-                c.PositionX = position.X; c.PositionY = position.Y; c.PositionZ = position.Z;
-            });
-            ReadSavedViewpointsXmlValue(() =>
-            {
                 var rotation = viewpoint.Rotation;
+                c.PositionX = position.X; c.PositionY = position.Y; c.PositionZ = position.Z;
                 c.RotationA = rotation.A; c.RotationB = rotation.B; c.RotationC = rotation.C; c.RotationD = rotation.D;
+                pose = true;
             });
+            if (!pose)
+                return null;
             ReadSavedViewpointsXmlValue(() => c.Projection = viewpoint.Projection == ViewpointProjection.Orthographic
                 ? SavedViewpointProjectionKind.Orthographic : SavedViewpointProjectionKind.Perspective);
             ReadSavedViewpointsXmlValue(() => c.NearPlaneDistance = viewpoint.NearPlaneDistance);
