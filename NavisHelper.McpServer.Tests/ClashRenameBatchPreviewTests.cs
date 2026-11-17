@@ -30,7 +30,7 @@ public sealed class ClashRenameBatchPreviewTests
         Assert.True(at > 0, "namePattern parameter is present");
         var line = tools.Substring(tools.LastIndexOf('\n', at), at - tools.LastIndexOf('\n', at));
         Assert.Contains("current test name", line, StringComparison.Ordinal);
-        Assert.Contains("' vs '", line, StringComparison.Ordinal);
+        Assert.Contains("A vs B", line, StringComparison.Ordinal);
     }
 
     private static string Body(string source, string signature)
