@@ -19,6 +19,7 @@ namespace NavisHelper.Agent.Contracts
         public const string SelectionSet = "selection_set";
         public const string SearchSet = "search_set";
         public const string ModelRoot = "model_root";
+        public const string ModelRootChild = "model_root_child";
         public const string Unsupported = "unsupported";
     }
 
@@ -62,6 +63,7 @@ namespace NavisHelper.Agent.Contracts
         public string Path { get; set; }
         public string RootName { get; set; }
         public string SourceFile { get; set; }
+        public string ChildName { get; set; }
         public string Locator { get; set; }
         public bool? SelfIntersect { get; set; }
         public int? CurrentMemberCount { get; set; }

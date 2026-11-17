@@ -205,6 +205,7 @@ namespace NavisHelper.Agent.Contracts
         public string Handle { get; set; }
         public string TestHandle { get; set; }
         public string Name { get; set; }
+        public string NewName { get; set; }
         public string Operation { get; set; }
         public bool Applied { get; set; }
         public string Status { get; set; }

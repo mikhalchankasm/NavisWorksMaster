@@ -624,7 +624,7 @@ test.
 
 For ordinary new `set × set`, `root × set`, or `root × root` definitions, call
 `clash_tests_from_sets` directly. Model roots accept exact `rootName` and/or
-`sourceFile`; set sides remain live native Selection Sources.
+`sourceFile`; a direct child of a model root adds `childName`, and `clash_tests_export` writes such a side as `model_root_child`; set sides remain live native Selection Sources.
 
 ## `clash_one_vs_rest`
 

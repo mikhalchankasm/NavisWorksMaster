@@ -24,7 +24,7 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
         [Description("First N matches; unscoped: first N globally for preview/run/compact/settings. Applied delete/reset needs another scope, e.g. namePrefix.")] int firstN = 0,
         [Description("New test name for operation=rename. Rename requires exactly one matched test.")] string newName = "",
         [Description("rename_batch: {testHandle,newName} entries; validates all before mutation.")] List<ClashTestRenameRequest> renames = null,
-        [Description("rename_batch template: {index}, {name}, {aName}, {bName}, {aCode}, {bCode}. Pair transforms: zeroPad:N, strip:#regex#, replace:#regex#replacement#, upper, lower.")] string namePattern = "",
+        [Description("rename_batch template: {index}, {name}; {aName}, {bName}, {aCode}, {bCode} from the current test name A vs B. Transforms: zeroPad:N, strip:#regex#, replace:#regex#replacement#, upper, lower.")] string namePattern = "",
         [Description("First number used by namePattern {index}. Default is 1.")] int renameStartIndex = 1,
         [Description("Number from scope end, keeping current test order.")] bool renameFromEnd = false,
         [Description("move: 1-based index in current folder/root; exactly one test.")] int targetIndex = 0,
