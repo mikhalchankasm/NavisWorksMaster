@@ -113,6 +113,9 @@ public sealed class ClashTransferRootChildRevisionsTests
         Assert.Contains("ModelRootChildLocator.IsDocumentRoot(", exporter, StringComparison.Ordinal);
         // The document root is dropped only when the child name alone is unique (Codex review, #522).
         Assert.Contains("string.Empty, string.Empty, childName).Kind == ModelRootChildMatchKind.Child", exporter, StringComparison.Ordinal);
+        // ...only when exactly one model carries the document name, and from one snapshot per export.
+        Assert.Contains("ModelRootChildLocator.IsDocumentRoot(candidate.RootName, document.FileName)) == 1", exporter, StringComparison.Ordinal);
+        Assert.Contains("new Lazy<List<ModelRootCandidate>>(", exporter, StringComparison.Ordinal);
         var resolver = Read("NavisHelper", "Agent", "Services", "SelectionSetReferenceResolver.cs");
         Assert.Contains("ModelRootChildLocator.Locate(", resolver, StringComparison.Ordinal);
     }
