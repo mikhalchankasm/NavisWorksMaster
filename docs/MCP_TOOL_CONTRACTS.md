@@ -624,7 +624,7 @@ test.
 
 For ordinary new `set × set`, `root × set`, or `root × root` definitions, call
 `clash_tests_from_sets` directly. Model roots accept exact `rootName` and/or
-`sourceFile`; set sides remain live native Selection Sources.
+`sourceFile`; a direct child of a model root adds `childName`, and `clash_tests_export` writes such a side as `model_root_child`; set sides remain live native Selection Sources.
 
 ## `clash_one_vs_rest`
 
@@ -1612,7 +1612,7 @@ selection-scoped calls after one.
 - `clash_group_custom` takes `resultHandles`, `resultNames`, or both, and validates all of them against one `testHandle` before creating/rebuilding a group. Unresolved selectors are returned in `missingResultHandles`, `missingResultNames` and `ambiguousResultNames` and nothing is changed. An applied call adds a warning that the test's handles have changed.
 - `clash_ungroup` accepts explicit `groupHandles` or `groupNamePrefix`; both tools are dry-run by default.
 - `clash_group_rename` renames groups without moving anything; see [its section](#clash_group_rename).
-- `clash_set_status` supports `results`, `group`, and `test` scopes. `scope=results` takes `resultHandles`, `resultNames`, or both; an unresolved name fails the call. Group/test scopes always update individual child results. More than 500 results requires `confirmLargeStatusChange=true` for apply.
+- `clash_set_status` supports `results`, `group`, and `test` scopes. `scope=results` takes `resultHandles`, `resultNames`, or both; an unresolved name fails the call. Group/test scopes always update individual child results. `excludeResultNames` (any scope) leaves results with those names unchanged; an excluded name that matches nothing in scope fails the call, and `excludedResultCount` reports how many were left out before the large-change count. More than 500 results requires `confirmLargeStatusChange=true` for apply.
 - `clash_group_by_proximity` writes the same spatial/hybrid/object-pair clusters that `clash_list_clusters` previews. More than 1000 analyzed results requires `confirmLargeGrouping=true`.
 - `clash_ignore_rules` persists its JSON payload inside the Navisworks document under `__NavisHelper_Data`, approves matches with a reason comment, and re-applies after test runs.
 - `clash_export_points` writes `.csv` or `.xlsx`; XLSX includes collision rows, a level summary, and a grid-by-level matrix.

@@ -17,6 +17,15 @@ namespace NavisHelper.Agent.Contracts
         }
     }
 
+    public sealed class ClashResultNameExclusion
+    {
+        /// <summary>Zero-based positions of the results that stay in scope, in their original order.</summary>
+        public List<int> KeptPositions { get; set; } = new List<int>();
+        public int ExcludedCount { get; set; }
+        /// <summary>Requested names that matched no result in scope.</summary>
+        public List<string> MissingNames { get; set; } = new List<string>();
+    }
+
     /// <summary>
     /// Selects clash results by display name instead of by <c>clash-result:T:N</c>.
     /// N is the result's position in the test's flattened tree, so it changes
@@ -58,6 +67,33 @@ namespace NavisHelper.Agent.Contracts
             }
 
             return selection;
+        }
+
+        /// <summary>
+        /// Removes every result whose name is in <paramref name="excludedNames"/> (exact after trimming,
+        /// case ignored). Unlike <see cref="Resolve"/>, a name held by several results is not ambiguous
+        /// here: excluding all of them is the safe reading. Unmatched names are reported so a caller can
+        /// refuse a typo instead of changing the result it meant to protect.
+        /// </summary>
+        public static ClashResultNameExclusion Exclude(IList<string> namesInOrder, IEnumerable<string> excludedNames)
+        {
+            var exclusion = new ClashResultNameExclusion();
+            var excluded = new HashSet<string>(NormalizeNames(excludedNames), StringComparer.OrdinalIgnoreCase);
+            var matched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var names = namesInOrder ?? new List<string>();
+            for (var index = 0; index < names.Count; index++)
+            {
+                var key = (names[index] ?? string.Empty).Trim();
+                if (key.Length > 0 && excluded.Contains(key))
+                {
+                    matched.Add(key);
+                    exclusion.ExcludedCount++;
+                    continue;
+                }
+                exclusion.KeptPositions.Add(index);
+            }
+            exclusion.MissingNames.AddRange(NormalizeNames(excludedNames).Where(name => !matched.Contains(name)));
+            return exclusion;
         }
 
         public static List<string> NormalizeNames(IEnumerable<string> names)

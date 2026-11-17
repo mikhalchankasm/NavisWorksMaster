@@ -202,11 +202,16 @@ namespace NavisHelper.Agent.Services
             var testsData = clash.TestsData;
             var tests = ClashApiCompat.GetClashTests(clash).ToList();
             var targets = ResolveClashStatusTargets(tests, request, scope);
+            var exclusion = ClashResultNameSelector.Exclude(targets.Select(target => target.DisplayName).ToList(), request.ExcludeResultNames);
+            if (exclusion.MissingNames.Count > 0)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "excludeResultNames not found in scope: " + string.Join(", ", exclusion.MissingNames) + ".");
+            targets = exclusion.KeptPositions.Select(position => targets[position]).ToList();
             var response = new ClashSetStatusResponse
             {
                 Scope = scope,
                 Status = status.ToString(),
                 AffectedResultCount = targets.Count,
+                ExcludedResultCount = exclusion.ExcludedCount,
                 LargeStatusChangeThreshold = LargeClashStatusChangeThreshold,
             };
             foreach (var target in targets)

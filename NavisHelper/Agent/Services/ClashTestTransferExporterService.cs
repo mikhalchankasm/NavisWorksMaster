@@ -200,6 +200,37 @@ namespace NavisHelper.Agent.Services
                     side.ResolutionStatus = "source_resolved";
                     return side;
                 }
+                if (models.Count == 0 && explicitItem != null && explicitItem.Parent != null)
+                {
+                    var parent = explicitItem.Parent;
+                    var parentModels = document.Models.Cast<Model>()
+                        .Where(model => model != null && model.RootItem != null && (object.ReferenceEquals(model.RootItem, parent) || model.RootItem.Equals(parent)))
+                        .ToList();
+                    if (parentModels.Count == 1)
+                    {
+                        var model = parentModels[0];
+                        var childName = explicitItem.DisplayName;
+                        if (string.IsNullOrWhiteSpace(childName))
+                        {
+                            side.Warnings.Add("Side " + sideName + " model root child '" + (childName ?? string.Empty) + "' has a blank display name and is not portable.");
+                            return side;
+                        }
+                        if (model.RootItem.Children.Cast<ModelItem>().Count(child =>
+                            string.Equals((child.DisplayName ?? string.Empty).Trim(), childName.Trim(), StringComparison.OrdinalIgnoreCase)) > 1)
+                        {
+                            side.Warnings.Add("Side " + sideName + " model root child '" + childName + "' has an ambiguous display name among siblings and is not portable.");
+                            return side;
+                        }
+                        side.Kind = ClashTransferSideKinds.ModelRootChild;
+                        side.RootName = model.RootItem.DisplayName;
+                        side.SourceFile = !string.IsNullOrWhiteSpace(model.SourceFileName) ? model.SourceFileName : model.FileName;
+                        side.ChildName = childName;
+                        side.Name = childName;
+                        side.Supported = true;
+                        side.ResolutionStatus = "source_resolved";
+                        return side;
+                    }
+                }
             }
 
             side.Warnings.Add("Side " + sideName + " is an explicit-item snapshot or another unsupported selection form; it was not converted to a Selection Source.");

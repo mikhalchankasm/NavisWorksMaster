@@ -34,9 +34,9 @@ public sealed class ClashToolDescriptionBudgetTests
 
     // SHA-256 of every clash_* input schema with all "description" members removed,
     // tools ordered by name. A rewrite of descriptions must leave it unchanged; a
-    // deliberate parameter change updates it. Last updated for 2.15: primitiveTypesA/B
-    // on clash_tests_from_sets and includeComments on clash_list_results.
-    private const string SchemaShapeSha256 = "68ADAB79BCEA863B09E891B488EEEA975F6963E1C65C68189E64E3F5475CF144";
+    // deliberate parameter change updates it. Last updated for #511: excludeResultNames
+    // on clash_set_status (after #507: childName on the clash_tests_from_sets side reference).
+    private const string SchemaShapeSha256 = "45FD51208E92E51F078237EE04A64CF3EBE35771AEE6D344BB1834C59C877D3F";
 
     [Fact]
     public async Task RewriteChangesDescriptionsOnly()

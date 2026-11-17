@@ -9,7 +9,7 @@ internal sealed class NavisworksClashTransferTools : NavisworksToolBase
     public NavisworksClashTransferTools(NavisworksToolContext context) : base(context) { }
 
     [McpServerTool]
-    [Description("Exports versioned portable JSON test definitions; dry-run, file writes only on apply=true. Set identity: exact full tree path; root: rootName/sourceFile. No results, viewpoints, comments or calculation history.")]
+    [Description("Exports versioned portable JSON test definitions; dry-run, file writes only on apply=true. Set identity: exact full tree path; root: rootName/sourceFile(+childName). No results, viewpoints, comments or calculation history.")]
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashTestsExportResponse> ClashTestsExport(
         [Description("Exact names; union with testHandles/namePrefix; empty scope=all tests.")] List<string> testNames = null,
@@ -36,7 +36,7 @@ internal sealed class NavisworksClashTransferTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Imports supported nw-exchange-12.0 batchtest XML via exact lcop_selection_set_tree/full/path to versioned transfer plan/clash_tests_from_sets. Rejects DTD/external entities/schema loading, unsupported locators, oversized input. Dry-run; never runs tests/imports old results.")]
+    [Description("Imports nw-exchange-12.0 batchtest XML (exact lcop_selection_set_tree/full/path locators) through a transfer plan into clash_tests_from_sets. Rejects DTD/external entities, unsupported locators, oversized input. Dry-run; never runs tests or imports results.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashBatchtestImportResponse> ClashBatchtestImport(
         [Description("Exact absolute path to a Navisworks nw-exchange-12.0 batchtest XML file.")] string inputPath,
