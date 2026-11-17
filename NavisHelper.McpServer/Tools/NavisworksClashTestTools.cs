@@ -109,7 +109,10 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
         {
             var started = _jobs.Start("clash_bbox_pair_plan", async token =>
                 (object)await _hostBridgeClient.ClashBboxPairPlanAsync(request, token, target, BackgroundHostTimeoutMs));
-            return Task.FromResult(new ClashBboxPairPlanResponse { BackgroundOperationId = started.OperationId, Applied = false });
+            return Task.FromResult(new ClashBboxPairPlanResponse
+            {
+                BackgroundOperationId = started.OperationId, Applied = false, Warnings = { BackgroundStartReply.Message(started.OperationId) },
+            });
         }
         return _hostBridgeClient.ClashBboxPairPlanAsync(request, cancellationToken, target);
     }

@@ -2399,7 +2399,9 @@ restart. Server disposal cancels running calls. `background=true` is supported b
 `clash_tests_export`, `clash_generate_report` and `clash_bbox_pair_plan`: each
 returns `backgroundOperationId` with `applied=false` at once and runs the host call
 with a 30-minute timeout. While a job runs, the host answers other calls with
-`host_busy`; `background_job_status` itself needs no host. L3 verification is pending.
+`host_busy`; `background_job_status` itself needs no host. The start reply says so in
+`warnings` (and `message` where the type has one): its counts stay at their defaults
+until the job ends. Verified in L3 on 2026-11-17 (#508).
 
 ## Overlay world markers
 

@@ -43,7 +43,10 @@ internal sealed class NavisworksClashTransferTools : NavisworksToolBase
         {
             var started = _jobs.Start("clash_tests_export", async token =>
                 (object)await _hostBridgeClient.ClashTestsExportAsync(request, token, target, BackgroundHostTimeoutMs));
-            return Task.FromResult(new ClashTestsExportResponse { BackgroundOperationId = started.OperationId, Applied = false });
+            return Task.FromResult(new ClashTestsExportResponse
+            {
+                BackgroundOperationId = started.OperationId, Applied = false, Message = BackgroundStartReply.Message(started.OperationId), Warnings = { BackgroundStartReply.Message(started.OperationId) },
+            });
         }
         return _hostBridgeClient.ClashTestsExportAsync(request, cancellationToken, target);
     }
