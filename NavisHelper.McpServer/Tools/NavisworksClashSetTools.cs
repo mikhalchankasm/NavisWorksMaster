@@ -9,7 +9,7 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
     public NavisworksClashSetTools(NavisworksToolContext context) : base(context) { }
 
     [McpServerTool]
-    [Description("Creates tests per Selection/Search Set or root pair; dry-run. Live SelectionSource bindings re-evaluate Search Sets. Inline: local itemId/exact path/unique name/rootName/sourceFile. planPath: navishelper.clash-test-transfer v1; itemId diagnostic-only, exact full set path portable.")]
+    [Description("Creates tests per Selection/Search Set or root pair; dry-run. Live SelectionSource bindings re-evaluate Search Sets. Inline: local itemId/exact path/unique name/rootName/sourceFile(+childName). planPath: navishelper.clash-test-transfer v1; itemId diagnostic-only, exact full set path portable.")]
     [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashTestsFromSetsResponse> ClashTestsFromSets(
         [Description("False previews names/set paths/counts/conflicts/warnings; true creates/replaces tests.")] bool apply = false,
