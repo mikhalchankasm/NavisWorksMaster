@@ -103,7 +103,10 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
         {
             var started = _jobs.Start("clash_generate_report", async token =>
                 (object)await _hostBridgeClient.ClashGenerateReportAsync(request, token, target, BackgroundHostTimeoutMs));
-            return Task.FromResult(new ClashGenerateReportResponse { BackgroundOperationId = started.OperationId, Applied = false });
+            return Task.FromResult(new ClashGenerateReportResponse
+            {
+                BackgroundOperationId = started.OperationId, Applied = false, Message = BackgroundStartReply.Message(started.OperationId), Warnings = { BackgroundStartReply.Message(started.OperationId) },
+            });
         }
         return _hostBridgeClient.ClashGenerateReportAsync(request, cancellationToken, target);
     }
