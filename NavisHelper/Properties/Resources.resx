@@ -2621,6 +2621,7 @@ Unique names: {2}</value></data>
   <data name="Settings_Ai_Status_Error_Compact" xml:space="preserve"><value>Error</value></data>
   <data name="Settings_Ai_Status_Connecting_Compact" xml:space="preserve"><value>Connecting…</value></data>
   <data name="Panel_Model_Group_FbxByLevel" xml:space="preserve"><value>Export list: FBX and Datasmith</value></data>
+  <data name="Panel_Export_Formats_Header" xml:space="preserve"><value>Formats</value></data>
   <data name="Panel_Export_FormatFbx_Label" xml:space="preserve"><value>FBX</value></data>
   <data name="Panel_Export_FormatDatasmith_Label" xml:space="preserve"><value>Datasmith (Twinmotion, Unreal)</value></data>
   <data name="Panel_Export_NoFormat_Status" xml:space="preserve"><value>Tick FBX, Datasmith or both.</value></data>

@@ -68,8 +68,21 @@ namespace NavisHelper.WPF
                     _datasmith.ToolTip = string.Format(CultureInfo.CurrentCulture,
                         _bindings.Text("Panel_Datasmith_Unavailable_Status"), missing));
             }
-            _root.Children.Add(_fbx);
-            _root.Children.Add(_datasmith);
+            var formats = new StackPanel { Orientation = Orientation.Vertical };
+            _fbx.Margin = new Thickness(0, 2, 0, 6);
+            _datasmith.Margin = new Thickness(0, 0, 0, 2);
+            formats.Children.Add(_fbx);
+            formats.Children.Add(_datasmith);
+            var formatsGroup = new GroupBox
+            {
+                Content = formats,
+                Padding = new Thickness(8, 5, 8, 6),
+                Margin = new Thickness(0, 0, 0, UiTheme.Gap * 2),
+                FontSize = 11,
+                FontWeight = FontWeights.Normal
+            };
+            _bindings.BindHeader(formatsGroup, "Panel_Export_Formats_Header");
+            _root.Children.Add(formatsGroup);
             _root.Children.Add(_listBox);
             _bindings.BindFormattedText(_count, "Panel_Model_FbxListCount_Label", () => new object[] { _list.Count });
             _root.Children.Add(_count);
