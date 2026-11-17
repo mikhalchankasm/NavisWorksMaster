@@ -162,7 +162,7 @@ internal sealed class NavisworksClashResultTools : NavisworksToolBase
         [Description("Optional test handles.")] List<string> testHandles = null,
         [Description("Grouping mode: spatial, hybrid, or object_pair. Default is hybrid.")] string groupMode = "hybrid",
         [Description("Maximum spatial distance in millimeters. Default is 500.")] double clusterDistanceMm = 500,
-        [Description("Minimum results per created group. Default is 2.")] int minGroupSize = 2,
+        [Description("Minimum results per created group; 1 keeps single results. Default is 2.")] int minGroupSize = 2,
         [Description("Template placeholders: index, count, x, y, z, ownerA, ownerB.")] string groupNameTemplate = "Зона {index:D2} ({count} колл.)",
         [Description("Optional group-name prefix.")] string groupNamePrefix = "",
         [Description("Ungroup matching existing prefix groups before apply. Default is false.")] bool ungroupExistingFirst = false,
