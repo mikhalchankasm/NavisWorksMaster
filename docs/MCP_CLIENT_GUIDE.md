@@ -50,14 +50,14 @@ Set `NAVISHELPER_MCP_TOOLS` in the MCP client configuration, or pass
 present. The default is the full surface, so an existing configuration keeps
 behaving exactly as before.
 
-Measured 2026-11-15 on `265d94e` (#444: `start_fbx_export`, `fbx_export_status` and `cancel_fbx_export` in `lifecycle`, taking matchHandles, useSelection and depth) (compact UTF-8
+Measured 2026-11-17 on `8032572` (#493: the screenshot profile texts of `capture_current_view`, `clash_isolate_result` and `clash_generate_report` name `extra_high`) (compact UTF-8
 JSON-RPC response bytes, decimal KB = 1000 bytes; token counts use the approximate 3.375 bytes/token ratio):
 
 | Spec | Tools | `tools/list` | Approx. tokens |
 |---|---:|---:|---:|
-| unset, or `all` | 133 | 209.1 KB | ~62,000 |
-| `core,clash` | 81 | 119.0 KB | ~35,300 |
-| `core` | 48 | 54.6 KB | **~16,200** |
+| unset, or `all` | 133 | 209.4 KB | ~62,100 |
+| `core,clash` | 81 | 119.3 KB | ~35,400 |
+| `core` | 48 | 54.7 KB | **~16,200** |
 
 Sets: `meta`, `query`, `selection`, `view`, `sets`, `viewpoints`, `markup`,
 `sections`, `reports`, `clash`, `scenarios`, `lifecycle`. The alias `core`
