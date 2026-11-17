@@ -249,7 +249,9 @@ namespace NavisHelper.Agent.Services
             var groupMode = NormalizeClashClusterMode(request.GroupMode);
             var clusterDistanceMm = NormalizePositiveDouble(request.ClusterDistanceMm, 500, "clusterDistanceMm");
             var distanceUnits = SectionBoxHelper.MmToDocUnits(clusterDistanceMm);
-            var minGroupSize = Math.Max(2, request.MinGroupSize.GetValueOrDefault(2));
+            var minGroupSize = request.MinGroupSize.GetValueOrDefault(2);
+            if (minGroupSize < 1)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "minGroupSize must be at least 1.");
             var maxResults = ClampClashListResultsLimit(request.MaxResults);
             var nameTemplate = string.IsNullOrWhiteSpace(request.GroupNameTemplate)
                 ? "Зона {index:D2} ({count} колл.)"
