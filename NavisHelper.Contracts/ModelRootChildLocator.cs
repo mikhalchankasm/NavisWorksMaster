@@ -12,6 +12,19 @@ namespace NavisHelper.Agent.Contracts
         // Navisworks also accepts Model.FileName as an exact source selector.
         public string FileName { get; set; }
         public List<string> ChildNames { get; set; } = new List<string>();
+        // Reading child names costs one native call per child, so the plugin fills them on first use:
+        // a lookup in the recorded model never reads the other models' children.
+        public Func<List<string>> LoadChildNames { get; set; }
+
+        internal List<string> Children()
+        {
+            if (LoadChildNames != null)
+            {
+                ChildNames = LoadChildNames() ?? new List<string>();
+                LoadChildNames = null;
+            }
+            return ChildNames;
+        }
     }
 
     public enum ModelRootChildMatchKind { Child, Root, NotFound, Ambiguous }
@@ -77,7 +90,7 @@ namespace NavisHelper.Agent.Contracts
                 var model = models[modelIndex];
                 if (model == null || (only != null && !only.Contains(modelIndex)))
                     continue;
-                var children = model.ChildNames;
+                var children = model.Children();
                 for (var childIndex = 0; children != null && childIndex < children.Count; childIndex++)
                 {
                     if (!SameName(children[childIndex], childName))

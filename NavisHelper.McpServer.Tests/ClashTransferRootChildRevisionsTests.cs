@@ -43,6 +43,22 @@ public sealed class ClashTransferRootChildRevisionsTests
     }
 
     [Fact]
+    public void ALookupInTheRecordedModelReadsOnlyThatModelsChildren()
+    {
+        var reads = new List<string>();
+        ModelRootCandidate Lazy(string root, params string[] children) => new ModelRootCandidate
+        {
+            RootName = root, SourceFile = "", FileName = "",
+            LoadChildNames = () => { reads.Add(root); return children.ToList(); },
+        };
+        var models = new[] { Lazy("One.nwd", "A.rvm"), Lazy("Two.nwd", "B.rvm"), Lazy("Three.nwd", "C.rvm") };
+        AssertMatch(ModelRootChildLocator.Locate(models, "Two.nwd", "", "B.rvm"), ModelRootChildMatchKind.Child, 1, 0);
+        Assert.Equal(new[] { "Two.nwd" }, reads);
+        ModelRootChildLocator.Locate(models, "Two.nwd", "", "B.rvm");
+        Assert.Equal(new[] { "Two.nwd" }, reads);
+    }
+
+    [Fact]
     public void AModelRootIsAlsoFoundByItsFileName()
     {
         var models = new List<ModelRootCandidate>

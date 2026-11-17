@@ -108,7 +108,8 @@ namespace NavisHelper.Agent.Services
                 RootName = candidate == null || candidate.RootItem == null ? string.Empty : candidate.RootItem.DisplayName,
                 SourceFile = candidate == null ? string.Empty : candidate.SourceFileName,
                 FileName = candidate == null ? string.Empty : candidate.FileName,
-                ChildNames = candidate == null || candidate.RootItem == null ? new List<string>() : candidate.RootItem.Children.Cast<ModelItem>()
+                // Read on first use only (see ModelRootCandidate.LoadChildNames).
+                LoadChildNames = () => candidate == null || candidate.RootItem == null ? new List<string>() : candidate.RootItem.Children.Cast<ModelItem>()
                     .Select(item => item.DisplayName).ToList(),
             }).ToList();
         }
