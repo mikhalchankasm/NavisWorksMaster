@@ -211,6 +211,9 @@ namespace NavisHelper.WPF
 
         private void OnModelsChanged(object sender, EventArgs args)
         {
+            // Publishing the current export's NWD copy also raises CollectionChanged.
+            if (_running)
+                return;
             _modelsGeneration++;
             // Drop the old ModelItems at once: Remove and the row text must never read them after
             // their model was unloaded (third Codex review, P2).
