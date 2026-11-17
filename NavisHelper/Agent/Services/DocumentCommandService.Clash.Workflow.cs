@@ -591,6 +591,7 @@ namespace NavisHelper.Agent.Services
                     Handle = BuildClashTestHandle(testIndex),
                     TestHandle = BuildClashTestHandle(testIndex),
                     Name = test.DisplayName ?? string.Empty,
+                    NewName = rename.NewName.Trim(),
                     Operation = "rename_batch",
                     Applied = false,
                     Status = apply ? "pending" : "planned",
