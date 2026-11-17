@@ -2395,8 +2395,11 @@ other exceptions. Unknown or evicted ids return `found=false` with a message.
 
 Server-side, read-only, and requires no host or document. The last 32 jobs are
 retained in start order, including running jobs; ids do not survive a server
-restart. Server disposal cancels running calls. Currently only
-`clash_tests_export` supports `background=true`. L3 verification is pending.
+restart. Server disposal cancels running calls. `background=true` is supported by
+`clash_tests_export`, `clash_generate_report` and `clash_bbox_pair_plan`: each
+returns `backgroundOperationId` with `applied=false` at once and runs the host call
+with a 30-minute timeout. While a job runs, the host answers other calls with
+`host_busy`; `background_job_status` itself needs no host. L3 verification is pending.
 
 ## Overlay world markers
 
