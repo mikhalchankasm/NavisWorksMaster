@@ -41,11 +41,11 @@ internal sealed class NavisworksViewpointTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Exports the full Saved Viewpoints tree to CSV, JSON, or Markdown on the Navisworks host machine. Use before bulk rename/reorder work so duplicate names can be reviewed with current-tree itemId, path, parentPath, and index.")]
+    [Description("Exports the full Saved Viewpoints tree to CSV, JSON, Markdown, or XML on the Navisworks host machine. XML keeps folders and cameras for saved_viewpoints_import; other formats support reviewing current-tree itemId, path, parentPath, and index before bulk rename/reorder work.")]
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<SavedViewpointsExportResponse> SavedViewpointsExport(
-        [Description("Output file path on the Navisworks host machine. Extensions .csv, .json, and .md are understood when format is empty.")] string outputPath,
-        [Description("Export format: csv, json, or md. Default is inferred from outputPath extension, otherwise csv.")] string format = "csv",
+        [Description("Output file path on the Navisworks host machine. Extensions .csv, .json, .md and .xml are understood when format is empty.")] string outputPath,
+        [Description("Export format: csv, json, md or xml (Saved Viewpoints XML for saved_viewpoints_import). Default is inferred from outputPath extension, otherwise csv.")] string format = "csv",
         [Description("Include duplicate-safe itemId values. Default is true.")] bool includeItemIds = true,
         [Description("Overwrite outputPath if it already exists. Default is false.")] bool overwrite = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",

@@ -268,20 +268,18 @@ transport's "the call arrived and came back", not "the thing you asked for happe
 
 ### An `_export` / `_import` pair is not necessarily a round trip
 
-Two pairs in this catalogue share a name and not a format, and in both the export cannot
-feed the import:
+The formats accepted by an import depend on the export format chosen:
 
 | export | writes | its `_import` sibling reads |
 | --- | --- | --- |
-| `saved_viewpoints_export` | csv, json or md | Navisworks-authored Saved Viewpoints **XML** |
+| `saved_viewpoints_export` | csv, json, md or xml | Saved Viewpoints **XML** |
 | `clash_tests_export` | `navishelper_json` | `nw-exchange-12.0` XML from Clash Detective |
 
-Both exports exist for review — duplicate names, paths, indices before a bulk rename —
-and both imports exist to ingest what Navisworks itself wrote. Neither is a defect on its
-own; the trap is the naming symmetry, and it was measured three ways on the viewpoint pair
-(its own json, that json renamed `.xml`, and the default csv all fail with `Failed to read
-saved viewpoints XML`). If you need a round trip, there is not one: re-create from the
-export's contents with the create tools.
+`saved_viewpoints_export format=xml` writes folders and cameras that `saved_viewpoints_import`
+can read back. Its response includes `Warnings`: XML does not write redlines, section planes,
+or hide/override states. The csv, json and md formats remain for reviewing names, paths and
+indices; renaming them `.xml` does not make them importable. `clash_tests_export` still
+cannot feed its import sibling, which requires XML from Clash Detective.
 
 ### Truncation flags: a partial answer always says so, in a boolean
 
