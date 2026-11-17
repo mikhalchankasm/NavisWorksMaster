@@ -286,6 +286,7 @@ namespace NavisHelper.Agent.Contracts
         public string TestHandle { get; set; }
         public List<string> ResultHandles { get; set; } = new List<string>();
         public List<string> ResultNames { get; set; } = new List<string>();
+        public List<string> ExcludeResultNames { get; set; } = new List<string>();
         public List<string> GroupHandles { get; set; } = new List<string>();
         public List<string> TestHandles { get; set; } = new List<string>();
         public string Status { get; set; }
@@ -301,6 +302,7 @@ namespace NavisHelper.Agent.Contracts
         public string Scope { get; set; }
         public string Status { get; set; }
         public int AffectedResultCount { get; set; }
+        public int ExcludedResultCount { get; set; }
         public int LargeStatusChangeThreshold { get; set; }
         public bool ConfirmationRequired { get; set; }
         public Dictionary<string, int> StatusTransitions { get; set; } = new Dictionary<string, int>();

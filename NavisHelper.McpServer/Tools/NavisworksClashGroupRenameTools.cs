@@ -12,7 +12,7 @@ internal sealed class NavisworksClashGroupRenameTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Renames one/batch groups in a test; exact name or groupHandle (required for duplicate names). Only names change; membership/statuses stay. All-or-nothing validation includes sibling name conflicts. No moves: handles stay valid for whole batch. Dry-run.")]
+    [Description("Renames groups in a test by exact name or groupHandle (needed for duplicate names). Names only; members/statuses stay. All-or-nothing, sibling conflicts included. No moves, so handles stay valid for the batch. Dry-run.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashGroupRenameResponse> ClashGroupRename(
         [Description("Required test handle from clash_list_tests.")] string testHandle,
