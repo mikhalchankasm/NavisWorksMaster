@@ -1,14 +1,19 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.McpServer.Services;
 
 namespace NavisHelper.McpServer.Tools;
 
 internal sealed class NavisworksClashTestTools : NavisworksToolBase
 {
-    public NavisworksClashTestTools(NavisworksToolContext context)
+    private const int BackgroundHostTimeoutMs = 1800000;
+    private readonly HostBackgroundJobStore _jobs;
+
+    public NavisworksClashTestTools(NavisworksToolContext context, HostBackgroundJobStore jobs)
         : base(context)
     {
+        _jobs = jobs;
     }
 
     [McpServerTool]
@@ -61,26 +66,27 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
     [Description("Plans BBox-intersecting root/selection pairs; never mutates the document or creates/runs tests. Dry-run reports requested/matched/unmatched rootNames, no write. apply=true needs absolute outputPath; atomic verified write.")]
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashBboxPairPlanResponse> ClashBboxPairPlan(
-        [Description("False previews, never writes; true writes/verifies required outputPath.")] bool apply = false,
+        [Description("False previews; true writes and verifies outputPath.")] bool apply = false,
         [Description("top_level_files: roots/direct children, as list_root_items.")] string rootMode = "top_level_files",
-        [Description("top_level_files or selection (current items/groups, including nested disciplines).")] string sourceMode = "top_level_files",
-        [Description("Optional exact root names/paths/source files to include. Empty means all matched roots.")] List<string> rootNames = null,
+        [Description("top_level_files or selection (current items/groups, nested disciplines too).")] string sourceMode = "top_level_files",
+        [Description("Exact root names/paths/source files to include; empty = all matched roots.")] List<string> rootNames = null,
         [Description("Root name/path/source-file contains filter.")] string nameContains = "",
         [Description("Exclude roots by name/path/source-file contains filters.")] List<string> excludeNameContains = null,
         [Description("Exact root name/path/source file; only its pairs against included roots.")] string targetRootName = "",
         [Description("BBox depth: 0=root, 1=children, 2=intersecting child-pair grandchildren.")] int refineDepth = 1,
         [Description("BBox tolerance/expansion in millimeters. Default is 0.")] double bboxToleranceMm = 0,
-        [Description("Maximum root items to evaluate. Default is 500, maximum is 2000.")] int maxRootItems = 500,
+        [Description("Maximum root items, up to 2000. Default is 500.")] int maxRootItems = 500,
         [Description("Candidate-pair cap before stopping.")] int maxCandidatePairs = 50000,
         [Description("Inline roots/candidates/rejected-pair cap; outputPath=full plan.")] int previewLimit = 200,
-        [Description("Include skipped/rejected pair preview rows with reasons. Default is false.")] bool includeRejected = false,
+        [Description("Preview rejected pairs with reasons. Default is false.")] bool includeRejected = false,
         [Description("Absolute JSON/CSV full plan. Dry-run: calculatedOutputPath only. JSON feeds clash_pair_tests_create.planOutputPath.")] string outputPath = "",
         [Description("Replace outputPath on apply; store only for reviewed exactReplay.")] bool overwriteExisting = false,
+        [Description("Background run; see background_job_status.")] bool background = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
-        return _hostBridgeClient.ClashBboxPairPlanAsync(new ClashBboxPairPlanRequest
+        var request = new ClashBboxPairPlanRequest
         {
             Apply = apply,
             RootMode = rootMode,
@@ -97,7 +103,15 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
             IncludeRejected = includeRejected,
             OutputPath = outputPath,
             OverwriteExisting = overwriteExisting,
-        }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
+        };
+        var target = CreateTarget(instanceId, navisworksVersion);
+        if (background)
+        {
+            var started = _jobs.Start("clash_bbox_pair_plan", async token =>
+                (object)await _hostBridgeClient.ClashBboxPairPlanAsync(request, token, target, BackgroundHostTimeoutMs));
+            return Task.FromResult(new ClashBboxPairPlanResponse { BackgroundOperationId = started.OperationId, Applied = false });
+        }
+        return _hostBridgeClient.ClashBboxPairPlanAsync(request, cancellationToken, target);
     }
 
     [McpServerTool]

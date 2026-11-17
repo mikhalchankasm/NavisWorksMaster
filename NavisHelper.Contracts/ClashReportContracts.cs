@@ -70,6 +70,7 @@ namespace NavisHelper.Agent.Contracts
     {
         public bool Applied { get; set; }
         public string OperationId { get; set; }
+        public string BackgroundOperationId { get; set; }
         public bool Cancelled { get; set; }
         public bool RunTestsRequested { get; set; }
         public bool TestsRun { get; set; }

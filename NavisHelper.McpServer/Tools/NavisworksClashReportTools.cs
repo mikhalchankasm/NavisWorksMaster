@@ -1,14 +1,19 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.McpServer.Services;
 
 namespace NavisHelper.McpServer.Tools;
 
 internal sealed class NavisworksClashReportTools : NavisworksToolBase
 {
-    public NavisworksClashReportTools(NavisworksToolContext context)
+    private const int BackgroundHostTimeoutMs = 1800000;
+    private readonly HostBackgroundJobStore _jobs;
+
+    public NavisworksClashReportTools(NavisworksToolContext context, HostBackgroundJobStore jobs)
         : base(context)
     {
+        _jobs = jobs;
     }
 
     [McpServerTool]
@@ -17,7 +22,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
     public Task<ClashGenerateReportResponse> ClashGenerateReport(
         [Description("False previews counts/paths; true creates viewpoints/screenshots/report.")] bool apply = false,
         [Description("Test name: exact, else contains; empty=all.")] string testName = "",
-        [Description("Test names: exact, else contains; empty with testName empty=all.")] List<string> testNames = null,
+        [Description("Test names: exact, else contains; both empty = all.")] List<string> testNames = null,
         [Description("New, Active, Reviewed, Approved, Resolved; omitted=New/Active.")] List<string> statusFilters = null,
         [Description("All statuses, overriding New/Active or statusFilters.")] bool includeAllStatuses = false,
         [Description("Results per call, max 5000; screenshots/viewpoints: prefer 500-1000.")] int limit = 100,
@@ -26,35 +31,36 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
         [Description("Allow writing into a non-empty output folder. Default is false.")] bool overwrite = false,
         [Description("Append to outputDirectory artifacts. First: overwrite=true; later: append=true, resultOffset=nextResultOffset.")] bool append = false,
         [Description("On apply above 10000 filtered clashes: required; ask user first.")] bool confirmLargeReport = false,
-        [Description("Run matched tests before reading; empty testName/testNames=all. Requires apply=true.")] bool runTests = false,
+        [Description("Run matched tests first (empty test names = all); needs apply=true.")] bool runTests = false,
         [Description("Box distance, mm: point half-size; items padding.")] double boxOffsetMm = 1500,
         [Description("point: clash-centered box; items: A/B bounds plus padding.")] string boxMode = "point",
         [Description("Nearby non-clashing context transparency, 0..1.")] double contextTransparency = 0.5,
-        [Description("Deprecated name; enables safe owner-level screenshot transparency, no full box scan.")] bool useFullBoxTransparency = false,
+        [Description("Deprecated; turns on owner-level screenshot transparency (no box scan).")] bool useFullBoxTransparency = false,
         [Description("none, hybrid, object_pair, spatial; enable for artifactGranularity=cluster.")] string groupMode = "none",
         [Description("result: per clash; cluster: shared per cluster, whole filtered scope in one call, no append or resultOffset.")] string artifactGranularity = "result",
         [Description("compact trims the response (no repeated paths, descriptions, association keys, cluster previews); full keeps them. manifest.json/report.html are always full.")] string verbosity = "full",
         [Description("Spatial/hybrid cluster distance, mm.")] double clusterDistanceMm = 300,
-        [Description("When true, HTML cluster summaries include bounded member rows. Default is true.")] bool includeClusterMembers = true,
+        [Description("HTML cluster summaries list member rows (bounded). Default is true.")] bool includeClusterMembers = true,
         [Description("HTML member rows per cluster; max 200.")] int maxMembersPerClusterInHtml = 25,
         [Description("Optional side A color as #RRGGBB. Default is red.")] string colorAHex = "",
         [Description("Optional side B color as #RRGGBB. Default is blue.")] string colorBHex = "",
-        [Description("Create one saved viewpoint per clash when apply=true. Default is true.")] bool createViewpoints = true,
+        [Description("One saved viewpoint per clash on apply. Default is true.")] bool createViewpoints = true,
         [Description("Capture image per clash on apply if export available.")] bool captureScreenshots = true,
         [Description("Red redline target at clash point before viewpoints/screenshots.")] bool includeClashPointMarker = false,
         [Description("Extra orthographic top image per clash if screenshots enabled.")] bool captureTopViewScreenshots = false,
         [Description("Render JPEG: compact=1280x720, fullhd/standard=1920x1080, large=2560x1440, extra_high/ultra/4k=3840x2160; source=active-view BMP.")] string screenshotProfile = "compact",
         [Description("jpg/jpeg, png, bmp; empty=profile default.")] string screenshotFormat = "",
-        [Description("Width, pixels; 0=profile default. Both positive dimensions set render size; post-processing only shrinks.")] int screenshotMaxWidth = 0,
-        [Description("Height, pixels; 0=profile default. Both positive dimensions set render size; post-processing only shrinks.")] int screenshotMaxHeight = 0,
+        [Description("Width px; 0=profile default; width+height set render size, later steps only shrink.")] int screenshotMaxWidth = 0,
+        [Description("Height px; 0=profile default; width+height set render size, later steps only shrink.")] int screenshotMaxHeight = 0,
         [Description("JPEG quality 1..100; 0=profile default; lower=smaller file.")] int screenshotJpegQuality = 0,
         [Description("Exclude if either item name/path contains any value; keeps Clash Detective results.")] List<string> excludeItemNameContains = null,
         [Description("Fold repeated rows (same items, point, depth).")] bool dedupe = false,
+        [Description("Background run; see background_job_status.")] bool background = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
-        return _hostBridgeClient.ClashGenerateReportAsync(new ClashGenerateReportRequest
+        var request = new ClashGenerateReportRequest
         {
             Apply = apply,
             TestName = testName,
@@ -91,7 +97,15 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
             ScreenshotJpegQuality = screenshotJpegQuality > 0 ? screenshotJpegQuality : null,
             ExcludeItemNameContains = excludeItemNameContains ?? new List<string>(),
             Dedupe = dedupe,
-        }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
+        };
+        var target = CreateTarget(instanceId, navisworksVersion);
+        if (background)
+        {
+            var started = _jobs.Start("clash_generate_report", async token =>
+                (object)await _hostBridgeClient.ClashGenerateReportAsync(request, token, target, BackgroundHostTimeoutMs));
+            return Task.FromResult(new ClashGenerateReportResponse { BackgroundOperationId = started.OperationId, Applied = false });
+        }
+        return _hostBridgeClient.ClashGenerateReportAsync(request, cancellationToken, target);
     }
 
     [McpServerTool]
@@ -100,7 +114,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
     public Task<ClashSaveViewpointsResponse> ClashSaveViewpoints(
         [Description("False previews results/names; true saves viewpoints.")] bool apply = false,
         [Description("Test name: exact, else contains; empty=all.")] string testName = "",
-        [Description("Test names: exact, else contains; empty with testName empty=all.")] List<string> testNames = null,
+        [Description("Test names: exact, else contains; both empty = all.")] List<string> testNames = null,
         [Description("New, Active, Reviewed, Approved, Resolved; omitted=New/Active.")] List<string> statusFilters = null,
         [Description("Include all statuses instead of New/Active.")] bool includeAllStatuses = false,
         [Description("Results/viewpoints per call, max 5000; page: resultOffset/nextResultOffset.")] int limit = 100,

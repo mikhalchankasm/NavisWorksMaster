@@ -57,6 +57,7 @@ namespace NavisHelper.Agent.Contracts
     public sealed class ClashBboxPairPlanResponse
     {
         public bool Applied { get; set; }
+        public string BackgroundOperationId { get; set; }
         public string RootMode { get; set; }
         public string SourceMode { get; set; }
         public string TargetRootName { get; set; }

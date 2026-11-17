@@ -235,9 +235,9 @@ internal sealed partial class HostBridgeClient
         return CallHostAsync<ClashRenumberResultsResponse>(HostCommandNames.ClashRenumberResults, request, cancellationToken, target, 600000);
     }
 
-    public Task<ClashGenerateReportResponse> ClashGenerateReportAsync(ClashGenerateReportRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    public Task<ClashGenerateReportResponse> ClashGenerateReportAsync(ClashGenerateReportRequest request, CancellationToken cancellationToken, HostTargetOptions target = null, int timeoutMs = 600000)
     {
-        return CallHostAsync<ClashGenerateReportResponse>(HostCommandNames.ClashGenerateReport, request, cancellationToken, target, 600000);
+        return CallHostAsync<ClashGenerateReportResponse>(HostCommandNames.ClashGenerateReport, request, cancellationToken, target, timeoutMs);
     }
 
     public Task<ClashSaveViewpointsResponse> ClashSaveViewpointsAsync(ClashSaveViewpointsRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
@@ -275,9 +275,9 @@ internal sealed partial class HostBridgeClient
         return CallHostAsync<ClashManageTestsResponse>(HostCommandNames.ClashManageTests, request, cancellationToken, target, 600000);
     }
 
-    public Task<ClashBboxPairPlanResponse> ClashBboxPairPlanAsync(ClashBboxPairPlanRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    public Task<ClashBboxPairPlanResponse> ClashBboxPairPlanAsync(ClashBboxPairPlanRequest request, CancellationToken cancellationToken, HostTargetOptions target = null, int timeoutMs = 600000)
     {
-        return CallHostAsync<ClashBboxPairPlanResponse>(HostCommandNames.ClashBboxPairPlan, request, cancellationToken, target, 600000);
+        return CallHostAsync<ClashBboxPairPlanResponse>(HostCommandNames.ClashBboxPairPlan, request, cancellationToken, target, timeoutMs);
     }
 
     public Task<ClashPairTestsCreateResponse> ClashPairTestsCreateAsync(ClashPairTestsCreateRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)

@@ -23,7 +23,7 @@ internal sealed class NavisworksClashTransferTools : NavisworksToolBase
         [Description("Portable format. Must be navishelper_json.")] string format = ClashTransferConstants.JsonFormat,
         [Description("Allow replacement of an existing output file. Default false.")] bool overwriteExisting = false,
         [Description("False previews only; true writes .partial, atomically completes, verifies size/readability/SHA-256.")] bool apply = false,
-        [Description("Run in background; poll background_job_status.")] bool background = false,
+        [Description("Background run; see background_job_status.")] bool background = false,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
