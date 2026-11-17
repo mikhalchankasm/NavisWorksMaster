@@ -9,6 +9,8 @@ namespace NavisHelper.Agent.Contracts
 {
     public static class DatasmithRunnerCommandLine
     {
+        public const string JobNamePrefix = @"Local\NavisHelper-Datasmith-";
+
         public static IReadOnlyList<string> BuildArguments(string navisworksDirectory, string sourcePath,
             string outputPath, int? mergeLevel, double[] origin, bool includeMetadata, bool overwrite, string jobName,
             string convertNavisworksDirectory = null, int? convertFileVersion = null)

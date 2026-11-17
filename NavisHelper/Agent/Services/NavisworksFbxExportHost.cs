@@ -95,7 +95,7 @@ namespace NavisHelper.Agent.Services
                 return "Datasmith export dependency was not found: " + missing;
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
             const int timeoutMs = 30 * 60 * 1000;
-            using (var job = new KillOnCloseJob(@"Local\NavisHelper-ItemDatasmith-"))
+            using (var job = new KillOnCloseJob(DatasmithRunnerCommandLine.JobNamePrefix))
             {
                 // Copies are already published as 2026, so no conversion arguments are needed.
                 var args = DatasmithRunnerCommandLine.BuildArguments(DatasmithPanelExportJob.NavisworksDirectory,
