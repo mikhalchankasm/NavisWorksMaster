@@ -9,7 +9,7 @@ internal sealed class NavisworksClashTransferTools : NavisworksToolBase
     public NavisworksClashTransferTools(NavisworksToolContext context) : base(context) { }
 
     [McpServerTool]
-    [Description("Exports versioned portable JSON test definitions; dry-run, file writes only on apply=true. Set identity: exact full tree path; root: rootName/sourceFile. No results, viewpoints, comments or calculation history.")]
+    [Description("Exports versioned portable JSON test definitions; dry-run, file writes only on apply=true. Set identity: exact full tree path; root: rootName/sourceFile(+childName). No results, viewpoints, comments or calculation history.")]
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashTestsExportResponse> ClashTestsExport(
         [Description("Exact names; union with testHandles/namePrefix; empty scope=all tests.")] List<string> testNames = null,
