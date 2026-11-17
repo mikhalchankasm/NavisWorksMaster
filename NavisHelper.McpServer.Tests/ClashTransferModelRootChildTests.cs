@@ -53,6 +53,11 @@ public sealed class ClashTransferModelRootChildTests
         Assert.Contains("reference.ChildName", resolver, StringComparison.Ordinal);
         Assert.Contains("Type = \"ModelRootChild\"", resolver, StringComparison.Ordinal);
 
+        // Every child of one model shares RootName and SourceFile; without ChildName in the cache key
+        // every pair would be bound to the first child resolved.
+        var fromSets = Read("NavisHelper", "Agent", "Services", "ClashTestsFromSetsService.cs");
+        Assert.Contains("reference.SourceFile ?? string.Empty, reference.ChildName ?? string.Empty,", fromSets, StringComparison.Ordinal);
+
         var importer = Read("NavisHelper", "Agent", "Services", "ClashBatchtestImportService.cs");
         Assert.Contains("return ClashTransferSideKinds.ModelRootChild", importer, StringComparison.Ordinal);
     }

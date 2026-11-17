@@ -48,6 +48,9 @@ namespace NavisHelper.Agent.Contracts
                 return false;
             if (string.Equals(side.Kind, ClashTransferSideKinds.ModelRoot, StringComparison.OrdinalIgnoreCase))
                 return !string.IsNullOrWhiteSpace(side.RootName) || !string.IsNullOrWhiteSpace(side.SourceFile);
+            if (string.Equals(side.Kind, ClashTransferSideKinds.ModelRootChild, StringComparison.OrdinalIgnoreCase))
+                return !string.IsNullOrWhiteSpace(side.ChildName) &&
+                       (!string.IsNullOrWhiteSpace(side.RootName) || !string.IsNullOrWhiteSpace(side.SourceFile));
             if (string.Equals(side.Kind, ClashTransferSideKinds.SelectionSet, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(side.Kind, ClashTransferSideKinds.SearchSet, StringComparison.OrdinalIgnoreCase))
                 return !string.IsNullOrWhiteSpace(side.Path);
@@ -80,12 +83,14 @@ namespace NavisHelper.Agent.Contracts
         {
             if (side == null)
                 return null;
-            if (string.Equals(side.Kind, ClashTransferSideKinds.ModelRoot, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(side.Kind, ClashTransferSideKinds.ModelRoot, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(side.Kind, ClashTransferSideKinds.ModelRootChild, StringComparison.OrdinalIgnoreCase))
             {
                 return new SelectionSetReference
                 {
                     RootName = side.RootName,
                     SourceFile = side.SourceFile,
+                    ChildName = string.Equals(side.Kind, ClashTransferSideKinds.ModelRootChild, StringComparison.OrdinalIgnoreCase) ? side.ChildName : null,
                 };
             }
 
