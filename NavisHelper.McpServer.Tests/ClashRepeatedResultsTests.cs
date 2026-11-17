@@ -40,6 +40,11 @@ public sealed class ClashRepeatedResultsTests
         Assert.Equal(1, deduped.FoldedCount);
         Assert.Equal(new[] { "Clash2", "Clash4", "Clash2", "Clash5", "Clash6" }, deduped.Kept.Select(row => row.Name));
         Assert.Equal("T2", deduped.Kept[2].TestName);
+
+        // Review P2: two tests may share a display name; the test index keeps them apart.
+        var twin = Row("T1", "Clash2", "A/BOX 2", "B/VALVE 1", 674.680);
+        twin.TestIndex = 7;
+        Assert.NotEqual(ClashResultDuplicateKey.For(rows[0]), ClashResultDuplicateKey.For(twin));
     }
 
     [Fact]

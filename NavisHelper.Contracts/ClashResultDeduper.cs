@@ -12,6 +12,8 @@ namespace NavisHelper.Agent.Contracts
             if (row == null)
                 throw new ArgumentNullException(nameof(row));
             var key = new StringBuilder();
+            // Test index as well as name: two tests may share a display name.
+            Append(key, row.TestIndex.ToString(CultureInfo.InvariantCulture));
             Append(key, row.TestName);
             AppendNames(key, row.Item1Names);
             AppendNames(key, row.Item2Names);
