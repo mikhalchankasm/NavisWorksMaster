@@ -224,6 +224,11 @@ namespace NavisHelper.Agent.Services
                         side.Kind = ClashTransferSideKinds.ModelRootChild;
                         side.RootName = model.RootItem.DisplayName;
                         side.SourceFile = !string.IsNullOrWhiteSpace(model.SourceFileName) ? model.SourceFileName : model.FileName;
+                        if (ModelRootChildLocator.IsDocumentRoot(model.RootItem.DisplayName, document.FileName))
+                        {
+                            side.RootName = string.Empty;
+                            side.SourceFile = string.Empty;
+                        }
                         side.ChildName = childName;
                         side.Name = childName;
                         side.Supported = true;

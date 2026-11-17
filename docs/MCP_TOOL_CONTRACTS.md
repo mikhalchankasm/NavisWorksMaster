@@ -680,6 +680,7 @@ millimeters, while an omitted XML/JSON tolerance remains unset so the target
 Navisworks default is retained. XML omission is reported as a warning.
 
 `clash_tests_export` is read-only with respect to the Navisworks document.
+For `model_root_child` sides under the document root, export records only `childName`; if strict child lookup finds no match, resolution searches direct children and model roots across all models by that name and requires a unique match.
 With `apply=false`, it builds the full preview but never creates an output
 file: `outputWritten=false`, `artifactStatus="not_written_dry_run"`, and the
 requested absolute path appears only as `calculatedOutputPath`. With

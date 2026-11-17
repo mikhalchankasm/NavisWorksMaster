@@ -65,6 +65,11 @@ public sealed class ClashTransferRootChildRevisionsTests
         Assert.Equal(ModelRootChildMatchKind.Ambiguous, ModelRootChildLocator.Locate(models, "", "", "A.rvm").Kind);
         Assert.Equal(ModelRootChildMatchKind.NotFound, ModelRootChildLocator.Locate(models, "Gone.nwd", "", "Z.rvm").Kind);
 
+        // The recorded model is here but lacks the child: a miss, not a same-named child of another model.
+        Assert.Equal(ModelRootChildMatchKind.NotFound, ModelRootChildLocator.Locate(models, "One.nwd", "", "Z.rvm").Kind);
+        var recordedWithoutChild = new[] { Model("One.nwd", @"C:\Temp\navis_1.nwd", "B.rvm"), Model("Two.nwd", @"C:\Temp\navis_2.nwd", "A.rvm") };
+        Assert.Equal(ModelRootChildMatchKind.NotFound, ModelRootChildLocator.Locate(recordedWithoutChild, "One.nwd", "", "A.rvm").Kind);
+
         var siblings = new[] { Model("Port.nwd", @"C:\Temp\navis_1.nwd", "A.rvm", "a.rvm") };
         Assert.Equal(ModelRootChildMatchKind.Ambiguous, ModelRootChildLocator.Locate(siblings, "Port.nwd", "", "A.rvm").Kind);
     }
