@@ -32,8 +32,8 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
         [Description("Nearby non-clashing context transparency, 0..1.")] double contextTransparency = 0.5,
         [Description("Deprecated name; enables safe owner-level screenshot transparency, no full box scan.")] bool useFullBoxTransparency = false,
         [Description("none, hybrid, object_pair, spatial; enable for artifactGranularity=cluster.")] string groupMode = "none",
-        [Description("result: viewpoint/image per clash; cluster: shared per cluster, full filtered scope in one call, no append/non-zero resultOffset.")] string artifactGranularity = "result",
-        [Description("full: raw paths/cluster previews; compact omits duplicate long paths, descriptions, association keys and cluster previews from response only; manifest.json/report.html stay full.")] string verbosity = "full",
+        [Description("result: per clash; cluster: shared per cluster, whole filtered scope in one call, no append or resultOffset.")] string artifactGranularity = "result",
+        [Description("compact trims the response (no repeated paths, descriptions, association keys, cluster previews); full keeps them. manifest.json/report.html are always full.")] string verbosity = "full",
         [Description("Spatial/hybrid cluster distance, mm.")] double clusterDistanceMm = 300,
         [Description("When true, HTML cluster summaries include bounded member rows. Default is true.")] bool includeClusterMembers = true,
         [Description("HTML member rows per cluster; max 200.")] int maxMembersPerClusterInHtml = 25,
@@ -49,6 +49,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
         [Description("Height, pixels; 0=profile default. Both positive dimensions set render size; post-processing only shrinks.")] int screenshotMaxHeight = 0,
         [Description("JPEG quality 1..100; 0=profile default; lower=smaller file.")] int screenshotJpegQuality = 0,
         [Description("Exclude if either item name/path contains any value; keeps Clash Detective results.")] List<string> excludeItemNameContains = null,
+        [Description("Fold repeated rows (same items, point, depth).")] bool dedupe = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -89,6 +90,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
             ScreenshotMaxHeight = screenshotMaxHeight > 0 ? screenshotMaxHeight : null,
             ScreenshotJpegQuality = screenshotJpegQuality > 0 ? screenshotJpegQuality : null,
             ExcludeItemNameContains = excludeItemNameContains ?? new List<string>(),
+            Dedupe = dedupe,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
     }
 
