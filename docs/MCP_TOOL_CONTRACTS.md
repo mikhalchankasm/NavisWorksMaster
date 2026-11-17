@@ -1999,6 +1999,8 @@ Outputs:
 
 Creates report artifacts from existing Clash Detective results; can optionally run tests first.
 
+`dedupe=true` (default `false`) folds repeated rows using the same key as `clash_list_results` before large-report confirmation and paging; `dedupedResultCount` counts folded rows across the filtered scope (zero when disabled), while `matchedResultCount` remains the count before folding.
+
 Inputs share the same test/status/batch, box, color, marker, and exclusion fields as `clash_save_viewpoints`. `clash_generate_report` does not accept `folderPath`, `createResetViewpoint`, `useRootContextTransparency`, or `createOppositeViewpoints`; those are Saved Viewpoints-only controls. Report-specific inputs:
 
 | Parameter | Type | Default | Notes |

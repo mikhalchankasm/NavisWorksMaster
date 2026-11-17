@@ -160,7 +160,16 @@ namespace NavisHelper.Agent.Services
                 row => row.Result,
                 MatchesExcludedClashItemName,
                 SortClashReportRows,
-                IncrementStatusCount);
+                IncrementStatusCount,
+                request.Dedupe == true ? (Func<ClashReportWorkItem, string>)(row => ClashResultDuplicateKey.For(new ClashResultSummary
+                {
+                    TestIndex = row.TestIndex,
+                    TestName = row.TestName,
+                    Item1Names = GetClashItemNames(row.Result.Selection1, row.Result.Item1, 10),
+                    Item2Names = GetClashItemNames(row.Result.Selection2, row.Result.Item2, 10),
+                    ClashPoint = row.Result.Center == null ? null : ToPoint3Info(row.Result.Center),
+                    DistanceMm = DocUnitsToMm(SafeDouble(() => row.Result.Distance)),
+                })) : null);
             var matchedRows = scopePage.MatchedRows;
             var rows = scopePage.Rows;
             var page = scopePage.Page;

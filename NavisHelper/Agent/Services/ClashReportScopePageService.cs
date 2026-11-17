@@ -28,7 +28,8 @@ namespace NavisHelper.Agent.Services
             Func<TWorkItem, ClashResult> getResult,
             Func<ClashResult, IList<string>, IDictionary<string, int>, bool> matchesExcludedItemName,
             Func<IEnumerable<TWorkItem>, IEnumerable<TWorkItem>> sortRows,
-            Action<IDictionary<string, int>, string> incrementStatusCount)
+            Action<IDictionary<string, int>, string> incrementStatusCount,
+            Func<TWorkItem, string> duplicateKey = null)
         {
             if (response == null)
                 throw new ArgumentNullException(nameof(response));
@@ -53,7 +54,8 @@ namespace NavisHelper.Agent.Services
                 getResult,
                 matchesExcludedItemName,
                 sortRows,
-                incrementStatusCount);
+                incrementStatusCount,
+                duplicateKey);
         }
 
         public static ClashReportScopePage<TWorkItem> BuildForSavedViewpoints<TWorkItem>(
@@ -100,7 +102,8 @@ namespace NavisHelper.Agent.Services
                 getResult,
                 matchesExcludedItemName,
                 sortRows,
-                incrementStatusCount);
+                incrementStatusCount,
+                null);
         }
 
         private static ClashReportScopePage<TWorkItem> BuildCore<TWorkItem>(
@@ -123,7 +126,8 @@ namespace NavisHelper.Agent.Services
             Func<TWorkItem, ClashResult> getResult,
             Func<ClashResult, IList<string>, IDictionary<string, int>, bool> matchesExcludedItemName,
             Func<IEnumerable<TWorkItem>, IEnumerable<TWorkItem>> sortRows,
-            Action<IDictionary<string, int>, string> incrementStatusCount)
+            Action<IDictionary<string, int>, string> incrementStatusCount,
+            Func<TWorkItem, string> duplicateKey)
         {
             if (response == null)
                 throw new ArgumentNullException(nameof(response));
@@ -163,6 +167,22 @@ namespace NavisHelper.Agent.Services
                     matchedRows.Add(workItem);
                 }
             }
+
+            var dedupedResultCount = 0;
+            if (duplicateKey != null)
+            {
+                var seenKeys = new HashSet<string>(StringComparer.Ordinal);
+                var uniqueRows = new List<TWorkItem>();
+                foreach (var row in matchedRows)
+                {
+                    if (seenKeys.Add(duplicateKey(row)))
+                        uniqueRows.Add(row);
+                    else
+                        dedupedResultCount++;
+                }
+                matchedRows = uniqueRows;
+            }
+            response.SetDedupedResultCount?.Invoke(dedupedResultCount);
 
             var confirmationRequired = matchedRows.Count > largeConfirmationThreshold && !confirmedLargeScope;
             response.SetLargeConfirmationRequired(confirmationRequired);
@@ -206,6 +226,7 @@ namespace NavisHelper.Agent.Services
                 ExcludedByItemNameCounts = response.ExcludedByItemNameCounts,
                 IncrementExcludedByItemNameCount = () => response.ExcludedByItemNameCount++,
                 SetLargeConfirmationRequired = value => response.LargeReportConfirmationRequired = value,
+                SetDedupedResultCount = value => response.DedupedResultCount = value,
                 AddWarning = warning => response.Warnings.Add(warning),
                 SetNextResultOffset = value => response.NextResultOffset = value,
                 SetHasMoreResults = value => response.HasMoreResults = value,
@@ -244,6 +265,7 @@ namespace NavisHelper.Agent.Services
             public Action IncrementTotalResultCount;
             public IDictionary<string, int> TotalStatusCounts;
             public Action IncrementMatchedResultCount;
+            public Action<int> SetDedupedResultCount;
             public IDictionary<string, int> MatchedStatusCounts;
             public IDictionary<string, int> ExcludedByItemNameCounts;
             public Action IncrementExcludedByItemNameCount;

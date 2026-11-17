@@ -49,6 +49,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
         [Description("Height, pixels; 0=profile default. Both positive dimensions set render size; post-processing only shrinks.")] int screenshotMaxHeight = 0,
         [Description("JPEG quality 1..100; 0=profile default; lower=smaller file.")] int screenshotJpegQuality = 0,
         [Description("Exclude if either item name/path contains any value; keeps Clash Detective results.")] List<string> excludeItemNameContains = null,
+        [Description("Fold repeated rows (same items, point, depth).")] bool dedupe = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -89,6 +90,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
             ScreenshotMaxHeight = screenshotMaxHeight > 0 ? screenshotMaxHeight : null,
             ScreenshotJpegQuality = screenshotJpegQuality > 0 ? screenshotJpegQuality : null,
             ExcludeItemNameContains = excludeItemNameContains ?? new List<string>(),
+            Dedupe = dedupe,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
     }
 

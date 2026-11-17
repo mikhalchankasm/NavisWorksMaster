@@ -6,6 +6,7 @@ namespace NavisHelper.Agent.Contracts
     public sealed class ClashGenerateReportRequest
     {
         public bool? Apply { get; set; }
+        public bool? Dedupe { get; set; }
         public string TestName { get; set; }
         public List<string> TestNames { get; set; } = new List<string>();
         public List<string> StatusFilters { get; set; } = new List<string>();
@@ -76,6 +77,7 @@ namespace NavisHelper.Agent.Contracts
         public int MatchedTestCount { get; set; }
         public int TotalResultCount { get; set; }
         public int MatchedResultCount { get; set; }
+        public int DedupedResultCount { get; set; }
         public int ReturnedResultCount { get; set; }
         public int ResultOffset { get; set; }
         public int NextResultOffset { get; set; }
