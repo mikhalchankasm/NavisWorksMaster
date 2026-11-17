@@ -36,7 +36,7 @@ internal sealed class NavisworksClashTransferTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Imports supported nw-exchange-12.0 batchtest XML via exact lcop_selection_set_tree/full/path to versioned transfer plan/clash_tests_from_sets. Rejects DTD/external entities/schema loading, unsupported locators, oversized input. Dry-run; never runs tests/imports old results.")]
+    [Description("Imports nw-exchange-12.0 batchtest XML (exact lcop_selection_set_tree/full/path locators) through a transfer plan into clash_tests_from_sets. Rejects DTD/external entities, unsupported locators, oversized input. Dry-run; never runs tests or imports results.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashBatchtestImportResponse> ClashBatchtestImport(
         [Description("Exact absolute path to a Navisworks nw-exchange-12.0 batchtest XML file.")] string inputPath,

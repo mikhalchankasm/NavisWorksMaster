@@ -9,7 +9,7 @@ internal sealed class NavisworksClashOneVsRestTools : NavisworksToolBase
     public NavisworksClashOneVsRestTools(NavisworksToolContext context) : base(context) { }
 
     [McpServerTool]
-    [Description("Creates tests: one node vs siblings (pairs) or all siblings together (single), at any tree level. Reads target/direct siblings only. Creates explicit Selection Sets in one folder, names without /, for comparable runs. Dry-run; apply=true creates sets/tests, never runs. Skips include reasons.")]
+    [Description("One node vs its siblings (pairs) or all siblings (single), any tree level; reads direct siblings only. Explicit Selection Sets in one folder, names without /. Dry-run; apply=true creates sets/tests, never runs. Skips give reasons.")]
     [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashOneVsRestResponse> ClashOneVsRest(
         [Description("find_items/list_item_children handle for exactly one node; preferred for deep nodes.")] string targetMatchHandle = "",
