@@ -15,7 +15,7 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
     [Description("Manages tests by name/handle/prefix/first-N. Dry-run; apply=true mutates. run executes only: no model save, reports, screenshots or viewpoints. Handles: clash_list_tests.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashManageTestsResponse> ClashManageTests(
-        [Description("Required: run, reset, compact, rename, rename_batch, delete, move, sort, set_settings. Missing/invalid never runs tests.")] string operation,
+        [Description("run, reset, compact, rename, rename_batch, delete, move, sort or set_settings; missing/invalid never runs tests.")] string operation,
         [Description("False previews matched tests/operation; true applies.")] bool apply = false,
         [Description("Test name: exact match, else contains.")] string testName = "",
         [Description("Test names: exact match per name, else contains.")] List<string> testNames = null,

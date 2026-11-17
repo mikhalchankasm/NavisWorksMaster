@@ -13,7 +13,7 @@ internal sealed class NavisworksClashZoneTools : NavisworksToolBase
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashZoneMarkersResponse> ClashZonesMarkers(
         [Description("Marker operation: append, replace, remove or style.")] string operation,
-        [Description("Path to zones.ifc or its run folder. Required for append/replace; omitted for remove/style targets all loaded marker models.")] string markerPath = "",
+        [Description("zones.ifc or its run folder; required for append/replace, omitted for remove/style = all loaded marker models.")] string markerPath = "",
         [Description("Required for style: finite transparency from 0 (opaque) to 1 (transparent).")] double? transparency = null,
         [Description("False previews the plan; true changes the document's marker models. Never saves the document.")] bool apply = false,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
@@ -41,7 +41,7 @@ internal sealed class NavisworksClashZoneTools : NavisworksToolBase
         [Description("Include results marked by NavisHelper ignore rules. Default false.")] bool includeIgnored = false,
         [Description("Maximum raw results to analyze. Default and maximum 50000.")] int maxResults = 50000,
         [Description("Parent folder for the run folder. Default is clash_zones beside the document; required for an unsaved document.")] string outputDirectory = "",
-        [Description("Run folder identifier, 1-64 ASCII letters, digits, underscores or hyphens. Default local timestamp yyyyMMdd-HHmmss.")] string runId = "",
+        [Description("Run folder id: 1-64 ASCII letters, digits, _ or -; default local yyyyMMdd-HHmmss.")] string runId = "",
         [Description("Previous run folder or zones.json path for iteration comparison.")] string previousRunPath = "",
         [Description("Allow comparison when run parameters differ, with a warning. Default false.")] bool allowParameterMismatch = false,
         [Description("False previews paths and summary; true writes the run folder. Never saves the document.")] bool apply = false,

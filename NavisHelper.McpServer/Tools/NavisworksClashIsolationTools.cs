@@ -32,7 +32,7 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
         [Description("Optional custom camera up vector. Defaults to global +Z.")] Point3Info cameraUp = null,
         [Description("current, orthographic, perspective. current: iso/custom keep projection; top/front/back/left/right=orthographic.")] string projection = "current",
         [Description("Absolute .png/.jpg/.jpeg/.bmp path; apply=true captures after camera setup.")] string screenshotPath = "",
-        [Description("Render size: compact=1280x720, fullhd=1920x1080, large=2560x1440, extra_high/ultra/4k=3840x2160, source=active view. Default compact.")] string screenshotProfile = "compact",
+        [Description("Render size: compact=1280x720, fullhd=1920x1080, large=2560x1440, extra_high/ultra/4k=3840x2160, source=active view. Default is compact.")] string screenshotProfile = "compact",
         [Description("Optional screenshot format override: jpg, png, or bmp. Empty infers from screenshotPath.")] string screenshotFormat = "",
         [Description("Optional maximum screenshot width. 0 keeps source width.")] int? screenshotMaxWidth = null,
         [Description("Optional maximum screenshot height. 0 keeps source height.")] int? screenshotMaxHeight = null,
@@ -92,7 +92,7 @@ internal sealed class NavisworksClashIsolationTools : NavisworksToolBase
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<CaptureCurrentViewResponse> CaptureCurrentView(
         [Description("Required absolute output path ending in .png, .jpg, .jpeg, or .bmp.")] string outputPath,
-        [Description("Render size: compact=1280x720, fullhd=1920x1080, large=2560x1440, extra_high/ultra/4k=3840x2160, source=active view. Default compact.")] string screenshotProfile = "compact",
+        [Description("Render size: compact=1280x720, fullhd=1920x1080, large=2560x1440, extra_high/ultra/4k=3840x2160, source=active view. Default is compact.")] string screenshotProfile = "compact",
         [Description("Optional format override: jpg, png, or bmp. Empty infers from outputPath.")] string screenshotFormat = "",
         [Description("Optional maximum image width. 0 keeps source width.")] int? screenshotMaxWidth = null,
         [Description("Optional maximum image height. 0 keeps source height.")] int? screenshotMaxHeight = null,
