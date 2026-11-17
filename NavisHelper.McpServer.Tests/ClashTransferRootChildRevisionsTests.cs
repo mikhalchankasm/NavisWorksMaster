@@ -70,6 +70,10 @@ public sealed class ClashTransferRootChildRevisionsTests
         var recordedWithoutChild = new[] { Model("One.nwd", @"C:\Temp\navis_1.nwd", "B.rvm"), Model("Two.nwd", @"C:\Temp\navis_2.nwd", "A.rvm") };
         Assert.Equal(ModelRootChildMatchKind.NotFound, ModelRootChildLocator.Locate(recordedWithoutChild, "One.nwd", "", "A.rvm").Kind);
 
+        // A child-only reference where the file is both a model root and another model's child.
+        var rootAndChild = new[] { Model("A.rvm", @"D:\Port\A.rvm", "/A"), Model("Port.nwd", @"C:\Temp\navis_1.nwd", "A.rvm") };
+        Assert.Equal(ModelRootChildMatchKind.Ambiguous, ModelRootChildLocator.Locate(rootAndChild, "", "", "A.rvm").Kind);
+
         var siblings = new[] { Model("Port.nwd", @"C:\Temp\navis_1.nwd", "A.rvm", "a.rvm") };
         Assert.Equal(ModelRootChildMatchKind.Ambiguous, ModelRootChildLocator.Locate(siblings, "Port.nwd", "", "A.rvm").Kind);
     }

@@ -37,14 +37,18 @@ namespace NavisHelper.Agent.Contracts
                 throw new ArgumentNullException(nameof(models));
             if (string.IsNullOrWhiteSpace(childName))
                 return new ModelRootChildMatch { Kind = ModelRootChildMatchKind.NotFound };
+            // With no recorded model, children and model roots are searched together, so a file loaded as a
+            // model root and a same-named child of another model refuse as ambiguous.
+            var recorded = !string.IsNullOrWhiteSpace(rootName) || !string.IsNullOrWhiteSpace(sourceFile);
+            if (!recorded)
+                return Find(models, rootName, sourceFile, childName, true);
             var strict = Find(models, rootName, sourceFile, childName, false);
             if (strict.Kind != ModelRootChildMatchKind.NotFound)
                 return strict;
             // Search other models only when the recorded one is not in this document (another revision, or
-            // an NWF where the file is a model root) or none was recorded; a recorded model without the
-            // child is a miss, not a reason to take a same-named child from a different model.
-            var recorded = !string.IsNullOrWhiteSpace(rootName) || !string.IsNullOrWhiteSpace(sourceFile);
-            if (recorded && models.Any(model => model != null && MatchesRoot(model, rootName, sourceFile)))
+            // an NWF where the file is a model root); a recorded model without the child is a miss, not a
+            // reason to take a same-named child from a different model.
+            if (models.Any(model => model != null && MatchesRoot(model, rootName, sourceFile)))
                 return strict;
             return Find(models, rootName, sourceFile, childName, true);
         }
