@@ -58,7 +58,7 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
     }
     [McpServerTool]
-    [Description("Plans BBox-intersecting root/selection pairs; no document mutation or test creation/run. Dry-run: no write, outputWritten=false, requested/matched/unmatched rootNames. apply=true requires absolute outputPath; verifies atomic write.")]
+    [Description("Plans BBox-intersecting root/selection pairs; never mutates the document or creates/runs tests. Dry-run reports requested/matched/unmatched rootNames, no write. apply=true needs absolute outputPath; atomic verified write.")]
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashBboxPairPlanResponse> ClashBboxPairPlan(
         [Description("False previews, never writes; true writes/verifies required outputPath.")] bool apply = false,
@@ -141,7 +141,7 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
         [Description("Tolerance, mm; -1=host default.")] double toleranceMm = -1,
         [Description("hard/intersection, conservative/hard_conservative, clearance, duplicate.")] string testType = "hard",
         [Description("Run only the newly created tests after creation. Default is false.")] bool runAfterCreate = false,
-        [Description("Delete previous generated tests on apply; dry-run never deletes. Without pairNameTemplate: names must start with generated/custom prefix. With template: custom namePrefix is reviewed containment key (number may precede it).")] bool removePreviousGenerated = false,
+        [Description("On apply, delete previously generated tests (never in dry-run). Without pairNameTemplate names must start with the prefix; with it, namePrefix is a containment key (a number may precede it).")] bool removePreviousGenerated = false,
         [Description("Exact names/paths/source filenames of any model objects instead of selection; empty=selection.")] List<string> matrixItemNames = null,
         [Description("Use tree items matching name/path/source-file contains filter instead of selection.")] string matrixNameContains = "",
         [Description("Exclude matrix items by name/path/source-file contains filters.")] List<string> matrixExcludeNameContains = null,
