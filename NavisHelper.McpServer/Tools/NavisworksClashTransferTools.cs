@@ -1,15 +1,19 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using NavisHelper.Agent.Contracts;
+using NavisHelper.McpServer.Services;
 
 namespace NavisHelper.McpServer.Tools;
 
 internal sealed class NavisworksClashTransferTools : NavisworksToolBase
 {
-    public NavisworksClashTransferTools(NavisworksToolContext context) : base(context) { }
+    private const int BackgroundHostTimeoutMs = 1800000;
+    private readonly HostBackgroundJobStore _jobs;
+
+    public NavisworksClashTransferTools(NavisworksToolContext context, HostBackgroundJobStore jobs) : base(context) => _jobs = jobs;
 
     [McpServerTool]
-    [Description("Exports versioned portable JSON test definitions; dry-run, file writes only on apply=true. Set identity: exact full tree path; root: rootName/sourceFile(+childName). No results, viewpoints, comments or calculation history.")]
+    [Description("Exports versioned portable JSON test definitions; dry-run, writes only on apply=true. Sets by exact full tree path; roots by rootName/sourceFile(+childName). No results, viewpoints, comments or history.")]
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashTestsExportResponse> ClashTestsExport(
         [Description("Exact names; union with testHandles/namePrefix; empty scope=all tests.")] List<string> testNames = null,
@@ -19,11 +23,12 @@ internal sealed class NavisworksClashTransferTools : NavisworksToolBase
         [Description("Portable format. Must be navishelper_json.")] string format = ClashTransferConstants.JsonFormat,
         [Description("Allow replacement of an existing output file. Default false.")] bool overwriteExisting = false,
         [Description("False previews only; true writes .partial, atomically completes, verifies size/readability/SHA-256.")] bool apply = false,
+        [Description("Run in background; poll background_job_status.")] bool background = false,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
-        return _hostBridgeClient.ClashTestsExportAsync(new ClashTestsExportRequest
+        var request = new ClashTestsExportRequest
         {
             TestNames = testNames ?? new List<string>(),
             TestHandles = testHandles ?? new List<string>(),
@@ -32,7 +37,15 @@ internal sealed class NavisworksClashTransferTools : NavisworksToolBase
             Format = format,
             OverwriteExisting = overwriteExisting,
             Apply = apply,
-        }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
+        };
+        var target = CreateTarget(instanceId, navisworksVersion);
+        if (background)
+        {
+            var started = _jobs.Start("clash_tests_export", async token =>
+                (object)await _hostBridgeClient.ClashTestsExportAsync(request, token, target, BackgroundHostTimeoutMs));
+            return Task.FromResult(new ClashTestsExportResponse { BackgroundOperationId = started.OperationId, Applied = false });
+        }
+        return _hostBridgeClient.ClashTestsExportAsync(request, cancellationToken, target);
     }
 
     [McpServerTool]

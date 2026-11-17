@@ -158,6 +158,7 @@ internal static class McpToolProfile
 
             ["clash"] = new[]
             {
+                "background_job_status",
                 "cancel_clash_report",
                 "cancel_clash_run",
                 "clash_batchtest_import",

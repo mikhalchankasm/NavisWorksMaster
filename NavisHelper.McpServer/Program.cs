@@ -21,6 +21,7 @@ builder.Services.AddSingleton<HostBridgeClient>();
 builder.Services.AddSingleton<NavisworksRecentFilesService>();
 builder.Services.AddSingleton<NavisworksLaunchService>();
 builder.Services.AddSingleton<DatasmithExportJobService>();
+builder.Services.AddSingleton<HostBackgroundJobStore>();
 builder.Services.AddSingleton<McpTaskTimerService>();
 builder.Services.AddSingleton<ScenarioLibraryService>();
 builder.Services.AddSingleton<NavisworksToolContext>();
@@ -60,6 +61,7 @@ builder.Services
     .WithTools<NavisworksViewpointAnimationExportTools>()
     .WithTools<NavisworksStartupTools>()
     .WithTools<NavisworksDatasmithExportTools>()
+    .WithTools<NavisworksBackgroundJobTools>()
     .WithTools<NavisworksSelectionReportTools>()
     .WithTools<NavisworksModelColorSchemeTools>()
     .WithTools<NavisworksAppearanceProfileTools>()

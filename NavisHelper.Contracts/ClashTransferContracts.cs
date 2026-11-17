@@ -85,6 +85,7 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class ClashTestsExportResponse
     {
+        public string BackgroundOperationId { get; set; }
         public bool Applied { get; set; }
         public string Format { get; set; }
         public int FoundTestCount { get; set; }

@@ -50,6 +50,7 @@ READ_ONLY_TOOLS = read_only_tools()
 # The "default" case passes only what the tool needs to have a subject; every
 # tool not listed here is called with no arguments at all.
 DEFAULT_ARGUMENTS = {
+    "background_job_status": {"operationId": "$NO_SUCH_OPERATION"},
     "clash_run_status": {"operationId": "$NO_SUCH_OPERATION"},
     "datasmith_export_status": {"operationId": "$NO_SUCH_OPERATION"},
     "fbx_export_status": {"operationId": "$NO_SUCH_OPERATION"},

@@ -9,7 +9,7 @@ internal sealed class NavisworksClashRootMatrixTools : NavisworksToolBase
     public NavisworksClashRootMatrixTools(NavisworksToolContext context) : base(context) { }
 
     [McpServerTool]
-    [Description("Paged {(rootA,rootB):clashCount} matrix of existing results. Identity: ModelItem.Model, independent of tree depth or .rvm owner-path parsing.")]
+    [Description("Paged {(rootA,rootB):clashCount} matrix of existing results, keyed by ModelItem.Model (no tree-depth or .rvm path parsing).")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashRootMatrixResponse> ClashRootMatrix(
         [Description("Optional exact test name.")] string testName = "",
