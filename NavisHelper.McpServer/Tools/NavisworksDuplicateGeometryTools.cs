@@ -18,6 +18,7 @@ internal sealed class NavisworksDuplicateGeometryTools : NavisworksToolBase
         [Description("Grouping mode: all, within_root or across_roots. Default all.")] string mode = "all",
         [Description("Maximum returned groups, clamped to 1-100; handles for the first 25. Default 50.")] int maxGroups = 50,
         [Description("Preview paths per group, clamped to 1-20. Default 5.")] int previewPerGroup = 5,
+        [Description("Leave out groups whose items share parent and name (E3D fitting pairs). Default false.")] bool excludeSameParentAndName = false,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version, when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -32,6 +33,7 @@ internal sealed class NavisworksDuplicateGeometryTools : NavisworksToolBase
             Mode = normalizedMode,
             MaxGroups = maxGroups,
             PreviewPerGroup = previewPerGroup,
+            ExcludeSameParentAndName = excludeSameParentAndName,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
     }
 }
