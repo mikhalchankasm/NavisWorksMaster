@@ -97,6 +97,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `activate_saved_viewpoint` | View | Yes | Yes | Yes |
 | `active_model_context` | None | Yes | Yes | No |
 | `appearance_profile_apply` | Document | Yes | Yes | Yes |
+| `background_job_status` | None | No | No | No |
 | `build_mtr_viewpoints` | View, Document | Yes | Yes | Yes |
 | `cancel_clash_report` | LocalState | Yes | No | No |
 | `cancel_clash_run` | LocalState | Yes | No | No |
@@ -686,6 +687,12 @@ requested absolute path appears only as `calculatedOutputPath`. With
 `outputPath + ".partial"`, flushes, atomically completes the target, verifies
 existence/readability/size, and returns `outputWritten=true`, `bytesWritten`,
 and SHA-256. Existing targets require `overwriteExisting=true`.
+
+`background=false` is the default. With `background=true`, the server returns
+`backgroundOperationId` immediately with `applied=false`; this is an acknowledgement,
+not the export result. Poll `background_job_status` for the tool's full response.
+The server owns the host call independently of the MCP request, with a 30-minute
+host timeout (the synchronous path keeps its 10-minute timeout).
 
 `clash_batchtest_import` accepts the supported subset of Autodesk
 `nw-exchange-12.0` `<batchtest>` XML. The adapter accepts only exact
@@ -2365,6 +2372,23 @@ only when the runner's one-line JSON result says so and its process exited 0.
 Read-only and needs no Navisworks host: the server answers from its own job
 record without waiting for the process. It keeps the last 16 jobs; ids from an
 earlier server process are unknown.
+
+## `background_job_status`
+
+Input: `operationId` from a `background=true` call; optional `waitSeconds`
+(default 0, clamped to 0..55). Zero returns immediately; a positive value waits
+until completion or the timeout and returns the current status.
+
+Outputs: `operationId`, `found`, `command`, `state` (`running|succeeded|failed`),
+`startedAtUtc`, `completedAtUtc`, `elapsedMs`, `result`, `errorCode`,
+`errorMessage`, `message`. On success, `result` is the originating tool's full
+response. Failure preserves a host error code or uses `command_failed` for
+other exceptions. Unknown or evicted ids return `found=false` with a message.
+
+Server-side, read-only, and requires no host or document. The last 32 jobs are
+retained in start order, including running jobs; ids do not survive a server
+restart. Server disposal cancels running calls. Currently only
+`clash_tests_export` supports `background=true`. L3 verification is pending.
 
 ## Overlay world markers
 

@@ -295,9 +295,9 @@ internal sealed partial class HostBridgeClient
         return CallHostAsync<ClashOneVsRestResponse>(HostCommandNames.ClashOneVsRest, request, cancellationToken, target, 600000);
     }
 
-    public Task<ClashTestsExportResponse> ClashTestsExportAsync(ClashTestsExportRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    public Task<ClashTestsExportResponse> ClashTestsExportAsync(ClashTestsExportRequest request, CancellationToken cancellationToken, HostTargetOptions target = null, int timeoutMs = 600000)
     {
-        return CallHostAsync<ClashTestsExportResponse>(HostCommandNames.ClashTestsExport, request, cancellationToken, target, 600000);
+        return CallHostAsync<ClashTestsExportResponse>(HostCommandNames.ClashTestsExport, request, cancellationToken, target, timeoutMs);
     }
 
     public Task<ClashBatchtestImportResponse> ClashBatchtestImportAsync(ClashBatchtestImportRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
