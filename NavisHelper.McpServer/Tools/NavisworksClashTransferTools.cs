@@ -13,7 +13,7 @@ internal sealed class NavisworksClashTransferTools : NavisworksToolBase
     public NavisworksClashTransferTools(NavisworksToolContext context, HostBackgroundJobStore jobs) : base(context) => _jobs = jobs;
 
     [McpServerTool]
-    [Description("Exports versioned portable JSON test definitions; dry-run, file writes only on apply=true. Set identity: exact full tree path; root: rootName/sourceFile(+childName). No results, viewpoints, comments or calculation history.")]
+    [Description("Exports versioned portable JSON test definitions; dry-run, writes only on apply=true. Sets by exact full tree path; roots by rootName/sourceFile(+childName). No results, viewpoints, comments or history.")]
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashTestsExportResponse> ClashTestsExport(
         [Description("Exact names; union with testHandles/namePrefix; empty scope=all tests.")] List<string> testNames = null,
@@ -23,7 +23,7 @@ internal sealed class NavisworksClashTransferTools : NavisworksToolBase
         [Description("Portable format. Must be navishelper_json.")] string format = ClashTransferConstants.JsonFormat,
         [Description("Allow replacement of an existing output file. Default false.")] bool overwriteExisting = false,
         [Description("False previews only; true writes .partial, atomically completes, verifies size/readability/SHA-256.")] bool apply = false,
-        [Description("Run in the background; returns backgroundOperationId for background_job_status.")] bool background = false,
+        [Description("Run in background; poll background_job_status.")] bool background = false,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)

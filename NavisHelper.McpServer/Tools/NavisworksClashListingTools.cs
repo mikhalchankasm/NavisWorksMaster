@@ -35,7 +35,7 @@ internal sealed class NavisworksClashListingTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Read-only results: statuses, assignees, item names; use after clash_list_tests. Grouping invalidates positional resultHandle/groupHandle; stable name works with clash_group_custom/clash_set_status/clash_isolate_result.")]
+    [Description("Read-only results: statuses, assignees, item names; after clash_list_tests. Grouping invalidates resultHandle/groupHandle; result names stay valid for clash_group_custom/clash_set_status/clash_isolate_result.")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashListResultsResponse> ClashListResults(
         [Description("Test name: exact, else contains; empty=all.")] string testName = "",

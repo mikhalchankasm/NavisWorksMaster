@@ -12,7 +12,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Reports existing results; dry-run. apply=true creates section-box viewpoints, available screenshots and HTML/JSON.")]
+    [Description("Reports existing results; dry-run. apply=true creates section-box viewpoints, screenshots and HTML/JSON.")]
     [ToolCapabilities(ToolEffects.View | ToolEffects.Document | ToolEffects.Files | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashGenerateReportResponse> ClashGenerateReport(
         [Description("False previews counts/paths; true creates viewpoints/screenshots/report.")] bool apply = false,
@@ -161,7 +161,7 @@ internal sealed class NavisworksClashReportTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Cooperatively cancels clash_generate_report. Current image/viewpoint step may finish; writes partial artifacts, stops before next clash.")]
+    [Description("Cancels clash_generate_report cooperatively: the current step may finish, partial artifacts are written, no next clash starts.")]
     [ToolCapabilities(ToolEffects.LocalState, RequiresHost = true, RequiresDocument = false)]
     public Task<ClashReportStatusResponse> CancelClashReport(
         [Description("Optional operation id. Empty means the active clash report.")] string operationId = "",
