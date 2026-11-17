@@ -80,6 +80,13 @@ public sealed class ClashTransferRootChildRevisionsTests
         var recordedWithoutChild = new[] { Model("One.nwd", @"C:\Temp\navis_1.nwd", "B.rvm"), Model("Two.nwd", @"C:\Temp\navis_2.nwd", "A.rvm") };
         Assert.Equal(ModelRootChildMatchKind.NotFound, ModelRootChildLocator.Locate(recordedWithoutChild, "One.nwd", "", "A.rvm").Kind);
 
+        // Two models fit the record by file name: an exact path decides, a bare file name refuses, and the
+        // recorded model without the child is a miss rather than the other revision's child (review, #522).
+        var twoFolders = new[] { Model("Port.nwd", @"D:\one\Port.nwd", "B.rvm"), Model("Port.nwd", @"D:\two\Port.nwd", "A.rvm") };
+        Assert.Equal(ModelRootChildMatchKind.NotFound, ModelRootChildLocator.Locate(twoFolders, "Port.nwd", @"D:\one\Port.nwd", "A.rvm").Kind);
+        AssertMatch(ModelRootChildLocator.Locate(twoFolders, "Port.nwd", @"D:\two\Port.nwd", "A.rvm"), ModelRootChildMatchKind.Child, 1, 0);
+        Assert.Equal(ModelRootChildMatchKind.Ambiguous, ModelRootChildLocator.Locate(twoFolders, "Port.nwd", "Port.nwd", "A.rvm").Kind);
+
         // A child-only reference where the file is both a model root and another model's child.
         var rootAndChild = new[] { Model("A.rvm", @"D:\Port\A.rvm", "/A"), Model("Port.nwd", @"C:\Temp\navis_1.nwd", "A.rvm") };
         Assert.Equal(ModelRootChildMatchKind.Ambiguous, ModelRootChildLocator.Locate(rootAndChild, "", "", "A.rvm").Kind);

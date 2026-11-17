@@ -41,25 +41,41 @@ namespace NavisHelper.Agent.Contracts
             // model root and a same-named child of another model refuse as ambiguous.
             var recorded = !string.IsNullOrWhiteSpace(rootName) || !string.IsNullOrWhiteSpace(sourceFile);
             if (!recorded)
-                return Find(models, rootName, sourceFile, childName, true);
-            var strict = Find(models, rootName, sourceFile, childName, false);
-            if (strict.Kind != ModelRootChildMatchKind.NotFound)
-                return strict;
-            // Search other models only when the recorded one is not in this document (another revision, or
-            // an NWF where the file is a model root); a recorded model without the child is a miss, not a
-            // reason to take a same-named child from a different model.
-            if (models.Any(model => model != null && MatchesRoot(model, rootName, sourceFile)))
-                return strict;
-            return Find(models, rootName, sourceFile, childName, true);
+                return Find(models, null, childName, true);
+            // The recorded model, when it is here, is the only place to look: a recorded model without the
+            // child is a miss, and two models that fit the record (same file name in two folders) refuse as
+            // ambiguous, as model-root references always have. Other models are searched only when the
+            // recorded one is absent (another revision, or an NWF where the file is a model root).
+            var recordedModels = RecordedModels(models, rootName, sourceFile);
+            if (recordedModels.Count > 1)
+                return new ModelRootChildMatch { Kind = ModelRootChildMatchKind.Ambiguous };
+            if (recordedModels.Count == 1)
+                return Find(models, recordedModels, childName, false);
+            return Find(models, null, childName, true);
         }
 
-        private static ModelRootChildMatch Find(IList<ModelRootCandidate> models, string rootName, string sourceFile, string childName, bool fallback)
+        private static List<int> RecordedModels(IList<ModelRootCandidate> models, string rootName, string sourceFile)
+        {
+            var matched = Enumerable.Range(0, models.Count)
+                .Where(index => models[index] != null && MatchesRoot(models[index], rootName, sourceFile))
+                .ToList();
+            if (matched.Count <= 1 || string.IsNullOrWhiteSpace(sourceFile))
+                return matched;
+            // Several models fit by file name; an exact path match decides, otherwise all stay (ambiguous).
+            var exact = matched.Where(index =>
+                string.Equals((models[index].SourceFile ?? string.Empty).Trim(), sourceFile.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                string.Equals((models[index].FileName ?? string.Empty).Trim(), sourceFile.Trim(), StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            return exact.Count == 1 ? exact : matched;
+        }
+
+        private static ModelRootChildMatch Find(IList<ModelRootCandidate> models, IList<int> only, string childName, bool fallback)
         {
             ModelRootChildMatch result = null;
             for (var modelIndex = 0; modelIndex < models.Count; modelIndex++)
             {
                 var model = models[modelIndex];
-                if (model == null || (!fallback && !MatchesRoot(model, rootName, sourceFile)))
+                if (model == null || (only != null && !only.Contains(modelIndex)))
                     continue;
                 var children = model.ChildNames;
                 for (var childIndex = 0; children != null && childIndex < children.Count; childIndex++)
