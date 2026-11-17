@@ -46,7 +46,7 @@ internal sealed class NavisworksClashListingTools : NavisworksToolBase
         [Description("Include Item1/Item2 display names. Default is true.")] bool includeItemNames = true,
         [Description("Include AssignedTo. Default is true.")] bool includeAssignedTo = true,
         [Description("Include up to 20 newest comments per result (NavisHelper markers left out).")] bool includeComments = false,
-        [Description("Fold rows with the same items, point and distance in one test.")] bool dedupe = false,
+        [Description("Fold repeated rows (same items, point, depth).")] bool dedupe = false,
         [Description("Include results marked by NavisHelper ignore rules. Default is false.")] bool includeIgnored = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
