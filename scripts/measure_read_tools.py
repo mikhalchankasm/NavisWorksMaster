@@ -140,6 +140,7 @@ SIZE_PLAN = [
     }}
     for tool, subject, knobs in [
         ("active_model_context", {}, "rootItemLimit includeRootAliases includeSavedItemsSummary"),
+        ("background_job_status", {"operationId": "$NO_SUCH_OPERATION"}, ""),
         ("clash_list_clusters", {}, "limit previewRowsPerCluster maxResults includeAllStatuses includeIgnored"),
         ("clash_list_results", {}, "limit includeAllStatuses includeItemNames includeAssignedTo includeComments includeIgnored"),
         ("clash_list_tests", {}, "limit includeStatusCounts"),
