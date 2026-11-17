@@ -26,7 +26,7 @@ internal sealed class NavisworksClashZoneTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Builds clash zones from results into one run folder: zones.json, zones.xlsx, zones.ifc (a semi-transparent sphere per zone, per clash with mode=points). previousRunPath tracks zones across runs (new, persisting, moved, disappeared) plus a comparison workbook. Reads results only; never saves. Dry-run.")]
+    [Description("Builds clash zones into one run folder: zones.json, zones.xlsx, zones.ifc (a semi-transparent sphere per zone, per clash with mode=points). previousRunPath tracks zones across runs (new, persisting, moved, disappeared) plus a comparison workbook. Reads results only; never saves. Dry-run.")]
     [ToolCapabilities(ToolEffects.Files, RequiresHost = true, RequiresDocument = true)]
     public Task<ClashZoneExportResponse> ClashZonesExport(
         [Description("Optional test names. Empty with testHandles empty means all tests.")] List<string> testNames = null,

@@ -1186,6 +1186,7 @@ Inputs:
 | `includeItemNames` | bool | `true` | Include side A/B display names. |
 | `includeAssignedTo` | bool | `true` | Include assignee. |
 | `includeComments` | bool | `false` | Include up to 20 newest comments per result, excluding NavisHelper ignore markers. |
+| `dedupe` | bool | `false` | Fold repeated rows before sorting and paging; requires `includeItemNames=true`, otherwise `SchemaViolation`. Keeps the first row per test name, ordered side A/B name lists, clash point rounded to 6 decimals, and distance rounded to 3 decimals. |
 | `instanceId` | string | `""` | Optional explicit Navisworks host. |
 | `navisworksVersion` | string | `""` | Optional version filter. |
 
@@ -1196,7 +1197,8 @@ Outputs:
 | `requestedTestName` | string | The requested `testName`. |
 | `matchedTestCount` | int | Tests matched by the request. |
 | `totalResultCount` | int | Results before status filtering. |
-| `matchedResultCount` | int | Results after status filtering. |
+| `matchedResultCount` | int | Results after status filtering, before deduplication. |
+| `dedupedResultCount` | int | Repeated rows folded across all matched results, before paging; zero when `dedupe=false`. |
 | `returnedResultCount` | int | Result rows returned after `limit`. |
 | `resultOffset`, `nextResultOffset`, `hasMoreResults` | scalar | Paging state. |
 | `truncated` | bool | `true` when more result rows remain after this page. |
@@ -1292,6 +1294,10 @@ model root; `across_roots` keeps groups spanning at least two roots. Roots are c
 by node identity, so two roots appended from the same file count as two;
 `sameParentAndName` uses ordinal parent path equality on printed parent paths.
 A target nested under another target is not walked twice.
+
+`excludeSameParentAndName` defaults to false; when true, it leaves out groups with
+`sameParentAndName=true` before ordering and the `maxGroups` limit. `excludedGroupCount` counts all such omitted
+groups in the scanned scope; it is zero when the option is false.
 
 `maxGroups=50` is clamped to 1–100; largest groups come first, then key in ordinal
 order. `previewPerGroup=5` is clamped to 1–20. Returns effective `gridSize`, `mode`,

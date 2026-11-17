@@ -78,6 +78,8 @@ namespace NavisHelper.Agent.Services
             var limit = ClampClashListResultsLimit(request.Limit);
             var resultOffset = ClampNonNegative(request.ResultOffset);
             var includeItemNames = request.IncludeItemNames.GetValueOrDefault(true);
+            if (request.Dedupe == true && !includeItemNames)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "dedupe requires includeItemNames=true.");
             var includeAssignedTo = request.IncludeAssignedTo.GetValueOrDefault(true);
             var includeIgnored = request.IncludeIgnored == true;
             var statusFilterPlan = ClashStatusFilterHelper.Normalize(request.StatusFilters, request.IncludeAllStatuses == true, false);
@@ -122,6 +124,13 @@ namespace NavisHelper.Agent.Services
                     response.MatchedResultCount++;
                     matchingRows.Add(row);
                 }
+            }
+
+            if (request.Dedupe == true)
+            {
+                var deduped = ClashResultDeduper.Dedupe(matchingRows);
+                matchingRows = deduped.Kept;
+                response.DedupedResultCount = deduped.FoldedCount;
             }
 
             if (resultOffset > matchingRows.Count)

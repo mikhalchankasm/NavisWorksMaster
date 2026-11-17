@@ -60,6 +60,13 @@ namespace NavisHelper.Agent.Contracts
         public static List<DuplicateGeometryGroup> Group(IEnumerable<DuplicateGeometryCandidate> items,
             double grid, string mode, int maxGroups)
         {
+            int excludedGroupCount;
+            return Group(items, grid, mode, maxGroups, false, out excludedGroupCount);
+        }
+
+        public static List<DuplicateGeometryGroup> Group(IEnumerable<DuplicateGeometryCandidate> items,
+            double grid, string mode, int maxGroups, bool excludeSameParentAndName, out int excludedGroupCount)
+        {
             string normalizedMode;
             if (!DuplicateGeometryModes.TryNormalize(mode, out normalizedMode))
                 throw new ArgumentException("Mode must be all, within_root or across_roots.", nameof(mode));
@@ -76,6 +83,8 @@ namespace NavisHelper.Agent.Contracts
                     AddGroup(result, geometryGroup.Key, geometryGroup.ToList(),
                         normalizedMode == DuplicateGeometryModes.AcrossRoots);
             }
+            excludedGroupCount = excludeSameParentAndName
+                ? result.RemoveAll(group => group.SameParentAndName) : 0;
             return result.OrderByDescending(group => group.ItemIndexes.Count)
                 .ThenBy(group => group.Key, StringComparer.Ordinal).Take(maxGroups).ToList();
         }
@@ -109,6 +118,7 @@ namespace NavisHelper.Agent.Contracts
         public string Mode { get; set; }
         public int? MaxGroups { get; set; }
         public int? PreviewPerGroup { get; set; }
+        public bool? ExcludeSameParentAndName { get; set; }
     }
 
     public sealed class DuplicateGeometryGroupInfo
@@ -127,6 +137,7 @@ namespace NavisHelper.Agent.Contracts
         public int ScannedItemCount { get; set; }
         public bool ScanTruncated { get; set; }
         public int GroupCount { get; set; }
+        public int ExcludedGroupCount { get; set; }
         public bool GroupsTruncated { get; set; }
         public int DuplicateItemCount { get; set; }
         public List<DuplicateGeometryGroupInfo> Groups { get; set; } = new List<DuplicateGeometryGroupInfo>();

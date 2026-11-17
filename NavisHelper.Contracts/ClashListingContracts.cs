@@ -44,6 +44,7 @@ namespace NavisHelper.Agent.Contracts
         public bool? IncludeItemNames { get; set; }
         public bool? IncludeAssignedTo { get; set; }
         public bool? IncludeComments { get; set; }
+        public bool? Dedupe { get; set; }
         public bool? IncludeIgnored { get; set; }
         public List<string> StatusFilters { get; set; } = new List<string>();
         public bool? IncludeAllStatuses { get; set; }
@@ -55,6 +56,7 @@ namespace NavisHelper.Agent.Contracts
         public int MatchedTestCount { get; set; }
         public int TotalResultCount { get; set; }
         public int MatchedResultCount { get; set; }
+        public int DedupedResultCount { get; set; }
         public int ReturnedResultCount { get; set; }
         public int ResultOffset { get; set; }
         public int NextResultOffset { get; set; }

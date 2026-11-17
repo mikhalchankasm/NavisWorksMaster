@@ -54,7 +54,10 @@ namespace NavisHelper.Agent.Services
                 items.Add(item);
             }
             response.ScannedItemCount = candidates.Count;
-            var groups = DuplicateGeometryRules.Group(candidates, response.GridSize, mode, maxGroups + 1);
+            int excludedGroupCount;
+            var groups = DuplicateGeometryRules.Group(candidates, response.GridSize, mode, maxGroups + 1,
+                request.ExcludeSameParentAndName == true, out excludedGroupCount);
+            response.ExcludedGroupCount = excludedGroupCount;
             response.GroupsTruncated = groups.Count > maxGroups;
             foreach (var group in groups.Take(maxGroups))
             {
