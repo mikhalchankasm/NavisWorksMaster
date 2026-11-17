@@ -296,7 +296,7 @@ namespace NavisHelper.Agent.Services
             if (reference == null)
                 return SelectionSetReferenceResolver.Resolve(document, null);
             var key = string.Join("\n", reference.ItemId ?? string.Empty, reference.Path ?? string.Empty, reference.Name ?? string.Empty,
-                reference.RootName ?? string.Empty, reference.SourceFile ?? string.Empty, reference.Occurrence.GetValueOrDefault().ToString(CultureInfo.InvariantCulture));
+                reference.RootName ?? string.Empty, reference.SourceFile ?? string.Empty, reference.ChildName ?? string.Empty, reference.Occurrence.GetValueOrDefault().ToString(CultureInfo.InvariantCulture));
             ResolvedSelectionSetReference resolved;
             if (!cache.TryGetValue(key, out resolved))
             {

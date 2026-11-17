@@ -11,6 +11,7 @@ namespace NavisHelper.Agent.Contracts
         public int? Occurrence { get; set; }
         public string RootName { get; set; }
         public string SourceFile { get; set; }
+        public string ChildName { get; set; }
     }
 
     public sealed class ClashSetPair

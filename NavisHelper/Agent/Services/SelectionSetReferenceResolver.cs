@@ -121,8 +121,30 @@ namespace NavisHelper.Agent.Services
                 throw new AgentCommandException(ErrorCodes.SavedItemAmbiguous, "More than one model root matched; pass occurrence or a more specific sourceFile path.");
             var model = matches[0];
             var items = new ModelItemCollection();
-            items.Add(model.RootItem);
             var source = !string.IsNullOrWhiteSpace(model.SourceFileName) ? model.SourceFileName : model.FileName;
+            if (!string.IsNullOrWhiteSpace(reference.ChildName))
+            {
+                var childName = reference.ChildName.Trim();
+                var children = model.RootItem == null ? new List<ModelItem>() : model.RootItem.Children.Cast<ModelItem>()
+                    .Where(child => string.Equals((child.DisplayName ?? string.Empty).Trim(), childName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var modelName = model.RootItem == null ? source : model.RootItem.DisplayName;
+                if (children.Count == 0)
+                    throw new AgentCommandException(ErrorCodes.SelectionSetNotFound, "Model root child '" + childName + "' was not found in model '" + modelName + "' (" + source + ").");
+                if (children.Count > 1)
+                    throw new AgentCommandException(ErrorCodes.SavedItemAmbiguous, "Model root child '" + childName + "' is ambiguous in model '" + modelName + "' (" + source + ").");
+                var resolvedChild = children[0];
+                items.Add(resolvedChild);
+                return new ResolvedSelectionSetReference
+                {
+                    ExplicitItems = items,
+                    ItemId = BuildModelItemId(model, source) + "/" + resolvedChild.DisplayName,
+                    Name = resolvedChild.DisplayName,
+                    Path = source + " / " + resolvedChild.DisplayName,
+                    Type = "ModelRootChild",
+                };
+            }
+            items.Add(model.RootItem);
             return new ResolvedSelectionSetReference
             {
                 ExplicitItems = items,

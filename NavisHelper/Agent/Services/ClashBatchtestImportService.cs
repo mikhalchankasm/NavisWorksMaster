@@ -122,6 +122,8 @@ namespace NavisHelper.Agent.Services
         {
             if (string.Equals(type, "ModelRoot", StringComparison.OrdinalIgnoreCase))
                 return ClashTransferSideKinds.ModelRoot;
+            if (string.Equals(type, "ModelRootChild", StringComparison.OrdinalIgnoreCase))
+                return ClashTransferSideKinds.ModelRootChild;
             return string.Equals(type, "SearchSet", StringComparison.OrdinalIgnoreCase)
                 ? ClashTransferSideKinds.SearchSet
                 : ClashTransferSideKinds.SelectionSet;
