@@ -224,7 +224,11 @@ namespace NavisHelper.Agent.Services
                         side.Kind = ClashTransferSideKinds.ModelRootChild;
                         side.RootName = model.RootItem.DisplayName;
                         side.SourceFile = !string.IsNullOrWhiteSpace(model.SourceFileName) ? model.SourceFileName : model.FileName;
-                        if (ModelRootChildLocator.IsDocumentRoot(model.RootItem.DisplayName, document.FileName))
+                        // Drop the document name and temp path only when the child name alone is unique in
+                        // this document; otherwise the recorded model is what keeps the reference unambiguous.
+                        if (ModelRootChildLocator.IsDocumentRoot(model.RootItem.DisplayName, document.FileName) &&
+                            ModelRootChildLocator.Locate(SelectionSetReferenceResolver.ModelRootCandidates(document.Models.Cast<Model>().ToList()),
+                                string.Empty, string.Empty, childName).Kind == ModelRootChildMatchKind.Child)
                         {
                             side.RootName = string.Empty;
                             side.SourceFile = string.Empty;

@@ -70,7 +70,8 @@ namespace NavisHelper.Agent.Contracts
                         return new ModelRootChildMatch { Kind = ModelRootChildMatchKind.Ambiguous };
                     result = new ModelRootChildMatch { Kind = ModelRootChildMatchKind.Child, ModelIndex = modelIndex, ChildIndex = childIndex };
                 }
-                if (fallback && (SameName(model.RootName, childName) || SameName(Path.GetFileName(model.SourceFile), childName)))
+                if (fallback && (SameName(model.RootName, childName) || SameName(FileNameOf(model.SourceFile), childName) ||
+                                 SameName(FileNameOf(model.FileName), childName)))
                 {
                     if (result != null)
                         return new ModelRootChildMatch { Kind = ModelRootChildMatchKind.Ambiguous };
@@ -87,6 +88,11 @@ namespace NavisHelper.Agent.Contracts
                     string.Equals(model.SourceFile, sourceFile.Trim(), StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(model.FileName, sourceFile.Trim(), StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(Path.GetFileName(model.SourceFile), Path.GetFileName(sourceFile.Trim()), StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string FileNameOf(string path)
+        {
+            return string.IsNullOrWhiteSpace(path) ? string.Empty : Path.GetFileName(path.Trim());
         }
 
         private static bool SameName(string left, string right)

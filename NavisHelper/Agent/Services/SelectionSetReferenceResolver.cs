@@ -100,19 +100,25 @@ namespace NavisHelper.Agent.Services
             return true;
         }
 
+        /// <summary>The document's models as <see cref="ModelRootCandidate"/>s, in <c>document.Models</c> order.</summary>
+        internal static List<ModelRootCandidate> ModelRootCandidates(IList<Model> models)
+        {
+            return models.Select(candidate => new ModelRootCandidate
+            {
+                RootName = candidate == null || candidate.RootItem == null ? string.Empty : candidate.RootItem.DisplayName,
+                SourceFile = candidate == null ? string.Empty : candidate.SourceFileName,
+                FileName = candidate == null ? string.Empty : candidate.FileName,
+                ChildNames = candidate == null || candidate.RootItem == null ? new List<string>() : candidate.RootItem.Children.Cast<ModelItem>()
+                    .Select(item => item.DisplayName).ToList(),
+            }).ToList();
+        }
+
         private static ResolvedSelectionSetReference ResolveModelRoot(Document document, SelectionSetReference reference)
         {
             if (!string.IsNullOrWhiteSpace(reference.ChildName))
             {
                 var models = document.Models.Cast<Model>().ToList();
-                var candidates = models.Select(candidate => new ModelRootCandidate
-                {
-                    RootName = candidate.RootItem == null ? string.Empty : candidate.RootItem.DisplayName,
-                    SourceFile = candidate.SourceFileName,
-                    FileName = candidate.FileName,
-                    ChildNames = candidate.RootItem == null ? new List<string>() : candidate.RootItem.Children.Cast<ModelItem>()
-                        .Select(child => child.DisplayName).ToList(),
-                }).ToList();
+                var candidates = ModelRootCandidates(models);
                 var match = ModelRootChildLocator.Locate(candidates, reference.RootName, reference.SourceFile, reference.ChildName);
                 var recordedModel = string.IsNullOrWhiteSpace(reference.RootName) && string.IsNullOrWhiteSpace(reference.SourceFile)
                     ? string.Empty

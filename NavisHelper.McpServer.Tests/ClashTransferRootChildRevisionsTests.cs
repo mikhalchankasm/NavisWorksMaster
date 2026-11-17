@@ -43,6 +43,16 @@ public sealed class ClashTransferRootChildRevisionsTests
     }
 
     [Fact]
+    public void AModelRootIsAlsoFoundByItsFileName()
+    {
+        var models = new List<ModelRootCandidate>
+        {
+            new ModelRootCandidate { RootName = "Renamed", SourceFile = "", FileName = @"D:\Port\B.rvm", ChildNames = new List<string> { "/B" } },
+        };
+        AssertMatch(ModelRootChildLocator.Locate(models, "", "", "B.rvm"), ModelRootChildMatchKind.Root, 0, -1);
+    }
+
+    [Fact]
     public void AChildOnlyReferenceResolvesAmongManyModels()
     {
         var match = ModelRootChildLocator.Locate(new[]
@@ -101,6 +111,8 @@ public sealed class ClashTransferRootChildRevisionsTests
     {
         var exporter = Read("NavisHelper", "Agent", "Services", "ClashTestTransferExporterService.cs");
         Assert.Contains("ModelRootChildLocator.IsDocumentRoot(", exporter, StringComparison.Ordinal);
+        // The document root is dropped only when the child name alone is unique (Codex review, #522).
+        Assert.Contains("string.Empty, string.Empty, childName).Kind == ModelRootChildMatchKind.Child", exporter, StringComparison.Ordinal);
         var resolver = Read("NavisHelper", "Agent", "Services", "SelectionSetReferenceResolver.cs");
         Assert.Contains("ModelRootChildLocator.Locate(", resolver, StringComparison.Ordinal);
     }
