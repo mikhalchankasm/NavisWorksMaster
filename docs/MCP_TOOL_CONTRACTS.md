@@ -310,13 +310,15 @@ a new truncation flag appears on a contract without being documented.
 | `valuesTruncated` | `selection_distinct_property_values` | fewer distinct values than exist, so the set is not the full domain |
 | `depthTruncated` | `selected_items_tree` | the tree was cut at `maxDepth`; deeper nodes exist and are absent |
 | `deadlineTruncated` | `selected_items_tree`, `selection_export_bounding_boxes` | the walk over the selection stopped at the request deadline; more selected items exist and are absent, and what was built so far is returned (for the export, written to the file) |
-| `budgetTruncated` | `selected_items_tree` | the page stopped at about 80 KB (`ResponseBudget.PageBytes`) before `maxItems`, so the answer stays under the client's limit of about 25 000 tokens; more selected items exist, and `nextOffset` continues the selection (#427). One item larger than a page on its own is refused with `response_too_large`; retry with a smaller `maxDepth` or without bounding boxes |
+| `budgetTruncated` | `selected_items_tree`, `selection_copy_names`, `selection_property_report` | the page stopped at about 80 KB (`ResponseBudget.PageBytes`) before its item limit, so the answer stays under the client's limit of about 25 000 tokens; `nextOffset` continues the selection (#427). One item larger than a page on its own is refused with `response_too_large`: for the tree, reduce `maxDepth` or omit bounding boxes; for names, set `includePaths=false` or `includeSourceFiles=false`; for the report, use `categoryFilters`, `propertyFilters` or a smaller `propertyLimitPerItem` |
 | `scanTruncated` | `find_duplicate_geometry` | the geometry scan stopped at 200000 items or the host request deadline; counts and groups cover only scanned items |
 | `groupsTruncated` | `find_duplicate_geometry` | more duplicate groups were found than `maxGroups`; `groupCount` and `duplicateItemCount` cover only returned groups |
-| `nextOffset` | `selected_items_tree` | not a flag but its remedy: the selection position where the next page starts, null on the last page. Call again with `offset=nextOffset`; it counts every position the page looked at, so no item is repeated or skipped (#359) |
+| `nextOffset` | `selected_items_tree`, `selection_copy_names`, `selection_property_report` | not a flag but its remedy: the selection position where the next page starts, null on the last page. Call again with `offset=nextOffset`; offsets count selection positions, including skipped items (#359) |
 | `traversalTruncated` | `find_items_by_bbox`, `isolate_by_box`, clash matrix traversal | the walk stopped at a scan or time limit, so items were never examined. See *find_items_by_bbox* for what narrowing the zone now skips |
 | `responseTruncated` | `last_operation_status` | the command completed but its response had to be reduced to fit the named-pipe frame |
 | `groupsTruncated`, `pairsTruncated`, `candidatePairsTruncated`, `plannedTestsTruncated`, `analysisTruncated`, `classificationTruncated`, `rootItemsTruncated` | clash planning, grouping and root listings | fewer groups, pairs, planned tests or roots than the operation found |
+
+`selection_copy_names` and `selection_property_report` accept `offset` (default 0; negative values are a schema violation) and return `offset`, `nextOffset` and `budgetTruncated`. An offset at or beyond the selection returns an empty page. `truncated` (names) and `itemsTruncated` (report) mean `nextOffset` is present. Report `itemIndex` is the 1-based absolute selection position. An item that `rowLimit` would cut after the first item of a page is left out of that page and starts the next one, so following `nextOffset` never returns a row twice; a page whose only item is cut by `rowLimit` keeps its rows and moves past it with `rowsTruncated=true`, so following `nextOffset` always ends (raise `rowLimit` or narrow the filters to get its other rows). `selection_export_properties` keeps its existing limits and all rows within them, without offset or byte paging.
 
 **Only a preview is short.** The operation's own counts are complete; what is abridged is
 the human-readable sample beside them:
@@ -345,7 +347,7 @@ contract cannot skip that description.
 | `AffectedItemsPreviewTruncated` | `HideSelectedResponse`, `HideUnselectedResponse`, `IsolateByBoxResponse`, `IsolateSelectedResponse`, `RevealSelectedResponse`, `ShowAllResponse`, `UnhideSelectedResponse` |
 | `AffectedRootSummariesTruncated` | `HideSelectedResponse`, `HideUnselectedResponse`, `IsolateSelectedResponse`, `RevealSelectedResponse`, `ShowAllResponse`, `UnhideSelectedResponse` |
 | `AnalysisTruncated` | `ModelColorSchemeResponse` |
-| `BudgetTruncated` | `SelectedItemsTreeResponse` |
+| `BudgetTruncated` | `ResponsePage`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionPropertyReportResponse` |
 | `CandidatePairsTruncated` | `ClashBboxPairPlanResponse` |
 | `ClassificationTruncated` | `ModelColorSchemeResponse` |
 | `CommentsTruncated` | `ClashResultSummary` |

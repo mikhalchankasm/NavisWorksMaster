@@ -113,6 +113,10 @@ namespace NavisHelper.Agent.Services
                 throw new ArgumentNullException(nameof(document));
 
             request = request ?? new SelectionCopyNamesRequest();
+            var offsetError = SelectedItemsTreePaging.DescribeOffsetError(request.Offset);
+            if (offsetError != null)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, offsetError);
+            var offset = request.Offset ?? 0;
             var selectedItems = document.CurrentSelection.SelectedItems;
             var selectedCount = selectedItems == null ? 0 : selectedItems.Count;
             var limit = ClampSelectionCopyNamesLimit(request.Limit);
@@ -122,24 +126,33 @@ namespace NavisHelper.Agent.Services
             var response = new SelectionCopyNamesResponse
             {
                 SelectedItemCount = selectedCount,
-                ReturnedItemCount = Math.Min(selectedCount, limit),
-                Truncated = selectedCount > limit,
+                Offset = offset,
             };
 
-            if (selectedItems == null || selectedCount == 0)
+            if (selectedItems == null || offset >= selectedCount)
                 return response;
 
-            foreach (ModelItem item in selectedItems.Take(limit))
-            {
-                var name = GetItemDisplayName(item);
-                response.Names.Add(name);
-                response.Items.Add(new SelectionCopyNameItem
+            var candidates = selectedItems.Skip(offset).Take(limit).Select(item =>
+                new SelectionCopyNameItem
                 {
-                    DisplayName = name,
+                    DisplayName = GetItemDisplayName(item),
                     Path = includePaths ? BuildItemPath(item) : string.Empty,
                     SourceFile = includeSourceFiles ? TryGetSourceFile(item) ?? string.Empty : string.Empty,
                 });
-            }
+            var page = ResponsePaging.Take(candidates, offset, selectedCount,
+                item => ResponseSize.Bytes(item.DisplayName) + ResponseSize.Bytes(item), ResponseBudget.PageBytes);
+            if (page.OversizedPosition.HasValue)
+                throw new AgentCommandException(ErrorCodes.ResponseTooLarge, string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Selected item at position {0} alone is larger than the {1}-byte response page. Retry with includePaths=false or includeSourceFiles=false.",
+                    page.OversizedPosition.Value, ResponseBudget.PageBytes));
+
+            response.Items = page.Items;
+            response.Names = page.Items.Select(item => item.DisplayName).ToList();
+            response.ReturnedItemCount = page.Items.Count;
+            response.NextOffset = page.NextOffset;
+            response.Truncated = page.NextOffset.HasValue;
+            response.BudgetTruncated = page.BudgetTruncated;
 
             return response;
         }

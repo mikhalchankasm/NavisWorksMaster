@@ -76,6 +76,7 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class SelectionCopyNamesRequest
     {
+        public int? Offset { get; set; }
         public int? Limit { get; set; }
         public bool? IncludePaths { get; set; }
         public bool? IncludeSourceFiles { get; set; }
@@ -83,6 +84,9 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class SelectionCopyNamesResponse
     {
+        public int Offset { get; set; }
+        public int? NextOffset { get; set; }
+        public bool BudgetTruncated { get; set; }
         public int SelectedItemCount { get; set; }
         public int ReturnedItemCount { get; set; }
         public bool Truncated { get; set; }
