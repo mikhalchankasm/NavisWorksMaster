@@ -114,6 +114,26 @@ namespace NavisHelper.Agent.Contracts
                 .Concat(rotation).Select(value => (value == 0 ? 0 : value).ToString(CultureInfo.InvariantCulture)));
         }
 
+        public static string CameraKey(double x, double y, double z, double a, double b, double c, double d,
+            bool orthographic, double heightField)
+        {
+            if (!orthographic) return CameraKey(x, y, z, a, b, c, d);
+            var length = Math.Sqrt(a * a + b * b + c * c + d * d);
+            var qx = length > 0 ? a / length : 0;
+            var qy = length > 0 ? b / length : 0;
+            var qz = length > 0 ? c / length : 0;
+            var qw = length > 0 ? d / length : 1;
+            // Rotation3D stores (X, Y, Z, W); rotate local Z using unrounded components.
+            var axisX = 2 * (qx * qz + qy * qw);
+            var axisY = 2 * (qy * qz - qx * qw);
+            var axisZ = 1 - 2 * (qx * qx + qy * qy);
+            var alongView = x * axisX + y * axisY + z * axisZ;
+            var height = Math.Round(heightField, 3);
+            return "ortho;" + CameraKey(x - alongView * axisX, y - alongView * axisY,
+                z - alongView * axisZ, a, b, c, d) + ";"
+                + (height == 0 ? 0 : height).ToString(CultureInfo.InvariantCulture);
+        }
+
         public static (double? Linear, double? Angular) StepSpeeds(double distance, double angleRadians, double stepSeconds)
         {
             return (stepSeconds > 1e-9 && distance > 1e-9 ? (double?)(distance / stepSeconds) : null,

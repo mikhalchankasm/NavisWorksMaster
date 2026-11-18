@@ -194,7 +194,9 @@ namespace NavisHelper.Agent.Services
         {
             var p = camera.Position;
             var q = camera.Rotation;
-            return ViewpointAnimationRules.CameraKey(p.X, p.Y, p.Z, q.A, q.B, q.C, q.D);
+            var orthographic = camera.Projection == ViewpointProjection.Orthographic;
+            return ViewpointAnimationRules.CameraKey(p.X, p.Y, p.Z, q.A, q.B, q.C, q.D,
+                orthographic, orthographic ? camera.HeightField : 0);
         }
 
         private static void SetSpeeds(Viewpoint previous, Viewpoint destination, double seconds, ViewpointAnimationResponse response)
