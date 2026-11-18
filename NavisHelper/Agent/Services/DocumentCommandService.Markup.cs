@@ -343,6 +343,49 @@ namespace NavisHelper.Agent.Services
             var clusterPlan = SelectionViewpointClusterService.Build(selectedItems.Cast<ModelItem>().ToList(), request);
             if (clusterPlan.Clusters.Count == 0 || clusterPlan.Clusters.Any(cluster => cluster.Bounds == null))
                 throw new AgentCommandException(ErrorCodes.NoSelection, "Unable to determine the bounding box of the active selection.");
+
+            // An open face (-1) reaches the model extent; read it only when a face asks for it. Each model's
+            // root box is read on its own and the roots themselves are never disposed.
+            double[] modelMin = null, modelMax = null;
+            var faces = request.BoxFaceOffsetsMm;
+            if (faces != null && new[] { faces.Top, faces.Bottom, faces.North, faces.South, faces.East, faces.West }
+                .Any(value => value == SectionBoxFaceOffsetPlanner.Open))
+            {
+                foreach (var model in document.Models)
+                {
+                    try
+                    {
+                        if (model.RootItem == null)
+                            continue;
+                        using (var extent = model.RootItem.BoundingBox())
+                        {
+                            if (extent == null || extent.IsEmpty)
+                                continue;
+                            var low = new[] { extent.Min.X, extent.Min.Y, extent.Min.Z };
+                            var high = new[] { extent.Max.X, extent.Max.Y, extent.Max.Z };
+                            modelMin = modelMin == null ? low : modelMin.Zip(low, (a, b) => Math.Min(a, b)).ToArray();
+                            modelMax = modelMax == null ? high : modelMax.Zip(high, (a, b) => Math.Max(a, b)).ToArray();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // An unreadable model adds nothing; open faces fall back to each cluster's own extent.
+                        Logger.Warn("Could not read a model extent for an open section-box face: " + ex.Message, "SectionBoxViewpoint");
+                    }
+                }
+            }
+            var unitsPerMm = SectionBoxHelper.MmToDocUnits(1.0);
+            BoundingBox3D PlanClipBox(BoundingBox3D bounds)
+            {
+                var clusterMin = new[] { bounds.Min.X, bounds.Min.Y, bounds.Min.Z };
+                var clusterMax = new[] { bounds.Max.X, bounds.Max.Y, bounds.Max.Z };
+                if (!SectionBoxFaceOffsetPlanner.TryPlan(clusterMin, clusterMax, request.BoxFaceOffsetsMm,
+                    boxOffsetMm, unitsPerMm, modelMin ?? clusterMin, modelMax ?? clusterMax,
+                    out var min, out var max, out var error))
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation, error);
+                return new BoundingBox3D(new Point3D(min[0], min[1], min[2]), new Point3D(max[0], max[1], max[2]));
+            }
+            var firstClipBox = PlanClipBox(clusterPlan.Clusters[0].Bounds);
             if (style != null)
             {
                 foreach (var cluster in clusterPlan.Clusters)
@@ -405,8 +448,10 @@ namespace NavisHelper.Agent.Services
             for (var index = 0; index < clusterPlan.Clusters.Count; index++)
             {
                 var box = ExpandBoundingBox(clusterPlan.Clusters[index].Bounds, boxOffsetUnits);
+                var clipBox = request.BoxFaceOffsetsMm == null ? box
+                    : index == 0 ? firstClipBox : PlanClipBox(clusterPlan.Clusters[index].Bounds);
                 ViewpointCameraHelper.ApplyPresetViewToBox(document, box, request.Camera);
-                SectionBoxHelper.SetSectionBox(box);
+                SectionBoxHelper.SetSectionBox(clipBox);
                 if (style == null)
                 {
                     RedlineJsonSanitizer.SetSupportedRedlines(document.ActiveView, "{\"Type\":\"RedlineCollection\",\"Version\":1,\"Values\":[]}", response.Warnings);
