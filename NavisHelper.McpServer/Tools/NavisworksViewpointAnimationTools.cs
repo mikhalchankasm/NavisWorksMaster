@@ -18,7 +18,7 @@ internal sealed class NavisworksViewpointAnimationTools : NavisworksToolBase
         [Description("Source folder's direct saved viewpoints in order; excludes animations. Use this or viewpoints.")] string sourceFolder = "",
         [Description("Ordered saved viewpoint paths or unique names, at most 1000. Use this or sourceFolder.")] List<string> viewpoints = null,
         [Description("Pause at each stop in seconds, 0-3600.")] double holdSeconds = 0,
-        [Description("Pause before consecutive repeated cameras in seconds, 0-3600.")] double pauseSeconds = 2,
+        [Description("Cut before each consecutive repeated camera in seconds, 0-3600; 0 makes an instant cut.")] double pauseSeconds = 2,
         [Description("Seconds per move, 0-3600; zero keeps saved speeds. Timing requires L3 validation.")] double stepSeconds = 0,
         [Description("Loop playback when supported by this Navisworks version.")] bool loops = false,
         [Description("none, sync or spline; empty leaves the created default.")] string smoothing = "",
