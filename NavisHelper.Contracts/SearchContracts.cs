@@ -266,6 +266,7 @@ namespace NavisHelper.Agent.Contracts
         public string Comparison { get; set; }
         public bool? IncludeHidden { get; set; }
         public int? Limit { get; set; }
+        public bool? AllChildren { get; set; }
     }
 
     public sealed class ListItemChildrenResponse
@@ -279,6 +280,7 @@ namespace NavisHelper.Agent.Contracts
         public int SkippedHiddenChildCount { get; set; }
         public bool Truncated { get; set; }
         public string ChildrenMatchHandle { get; set; }
+        public int ChildrenMatchHandleItemCount { get; set; }
         public List<ItemChildInfo> Children { get; set; } = new List<ItemChildInfo>();
     }
 

@@ -149,6 +149,7 @@ internal sealed class NavisworksModelTools : NavisworksToolBase
         [Description("Comparison for parentName/sourceFile: equals, contains, or wildcard. parentPath only supports equals. Default is equals.")] string comparison = FindItemsComparisons.Equal,
         [Description("Include hidden direct children. Default is true.")] bool includeHidden = true,
         [Description("Maximum direct children to return. Default is 200, maximum is 2000.")] int limit = 200,
+        [Description("Make childrenMatchHandle cover every listed child, not only the returned rows; pair with a small limit (0 allowed). Default is false.")] bool allChildren = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -162,6 +163,7 @@ internal sealed class NavisworksModelTools : NavisworksToolBase
             Comparison = comparison,
             IncludeHidden = includeHidden,
             Limit = limit,
+            AllChildren = allChildren,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
     }
 
