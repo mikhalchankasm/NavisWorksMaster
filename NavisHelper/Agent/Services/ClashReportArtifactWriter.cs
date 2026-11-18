@@ -25,6 +25,8 @@ namespace NavisHelper.Agent.Services
                 item.ResultName,
                 item.ClashPoint,
                 item.ClashBox,
+                item.ItemBoundsOverlapMm,
+                item.ItemBoundsOverlapReason,
                 item.BoxOffsetMm,
                 item.BoxMode,
                 item.ClusterIndex,

@@ -23,6 +23,8 @@ namespace NavisHelper.Agent.Services
                 AssignedTo = values.AssignedTo ?? string.Empty,
                 Description = values.Description ?? string.Empty,
                 Distance = values.Distance,
+                ItemBoundsOverlapMm = values.ItemBoundsOverlapMm,
+                ItemBoundsOverlapReason = values.ItemBoundsOverlapReason ?? string.Empty,
                 BoxOffsetMm = values.BoxOffsetMm,
                 BoxMode = values.BoxMode ?? string.Empty,
                 ClashPoint = values.ClashPoint,
@@ -102,6 +104,8 @@ namespace NavisHelper.Agent.Services
         public string AssignedTo;
         public string Description;
         public double? Distance;
+        public ClashBoundsOverlapInfo ItemBoundsOverlapMm;
+        public string ItemBoundsOverlapReason;
         public double BoxOffsetMm;
         public string BoxMode;
         public Point3Info ClashPoint;
