@@ -59,11 +59,12 @@ internal sealed class NavisworksSelectionSetTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Creates a dynamic Navisworks Search Set and optionally saves it inside a Selection Sets folder. Defaults to dry-run. Conditions use the same schema as find_items; persistable operators are equals, contains, wildcard, and defined. Each condition supports logicalOperator=and|or, negate, ignoreCase (default true), ignoreDiacritics, and ignoreCharWidth. Navisworks has no parentheses and AND binds more strongly than OR; express (A OR B) AND D as (A AND D) OR (B AND D) by repeating D in each branch.")]
+    [Description("Creates a dynamic Navisworks Search Set and optionally saves it inside a Selection Sets folder. Defaults to dry-run. Conditions use the same schema as find_items; persistable operators are equals, contains, wildcard, and defined. Each condition supports logicalOperator=and|or, negate, ignoreCase (default true), ignoreDiacritics, and ignoreCharWidth. Use conditionGroups for (A OR B) AND D.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
     public Task<CreateSearchSetResponse> CreateSearchSet(
         [Description("Search set name.")] string name,
         [Description("Search conditions to persist. logicalOperator connects this condition to the previous one: and (default) or or. negate, ignoreCase=true, ignoreDiacritics, and ignoreCharWidth map to native Navisworks condition flags.")] List<FindItemsCondition> conditions,
+        [Description("Optional OR groups: each group matches any of its conditions; groups are ANDed with each other and with conditions. Saved as (A AND D) OR (B AND D). At most 64 branches; use logicalOperator=and only.")] List<List<FindItemsCondition>> conditionGroups = null,
         [Description("Optional folder path under Selection Sets, for example Packages/MEP. Missing folders are created when apply=true.")] string folderPath = "",
         [Description("Condition combine operator. Only all/AND is currently supported for persisted native Search Sets.")] string combineOperator = FindItemsCombineOperators.All,
         [Description("Replace an existing selection/search set with the same name in the target folder. Does not overwrite folders. Default is false.")] bool overwrite = false,
@@ -79,6 +80,7 @@ internal sealed class NavisworksSelectionSetTools : NavisworksToolBase
             FolderPath = folderPath,
             CombineOperator = combineOperator,
             Conditions = conditions ?? new List<FindItemsCondition>(),
+            ConditionGroups = conditionGroups ?? new List<List<FindItemsCondition>>(),
             Overwrite = overwrite,
             SelectAfterCreate = selectAfterCreate,
             Apply = apply,

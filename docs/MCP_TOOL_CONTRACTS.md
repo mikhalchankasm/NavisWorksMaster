@@ -11,6 +11,12 @@ Field names below use the MCP/client-facing lower camel case convention. The C# 
 
 `mcp_diagnostics` and `mcp_health_check` expose `protocolVersion`, `mcpServerVersion`, and host `pluginVersion`. `protocolVersion` is the additive MCP-server to in-process-host wire contract version. Host status/health/discovery surfaces expose `hostLogFilePath` when the host plugin can compute the NavisHelper log path. If `mcpServerVersion` and `pluginVersion` differ, reinstall/update the NavisHelper bundle and MCP server from the same distribution package before running write tools.
 
+## create_search_set
+
+Optional `conditionGroups` contains OR groups, ANDed with each other and with `conditions`.
+For example, `conditions=[D]`, `conditionGroups=[[A,B]]` persists `(A AND D) OR (B AND D)`.
+Group mode accepts only blank or `and` logicalOperator values and nonempty groups with nonnull conditions; the Cartesian product is limited to `MaxBranches = 64`. The response's `branchCount` reports the number of distributed branches (1 without groups). Without groups, existing flat conditions and logical operators are preserved.
+
 ## viewpoint_animation_export
 
 Previews exporter options or synchronously exports a saved viewpoint animation. Requires a host and active document, belongs to `sections`, and declares `Files | View` effects, so it is unavailable in read-only mode. Inputs: `animation=""` (saved animation path or unique name), `format="png"`, `outputDirectory=""`, `apply=false`, `overwrite=false`, `width=0`, `height=0`, `fps=0`, `antiAliasLevel=0`, `exporter="lcodpanim"`, `exporterOptions=null` (list of `name=value`), `listFiles=false`, plus standard `instanceId` and `navisworksVersion`.
