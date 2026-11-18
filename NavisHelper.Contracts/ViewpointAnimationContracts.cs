@@ -93,7 +93,7 @@ namespace NavisHelper.Agent.Contracts
             var result = new List<ViewpointAnimationFrame>();
             for (var index = 0; index < names.Count; index++)
             {
-                if (index > 0 && string.Equals(cameraKeys[index - 1], cameraKeys[index], StringComparison.Ordinal) && pauseSeconds > 0)
+                if (index > 0 && string.Equals(cameraKeys[index - 1], cameraKeys[index], StringComparison.Ordinal))
                     result.Add(new ViewpointAnimationFrame { Kind = "cut", DelaySeconds = pauseSeconds });
                 result.Add(new ViewpointAnimationFrame { Kind = "viewpoint", Source = names[index] });
                 if (holdSeconds > 0 && (index == names.Count - 1 || !string.Equals(cameraKeys[index], cameraKeys[index + 1], StringComparison.Ordinal)))
