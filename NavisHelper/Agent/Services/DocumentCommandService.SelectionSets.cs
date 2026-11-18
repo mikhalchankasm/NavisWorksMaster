@@ -24,7 +24,11 @@ namespace NavisHelper.Agent.Services
             if (string.IsNullOrWhiteSpace(name))
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "Search set name is required.");
 
-            var conditions = (request.Conditions ?? new List<FindItemsCondition>())
+            string error;
+            var expanded = SearchSetConditionGroups.Expand(request.Conditions, request.ConditionGroups, out error);
+            if (error != null)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, error);
+            var conditions = expanded
                 .Select(NormalizeSelectionSetCondition)
                 .ToList();
             if (conditions.Count == 0)
@@ -96,6 +100,7 @@ namespace NavisHelper.Agent.Services
                 FolderPath = folderPath,
                 Path = path,
                 ConditionCount = conditions.Count,
+                BranchCount = request.ConditionGroups?.Aggregate(1, (count, group) => count * group.Count) ?? 1,
                 MatchedItemCount = matchedItems.Count,
                 NameConflict = nameConflict,
                 FolderExists = targetFolderExistedBeforeApply,

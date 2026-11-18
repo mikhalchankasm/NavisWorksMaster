@@ -16,6 +16,10 @@ public sealed class SearchSetConditionGroupsTests
     private static FindItemsCondition C(string value, string logical = "") =>
         new() { Category = "Item", Property = "Name", Operator = "equals", Value = value, LogicalOperator = logical };
 
+    private static List<FindItemsCondition> L(params FindItemsCondition[] conditions) => conditions.ToList();
+
+    private static List<List<FindItemsCondition>> Groups(params List<FindItemsCondition>[] groups) => groups.ToList();
+
     private static string Render(IEnumerable<FindItemsCondition> conditions) =>
         string.Join(" ", conditions.Select((c, i) => (i == 0 ? "" : c.LogicalOperator + " ") + c.Value));
 
@@ -29,7 +33,7 @@ public sealed class SearchSetConditionGroupsTests
     [Fact]
     public void OneGroupIsDistributedOverTheCommonConditions()
     {
-        var expanded = Expand(new() { C("D") }, new() { C("A"), C("B") });
+        var expanded = Expand(L(C("D")), L(C("A"), C("B")));
         Assert.Equal("A and D or B and D", Render(expanded));
         Assert.Equal("and", expanded[0].LogicalOperator);
     }
@@ -37,21 +41,21 @@ public sealed class SearchSetConditionGroupsTests
     [Fact]
     public void TwoGroupsGiveEveryCombinationInGroupOrder()
     {
-        var expanded = Expand(new() { C("D") }, new() { C("A"), C("B") }, new() { C("C"), C("E") });
+        var expanded = Expand(L(C("D")), L(C("A"), C("B")), L(C("C"), C("E")));
         Assert.Equal("A and C and D or A and E and D or B and C and D or B and E and D", Render(expanded));
     }
 
     [Fact]
     public void GroupsWithoutCommonConditionsAndASingleMemberGroupWork()
     {
-        Assert.Equal("A or B", Render(Expand(new(), new() { C("A"), C("B") })));
-        Assert.Equal("A and D", Render(Expand(new() { C("D") }, new() { C("A") })));
+        Assert.Equal("A or B", Render(Expand(L(), L(C("A"), C("B")))));
+        Assert.Equal("A and D", Render(Expand(L(C("D")), L(C("A")))));
     }
 
     [Fact]
     public void NoGroupsLeavesTheConditionsAsTheyAre()
     {
-        var all = new List<FindItemsCondition> { C("A"), C("B", "or"), C("D") };
+        var all = new List<FindItemsCondition> { C("A"), C("B", "or"), C("D", "and") };
         var expanded = SearchSetConditionGroups.Expand(all, new List<List<FindItemsCondition>>(), out var error);
         Assert.Null(error);
         Assert.Equal("A or B and D", Render(expanded));
@@ -66,7 +70,7 @@ public sealed class SearchSetConditionGroupsTests
         d.Negate = true;
         d.IgnoreCase = false;
         d.InheritFromAncestor = true;
-        var expanded = Expand(new() { d }, new() { C("A"), C("B") });
+        var expanded = Expand(L(d), L(C("A"), C("B")));
 
         Assert.NotSame(expanded[1], expanded[3]);
         Assert.All(new[] { expanded[1], expanded[3] }, copy =>
@@ -87,19 +91,19 @@ public sealed class SearchSetConditionGroupsTests
     {
         string error;
         // In group mode OR is expressed by the groups only.
-        Assert.Null(SearchSetConditionGroups.Expand(new() { C("D"), C("E", "or") }, new() { new() { C("A") } }, out error));
+        Assert.Null(SearchSetConditionGroups.Expand(L(C("D"), C("E", "or")), Groups(L(C("A"))), out error));
         Assert.Contains("logicalOperator", error);
-        Assert.Null(SearchSetConditionGroups.Expand(new() { C("D") }, new() { new() { C("A"), C("B", "or") } }, out error));
+        Assert.Null(SearchSetConditionGroups.Expand(L(C("D")), Groups(L(C("A"), C("B", "or"))), out error));
         Assert.Contains("logicalOperator", error);
-        Assert.Null(SearchSetConditionGroups.Expand(new() { C("D") }, new() { new() }, out error));
+        Assert.Null(SearchSetConditionGroups.Expand(L(C("D")), Groups(L()), out error));
         Assert.Contains("empty", error);
-        Assert.Null(SearchSetConditionGroups.Expand(new() { C("D") }, new() { new() { C("A"), null! } }, out error));
+        Assert.Null(SearchSetConditionGroups.Expand(L(C("D")), Groups(L(C("A"), null!)), out error));
         Assert.NotNull(error);
 
         // 3 x 3 x 3 x 3 = 81 branches is past the limit.
         var three = new List<FindItemsCondition> { C("1"), C("2"), C("3") };
-        Assert.Null(SearchSetConditionGroups.Expand(new() { C("D") },
-            new() { three, three.ToList(), three.ToList(), three.ToList() }, out error));
+        Assert.Null(SearchSetConditionGroups.Expand(L(C("D")),
+            Groups(three, three.ToList(), three.ToList(), three.ToList()), out error));
         Assert.Contains(SearchSetConditionGroups.MaxBranches.ToString(), error);
         Assert.Equal(64, SearchSetConditionGroups.MaxBranches);
     }
