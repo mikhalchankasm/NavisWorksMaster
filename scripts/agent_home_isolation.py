@@ -170,6 +170,10 @@ CODEX_DISABLED_FEATURES = (
     "plugin_discovery_prefetch",
     "deferred_tool_world_state",
     "incremental_tools_legacy_gcp",
+    "code_mode_host_grpc",
+    "guardian_include_additional_context",
+    "retain_client_tool_outputs",
+    "incremental_tools_legacy",
 )
 
 # Every feature codex 0.158.0 still reports enabled in the isolated home with the switches above, reviewed on
@@ -200,7 +204,12 @@ CODEX_DISABLED_FEATURES = (
 # Avox #2161) and incremental_tools_legacy_gcp (undocumented; Avox #2161 does not name it, and Avox already keeps
 # incremental_tools off) are switched off above because neither could be shown harmless; the rest of the enabled
 # set is unchanged. Probe: only clock, no web tool.
-CODEX_REVIEWED_VERSIONS = frozenset({"codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0", "codex-cli 0.164.0", "codex-cli 0.165.0", "codex-cli 0.166.0", "codex-cli 0.167.2"})
+# 0.170.0 (2026-11-18, the decisions of Avox #2329 for 0.169.0 and #2418 for 0.170.0): newly enabled
+# code_mode_host_output_truncation, unified_image_budget (output and image budgets) and untrusted_as_tool_output
+# (marks untrusted text as tool output) reviewed harmless; code_mode_host_grpc (undocumented transport),
+# guardian_include_additional_context, retain_client_tool_outputs and incremental_tools_legacy (undocumented) are
+# switched off above; unified_exec_zsh_fork is no longer enabled. Probe: only clock, no web tool.
+CODEX_REVIEWED_VERSIONS = frozenset({"codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0", "codex-cli 0.164.0", "codex-cli 0.165.0", "codex-cli 0.166.0", "codex-cli 0.167.2", "codex-cli 0.170.0"})
 
 _CODEX_RELEASE = re.compile(r"codex-cli (\d+\.\d+)\.(\d+)")
 
@@ -226,13 +235,14 @@ def codex_version_is_reviewed(version_line: str) -> bool:
     return bool(reviewed_patches) and int(release.group(2)) >= min(reviewed_patches)
 
 CODEX_REVIEWED_ENABLED_FEATURES = frozenset({
-    "api_key_model_discovery", "auth_elicitation", "code_mode_host", "code_mode_interrupt", "collaboration_modes", "compaction_image_budget", "content_item_kinds",
+    "api_key_model_discovery", "auth_elicitation", "code_mode_host", "code_mode_host_output_truncation", "code_mode_interrupt", "collaboration_modes", "compaction_image_budget", "content_item_kinds",
     "daemon_auto_start", "enable_request_compression", "fast_mode", "goals", "guardian_approval",
     "guardian_reuse_parent_compaction", "hooks", "in_app_chat", "in_app_dictation", "in_app_local_automation",
     "in_app_updates", "in_app_voice", "incremental_tools", "instant_interrupt", "item_ids", "mentions_v2", "multi_agent", "prediction_preserve_parent_tools", "realtime_conversation", "reasoning_effort_override", "resize_all_images",
     "secret_auth_storage", "shell_snapshot", "shell_tool", "skill_search", "sleep_tool", "sqlite", "steer",
     "system_proxy_fallback", "terminal_resize_reflow", "tool_call_mcp_elicitation", "tool_search_always_defer_mcp_tools",
     "tui_app_server", "ultrafast_mode", "unbounded_connection_retries", "unified_exec", "unified_exec_tty", "unified_exec_zsh_fork",
+    "unified_image_budget", "untrusted_as_tool_output",
     "view_image", "workspace_dependencies", "worktrees", "write_stdin_approval",
 })
 

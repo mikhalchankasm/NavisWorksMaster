@@ -115,7 +115,9 @@ class RunTests(unittest.TestCase):
             "remote_plugin", "plugin_sharing", "in_app_browser", "image_generation", "skill_mcp_dependency_install",
             "tool_suggest", "browser_annotation_api", "api_key_cyber_access_programs", "cli_daybreak",
             "bedrock_setup_wizard", "mcp_oauth_refresh_coordination", "plugin_discovery_prefetch",
-            "deferred_tool_world_state", "incremental_tools_legacy_gcp")]
+            "deferred_tool_world_state", "incremental_tools_legacy_gcp",
+            "code_mode_host_grpc", "guardian_include_additional_context", "retain_client_tool_outputs",
+            "incremental_tools_legacy")]
         + ["in_app_chat   stable   true"]
     )
 
@@ -139,7 +141,7 @@ class RunTests(unittest.TestCase):
             self.assertIn("not a reviewed executor version", str(raised.exception))
 
     def test_every_reviewed_codex_version_passes_the_version_check(self) -> None:
-        for text in ("codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0", "codex-cli 0.164.0", "codex-cli 0.165.0", "codex-cli 0.166.0", "codex-cli 0.167.2"):
+        for text in ("codex-cli 0.158.0", "codex-cli 0.159.0", "codex-cli 0.159.2", "codex-cli 0.160.0", "codex-cli 0.161.0", "codex-cli 0.162.1", "codex-cli 0.163.0", "codex-cli 0.164.0", "codex-cli 0.165.0", "codex-cli 0.166.0", "codex-cli 0.167.2", "codex-cli 0.170.0"):
             with self.subTest(version=text):
                 self.check(ProcessResult(0, self.FEATURES_CLEAN, "", 1.0), ProcessResult(0, text, "", 0.1))
 

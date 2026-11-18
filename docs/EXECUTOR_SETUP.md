@@ -111,7 +111,12 @@ harmless, nothing new switched off; the probe listed no MCP server and no web to
 (2026-10-31, the same change as Avox #2000): `plugin_discovery_prefetch`, a plugin surface,
 switched off; the rest of the enabled set is unchanged. 0.167.2 (2026-11-13, takes Avox #2161 for 0.167.0):
 `deferred_tool_world_state` and `incremental_tools_legacy_gcp`, both undocumented, switched off; the
-rest of the enabled set is unchanged; the probe listed only `clock` and no web tool.
+rest of the enabled set is unchanged; the probe listed only `clock` and no web tool. 0.170.0 (2026-11-18,
+takes Avox #2329 for 0.169.0 and #2418 for 0.170.0; 0.168 and 0.169 were never installed here):
+`code_mode_host_output_truncation`, `unified_image_budget` and `untrusted_as_tool_output` reviewed harmless;
+`code_mode_host_grpc`, `guardian_include_additional_context`, `retain_client_tool_outputs` and
+`incremental_tools_legacy`, all undocumented, switched off; `unified_exec_zsh_fork` is no longer enabled;
+the probe listed only `clock` and no web tool.
 
 ### Qwen Code (`qwen`)
 
