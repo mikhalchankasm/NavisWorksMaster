@@ -40,11 +40,29 @@ public sealed class ViewpointAnimationTests
     }
 
     [Fact]
-    public void AZeroPauseLetsRepeatsFollowWithoutACut()
+    public void AZeroPauseStillMakesARepeatACut()
     {
+        // #422: pauseSeconds=0 used to drop the cut, so a repeated camera interpolated like any frame and a
+        // plane change could not be made a hard switch. A repeat is now always a cut; 0 makes it instant.
         var frames = ViewpointAnimationRules.PlanFrames(new[] { "A", "A2", "B" }, new[] { "k1", "k1", "k2" }, 0, 0);
-        Assert.Equal(new[] { "viewpoint:A", "viewpoint:A2", "viewpoint:B" }, Describe(frames));
+        Assert.Equal(new[] { "viewpoint:A", "cut:0", "viewpoint:A2", "viewpoint:B" }, Describe(frames));
         Assert.Empty(ViewpointAnimationRules.PlanFrames(new string[0], new string[0], 5, 5));
+    }
+
+    [Fact]
+    public void ZeroHoldStillAddsNoHold()
+    {
+        // Only the repeat rule changes: holdSeconds=0 keeps adding nothing at the end of a camera run.
+        var frames = ViewpointAnimationRules.PlanFrames(new[] { "A", "B" }, new[] { "k1", "k2" }, 0, 0);
+        Assert.Equal(new[] { "viewpoint:A", "viewpoint:B" }, Describe(frames));
+    }
+
+    [Fact]
+    public void TheContractSaysARepeatIsAlwaysACut()
+    {
+        var doc = File.ReadAllText(Path.Combine(RepositoryPaths.Root, "docs", "MCP_TOOL_CONTRACTS.md"));
+        Assert.DoesNotContain("`pauseSeconds=0` adds no cut", doc, StringComparison.Ordinal);
+        Assert.Contains("`pauseSeconds=0` makes an instant cut", doc, StringComparison.Ordinal);
     }
 
     [Fact]
