@@ -71,13 +71,14 @@ namespace NavisHelper.Agent.Services
                         "Selected item at position {0} alone is larger than the {1}-byte response page. Retry with categoryFilters, propertyFilters or a smaller propertyLimitPerItem.",
                         page.OversizedPosition.Value, pageBytes.Value));
 
-                parts = page.Items;
-                response.ReturnedItemCount = page.Items.Count;
-                // A row-limited item was only partially returned; its position must remain open, unless it
-                // is the only item on the page: then the next page would start at it again and following
-                // nextOffset would never end (curator review, #439). rowsTruncated still says rows were cut.
+                // An item cut by rowLimit after the first item of the page is left out of this page and opens
+                // the next one, so following nextOffset never returns a row twice (review P2, #439). When it is
+                // the page's only item its rows stay and the page moves past it with rowsTruncated=true;
+                // otherwise the next page would start at it again and nextOffset would never end.
                 var partialItem = page.Items.LastOrDefault();
                 var reopen = partialItem != null && partialItem.RowsTruncated && page.Items.Count > 1;
+                parts = reopen ? page.Items.Take(page.Items.Count - 1).ToList() : page.Items;
+                response.ReturnedItemCount = page.Items.Count - (reopen ? 1 : 0);
                 var consumed = page.Consumed - (reopen ? 1 : 0);
                 response.NextOffset = SelectedItemsTreePaging.NextOffset(offset, consumed, selectedItems.Count);
                 response.ItemsTruncated = response.NextOffset.HasValue;
