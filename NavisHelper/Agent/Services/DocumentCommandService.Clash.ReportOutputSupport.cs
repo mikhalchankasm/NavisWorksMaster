@@ -255,6 +255,23 @@ namespace NavisHelper.Agent.Services
             var item2Names = result == null ? new List<string>() : GetClashItemNames(result.Selection2, result.Item2, 1);
             var normalizedBoxMode = NormalizeClashBoxMode(boxMode);
             var actualBox = box ?? BuildClashResultBox(result, boxOffsetMm, normalizedBoxMode);
+            var boundsA = ReadClashReportItemBounds(() => result == null ? null
+                : result.Selection1 != null && result.Selection1.Count > 0
+                    ? result.Selection1.BoundingBox() : result.Item1?.BoundingBox(), "A");
+            var boundsB = ReadClashReportItemBounds(() => result == null ? null
+                : result.Selection2 != null && result.Selection2.Count > 0
+                    ? result.Selection2.BoundingBox() : result.Item2?.BoundingBox(), "B");
+            var overlap = ClashBoundsOverlapHelper.Compute(boundsA, boundsB);
+            if (overlap != null)
+            {
+                overlap.X = DocUnitsToMm(overlap.X);
+                overlap.Y = DocUnitsToMm(overlap.Y);
+                overlap.Z = DocUnitsToMm(overlap.Z);
+                overlap.Min = DocUnitsToMm(overlap.Min);
+            }
+            var overlapReason = boundsA == null ? "item A bounding box is unavailable" : string.Empty;
+            if (boundsB == null)
+                overlapReason += (overlapReason.Length == 0 ? string.Empty : "; ") + "item B bounding box is unavailable";
             return ClashReportResponseFactory.BuildReportItem(new ClashReportItemValues
             {
                 Index = index,
@@ -267,6 +284,8 @@ namespace NavisHelper.Agent.Services
                 AssignedTo = row.AssignedTo ?? string.Empty,
                 Description = SafeString(() => result.Description),
                 Distance = TryGetClashDistance(result),
+                ItemBoundsOverlapMm = overlap,
+                ItemBoundsOverlapReason = overlapReason,
                 BoxOffsetMm = boxOffsetMm,
                 BoxMode = normalizedBoxMode,
                 ClashPoint = result == null || result.Center == null ? null : ToPoint3Info(result.Center),
@@ -290,6 +309,21 @@ namespace NavisHelper.Agent.Services
                 ClusterName = clusterAssignment == null ? string.Empty : clusterAssignment.ClusterName ?? string.Empty,
                 ErrorMessage = errorMessage ?? string.Empty,
             });
+        }
+
+        private static BoundingBoxInfo ReadClashReportItemBounds(Func<BoundingBox3D> read, string side)
+        {
+            try
+            {
+                // An item without geometry has an empty box (infinite corners); it counts as unavailable (#526).
+                var box = read();
+                return box == null || box.IsEmpty ? null : ToBoundingBoxInfo(box);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Failed to read clash report item " + side + " bounding box: " + ex.Message, "ClashMcp");
+                return null;
+            }
         }
 
         private static ClashSavedViewpointItem BuildClashSavedViewpointItem(

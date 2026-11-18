@@ -76,6 +76,8 @@ public sealed class ClashItemBoundsOverlapTests
     {
         var output = Read("NavisHelper", "Agent", "Services", "DocumentCommandService.Clash.ReportOutputSupport.cs");
         Assert.Contains("ClashBoundsOverlapHelper.Compute(", output, StringComparison.Ordinal);
+        // An empty box (no geometry) has infinite corners and is unavailable, not an overlap (curator review).
+        Assert.Contains("box == null || box.IsEmpty ? null : ToBoundingBoxInfo(box)", output, StringComparison.Ordinal);
         Assert.Contains("ItemBoundsOverlapMm", Read("NavisHelper", "Agent", "Services", "ClashReportResponseFactory.cs"), StringComparison.Ordinal);
         var writer = Read("NavisHelper", "Agent", "Services", "ClashReportArtifactWriter.cs");
         Assert.Contains("item.ItemBoundsOverlapMm", writer, StringComparison.Ordinal);

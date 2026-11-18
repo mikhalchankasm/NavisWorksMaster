@@ -225,6 +225,8 @@ namespace NavisHelper.Agent.Contracts
         public string AssignedTo { get; set; }
         public string Description { get; set; }
         public double? Distance { get; set; }
+        public ClashBoundsOverlapInfo ItemBoundsOverlapMm { get; set; }
+        public string ItemBoundsOverlapReason { get; set; }
         public double BoxOffsetMm { get; set; }
         public string BoxMode { get; set; }
         public Point3Info ClashPoint { get; set; }
