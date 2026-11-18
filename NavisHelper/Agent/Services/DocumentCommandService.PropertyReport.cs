@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -23,10 +24,20 @@ namespace NavisHelper.Agent.Services
 
         public SelectionPropertyReportResponse SelectionPropertyReport(Document document, SelectionPropertyReportRequest request)
         {
+            return BuildSelectionPropertyReport(document, request, ResponseBudget.PageBytes);
+        }
+
+        private SelectionPropertyReportResponse BuildSelectionPropertyReport(
+            Document document, SelectionPropertyReportRequest request, int? pageBytes)
+        {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
 
             request = request ?? new SelectionPropertyReportRequest();
+            var offsetError = pageBytes.HasValue ? SelectedItemsTreePaging.DescribeOffsetError(request.Offset) : null;
+            if (offsetError != null)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, offsetError);
+            var offset = pageBytes.HasValue ? request.Offset ?? 0 : 0;
             var itemLimit = ClampSelectionPropertyItemLimit(request.ItemLimit);
             var propertyLimitPerItem = ClampSelectionPropertyLimitPerItem(request.PropertyLimitPerItem);
             var rowLimit = ClampSelectionPropertyRowLimit(request.RowLimit);
@@ -40,24 +51,82 @@ namespace NavisHelper.Agent.Services
 
             var response = new SelectionPropertyReportResponse
             {
+                Offset = offset,
                 SelectedItemCount = selectedItems.Count,
                 ReturnedItemCount = Math.Min(selectedItems.Count, itemLimit),
                 ItemsTruncated = selectedItems.Count > itemLimit,
             };
 
-            var itemIndex = 0;
-            foreach (var item in selectedItems.Take(itemLimit))
+            var candidates = BuildSelectionPropertyReportCandidates(selectedItems.Skip(offset).Take(itemLimit),
+                offset, pageBytes.HasValue, propertyLimitPerItem, rowLimit, includeInternalNames,
+                includeEmptyValues, categoryFilters, propertyFilters);
+            IEnumerable<SelectionPropertyReportResponse> parts = candidates;
+            if (pageBytes.HasValue)
             {
-                if (item == null)
-                    continue;
+                var page = ResponsePaging.Take(candidates, offset, selectedItems.Count,
+                    part => part.Rows.Sum(row => ResponseSize.Bytes(row)), pageBytes.Value);
+                if (page.OversizedPosition.HasValue)
+                    throw new AgentCommandException(ErrorCodes.ResponseTooLarge, string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Selected item at position {0} alone is larger than the {1}-byte response page. Retry with categoryFilters, propertyFilters or a smaller propertyLimitPerItem.",
+                        page.OversizedPosition.Value, pageBytes.Value));
 
-                itemIndex++;
+                // An item cut by rowLimit after the first item of the page is left out of this page and opens
+                // the next one, so following nextOffset never returns a row twice (review P2, #439). When it is
+                // the page's only item its rows stay and the page moves past it with rowsTruncated=true;
+                // otherwise the next page would start at it again and nextOffset would never end.
+                var partialItem = page.Items.LastOrDefault();
+                var reopen = partialItem != null && partialItem.RowsTruncated && page.Items.Count > 1;
+                parts = reopen ? page.Items.Take(page.Items.Count - 1).ToList() : page.Items;
+                response.ReturnedItemCount = page.Items.Count - (reopen ? 1 : 0);
+                var consumed = page.Consumed - (reopen ? 1 : 0);
+                response.NextOffset = SelectedItemsTreePaging.NextOffset(offset, consumed, selectedItems.Count);
+                response.ItemsTruncated = response.NextOffset.HasValue;
+                response.BudgetTruncated = page.BudgetTruncated;
+            }
+
+            foreach (var part in parts)
+            {
+                if (part == null)
+                    continue;
+                response.Rows.AddRange(part.Rows);
+                response.PropertiesTruncated |= part.PropertiesTruncated;
+                response.RowsTruncated |= part.RowsTruncated;
+            }
+
+            response.RowCount = response.Rows.Count;
+            return response;
+        }
+
+        private IEnumerable<SelectionPropertyReportResponse> BuildSelectionPropertyReportCandidates(
+            IEnumerable<ModelItem> items, int offset, bool absoluteIndex, int propertyLimitPerItem,
+            int rowLimit, bool includeInternalNames, bool includeEmptyValues,
+            List<string> categoryFilters, List<string> propertyFilters)
+        {
+            var itemIndex = offset;
+            var rowCount = 0;
+            foreach (var item in items)
+            {
+                if (absoluteIndex)
+                    itemIndex++;
+                if (item == null)
+                {
+                    yield return null;
+                    continue;
+                }
+
+                if (!absoluteIndex)
+                    itemIndex++;
+                var response = new SelectionPropertyReportResponse();
                 var displayName = SafeString(() => item.DisplayName);
                 var path = BuildItemPath(item);
                 var propertyCountForItem = 0;
                 var categories = item.PropertyCategories;
                 if (categories == null)
+                {
+                    yield return response;
                     continue;
+                }
 
                 foreach (var category in categories)
                 {
@@ -94,13 +163,14 @@ namespace NavisHelper.Agent.Services
                             break;
                         }
 
-                        if (response.Rows.Count >= rowLimit)
+                        if (rowCount >= rowLimit)
                         {
                             response.RowsTruncated = true;
-                            response.RowCount = response.Rows.Count;
-                            return response;
+                            yield return response;
+                            yield break;
                         }
 
+                        rowCount++;
                         response.Rows.Add(new SelectionPropertyReportRow
                         {
                             ItemIndex = itemIndex,
@@ -118,10 +188,8 @@ namespace NavisHelper.Agent.Services
                     if (propertyCountForItem > propertyLimitPerItem)
                         break;
                 }
+                yield return response;
             }
-
-            response.RowCount = response.Rows.Count;
-            return response;
         }
 
         public SelectionExportPropertiesResponse SelectionExportProperties(Document document, SelectionExportPropertiesRequest request)
@@ -138,7 +206,7 @@ namespace NavisHelper.Agent.Services
             if (format != "csv" && format != "xlsx")
                 throw new ArgumentException("Only csv and xlsx formats are currently supported.", nameof(request));
 
-            var report = SelectionPropertyReport(document, new SelectionPropertyReportRequest
+            var report = BuildSelectionPropertyReport(document, new SelectionPropertyReportRequest
             {
                 ItemLimit = request.ItemLimit,
                 PropertyLimitPerItem = request.PropertyLimitPerItem,
@@ -147,7 +215,7 @@ namespace NavisHelper.Agent.Services
                 IncludeEmptyValues = request.IncludeEmptyValues,
                 CategoryFilters = request.CategoryFilters ?? new List<string>(),
                 PropertyFilters = request.PropertyFilters ?? new List<string>(),
-            });
+            }, null);
 
             var apply = request.Apply == true;
             var response = new SelectionExportPropertiesResponse

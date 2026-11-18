@@ -28,12 +28,13 @@ internal sealed class NavisworksSelectionTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Returns display names for the current Navisworks selection in copy-ready order. Use this when the user asks to copy, list, export, or summarize selected object names. Optional path/source fields help disambiguate repeated names.")]
+    [Description("Returns display names for the current Navisworks selection in copy-ready order. Use this when the user asks to copy, list, export, or summarize selected object names. Optional path/source fields help disambiguate repeated names. A page also stops at about 80 KB (budgetTruncated). When truncated, call again with offset=nextOffset.")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectionCopyNamesResponse> SelectionCopyNames(
         [Description("Maximum selected items to return. Default is 10000, maximum is 100000.")] int limit = 10000,
         [Description("Include full item paths. Default is false.")] bool includePaths = false,
         [Description("Include source file names when available. Default is false.")] bool includeSourceFiles = false,
+        [Description("Zero-based selection position to start at; pass nextOffset.")] int offset = 0,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -43,6 +44,7 @@ internal sealed class NavisworksSelectionTools : NavisworksToolBase
             Limit = limit,
             IncludePaths = includePaths,
             IncludeSourceFiles = includeSourceFiles,
+            Offset = offset,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
     }
 
