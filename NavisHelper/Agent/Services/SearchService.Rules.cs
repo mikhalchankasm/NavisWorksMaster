@@ -15,16 +15,6 @@ namespace NavisHelper.Agent.Services
 {
     internal sealed partial class SearchService
     {
-        private static int ClampItemChildrenLimit(int? limit)
-        {
-            var value = limit.GetValueOrDefault(DefaultItemChildrenLimit);
-            if (value < 1)
-                return 1;
-            if (value > MaxItemChildrenLimit)
-                return MaxItemChildrenLimit;
-            return value;
-        }
-
         private static List<FindItemsSearch> NormalizeSearches(FindItemsRequest request)
         {
             if (request.Searches != null && request.Searches.Count > 0)

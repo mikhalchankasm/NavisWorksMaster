@@ -430,14 +430,16 @@ namespace NavisHelper.Agent.Services
             request = request ?? new ListItemChildrenRequest();
             var parent = ResolveListChildrenParent(document, request, sessionStore);
             var includeHidden = request.IncludeHidden.GetValueOrDefault(true);
-            var limit = ClampItemChildrenLimit(request.Limit);
+            var allChildren = request.AllChildren.GetValueOrDefault(false);
+            var limit = ItemChildrenHandleScope.ClampLimit(request.Limit, allChildren);
             var children = parent.Children == null
                 ? new List<ModelItem>()
                 : parent.Children.Cast<ModelItem>().Where(child => child != null).ToList();
             var visibleChildren = includeHidden
                 ? children
                 : children.Where(child => !child.IsHidden).ToList();
-            var returnedChildren = visibleChildren.Take(limit).ToList();
+            var scope = ItemChildrenHandleScope.Select(visibleChildren, limit, allChildren);
+            var returnedChildren = scope.Rows;
 
             var response = new ListItemChildrenResponse
             {
@@ -447,12 +449,13 @@ namespace NavisHelper.Agent.Services
                 ParentSourceFile = TryGetSourceFile(parent),
                 TotalChildCount = children.Count,
                 ReturnedChildCount = returnedChildren.Count,
+                ChildrenMatchHandleItemCount = scope.HandleItems.Count,
                 SkippedHiddenChildCount = children.Count - visibleChildren.Count,
                 Truncated = visibleChildren.Count > returnedChildren.Count,
             };
 
-            if (returnedChildren.Count > 0)
-                response.ChildrenMatchHandle = sessionStore.Add(returnedChildren);
+            if (scope.HandleItems.Count > 0)
+                response.ChildrenMatchHandle = sessionStore.Add(scope.HandleItems);
 
             for (var i = 0; i < returnedChildren.Count; i++)
             {
