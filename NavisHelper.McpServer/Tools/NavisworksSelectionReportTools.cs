@@ -12,7 +12,7 @@ internal sealed class NavisworksSelectionReportTools : NavisworksToolBase
     }
 
     [McpServerTool]
-    [Description("Returns a structured property report for the current Navisworks selection. Read-only replacement for UI/Excel property quick reports.")]
+    [Description("Returns a structured property report for the current Navisworks selection. Read-only replacement for UI/Excel property quick reports. A page also stops at about 80 KB (budgetTruncated). When truncated, call again with offset=nextOffset.")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = true)]
     public Task<SelectionPropertyReportResponse> SelectionPropertyReport(
         [Description("Maximum selected items to inspect. Default is 100, maximum is 10000.")] int itemLimit = 100,
@@ -22,6 +22,7 @@ internal sealed class NavisworksSelectionReportTools : NavisworksToolBase
         [Description("Include rows with empty property values. Default is false.")] bool includeEmptyValues = false,
         [Description("Optional category display/internal name filters. Contains-match, case-insensitive.")] List<string> categoryFilters = null,
         [Description("Optional property display/internal name filters. Contains-match, case-insensitive.")] List<string> propertyFilters = null,
+        [Description("Zero-based selection position to start at; pass nextOffset.")] int offset = 0,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -29,6 +30,7 @@ internal sealed class NavisworksSelectionReportTools : NavisworksToolBase
         return _hostBridgeClient.SelectionPropertyReportAsync(new SelectionPropertyReportRequest
         {
             ItemLimit = itemLimit,
+            Offset = offset,
             PropertyLimitPerItem = propertyLimitPerItem,
             RowLimit = rowLimit,
             IncludeInternalNames = includeInternalNames,

@@ -19,6 +19,7 @@ namespace NavisHelper.Agent.Contracts
     public sealed class FbxLevelExportJob
     {
         public const int StatusFileLimit = 20;
+        public const int MaxQueuedCopies = 2;
 
         private readonly object _gate = new object();
         private readonly FbxLevelExportPlan _plan;
@@ -35,6 +36,7 @@ namespace NavisHelper.Agent.Contracts
         private long _largestCopyBytes;
         private bool _cancelRequested;
         private bool _stepInProgress;
+        private bool _stepWaiting;
         private bool _conversionInProgress;
         private readonly Queue<KeyValuePair<string, FbxLevelExportFile>> _copies =
             new Queue<KeyValuePair<string, FbxLevelExportFile>>();
@@ -137,6 +139,13 @@ namespace NavisHelper.Agent.Contracts
                         Finish(FbxLevelExportJobStates.Completed, nowUtc);
                     return false;
                 }
+                if ((_formats & ItemExportFormats.Datasmith) != 0
+                    && _copies.Count + (_conversionInProgress ? 1 : 0) >= MaxQueuedCopies)
+                {
+                    _stepWaiting = true;
+                    return false;
+                }
+                _stepWaiting = false;
                 item = _plan.Items[_nextItem];
                 largestFileBytes = _largestFileBytes;
                 largestCopyBytes = _largestCopyBytes;
@@ -265,6 +274,13 @@ namespace NavisHelper.Agent.Contracts
                 }
 
                 _nextItem++;
+                if ((_formats & ItemExportFormats.Datasmith) != 0
+                    && _state == FbxLevelExportJobStates.Running && !_cancelRequested
+                    && _copies.Count + (_conversionInProgress ? 1 : 0) >= MaxQueuedCopies)
+                {
+                    _stepWaiting = true;
+                    return false;
+                }
                 if (_nextItem == _plan.Items.Count)
                 {
                     if (_copies.Count == 0 && !_conversionInProgress && _state == FbxLevelExportJobStates.Running)
@@ -273,6 +289,19 @@ namespace NavisHelper.Agent.Contracts
                 }
                 return _formats == ItemExportFormats.Fbx
                     || (_state == FbxLevelExportJobStates.Running && !_cancelRequested);
+            }
+        }
+
+        /// <summary>Claims a paused UI step once a queued copy has been removed.</summary>
+        public bool TakeWaitingStep()
+        {
+            lock (_gate)
+            {
+                if (!_stepWaiting || _state != FbxLevelExportJobStates.Running || _cancelRequested
+                    || _copies.Count + (_conversionInProgress ? 1 : 0) >= MaxQueuedCopies)
+                    return false;
+                _stepWaiting = false;
+                return true;
             }
         }
 
