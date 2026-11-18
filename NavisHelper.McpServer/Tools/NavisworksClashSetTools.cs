@@ -56,67 +56,79 @@ internal sealed class NavisworksClashSetTools : NavisworksToolBase
     [McpServerTool]
     [Description("Starts async run, returns operationId. One test/UI callback; pauses after batchSize. clash_run_status/cancel_clash_run available during calculation. Dry-run.")]
     [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = true)]
-    public Task<ClashRunBatchResponse> ClashRunBatch(
-        [Description("False previews the resolved run scope; true starts it.")] bool apply = false,
+    public async Task<ClashRunBatchResponse> ClashRunBatch(
+        [Description("False previews scope; true starts.")] bool apply = false,
         [Description("Exact test names.")] List<string> testNames = null,
-        [Description("clash_list_tests handles; validated only at start, stale after mutations.")] List<string> testHandles = null,
-        [Description("Optional test-name prefix.")] string namePrefix = "",
-        [Description("Optional maximum number of matched tests.")] int firstN = 0,
-        [Description("Tests to process before pausing. Default 10.")] int batchSize = 10,
-        [Description("Advisory timebox, seconds; overrun after return, no safe force-abort of synchronous test.")] int perTestTimeoutSeconds = 300,
+        [Description("clash_list_tests handles; checked at start, stale after mutations.")] List<string> testHandles = null,
+        [Description("Test-name prefix.")] string namePrefix = "",
+        [Description("Matched-test cap.")] int firstN = 0,
+        [Description("Tests before pause. Default 10.")] int batchSize = 10,
+        [Description("Advisory seconds; overrun after return; cannot force-abort.")] int perTestTimeoutSeconds = 300,
+        [Description("Per-test rows, problems first; 0 = counters only. Default is 25.")] int maxTestRows = ClashTestRowLimit.DefaultMaxRows,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
-        return _hostBridgeClient.ClashRunBatchAsync(new ClashRunBatchRequest
+        var response = await _hostBridgeClient.ClashRunBatchAsync(new ClashRunBatchRequest
         {
             Apply = apply, TestNames = testNames ?? new List<string>(), TestHandles = testHandles ?? new List<string>(),
             NamePrefix = namePrefix, FirstN = firstN > 0 ? firstN : null, BatchSize = batchSize,
             PerTestTimeoutSeconds = perTestTimeoutSeconds,
-        }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
+        }, cancellationToken, CreateTarget(instanceId, navisworksVersion)).ConfigureAwait(false);
+        ClashTestRowLimit.Apply(response, maxTestRows);
+        return response;
     }
 
     [McpServerTool]
     [Description("Continues a paused asynchronous clash run for the next batch.")]
     [ToolCapabilities(ToolEffects.Document | ToolEffects.LocalState, RequiresHost = true, RequiresDocument = false)]
-    public Task<ClashRunBatchResponse> ClashRunResume(
-        [Description("Operation id returned by clash_run_batch or clash_tests_from_sets runAfterCreate.")] string operationId,
-        [Description("Optional replacement batch size. Zero keeps the current value.")] int batchSize = 0,
+    public async Task<ClashRunBatchResponse> ClashRunResume(
+        [Description("Run id: clash_run_batch/clash_tests_from_sets runAfterCreate.")] string operationId,
+        [Description("New batch size; 0 keeps current.")] int batchSize = 0,
+        [Description("Per-test rows, problems first; 0 = counters only. Default is 25.")] int maxTestRows = ClashTestRowLimit.DefaultMaxRows,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
-        return _hostBridgeClient.ClashRunResumeAsync(new ClashRunResumeRequest
+        var response = await _hostBridgeClient.ClashRunResumeAsync(new ClashRunResumeRequest
         {
             OperationId = operationId, BatchSize = batchSize > 0 ? batchSize : null,
-        }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
+        }, cancellationToken, CreateTarget(instanceId, navisworksVersion)).ConfigureAwait(false);
+        ClashTestRowLimit.Apply(response, maxTestRows);
+        return response;
     }
 
     [McpServerTool]
     [Description("Read-only async run progress/per-test outcomes; bypasses host_busy.")]
     [ToolCapabilities(ToolEffects.None, RequiresHost = true, RequiresDocument = false)]
-    public Task<ClashRunBatchResponse> ClashRunStatus(
-        [Description("Operation id returned by clash_run_batch or clash_tests_from_sets.")] string operationId,
-        [Description("Maximum long-poll duration in seconds, 0-300. Default 0 returns immediately.")] int waitSeconds = 0,
-        [Description("When true, poll until the run stops or waitSeconds expires. Default false.")] bool waitForCompletion = false,
+    public async Task<ClashRunBatchResponse> ClashRunStatus(
+        [Description("Run id: clash_run_batch/clash_tests_from_sets.")] string operationId,
+        [Description("Long-poll seconds, 0-300; 0 returns immediately.")] int waitSeconds = 0,
+        [Description("Poll until stopped or waitSeconds expires. Default false.")] bool waitForCompletion = false,
+        [Description("Per-test rows, problems first; 0 = counters only. Default is 25.")] int maxTestRows = ClashTestRowLimit.DefaultMaxRows,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
-        return _hostBridgeClient.ClashRunStatusAsync(new ClashRunStatusRequest { OperationId = operationId, WaitSeconds = waitSeconds, WaitForCompletion = waitForCompletion },
-            cancellationToken, CreateTarget(instanceId, navisworksVersion));
+        var response = await _hostBridgeClient.ClashRunStatusAsync(new ClashRunStatusRequest { OperationId = operationId, WaitSeconds = waitSeconds, WaitForCompletion = waitForCompletion },
+            cancellationToken, CreateTarget(instanceId, navisworksVersion)).ConfigureAwait(false);
+        ClashTestRowLimit.Apply(response, maxTestRows);
+        return response;
     }
 
     [McpServerTool]
     [Description("Cooperative async-run cancellation; bypasses host_busy. Current test finishes; no later test starts.")]
     [ToolCapabilities(ToolEffects.LocalState, RequiresHost = true, RequiresDocument = false)]
-    public Task<ClashRunBatchResponse> CancelClashRun(
+    public async Task<ClashRunBatchResponse> CancelClashRun(
         [Description("Operation id returned by clash_run_batch or clash_tests_from_sets.")] string operationId,
+        [Description("Per-test rows, problems first; 0 = counters only. Default is 25.")] int maxTestRows = ClashTestRowLimit.DefaultMaxRows,
         [Description("Optional explicit Navisworks host instance_id.")] string instanceId = "",
         [Description("Optional Navisworks version.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
-        return _hostBridgeClient.CancelClashRunAsync(new CancelClashRunRequest { OperationId = operationId },
-            cancellationToken, CreateTarget(instanceId, navisworksVersion));
+        var response = await _hostBridgeClient.CancelClashRunAsync(new CancelClashRunRequest { OperationId = operationId },
+            cancellationToken, CreateTarget(instanceId, navisworksVersion)).ConfigureAwait(false);
+        ClashTestRowLimit.Apply(response, maxTestRows);
+        return response;
     }
 }

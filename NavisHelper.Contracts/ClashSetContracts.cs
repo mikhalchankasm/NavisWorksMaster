@@ -156,6 +156,8 @@ namespace NavisHelper.Agent.Contracts
         public long ElapsedMs { get; set; }
         public string Message { get; set; }
         public List<ClashRunTestResult> Tests { get; set; } = new List<ClashRunTestResult>();
+        public bool TestsTruncated { get; set; }
+        public int TotalTestRowCount { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
     }
 

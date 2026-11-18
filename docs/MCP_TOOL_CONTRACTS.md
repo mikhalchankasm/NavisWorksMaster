@@ -307,6 +307,7 @@ a new truncation flag appears on a contract without being documented.
 | `itemsTruncated` | `selection_export_bounding_boxes` | selected items remain after this file's rows (`maxItems` or the request deadline); call again with `offset=nextOffset` and another `outputPath` |
 | `propertiesTruncated` | `item_properties_by_handle`, `selection_property_report`, `selection_export_properties`, `model_color_scheme` item facts | fewer properties per item than the item has |
 | `commentsTruncated` | `clash_list_results` result summaries | fewer comments returned than `commentCount`, or a returned comment body was shortened |
+| `testsTruncated` | `clash_pair_tests_create`, `clash_run_batch`, `clash_run_resume`, `clash_run_status`, `cancel_clash_run`, `clash_manage_tests` | per-test rows exceed `maxTestRows`; `totalTestRowCount` and operation counters cover all tests |
 | `valuesTruncated` | `selection_distinct_property_values` | fewer distinct values than exist, so the set is not the full domain |
 | `depthTruncated` | `selected_items_tree` | the tree was cut at `maxDepth`; deeper nodes exist and are absent |
 | `deadlineTruncated` | `selected_items_tree`, `selection_export_bounding_boxes` | the walk over the selection stopped at the request deadline; more selected items exist and are absent, and what was built so far is returned (for the export, written to the file) |
@@ -377,6 +378,7 @@ contract cannot skip that description.
 | `RowsTruncated` | `SelectionExportPropertiesResponse`, `SelectionPropertyReportResponse` |
 | `RulesTruncated` | `AppearanceProfileApplyResponse` |
 | `ScanTruncated` | `FindDuplicateGeometryResponse` |
+| `TestsTruncated` | `ClashManageTestsResponse`, `ClashPairTestsCreateResponse`, `ClashRunBatchResponse` |
 | `TraversalTruncated` | `FindItemsByBboxResponse`, `IsolateByBoxResponse` |
 | `Truncated` | `BuildMtrViewpointsResponse`, `ClashCommentSelectionResult`, `ClashGenerateReportResponse`, `ClashGroupResultsResponse`, `ClashListClustersResponse`, `ClashListResultsResponse`, `ClashListTestsResponse`, `ClashRenumberResultsResponse`, `ClashRootMatrixResponse`, `ClashSaveViewpointsResponse`, `ExporterPluginOptions`, `GetItemTextureMappingResponse`, `ItemAppearanceResponse`, `ItemViewpointsResponse`, `ListItemChildrenResponse`, `ListRootItemsResponse`, `ListSavedViewpointsResponse`, `ListSelectionSetsResponse`, `SavedViewpointsImportResponse`, `SelectedItemsAncestryResponse`, `SelectedItemsPreviewResponse`, `SelectedItemsTreeResponse`, `SelectionCopyNamesResponse`, `SelectionSetsBuildViewpointsResponse`, `VisibilityRootSummaryResult` |
 | `ValuesTruncated` | `SelectionDistinctPropertyValuesResponse` |
@@ -737,6 +739,15 @@ prefix, then returns immediately with `operationId`. It runs one native test per
 UI callback and pauses after `batchSize`. Continue with `clash_run_resume`.
 `clash_run_status` is read-only and bypasses `host_busy`;
 `cancel_clash_run` is cooperative and also bypasses `host_busy`.
+
+`clash_pair_tests_create`, `clash_run_batch`, `clash_run_resume`, `clash_run_status`,
+`cancel_clash_run`, and `clash_manage_tests` accept `maxTestRows` (default 25,
+clamped to 0–5000; 0 returns counters only). The MCP server caps `tests` after the
+host answers. Only when truncating, problem rows (errors, timebox overruns, or
+failure/conflict/skip/timeout/unsupported/not-found statuses) come first; order
+within each group is preserved. A fitting list keeps its original order.
+`testsTruncated` reports the cut; `totalTestRowCount` counts rows before the cap.
+All operation counters still cover every test, and host requests are unchanged.
 
 Navisworks exposes a synchronous per-test calculation API. Consequently,
 `perTestTimeoutSeconds` is an advisory timebox: an overrun is reported after

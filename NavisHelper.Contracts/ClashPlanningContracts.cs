@@ -148,6 +148,8 @@ namespace NavisHelper.Agent.Contracts
         public string SettingsSource { get; set; }
         public string Message { get; set; }
         public List<ClashPairTestPlanItem> Tests { get; set; } = new List<ClashPairTestPlanItem>();
+        public bool TestsTruncated { get; set; }
+        public int TotalTestRowCount { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
     }
 
