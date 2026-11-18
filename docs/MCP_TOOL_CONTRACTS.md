@@ -2549,6 +2549,8 @@ Rules for `worldBoxes`:
 
 Creates saved viewpoints with a section box around each selection cluster plus `boxOffsetMm` context. Optional persistent markup is projected after applying the camera and clipping box. Defaults to dry-run and never hides or isolates model items.
 
+Optional `boxFaceOffsetsMm` sets `top` (+Z), `bottom` (-Z), `north` (+Y), `south` (-Y), `east` (+X), and `west` (-X) independently in document axes. Null faces use `boxOffsetMm`; nonnegative values expand the cluster side in millimeters. A value of `-1` opens that face to the model extent (or the cluster extent if unavailable), plus `boxOffsetMm`, never inside the cluster. Other negative or nonfinite values fail with `schema_violation`, including on dry-run. The camera still fits the closed cluster box expanded by `boxOffsetMm`.
+
 | Parameter | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `camera` | string | `iso` | `iso`, `top`, `north`, `south`, `east`, or `west`; orthographic and fitted to each cluster box. North places the camera north of the box looking south (+Y to -Y); south looks north, east looks west (+X to -X), west looks east, and top looks down from +Z. ISO retains the existing diagonal view. |

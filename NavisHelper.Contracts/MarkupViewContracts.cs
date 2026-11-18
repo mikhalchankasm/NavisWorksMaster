@@ -132,6 +132,7 @@ namespace NavisHelper.Agent.Contracts
         public string Source { get; set; }
         public string Camera { get; set; }
         public double? BoxOffsetMm { get; set; }
+        public SectionBoxFaceOffsets BoxFaceOffsetsMm { get; set; }
         public List<double> EllipseColor { get; set; }
         public int? Thickness { get; set; }
         public double? PaddingFactor { get; set; }
