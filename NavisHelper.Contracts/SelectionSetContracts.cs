@@ -67,6 +67,7 @@ namespace NavisHelper.Agent.Contracts
         public string FolderPath { get; set; }
         public string CombineOperator { get; set; }
         public List<FindItemsCondition> Conditions { get; set; } = new List<FindItemsCondition>();
+        public List<List<FindItemsCondition>> ConditionGroups { get; set; } = new List<List<FindItemsCondition>>();
         public bool? Overwrite { get; set; }
         public bool? SelectAfterCreate { get; set; }
         public bool? Apply { get; set; }
@@ -79,6 +80,7 @@ namespace NavisHelper.Agent.Contracts
         public string FolderPath { get; set; }
         public string Path { get; set; }
         public int ConditionCount { get; set; }
+        public int BranchCount { get; set; } = 1;
         public int MatchedItemCount { get; set; }
         public int RuntimeResolvedConditionCount { get; set; }
         public bool NameConflict { get; set; }
