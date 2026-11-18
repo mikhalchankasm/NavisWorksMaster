@@ -2304,6 +2304,7 @@ requested depth to separate FBX files. Returns immediately with `operationId` an
 | `navisworksVersion` | string | `""` | Host version; use only when exactly one host of that version is running. |
 
 For each item the job hides everything else, exports, then restores visibility.
+With Datasmith, at most two NWD copies wait for the runner, including the copy being converted; publishing pauses until one is converted.
 Items hidden by the user are skipped. Files are named `NNN_<name>.fbx` in tree
 order. An empty selection is refused. Stale handles return `stale_match_reference`;
 re-run `find_items` and retry. Existing targets are refused unless `overwrite=true`;

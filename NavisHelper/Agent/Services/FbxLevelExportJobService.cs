@@ -104,7 +104,7 @@ namespace NavisHelper.Agent.Services
             }
 
             if (host.HasConversions)
-                _ = Task.Run(() => ConvertCopies(job, host));
+                _ = Task.Run(() => ConvertCopies(job, host, documentKey));
             Schedule(job, host, documentKey);
             lock (_sync)
             {
@@ -224,7 +224,7 @@ namespace NavisHelper.Agent.Services
             }
         }
 
-        private async Task ConvertCopies(FbxLevelExportJob job, NavisworksFbxExportHost host)
+        private async Task ConvertCopies(FbxLevelExportJob job, NavisworksFbxExportHost host, string documentKey)
         {
             try
             {
@@ -233,6 +233,8 @@ namespace NavisHelper.Agent.Services
                 {
                     await host.ConversionReady.WaitAsync().ConfigureAwait(false);
                     more = job.ConvertNext(host, () => DateTime.UtcNow);
+                    if (job.TakeWaitingStep())
+                        ResumeAfterConversion(job, host, documentKey);
                     RaiseChanged();
                 } while (more);
             }
@@ -274,6 +276,15 @@ namespace NavisHelper.Agent.Services
                 host.ConversionReady.Release();
             }
             else Cleanup(host);
+        }
+
+        // #498: a Step that paused on a full copy queue resumes from the runner thread. A Windows Forms
+        // timer needs the UI thread, so this posts the step; one post per finished conversion cannot starve
+        // input the way a chain of posted steps did (#444), and later items still yield through
+        // ScheduleAfterInput.
+        private void ResumeAfterConversion(FbxLevelExportJob job, NavisworksFbxExportHost host, string documentKey)
+        {
+            Schedule(job, host, documentKey);
         }
 
         private static string BuildDocumentKey(Document document)

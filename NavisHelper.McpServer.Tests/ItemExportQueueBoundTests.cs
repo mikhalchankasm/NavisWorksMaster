@@ -168,6 +168,7 @@ public sealed class ItemExportQueueBoundTests
     {
         var service = Read("NavisHelper", "Agent", "Services", "FbxLevelExportJobService.cs");
         Assert.Contains("job.TakeWaitingStep()", service, StringComparison.Ordinal);
+        Assert.Contains("ResumeAfterConversion(job, host, documentKey)", service, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));
