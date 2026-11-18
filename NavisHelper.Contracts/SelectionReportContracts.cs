@@ -5,6 +5,7 @@ namespace NavisHelper.Agent.Contracts
 {
     public sealed class SelectionPropertyReportRequest
     {
+        public int? Offset { get; set; }
         public int? ItemLimit { get; set; }
         public int? PropertyLimitPerItem { get; set; }
         public int? RowLimit { get; set; }
@@ -16,6 +17,9 @@ namespace NavisHelper.Agent.Contracts
 
     public sealed class SelectionPropertyReportResponse
     {
+        public int Offset { get; set; }
+        public int? NextOffset { get; set; }
+        public bool BudgetTruncated { get; set; }
         public int SelectedItemCount { get; set; }
         public int ReturnedItemCount { get; set; }
         public int RowCount { get; set; }
