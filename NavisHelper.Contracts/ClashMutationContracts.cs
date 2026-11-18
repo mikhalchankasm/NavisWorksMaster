@@ -196,6 +196,8 @@ namespace NavisHelper.Agent.Contracts
         public int AffectedTestCount { get; set; }
         public string Message { get; set; }
         public List<ClashTestOperationResult> Tests { get; set; } = new List<ClashTestOperationResult>();
+        public bool TestsTruncated { get; set; }
+        public int TotalTestRowCount { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
     }
 

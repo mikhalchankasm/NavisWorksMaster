@@ -19,29 +19,30 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
     [McpServerTool]
     [Description("Manages tests by name/handle/prefix/first-N. Dry-run; apply=true mutates. run executes only: no model save, reports, screenshots or viewpoints. Handles: clash_list_tests.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
-    public Task<ClashManageTestsResponse> ClashManageTests(
+    public async Task<ClashManageTestsResponse> ClashManageTests(
         [Description("run, reset, compact, rename, rename_batch, delete, move, sort or set_settings; missing/invalid never runs tests.")] string operation,
-        [Description("False previews matched tests/operation; true applies.")] bool apply = false,
+        [Description("False previews; true applies.")] bool apply = false,
         [Description("Test name: exact match, else contains.")] string testName = "",
         [Description("Test names: exact match per name, else contains.")] List<string> testNames = null,
-        [Description("Optional list of handles from clash_list_tests, for example clash-test:1.")] List<string> testHandles = null,
-        [Description("Optional test name prefix scope, useful for generated tests such as NH-BBOX.")] string namePrefix = "",
-        [Description("First N matches; unscoped: first N globally for preview/run/compact/settings. Applied delete/reset needs another scope, e.g. namePrefix.")] int firstN = 0,
-        [Description("New test name for operation=rename. Rename requires exactly one matched test.")] string newName = "",
-        [Description("rename_batch: {testHandle,newName} entries; validates all before mutation.")] List<ClashTestRenameRequest> renames = null,
-        [Description("rename_batch template: {index}, {name}; {aName}, {bName}, {aCode}, {bCode} from the current test name A vs B. Transforms: zeroPad:N, strip:#regex#, replace:#regex#replacement#, upper, lower.")] string namePattern = "",
-        [Description("First number used by namePattern {index}. Default is 1.")] int renameStartIndex = 1,
-        [Description("Number from scope end, keeping current test order.")] bool renameFromEnd = false,
+        [Description("clash_list_tests handles.")] List<string> testHandles = null,
+        [Description("Test-name prefix scope.")] string namePrefix = "",
+        [Description("First N matches, globally if unscoped. Applied delete/reset requires another scope, e.g. namePrefix.")] int firstN = 0,
+        [Description("rename: new name; exactly one matched test.")] string newName = "",
+        [Description("rename_batch: {testHandle,newName}; all validated before mutation.")] List<ClashTestRenameRequest> renames = null,
+        [Description("rename_batch: {index}, {name}; {aName}/{bName}/{aCode}/{bCode} from the current test name A vs B. Transforms: zeroPad:N, strip:#regex#, replace:#regex#replacement#, upper, lower.")] string namePattern = "",
+        [Description("namePattern initial {index}. Default is 1.")] int renameStartIndex = 1,
+        [Description("Number from scope end; keep test order.")] bool renameFromEnd = false,
         [Description("move: 1-based index in current folder/root; exactly one test.")] int targetIndex = 0,
-        [Description("sort: asc/name/natural or desc; matched tests within each folder/root.")] string sortDirection = "asc",
+        [Description("sort: asc/name/natural/desc within each folder/root.")] string sortDirection = "asc",
         [Description("set_settings tolerance, mm; -1=unchanged.")] double toleranceMm = -1,
         [Description("set_settings: hard/intersection, conservative/hard_conservative, clearance, duplicate; empty=unchanged.")] string testType = "",
         [Description("Result-count scope; 0 selects empty tests, -1 disables.")] int onlyWithTotal = -1,
+        [Description("Per-test rows, problems first; 0 = counters only. Default is 25.")] int maxTestRows = ClashTestRowLimit.DefaultMaxRows,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
-        return _hostBridgeClient.ClashManageTestsAsync(new ClashManageTestsRequest
+        var response = await _hostBridgeClient.ClashManageTestsAsync(new ClashManageTestsRequest
         {
             Apply = apply,
             Operation = operation,
@@ -60,7 +61,9 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
             NamePattern = namePattern,
             RenameStartIndex = renameStartIndex,
             RenameFromEnd = renameFromEnd,
-        }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
+        }, cancellationToken, CreateTarget(instanceId, navisworksVersion)).ConfigureAwait(false);
+        ClashTestRowLimit.Apply(response, maxTestRows);
+        return response;
     }
     [McpServerTool]
     [Description("Plans BBox-intersecting root/selection pairs; never mutates the document or creates/runs tests. Dry-run reports requested/matched/unmatched rootNames, no write. apply=true needs absolute outputPath; atomic verified write.")]
@@ -120,21 +123,22 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
     [McpServerTool]
     [Description("Creates BBox-pair tests; dry-run, never runs. Side resolution: exact path, unique exact root name, unique exact source-file identity; reject ambiguity. Set sides: clash_tests_from_sets/clash_batchtest_import.")]
     [ToolCapabilities(ToolEffects.Document, RequiresHost = true, RequiresDocument = true)]
-    public Task<ClashPairTestsCreateResponse> ClashPairTestsCreate(
+    public async Task<ClashPairTestsCreateResponse> ClashPairTestsCreate(
         [Description("False previews; true creates tests.")] bool apply = false,
         [Description("clash_bbox_pair_plan pairs; large plans: planOutputPath.")] List<ClashBboxCandidatePair> pairs = null,
-        [Description("Path to a JSON output from clash_bbox_pair_plan.")] string planOutputPath = "",
+        [Description("clash_bbox_pair_plan JSON path.")] string planOutputPath = "",
         [Description("Stable test name prefix. Default is NH-BBOX.")] string testNamePrefix = "NH-BBOX",
-        [Description("Create or preview only the first N candidate pairs. Default is 200.")] int limit = 200,
+        [Description("First N candidate pairs. Default is 200.")] int limit = 200,
         [Description("Tolerance, mm; -1=settingsFromTestName or host default.")] double toleranceMm = -1,
         [Description("hard/intersection, conservative/hard_conservative, clearance, duplicate; empty=settingsFromTestName or host default.")] string testType = "",
-        [Description("Existing test supplying type/tolerance when not explicit.")] string settingsFromTestName = "",
-        [Description("Replace existing tests with the same generated names. Default is false.")] bool overwriteExisting = false,
+        [Description("Type/tolerance source test when unspecified.")] string settingsFromTestName = "",
+        [Description("Replace same-name tests. Default is false.")] bool overwriteExisting = false,
+        [Description("Per-test rows, problems first; 0 = counters only. Default is 25.")] int maxTestRows = ClashTestRowLimit.DefaultMaxRows,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
     {
-        return _hostBridgeClient.ClashPairTestsCreateAsync(new ClashPairTestsCreateRequest
+        var response = await _hostBridgeClient.ClashPairTestsCreateAsync(new ClashPairTestsCreateRequest
         {
             Apply = apply,
             Pairs = pairs ?? new List<ClashBboxCandidatePair>(),
@@ -145,7 +149,9 @@ internal sealed class NavisworksClashTestTools : NavisworksToolBase
             TestType = testType,
             OverwriteExisting = overwriteExisting,
             SettingsFromTestName = settingsFromTestName,
-        }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
+        }, cancellationToken, CreateTarget(instanceId, navisworksVersion)).ConfigureAwait(false);
+        ClashTestRowLimit.Apply(response, maxTestRows);
+        return response;
     }
 
     [McpServerTool]
