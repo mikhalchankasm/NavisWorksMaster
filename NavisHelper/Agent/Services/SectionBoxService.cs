@@ -30,16 +30,10 @@ namespace NavisHelper.Agent.Services
                 try
                 {
                     var units = SectionBoxCaptureService.NormalizeUnits(document.Units);
-                    planned = request.Box ?? SectionBoxWriteRules.FromMinMax(request.Min, request.Max, units);
-                    SectionBoxGeometryRules.Validate(planned);
-                    if (!string.Equals(planned.DocumentUnits, units, StringComparison.Ordinal))
-                        throw new ArgumentException("box.documentUnits must match the document units.");
-                    var q = SectionBoxWriteRules.QuaternionFromAxes(planned.Axes);
-                    using (var rotation = new Rotation3D(q[0], q[1], q[2], q[3]))
-                    {
-                        var euler = rotation.ToEulerAngles();
-                        plannedJson = SectionBoxWriteRules.BuildClippingJson(planned, euler.X, euler.Y, euler.Z);
-                    }
+                    planned = operation == "set"
+                        ? request.Box ?? SectionBoxWriteRules.FromMinMax(request.Min, request.Max, units)
+                        : EditCurrent(document, request, operation);
+                    plannedJson = BuildPlanJson(planned, units);
                 }
                 catch (ArgumentException ex)
                 {
@@ -48,7 +42,7 @@ namespace NavisHelper.Agent.Services
             }
             var result = new SectionBoxResponse
             {
-                Operation = operation, Apply = request.Apply == true, Enabled = operation == "set", Box = planned,
+                Operation = operation, Apply = request.Apply == true, Enabled = operation != "clear", Box = planned,
                 Message = "Dry-run: section box was not changed.",
             };
             if (!result.Apply) return result;
@@ -77,6 +71,32 @@ namespace NavisHelper.Agent.Services
                 "Section box was written, but readback differs from the requested state.";
             if (result.ReadbackMatches != true) result.Warnings.Add(result.Message);
             return result;
+        }
+
+        private static SectionBoxGeometry EditCurrent(Document document, SectionBoxRequest request, string operation)
+        {
+            var current = new SectionBoxCaptureService().Capture(document, new GetCurrentSectionBoxRequest()).Box;
+            var factor = NavisHelper.Core.SectionBoxHelper.MmToDocUnits(1.0);
+            switch (operation)
+            {
+                case "move": return SectionBoxEditRules.Move(current, request.OffsetMm.X, request.OffsetMm.Y, request.OffsetMm.Z, factor);
+                case "grow": return SectionBoxEditRules.Grow(current, request.GrowMm, factor);
+                case "rotate": return SectionBoxEditRules.RotateZ(current, request.RotateDegrees.Value);
+                default: throw new ArgumentException("Unsupported section box edit.");
+            }
+        }
+
+        private static string BuildPlanJson(SectionBoxGeometry planned, string units)
+        {
+            SectionBoxGeometryRules.Validate(planned);
+            if (!string.Equals(planned.DocumentUnits, units, StringComparison.Ordinal))
+                throw new ArgumentException("box.documentUnits must match the document units.");
+            var q = SectionBoxWriteRules.QuaternionFromAxes(planned.Axes);
+            using (var rotation = new Rotation3D(q[0], q[1], q[2], q[3]))
+            {
+                var euler = rotation.ToEulerAngles();
+                return SectionBoxWriteRules.BuildClippingJson(planned, euler.X, euler.Y, euler.Z);
+            }
         }
 
         private static SectionBoxGeometry ReadBox(string json, string units)
