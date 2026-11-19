@@ -172,6 +172,7 @@ namespace NavisHelper.Agent.Services
             var fallback = prepared.Where(entry => entry.Comparison != FindItemsComparisons.Equal ||
                 entry.Condition.Negate.GetValueOrDefault(false)).ToList();
             var perItem = new List<IList<int>>(items.Count);
+            long assignedItemCount = 0;
             foreach (var item in items)
             {
                 var matching = new List<int>();
@@ -201,6 +202,13 @@ namespace NavisHelper.Agent.Services
                 foreach (var entry in fallback)
                     if (MatchesManualCondition(item, entry.Condition, entry.Resolved, entry.Comparison))
                         matching.Add(entry.Index);
+                // The whole-set handle and every condition handle must fit the store together, or
+                // adding the later handles would evict the earlier ones from this same response.
+                assignedItemCount += matching.Count;
+                if (assignedItemCount > MatchHandleLimits.MaxItems - items.Count)
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation,
+                        "handlePerCondition matches more than " + MatchHandleLimits.MaxItems.ToString(CultureInfo.InvariantCulture) +
+                        " items in all across the conditions and the whole set; narrow the search.");
                 perItem.Add(matching);
             }
             int unassigned;
