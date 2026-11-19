@@ -77,7 +77,7 @@ public sealed class SectionBoxSetTests
     }
 
     [Theory]
-    [InlineData("rotate", false, false, false, "operation must be set or clear.")]
+    [InlineData("spin", false, false, false, "operation must be set, clear, move, grow or rotate.")]
     [InlineData("set", false, false, false, "set needs either box or both min and max.")]
     [InlineData("set", true, true, true, "set needs either box or both min and max.")]
     [InlineData("set", false, true, false, "set needs either box or both min and max.")]
