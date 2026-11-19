@@ -36,7 +36,7 @@ If `NAVISHELPER_INSTANCE_ID` is set, the MCP server treats it as a strict target
 
 ## Narrowing the Advertised Tool Surface
 
-The full surface is 135 tools and 212 KB of JSON in `tools/list`, roughly 63,000
+The full surface is 135 tools and 216 KB of JSON in `tools/list`, roughly 64,000
 tokens by the estimate below. How much of this reaches the model, and how often,
 depends on the client's caching and tool discovery. A session that only
 queries and navigates the model does not need the Clash Detective surface, and a
@@ -50,14 +50,14 @@ Set `NAVISHELPER_MCP_TOOLS` in the MCP client configuration, or pass
 present. The default is the full surface, so an existing configuration keeps
 behaving exactly as before.
 
-Measured 2026-11-19 on `main` 5303c9c before 2.23 (parameters added in #388, #390, #391, #439 and #530) (compact UTF-8
+Measured 2026-11-19 on `main` after 2.23 (find_items handlePerCondition #390, the section_box tool #388, viewpoint_animation cutOnClipChange #422) (compact UTF-8
 JSON-RPC response bytes, decimal KB = 1000 bytes; token counts use the approximate 3.375 bytes/token ratio):
 
 | Spec | Tools | `tools/list` | Approx. tokens |
 |---|---:|---:|---:|
-| unset, or `all` | 135 | 212.5 KB | ~63,000 |
-| `core,clash` | 82 | 120.6 KB | ~35,700 |
-| `core` | 48 | 55.1 KB | **~16,300** |
+| unset, or `all` | 135 | 215.6 KB | ~63,900 |
+| `core,clash` | 82 | 120.8 KB | ~35,800 |
+| `core` | 48 | 55.3 KB | **~16,400** |
 
 Sets: `meta`, `query`, `selection`, `view`, `sets`, `viewpoints`, `markup`,
 `sections`, `reports`, `clash`, `scenarios`, `lifecycle`. The alias `core`
