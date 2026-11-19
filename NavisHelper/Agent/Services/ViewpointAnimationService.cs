@@ -13,6 +13,8 @@ namespace NavisHelper.Agent.Services
         private static readonly PropertyInfo Delay = typeof(SavedViewpointAnimationCut).GetProperty("Delay");
         private static readonly PropertyInfo Loops = typeof(SavedViewpointAnimation).GetProperty("Loops");
         private static readonly PropertyInfo Smoothing = typeof(SavedViewpointAnimation).GetProperty("Smoothing");
+        // Viewpoint.ClipPlanes is absent from the 2024 SDK, so clipping comparison must use reflection.
+        private static readonly PropertyInfo ClipPlanes = typeof(Viewpoint).GetProperty("ClipPlanes");
         private static readonly ConstructorInfo AnimationConstructor = typeof(SavedViewpointAnimation).GetConstructor(Type.EmptyTypes);
         private static readonly ConstructorInfo CutConstructor = typeof(SavedViewpointAnimationCut).GetConstructor(Type.EmptyTypes);
         private const string CreateUnsupported =
@@ -74,10 +76,13 @@ namespace NavisHelper.Agent.Services
                 throw new AgentCommandException(ErrorCodes.SchemaViolation, "create accepts at most 1000 viewpoints.");
             if (sources.Count == 0)
                 throw new AgentCommandException(ErrorCodes.SavedViewpointNotFound, "The source folder has no direct saved viewpoints.");
-            var keys = sources.Select(node => CameraKey(((SavedViewpoint)node.Item).Viewpoint)).ToList();
+            var cameras = sources.Select(node => ((SavedViewpoint)node.Item).Viewpoint).ToList();
+            var keys = cameras.Select(CameraKey).ToList();
+            var clipChanged = ClipChanges(cameras, request.CutOnClipChange == true, response);
             // Index tokens preserve distinct source states even when siblings have identical display paths.
             var tokens = Enumerable.Range(0, sources.Count).Select(index => index.ToString(CultureInfo.InvariantCulture)).ToList();
-            var plan = ViewpointAnimationRules.PlanFrames(tokens, keys, request.HoldSeconds ?? 0, request.PauseSeconds ?? 2);
+            var plan = ViewpointAnimationRules.PlanFrames(tokens, keys, clipChanged,
+                request.HoldSeconds ?? 0, request.PauseSeconds ?? 2, request.CutOnClipChange == true);
             response.CutCount = plan.Count(frame => frame.Kind == "cut");
             response.FrameCount = plan.Count - response.CutCount;
             response.TotalPauseSeconds = plan.Sum(frame => frame.DelaySeconds ?? 0);
@@ -197,6 +202,30 @@ namespace NavisHelper.Agent.Services
             var orthographic = camera.Projection == ViewpointProjection.Orthographic;
             return ViewpointAnimationRules.CameraKey(p.X, p.Y, p.Z, q.A, q.B, q.C, q.D,
                 orthographic, orthographic ? camera.HeightField : 0);
+        }
+
+        private static bool[] ClipChanges(IList<Viewpoint> cameras, bool enabled, ViewpointAnimationResponse response)
+        {
+            var changes = new bool[cameras.Count];
+            if (!enabled) return changes;
+            var clips = ClipPlanes == null ? null : cameras.Select(camera => ClipPlanes.GetValue(camera, null)).ToList();
+            var clipType = clips?.FirstOrDefault(value => value != null)?.GetType() ?? ClipPlanes?.PropertyType;
+            var valueEquals = clipType?.GetMethods().FirstOrDefault(method => method.Name == "ValueEquals" &&
+                method.ReturnType == typeof(bool) && method.GetParameters().Length == 1 &&
+                method.GetParameters()[0].ParameterType.IsAssignableFrom(clipType));
+            if (valueEquals == null)
+            {
+                Warn(response, "cutOnClipChange needs Navisworks 2025 or later; no clip cuts were planned.");
+                return changes;
+            }
+            for (var index = 1; index < clips.Count; index++)
+            {
+                var previous = clips[index - 1];
+                var current = clips[index];
+                changes[index] = previous == null ? current != null : current == null ||
+                    !(bool)valueEquals.Invoke(previous, new[] { current });
+            }
+            return changes;
         }
 
         private static void SetSpeeds(Viewpoint previous, Viewpoint destination, double seconds, ViewpointAnimationResponse response)

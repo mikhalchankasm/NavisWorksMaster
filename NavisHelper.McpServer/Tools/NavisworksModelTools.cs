@@ -33,6 +33,7 @@ internal sealed class NavisworksModelTools : NavisworksToolBase
         [Description("Simple-mode string option. Default true.")] bool ignoreCase = true,
         [Description("Simple-mode string option. Default false.")] bool ignoreDiacritics = false,
         [Description("Simple-mode string option. Default false.")] bool ignoreCharWidth = false,
+        [Description("Return one match handle per condition for one whole-model OR search of 2 to 1000 conditions, without countOnly.")] bool handlePerCondition = false,
         [Description("Optional explicit Navisworks host instance_id from list_navisworks_hosts.")] string instanceId = "",
         [Description("Optional Navisworks version, for example 2027. Use only when exactly one host of that version is running.")] string navisworksVersion = "",
         CancellationToken cancellationToken = default)
@@ -64,6 +65,7 @@ internal sealed class NavisworksModelTools : NavisworksToolBase
             ScopeNodePath = scopeNodePath,
             MatchDepth = matchDepth,
             CountOnly = countOnly,
+            HandlePerCondition = handlePerCondition,
             Preflight = preflight,
             IgnoreCase = ignoreCase,
             IgnoreDiacritics = ignoreDiacritics,

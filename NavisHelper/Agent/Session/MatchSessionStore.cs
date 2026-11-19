@@ -8,7 +8,6 @@ namespace NavisHelper.Agent.Session
 {
     internal sealed class MatchSessionStore
     {
-        private const int MaxEntries = 100;
         private static readonly TimeSpan EntryTtl = TimeSpan.FromMinutes(10);
 
         private readonly object _sync = new object();
@@ -24,7 +23,7 @@ namespace NavisHelper.Agent.Session
             lock (_sync)
             {
                 EvictExpiredLocked();
-                EvictOverflowLocked();
+                EvictOverflowLocked(items.Count);
 
                 _sequence++;
                 var handle = "mh_" + _sequence.ToString("D6");
@@ -85,12 +84,15 @@ namespace NavisHelper.Agent.Session
             }
         }
 
-        private void EvictOverflowLocked()
+        private void EvictOverflowLocked(int newItemCount)
         {
-            while (_entries.Count >= MaxEntries)
+            var totalItems = _entries.Values.Sum(entry => (long)entry.Items.Count);
+            while (_entries.Count > 0 && (_entries.Count >= MatchHandleLimits.MaxHandles ||
+                totalItems + newItemCount > MatchHandleLimits.MaxItems))
             {
                 var oldest = _entries.OrderBy(pair => pair.Value.LastAccessUtc).First();
                 _ledger.RecordEvicted(oldest.Key);
+                totalItems -= oldest.Value.Items.Count;
                 _entries.Remove(oldest.Key);
             }
         }

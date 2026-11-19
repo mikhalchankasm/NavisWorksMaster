@@ -32,8 +32,18 @@ namespace NavisHelper.Agent.Services
             if (sessionStore == null)
                 throw new ArgumentNullException(nameof(sessionStore));
 
+            var handlePerCondition = request.HandlePerCondition.GetValueOrDefault(false);
+            var rawSearch = request.Searches == null ? null : request.Searches.FirstOrDefault();
+            var conditionHandleError = FindItemsConditionHandles.Describe(handlePerCondition,
+                request.Searches == null ? 0 : request.Searches.Count, rawSearch?.CombineOperator,
+                rawSearch?.Conditions?.Count ?? 0, request.CountOnly.GetValueOrDefault(false), request.Scope);
+            if (conditionHandleError != null)
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, conditionHandleError);
             var previewLimit = ClampPreviewLimit(request.PreviewLimit);
             var searches = NormalizeSearches(request);
+            if (handlePerCondition && searches[0].Conditions.Any(condition => !CanEvaluateConditionManually(condition)))
+                throw new AgentCommandException(ErrorCodes.SchemaViolation,
+                    "handlePerCondition requires conditions that can be evaluated manually.");
             if (searches.Count > MaxQueries)
                 throw new AgentCommandException(
                     ErrorCodes.SchemaViolation,
@@ -53,6 +63,12 @@ namespace NavisHelper.Agent.Services
             {
                 if (searches.Count != 1)
                     throw new AgentCommandException(ErrorCodes.SchemaViolation, "Scoped/countOnly find_items requires exactly one query/search.");
+                if (handlePerCondition)
+                {
+                    var scopedResponse = ExecuteScopedFindItems(document, request, searches[0], previewLimit, sessionStore);
+                    AddConditionHandles(scopedResponse, searches[0], sessionStore);
+                    return scopedResponse;
+                }
                 return ExecuteScopedFindItems(document, request, searches[0], previewLimit, sessionStore);
             }
 
@@ -115,7 +131,102 @@ namespace NavisHelper.Agent.Services
             if (!string.IsNullOrEmpty(pruningWarning))
                 response.Warnings.Add(pruningWarning);
 
+            if (handlePerCondition)
+                AddConditionHandles(response, searches[0], sessionStore);
             return response;
+        }
+
+        private static void AddConditionHandles(FindItemsResponse response, FindItemsSearch search, MatchSessionStore sessionStore)
+        {
+            var result = response.Results[0];
+            IList<ModelItem> items = new List<ModelItem>();
+            var wholeMatch = result.Matches.FirstOrDefault();
+            if (wholeMatch != null && !sessionStore.TryGet(wholeMatch.MatchHandle, out items))
+                throw new AgentCommandException(ErrorCodes.SchemaViolation, "The whole-set match handle is no longer available.");
+            var prepared = search.Conditions.Select((condition, index) => new
+            {
+                Condition = condition, Index = index, Resolved = ResolveProperty(condition),
+                Comparison = NormalizeComparison(condition.Operator),
+            }).ToList();
+            var equalsGroups = prepared.Where(entry => entry.Comparison == FindItemsComparisons.Equal &&
+                !entry.Condition.Negate.GetValueOrDefault(false)).GroupBy(entry => (
+                    entry.Condition.Category, entry.Condition.Property, entry.Condition.CategoryInternal,
+                    entry.Condition.PropertyInternal, entry.Resolved.InheritFromAncestor)).Select(group => new
+                    {
+                        Resolved = group.First().Resolved,
+                        // Typed equality retains the existing numeric/date conversion rules.
+                        Typed = group.Where(entry => !entry.Resolved.IsDefaultItemNameTarget &&
+                            NormalizeDataType(entry.Condition.DataType) != "string").ToList(),
+                        Strings = group.Where(entry => entry.Resolved.IsDefaultItemNameTarget ||
+                            NormalizeDataType(entry.Condition.DataType) == "string").GroupBy(entry => (
+                                entry.Condition.IgnoreCase, entry.Condition.IgnoreDiacritics, entry.Condition.IgnoreCharWidth))
+                            .Select(options => new
+                            {
+                                Reference = options.First().Condition,
+                                Values = options.GroupBy(entry => NormalizeConditionString(entry.Condition.Value, entry.Condition),
+                                    options.First().Condition.IgnoreCase.GetValueOrDefault(true) ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+                                    .ToDictionary(values => values.Key, values => values.Select(entry => entry.Index).ToList(),
+                                        options.First().Condition.IgnoreCase.GetValueOrDefault(true) ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal),
+                            }).ToList(),
+                    }).ToList();
+            var fallback = prepared.Where(entry => entry.Comparison != FindItemsComparisons.Equal ||
+                entry.Condition.Negate.GetValueOrDefault(false)).ToList();
+            var perItem = new List<IList<int>>(items.Count);
+            long assignedItemCount = 0;
+            foreach (var item in items)
+            {
+                var matching = new List<int>();
+                foreach (var group in equalsGroups)
+                {
+                    string value;
+                    DataProperty property = null;
+                    bool hasValue;
+                    if (group.Resolved.IsDefaultItemNameTarget)
+                        hasValue = TryGetDefaultItemNameValue(item, out value);
+                    else
+                    {
+                        property = TryFindProperty(item, group.Resolved);
+                        hasValue = property != null;
+                        value = group.Strings.Count == 0 ? null : GetPropertyDisplayValue(property);
+                    }
+                    if (!hasValue) continue;
+                    foreach (var index in group.Strings)
+                    {
+                        List<int> indices;
+                        if (index.Values.TryGetValue(NormalizeConditionString(value, index.Reference), out indices))
+                            matching.AddRange(indices);
+                    }
+                    foreach (var entry in group.Typed)
+                        if (PropertyValueEquals(property, entry.Condition)) matching.Add(entry.Index);
+                }
+                foreach (var entry in fallback)
+                    if (MatchesManualCondition(item, entry.Condition, entry.Resolved, entry.Comparison))
+                        matching.Add(entry.Index);
+                // The whole-set handle and every condition handle must fit the store together, or
+                // adding the later handles would evict the earlier ones from this same response.
+                assignedItemCount += matching.Count;
+                if (assignedItemCount > MatchHandleLimits.MaxItems - items.Count)
+                    throw new AgentCommandException(ErrorCodes.SchemaViolation,
+                        "handlePerCondition matches more than " + MatchHandleLimits.MaxItems.ToString(CultureInfo.InvariantCulture) +
+                        " items in all across the conditions and the whole set; narrow the search.");
+                perItem.Add(matching);
+            }
+            int unassigned;
+            var groups = FindItemsConditionHandles.Group(search.Conditions.Count, perItem, out unassigned);
+            for (var conditionIndex = 0; conditionIndex < groups.Count; conditionIndex++)
+            {
+                var conditionItems = groups[conditionIndex].Select(index => items[index]).ToList();
+                result.ConditionMatches.Add(new FindItemsConditionMatch
+                {
+                    ConditionIndex = conditionIndex, Value = search.Conditions[conditionIndex].Value,
+                    ItemCount = conditionItems.Count,
+                    MatchHandle = conditionItems.Count == 0 ? null : sessionStore.Add(conditionItems),
+                });
+            }
+            result.UnassignedItemCount = unassigned;
+            if (unassigned > 0)
+                response.Warnings.Add("handlePerCondition could not assign " + unassigned.ToString(CultureInfo.InvariantCulture) +
+                    " matched items to any condition.");
         }
 
         /// <summary>

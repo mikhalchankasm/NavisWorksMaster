@@ -24,7 +24,7 @@ namespace NavisHelper.McpServer.Tests
             var ledger = new MatchHandleLedger();
             ledger.RecordEvicted("mh_000002");
 
-            Assert.Equal("This match handle was evicted because only the 100 most recently used handles are kept.",
+            Assert.Equal("This match handle was evicted because only the 2000 most recently used handles, holding at most 1000000 items, are kept.",
                 ledger.Explain("mh_000002", 2));
         }
 

@@ -54,7 +54,8 @@ namespace NavisHelper.Agent.Contracts
                         return "This match handle expired after " + minutes.ToString(CultureInfo.InvariantCulture) + " minutes idle.";
                     }
                     if (removal.Reason == "evicted")
-                        return "This match handle was evicted because only the 100 most recently used handles are kept.";
+                        return "This match handle was evicted because only the " + MatchHandleLimits.MaxHandles.ToString(CultureInfo.InvariantCulture) +
+                            " most recently used handles, holding at most " + MatchHandleLimits.MaxItems.ToString(CultureInfo.InvariantCulture) + " items, are kept.";
                     return "This match handle was cleared because the document changed or the host restarted.";
                 }
             }
