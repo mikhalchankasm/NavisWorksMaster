@@ -138,6 +138,7 @@ internal static class McpToolProfile
                 "viewpoint_animation",
                 "viewpoint_animation_export",
                 "section_planes",
+                "section_box",
             },
 
             ["reports"] = new[]

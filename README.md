@@ -144,7 +144,7 @@ More in [security and compatibility](docs/SECURITY_AND_COMPATIBILITY.md).
 <details>
 <summary>Tool count, contracts, architecture, building</summary>
 
-The source registers **134 distinct MCP tools**. `scripts/check_mcp_command_catalog.py` derives their names from the 134 `[McpServerTool]` methods and verifies the generated 134-row index. Inputs, outputs and limits of every tool are in the [tool contracts](docs/MCP_TOOL_CONTRACTS.md); the design is in the [architecture](docs/MCP_ARCHITECTURE.md). Building and contributing: [Contributing](CONTRIBUTING.md) and the [build rules](BUILD_BUNDLE_RULES.md).
+The source registers **135 distinct MCP tools**. `scripts/check_mcp_command_catalog.py` derives their names from the 135 `[McpServerTool]` methods and verifies the generated 135-row index. Inputs, outputs and limits of every tool are in the [tool contracts](docs/MCP_TOOL_CONTRACTS.md); the design is in the [architecture](docs/MCP_ARCHITECTURE.md). Building and contributing: [Contributing](CONTRIBUTING.md) and the [build rules](BUILD_BUNDLE_RULES.md).
 
 </details>
 

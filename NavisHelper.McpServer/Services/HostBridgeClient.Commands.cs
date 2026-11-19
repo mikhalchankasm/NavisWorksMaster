@@ -25,6 +25,11 @@ internal sealed partial class HostBridgeClient
         return CallHostAsync<ItemViewpointsResponse>(HostCommandNames.ViewpointsPerItem, request, cancellationToken, target);
     }
 
+    public Task<SectionBoxResponse> SectionBoxAsync(SectionBoxRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
+    {
+        return CallHostAsync<SectionBoxResponse>(HostCommandNames.SectionBox, request, cancellationToken, target);
+    }
+
     public Task<SectionPlanesResponse> SectionPlanesAsync(SectionPlanesRequest request, CancellationToken cancellationToken, HostTargetOptions target = null)
     {
         return CallHostAsync<SectionPlanesResponse>(HostCommandNames.SectionPlanes, request, cancellationToken, target);

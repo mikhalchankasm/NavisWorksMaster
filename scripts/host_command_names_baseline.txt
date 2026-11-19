@@ -84,6 +84,7 @@ unhide_selected
 reveal_selected
 isolate_selected
 section_planes
+section_box
 get_current_section_box
 isolate_by_box
 show_all

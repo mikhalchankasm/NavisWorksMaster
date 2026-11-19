@@ -16,7 +16,7 @@ public sealed class McpStdioCollection { }
 public sealed class McpCatalogResourceTests
 {
     [Theory]
-    [InlineData("all", false, 134)]
+    [InlineData("all", false, 135)]
     [InlineData("core", false, 48)]
     [InlineData("all", true, 46)]
     [InlineData("core", true, -1)]

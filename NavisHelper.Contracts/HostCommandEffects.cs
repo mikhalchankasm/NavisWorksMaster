@@ -93,6 +93,7 @@ namespace NavisHelper.Agent.Contracts
                 { HostCommandNames.RevealSelected, false },
                 { HostCommandNames.IsolateSelected, false },
                 { HostCommandNames.SectionPlanes, false },
+                { HostCommandNames.SectionBox, false },
                 { HostCommandNames.GetCurrentSectionBox, false },
                 { HostCommandNames.IsolateByBox, false },
                 { HostCommandNames.ShowAll, false },

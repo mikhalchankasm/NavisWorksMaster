@@ -60,7 +60,7 @@ public sealed class HostRequestPolicyTests
             .Select(field => (string)field.GetRawConstantValue()!)
             .ToArray();
 
-        Assert.Equal(114, commands.Length);
+        Assert.Equal(115, commands.Length);
         Assert.Equal(
             new[]
             {

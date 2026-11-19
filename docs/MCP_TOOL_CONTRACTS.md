@@ -77,6 +77,18 @@ Output: `apply`, `applied` (true when `createdCount > 0`), `itemCount` (all dist
 
 Example: `viewpoints_per_item(section="plane", planeOffsetMm=100, camera="top", apply=false)` previews names for the selection; repeat with `apply=true` to save.
 
+## section_box
+
+Sets an explicit section box or disables sectioning in the active view. Requires a host and active document, belongs to `sections`, and declares a `View` effect, so it is unavailable in read-only mode. Inputs: `operation="set"` (case-insensitive `set` or `clear`), `box=null`, `min=null`, `max=null`, `apply=false`, plus standard `instanceId` and `navisworksVersion` targeting.
+
+`set` requires exactly one of the canonical `box` returned by `get_current_section_box` or both axis-aligned `min` and `max` vectors. All coordinates use document units; max must be strictly greater than min on every axis. Canonical geometry must pass the existing formatVersion 1, document_global, positive half-extents and right-handed orthonormal axes validation. Its `documentUnits` must match the active document exactly; otherwise `SchemaViolation` reports `box.documentUnits must match the document units.` No unit conversion is performed.
+
+`clear` accepts no box, min or max. It disables clipping by changing only the clipping JSON's `Enabled` field and preserves every other key. Unreadable current clipping is refused without writing.
+
+Output: `operation`, `apply` (requested), `applied` (write completed), `enabled` (planned for dry-run, observed after apply), `box` (planned canonical geometry, null for clear), `readback` (observed canonical geometry after applying set; null for dry-run/clear or unreadable geometry), nullable `readbackMatches`, `message`, `warnings`. Dry-run never writes and leaves `readbackMatches=null`. Apply writes through the active view and reads back: set compares center and half-extents with tolerance 1e-6 times the largest planned half-extent, and axis components within 1e-6; clear verifies sectioning is disabled. A readback mismatch or unsupported geometry reports `readbackMatches=false` with warnings; `applied` remains true because the write completed.
+
+Example: `section_box(operation="set", min={"x":0,"y":0,"z":0}, max={"x":10,"y":20,"z":5})` previews an axis-aligned box. Repeat with `apply=true` to write; `section_box(operation="clear", apply=true)` disables sectioning. Runtime round-trip validation awaits an agreed L3 window.
+
 ## section_planes
 
 Reads, sets or clears section planes through the active view's clipping JSON. Requires a host and an active document; belongs to the `sections` tool set and declares the `View` effect. The section-box tools remain separate.
@@ -199,6 +211,7 @@ Host and document indicate required runtime context. Dry-run means a `bool apply
 | `saved_viewpoints_manage` | Document | Yes | Yes | Yes |
 | `saved_viewpoints_reorder` | Document | Yes | Yes | Yes |
 | `scenario_capabilities` | None | No | No | No |
+| `section_box` | View | Yes | Yes | Yes |
 | `section_box_viewpoint` | View, Document | Yes | Yes | Yes |
 | `section_planes` | View | Yes | Yes | Yes |
 | `select_by_search` | View | Yes | Yes | No |
