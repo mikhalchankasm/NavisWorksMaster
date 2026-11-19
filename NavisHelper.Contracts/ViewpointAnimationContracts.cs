@@ -14,6 +14,7 @@ namespace NavisHelper.Agent.Contracts
         public List<string> Viewpoints { get; set; } = new List<string>();
         public double? HoldSeconds { get; set; }
         public double? PauseSeconds { get; set; }
+        public bool? CutOnClipChange { get; set; }
         public double? StepSeconds { get; set; }
         public bool? Loops { get; set; }
         public string Smoothing { get; set; }
@@ -90,11 +91,22 @@ namespace NavisHelper.Agent.Contracts
         {
             if (names == null || cameraKeys == null || names.Count != cameraKeys.Count)
                 throw new ArgumentException("Names and camera keys must have equal lengths.");
+            return PlanFrames(names, cameraKeys, new bool[names.Count], holdSeconds, pauseSeconds, false);
+        }
+
+        public static List<ViewpointAnimationFrame> PlanFrames(IList<string> names, IList<string> cameraKeys,
+            IList<bool> clipChanged, double holdSeconds, double pauseSeconds, bool cutOnClipChange)
+        {
+            if (names == null || cameraKeys == null || clipChanged == null ||
+                names.Count != cameraKeys.Count || names.Count != clipChanged.Count)
+                throw new ArgumentException("Names, camera keys and clipping changes must have equal lengths.");
             var result = new List<ViewpointAnimationFrame>();
             for (var index = 0; index < names.Count; index++)
             {
                 if (index > 0 && string.Equals(cameraKeys[index - 1], cameraKeys[index], StringComparison.Ordinal))
                     result.Add(new ViewpointAnimationFrame { Kind = "cut", DelaySeconds = pauseSeconds });
+                else if (index > 0 && cutOnClipChange && clipChanged[index])
+                    result.Add(new ViewpointAnimationFrame { Kind = "cut", DelaySeconds = 0 });
                 result.Add(new ViewpointAnimationFrame { Kind = "viewpoint", Source = names[index] });
                 if (holdSeconds > 0 && (index == names.Count - 1 || !string.Equals(cameraKeys[index], cameraKeys[index + 1], StringComparison.Ordinal)))
                 {
