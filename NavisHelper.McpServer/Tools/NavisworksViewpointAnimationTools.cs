@@ -19,6 +19,7 @@ internal sealed class NavisworksViewpointAnimationTools : NavisworksToolBase
         [Description("Ordered saved viewpoint paths or unique names, at most 1000. Use this or sourceFolder.")] List<string> viewpoints = null,
         [Description("Pause at each stop in seconds, 0-3600.")] double holdSeconds = 0,
         [Description("Cut before each consecutive repeated camera in seconds, 0-3600; 0 makes an instant cut.")] double pauseSeconds = 2,
+        [Description("Insert an instant cut when section clipping changes; repeated cameras keep their pause cut.")] bool cutOnClipChange = false,
         [Description("Seconds per move, 0-3600; zero keeps saved speeds. Timing requires L3 validation.")] double stepSeconds = 0,
         [Description("Loop playback when supported by this Navisworks version.")] bool loops = false,
         [Description("none, sync or spline; empty leaves the created default.")] string smoothing = "",
@@ -31,6 +32,7 @@ internal sealed class NavisworksViewpointAnimationTools : NavisworksToolBase
         {
             Action = action, Name = name, FolderPath = folderPath, SourceFolder = sourceFolder, Viewpoints = viewpoints,
             HoldSeconds = holdSeconds, PauseSeconds = pauseSeconds, StepSeconds = stepSeconds,
+            CutOnClipChange = cutOnClipChange,
             Loops = loops, Smoothing = smoothing, Overwrite = overwrite, Apply = apply,
         }, cancellationToken, CreateTarget(instanceId, navisworksVersion));
 }
