@@ -397,6 +397,8 @@ Common values:
 `find_items` contract v2 retains legacy `whole_model + matchDepth=all` behavior
 when the new fields are omitted.
 
+`handlePerCondition=true` requires exactly one `searches` entry with `combineOperator=any`, 2–1000 manually evaluable conditions, `scope=whole_model`, and `countOnly=false`. The search still returns its whole-set handle in `results[0].matches`; `results[0].conditionMatches` adds one row per condition in input order (`conditionIndex`, `value`, `itemCount`, `matchHandle`, null for zero items). Items matching multiple conditions appear in each corresponding handle. `unassignedItemCount` reports matches assigned to no condition, with a warning when positive. The session store keeps the 2000 most recently used handles holding at most 1000000 total item references; adding an entry evicts least recently used handles until both limits fit, but a single oversized entry is retained. A handlePerCondition call whose whole set and condition handles together hold more than 1000000 items is refused with `SchemaViolation` before any condition handle is stored, so no handle in one response evicts another.
+
 Scope inputs:
 
 | Parameter | Default | Notes |

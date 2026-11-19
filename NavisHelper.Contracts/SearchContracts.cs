@@ -18,6 +18,7 @@ namespace NavisHelper.Agent.Contracts
         public string ScopeNodePath { get; set; }
         public string MatchDepth { get; set; }
         public bool? CountOnly { get; set; }
+        public bool? HandlePerCondition { get; set; }
         public bool? Preflight { get; set; }
         public bool? IgnoreCase { get; set; }
         public bool? IgnoreDiacritics { get; set; }
@@ -105,6 +106,16 @@ namespace NavisHelper.Agent.Contracts
         public string Status { get; set; }
         public List<FindItemsMatch> Matches { get; set; } = new List<FindItemsMatch>();
         public List<MatchPreviewItem> Suggestions { get; set; } = new List<MatchPreviewItem>();
+        public List<FindItemsConditionMatch> ConditionMatches { get; set; } = new List<FindItemsConditionMatch>();
+        public int? UnassignedItemCount { get; set; }
+    }
+
+    public sealed class FindItemsConditionMatch
+    {
+        public int ConditionIndex { get; set; }
+        public string Value { get; set; }
+        public int ItemCount { get; set; }
+        public string MatchHandle { get; set; }
     }
 
     public sealed class FindItemsMatch
