@@ -457,6 +457,12 @@ namespace NavisHelper.Agent.Host
             DeserializePayload<IsolateSelectedRequest>,
             (document, request) => _commandService.IsolateSelected(document, request));
 
+        router.Register<SectionBoxRequest>(
+            HostCommandNames.SectionBox,
+            true,
+            DeserializePayload<SectionBoxRequest>,
+            (document, request) => _sectionBoxService.Execute(document, request));
+
         router.Register<SectionPlanesRequest>(
             HostCommandNames.SectionPlanes,
             true,

@@ -53,6 +53,7 @@ namespace NavisHelper.Agent.Host
         private readonly ViewpointAnimationService _viewpointAnimationService = new ViewpointAnimationService();
         private readonly ViewpointAnimationExportService _viewpointAnimationExportService = new ViewpointAnimationExportService();
         private readonly SectionPlanesService _sectionPlanesService = new SectionPlanesService();
+        private readonly SectionBoxService _sectionBoxService = new SectionBoxService();
         private readonly SectionBoxCaptureService _sectionBoxCaptureService = new SectionBoxCaptureService();
         private readonly BoxIsolationService _boxIsolationService = new BoxIsolationService();
         private readonly ClashTestsFromSetsService _clashTestsFromSetsService = new ClashTestsFromSetsService();

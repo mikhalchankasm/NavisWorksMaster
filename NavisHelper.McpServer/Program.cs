@@ -56,6 +56,7 @@ builder.Services
     .WithTools<NavisworksWorldMarkerTools>()
     .WithTools<NavisworksSectionBoxTools>()
     .WithTools<NavisworksSectionPlanesTools>()
+    .WithTools<NavisworksSectionBoxWriteTools>()
     .WithTools<NavisworksItemViewpointTools>()
     .WithTools<NavisworksViewpointAnimationTools>()
     .WithTools<NavisworksViewpointAnimationExportTools>()
