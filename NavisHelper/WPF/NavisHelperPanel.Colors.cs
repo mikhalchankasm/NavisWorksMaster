@@ -1090,10 +1090,16 @@ namespace NavisHelper.WPF
                 }
 
                 var parts = _matchColorRgb.Split(',');
+                if (parts.Length < 3 ||
+                    !double.TryParse(parts[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double r) ||
+                    !double.TryParse(parts[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double g) ||
+                    !double.TryParse(parts[2].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double b))
+                    return;
+
                 var nwColor = new NwColor(
-                    double.Parse(parts[0]) / 255.0,
-                    double.Parse(parts[1]) / 255.0,
-                    double.Parse(parts[2]) / 255.0
+                    Math.Max(0.0, Math.Min(1.0, r / 255.0)),
+                    Math.Max(0.0, Math.Min(1.0, g / 255.0)),
+                    Math.Max(0.0, Math.Min(1.0, b / 255.0))
                 );
 
                 doc.Models.OverridePermanentColor(sel, nwColor);

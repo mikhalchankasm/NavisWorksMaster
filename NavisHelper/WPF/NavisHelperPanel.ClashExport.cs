@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -58,11 +59,11 @@ namespace NavisHelper.WPF
                           $"<markup>\n" +
                           $"  <topic>\n" +
                           $"    <title>{EncodeXml(name)}</title>\n" +
-                          $"    <description>Point: {cx:F6}, {cy:F6}, {cz:F6}; raw clashes: {clashes.Count}</description>\n" +
+                          FormattableString.Invariant($"    <description>Point: {cx:F6}, {cy:F6}, {cz:F6}; raw clashes: {clashes.Count}</description>\n") +
                           $"    <labels>\n" +
                           $"      <label>Clash</label>\n" +
                           $"    </labels>\n" +
-                          $"    <creationDate>{DateTime.Now:yyyy-MM-ddTHH:mm:ss}</creationDate>\n" +
+                          FormattableString.Invariant($"    <creationDate>{DateTime.Now:yyyy-MM-ddTHH:mm:ss}</creationDate>\n") +
                           $"  </topic>\n" +
                           $"  <properties>\n" +
                           $"    <itemA>{EncodeXml(itemA)}</itemA>\n" +

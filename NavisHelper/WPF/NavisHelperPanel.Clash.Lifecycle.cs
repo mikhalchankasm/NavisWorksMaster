@@ -823,8 +823,15 @@ namespace NavisHelper.WPF
                     SelectionPlaneTool.Hide();
 
                 double radius = 10;
-                if (_clashMarkerSizeText != null && !double.TryParse(_clashMarkerSizeText.Text, out radius))
-                    radius = 10;
+                if (_clashMarkerSizeText != null)
+                {
+                    var text = (_clashMarkerSizeText.Text ?? string.Empty).Trim();
+                    var parsed =
+                        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out radius) ||
+                        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out radius);
+                    if (!parsed || double.IsNaN(radius) || double.IsInfinity(radius))
+                        radius = 10;
+                }
 
                 if (radius < 1) radius = 1;
                 if (radius > 30) radius = 30;

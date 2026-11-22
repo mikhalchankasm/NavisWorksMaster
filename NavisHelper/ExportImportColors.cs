@@ -22,6 +22,7 @@ namespace NavisHelper
     {
         public static string Show(string title, string initialPath = null)
         {
+            using (var uiFont = new Font("Segoe UI", 9f))
             using (var form = new Form
             {
                 Text = title,
@@ -41,7 +42,7 @@ namespace NavisHelper
                     Dock = DockStyle.Top,
                     Height = 22,
                     Padding = new Padding(8, 4, 0, 0),
-                    Font = new Font("Segoe UI", 9f)
+                    Font = uiFont
                 };
 
                 var textBox = new TextBox
@@ -50,7 +51,7 @@ namespace NavisHelper
                     Text = initialPath ?? "",
                     Dock = DockStyle.Top,
                     Height = 24,
-                    Font = new Font("Segoe UI", 9f)
+                    Font = uiFont
                 };
                 textBox.Margin = new Padding(8, 0, 8, 0);
 
@@ -82,15 +83,17 @@ namespace NavisHelper
 
                 btnBrowse.Click += (s, e) =>
                 {
-                    var dlg = new FolderBrowserDialog
+                    using (var dlg = new FolderBrowserDialog
                     {
                         Description = title,
                         ShowNewFolderButton = true
-                    };
-                    if (!string.IsNullOrEmpty(textBox.Text) && Directory.Exists(textBox.Text))
-                        dlg.SelectedPath = textBox.Text;
-                    if (dlg.ShowDialog() == DialogResult.OK)
-                        textBox.Text = dlg.SelectedPath;
+                    })
+                    {
+                        if (!string.IsNullOrEmpty(textBox.Text) && Directory.Exists(textBox.Text))
+                            dlg.SelectedPath = textBox.Text;
+                        if (dlg.ShowDialog() == DialogResult.OK)
+                            textBox.Text = dlg.SelectedPath;
+                    }
                 };
 
                 btnPanel.Controls.Add(btnOk);
@@ -106,6 +109,8 @@ namespace NavisHelper
                 if (form.ShowDialog() == DialogResult.OK)
                 {
                     string path = textBox.Text.Trim().Trim('"');
+                    if (string.IsNullOrWhiteSpace(path))
+                        return null;
                     if (Directory.Exists(path))
                         return path;
 
@@ -145,6 +150,8 @@ namespace NavisHelper
             {
                 interactiveBusy = NavisHelper.Agent.AgentRuntime.BeginInteractiveOperation("Export colors");
                 var doc = Application.ActiveDocument;
+                if (doc == null || doc.CurrentSelection == null)
+                    return 0;
                 var selection = doc.CurrentSelection.SelectedItems;
 
                 if (selection.Count == 0)
@@ -470,6 +477,9 @@ namespace NavisHelper
                 ShowInTaskbar = false
             };
 
+            var labelFont = new Font("Segoe UI", 9f);
+            form.Disposed += (s, e) => labelFont.Dispose();
+
             var label = new Label
             {
                 Name = "progressLabel",
@@ -478,7 +488,7 @@ namespace NavisHelper
                 Height = 30,
                 TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
                 Padding = new Padding(10, 5, 10, 0),
-                Font = new Font("Segoe UI", 9f)
+                Font = labelFont
             };
 
             var bar = new ProgressBar
@@ -513,6 +523,8 @@ namespace NavisHelper
             {
                 interactiveBusy = NavisHelper.Agent.AgentRuntime.BeginInteractiveOperation("Import colors");
                 var doc = Application.ActiveDocument;
+                if (doc == null || doc.CurrentSelection == null)
+                    return 0;
                 var selection = doc.CurrentSelection.SelectedItems;
 
                 if (selection.Count == 0)

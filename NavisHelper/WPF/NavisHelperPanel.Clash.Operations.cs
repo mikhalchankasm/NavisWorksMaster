@@ -745,7 +745,7 @@ namespace NavisHelper.WPF
                 new[] { typeof(int) },
                 null);
             if (oneArgumentRemove == null)
-                throw removeError;
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(removeError).Throw();
 
             oneArgumentRemove.Invoke(testsData, new object[] { location.Index });
         }

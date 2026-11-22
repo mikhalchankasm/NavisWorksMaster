@@ -1094,7 +1094,7 @@ namespace NavisHelper.Agent.Services
 
             try
             {
-                return Convert.ToDouble(value);
+                return Convert.ToDouble(value, CultureInfo.InvariantCulture);
             }
             catch
             {

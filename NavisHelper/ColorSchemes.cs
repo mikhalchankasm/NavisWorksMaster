@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace NavisHelper
@@ -58,13 +59,14 @@ namespace NavisHelper
     public static class ColorSchemes
     {
         private static readonly Random _random = new Random();
+        private static readonly object _randomLock = new object();
 
         /// <summary>
         /// Получить описание всех схем для отображения пользователю
         /// </summary>
         public static string GetSchemesDescription()
         {
-            return @"Выберите цветовую схему (1-10):
+            return @"Выберите цветовую схему (1-14):
 
 1. Grayscale     - Оттенки серого
 2. Gray+Pastel   - Серый + пастельные тона
@@ -133,8 +135,8 @@ namespace NavisHelper
             // Используем hash имени для консистентного выбора цвета
             int hash = GetStableHash(objectName);
             
-            // Выбираем базовый цвет из палитры
-            int paletteIndex = Math.Abs(hash) % palette.Length;
+            // Выбираем базовый цвет из палитры (маска исключает OverflowException при int.MinValue)
+            int paletteIndex = (hash & int.MaxValue) % palette.Length;
             string baseColor = palette[paletteIndex];
             
             // Добавляем небольшую вариацию для различимости
@@ -398,10 +400,14 @@ namespace NavisHelper
         /// </summary>
         private static string GenerateRandomColor()
         {
-            int r = _random.Next(50, 256);
-            int g = _random.Next(50, 256);
-            int b = _random.Next(50, 256);
-            return $"{r},{g},{b}";
+            int r, g, b;
+            lock (_randomLock)
+            {
+                r = _random.Next(50, 256);
+                g = _random.Next(50, 256);
+                b = _random.Next(50, 256);
+            }
+            return string.Format(CultureInfo.InvariantCulture, "{0},{1},{2}", r, g, b);
         }
 
         /// <summary>
@@ -437,9 +443,9 @@ namespace NavisHelper
                 if (parts.Length != 3)
                     return baseColor;
 
-                int r = int.Parse(parts[0]);
-                int g = int.Parse(parts[1]);
-                int b = int.Parse(parts[2]);
+                int r = int.Parse(parts[0], CultureInfo.InvariantCulture);
+                int g = int.Parse(parts[1], CultureInfo.InvariantCulture);
+                int b = int.Parse(parts[2], CultureInfo.InvariantCulture);
 
                 // Вариация ±15 в зависимости от индекса
                 int variation = (index * 7) % 31 - 15;
@@ -448,7 +454,7 @@ namespace NavisHelper
                 g = Math.Max(0, Math.Min(255, g + variation / 2));
                 b = Math.Max(0, Math.Min(255, b - variation / 2));
 
-                return $"{r},{g},{b}";
+                return string.Format(CultureInfo.InvariantCulture, "{0},{1},{2}", r, g, b);
             }
             catch
             {
@@ -469,9 +475,9 @@ namespace NavisHelper
             if (string.IsNullOrWhiteSpace(input))
                 return false;
 
-            if (int.TryParse(input.Trim(), out int number))
+            if (int.TryParse(input.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int number))
             {
-                if (number >= 1 && number <= 10)
+                if (Enum.IsDefined(typeof(ColorSchemeType), number))
                 {
                     scheme = (ColorSchemeType)number;
                     return true;

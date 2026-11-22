@@ -1,7 +1,10 @@
 using System;
 using System.Globalization;
+using System.IO;
 using System.Reflection;
 using Autodesk.Navisworks.Api;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Application = Autodesk.Navisworks.Api.Application;
 
 namespace NavisHelper.Core
@@ -25,23 +28,29 @@ namespace NavisHelper.Core
         /// </summary>
         public static void SetSectionBox(BoundingBox3D box)
         {
+            if (box == null) return;
+            var view = Application.ActiveDocument?.ActiveView;
+            if (view == null) return;
+
             var c = CultureInfo.InvariantCulture;
 
             // Пробуем сохранить текущий rotation если есть
             string rotation = "0,0,0";
             try
             {
-                var view = Application.ActiveDocument.ActiveView;
                 string current = view.GetClippingPlanes();
                 if (!string.IsNullOrEmpty(current))
                 {
-                    int rotIdx = current.IndexOf("\"Rotation\"");
+                    int rotIdx = current.IndexOf("\"Rotation\"", StringComparison.Ordinal);
                     if (rotIdx >= 0)
                     {
-                        int rotStart = current.IndexOf("[", rotIdx);
-                        int rotEnd = current.IndexOf("]", rotStart);
-                        if (rotStart >= 0 && rotEnd > rotStart)
-                            rotation = current.Substring(rotStart + 1, rotEnd - rotStart - 1);
+                        int rotStart = current.IndexOf("[", rotIdx, StringComparison.Ordinal);
+                        if (rotStart >= 0)
+                        {
+                            int rotEnd = current.IndexOf("]", rotStart, StringComparison.Ordinal);
+                            if (rotEnd > rotStart)
+                                rotation = current.Substring(rotStart + 1, rotEnd - rotStart - 1);
+                        }
                     }
                 }
             }
@@ -96,16 +105,20 @@ namespace NavisHelper.Core
         {
             try
             {
-                var view = Application.ActiveDocument.ActiveView;
+                var view = Application.ActiveDocument?.ActiveView;
+                if (view == null) return;
                 string json = view.GetClippingPlanes();
                 if (string.IsNullOrEmpty(json)) return;
 
-                // Если уже отключён — ничего не делаем
-                if (!json.Contains("\"Enabled\":true")) return;
+                JObject root;
+                using (var reader = new JsonTextReader(new StringReader(json)) { DateParseHandling = DateParseHandling.None })
+                    root = JObject.Load(reader);
 
-                // Заменяем Enabled:true на Enabled:false
-                string disabled = json.Replace("\"Enabled\":true", "\"Enabled\":false");
-                ApplyClippingPlanes(disabled);
+                if (root["Enabled"]?.Type != JTokenType.Boolean || !root["Enabled"].Value<bool>())
+                    return;
+
+                root["Enabled"] = false;
+                ApplyClippingPlanes(root.ToString(Formatting.None));
             }
             catch (Exception ex)
             {
@@ -128,7 +141,8 @@ namespace NavisHelper.Core
 
         private static void ApplyClippingPlanes(string json)
         {
-            var view = Application.ActiveDocument.ActiveView;
+            var view = Application.ActiveDocument?.ActiveView;
+            if (view == null) return;
             if (!view.TrySetClippingPlanes(json))
                 view.SetClippingPlanes(json);
             view.RequestDelayedRedraw(ViewRedrawRequests.All);
@@ -139,7 +153,9 @@ namespace NavisHelper.Core
         {
             try
             {
-                var units = Application.ActiveDocument.Units;
+                var doc = Application.ActiveDocument;
+                if (doc == null) return mm / 1000.0;
+                var units = doc.Units;
                 switch (units)
                 {
                     case Units.Centimeters: return mm / 10.0;
@@ -162,18 +178,20 @@ namespace NavisHelper.Core
 
         private static void ExpandViaClippingPlanes(double offsetMm)
         {
-            var view = Application.ActiveDocument.ActiveView;
+            var view = Application.ActiveDocument?.ActiveView;
+            if (view == null) return;
             double offsetUnits = MmToDocUnits(offsetMm);
 
             string json = view.GetClippingPlanes();
             if (string.IsNullOrEmpty(json)) return;
 
-            int boxIdx = json.IndexOf("\"Box\"");
+            int boxIdx = json.IndexOf("\"Box\"", StringComparison.Ordinal);
             if (boxIdx < 0) return;
 
-            int firstBracket = json.IndexOf("[[", boxIdx);
-            int lastBracket = json.IndexOf("]]", firstBracket);
-            if (firstBracket < 0 || lastBracket < 0) return;
+            int firstBracket = json.IndexOf("[[", boxIdx, StringComparison.Ordinal);
+            if (firstBracket < 0) return;
+            int lastBracket = json.IndexOf("]]", firstBracket, StringComparison.Ordinal);
+            if (lastBracket <= firstBracket) return;
 
             string boxStr = json.Substring(firstBracket + 2, lastBracket - firstBracket - 2);
             string[] halves = boxStr.Split(new[] { "],[" }, StringSplitOptions.None);
@@ -184,12 +202,20 @@ namespace NavisHelper.Core
             string[] maxP = halves[1].Split(',');
             if (minP.Length != 3 || maxP.Length != 3) return;
 
-            double minX = double.Parse(minP[0], c) - offsetUnits;
-            double minY = double.Parse(minP[1], c) - offsetUnits;
-            double minZ = double.Parse(minP[2], c) - offsetUnits;
-            double maxX = double.Parse(maxP[0], c) + offsetUnits;
-            double maxY = double.Parse(maxP[1], c) + offsetUnits;
-            double maxZ = double.Parse(maxP[2], c) + offsetUnits;
+            if (!double.TryParse(minP[0], NumberStyles.Float, c, out double minX) ||
+                !double.TryParse(minP[1], NumberStyles.Float, c, out double minY) ||
+                !double.TryParse(minP[2], NumberStyles.Float, c, out double minZ) ||
+                !double.TryParse(maxP[0], NumberStyles.Float, c, out double maxX) ||
+                !double.TryParse(maxP[1], NumberStyles.Float, c, out double maxY) ||
+                !double.TryParse(maxP[2], NumberStyles.Float, c, out double maxZ))
+                return;
+
+            minX -= offsetUnits;
+            minY -= offsetUnits;
+            minZ -= offsetUnits;
+            maxX += offsetUnits;
+            maxY += offsetUnits;
+            maxZ += offsetUnits;
 
             string newBox = string.Format(c, "[[{0},{1},{2}],[{3},{4},{5}]]",
                 minX, minY, minZ, maxX, maxY, maxZ);
