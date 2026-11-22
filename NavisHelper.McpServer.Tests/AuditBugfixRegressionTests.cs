@@ -88,6 +88,8 @@ public sealed class AuditBugfixRegressionTests
             source.IndexOf("json.IndexOf(\"]]\", firstBracket", StringComparison.Ordinal));
 
         Assert.Contains("JObject.Load(reader)", source, StringComparison.Ordinal);
+        Assert.Contains("root[\"Enabled\"] = false;", source, StringComparison.Ordinal);
+        Assert.Contains("ApplyClippingPlanes(root.ToString(Formatting.None));", source, StringComparison.Ordinal);
         Assert.DoesNotContain("json.Replace(\"\\\"Enabled\\\":true\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Application.ActiveDocument.ActiveView", source, StringComparison.Ordinal);
     }

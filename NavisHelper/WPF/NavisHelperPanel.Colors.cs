@@ -1093,7 +1093,10 @@ namespace NavisHelper.WPF
                 if (parts.Length < 3 ||
                     !double.TryParse(parts[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double r) ||
                     !double.TryParse(parts[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double g) ||
-                    !double.TryParse(parts[2].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double b))
+                    !double.TryParse(parts[2].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double b) ||
+                    double.IsNaN(r) || double.IsInfinity(r) ||
+                    double.IsNaN(g) || double.IsInfinity(g) ||
+                    double.IsNaN(b) || double.IsInfinity(b))
                     return;
 
                 var nwColor = new NwColor(

@@ -135,8 +135,8 @@ namespace NavisHelper
             // Используем hash имени для консистентного выбора цвета
             int hash = GetStableHash(objectName);
             
-            // Выбираем базовый цвет из палитры (маска исключает OverflowException при int.MinValue)
-            int paletteIndex = (hash & int.MaxValue) % palette.Length;
+            // Выбираем базовый цвет из палитры (long исключает OverflowException при int.MinValue без смены индексов)
+            int paletteIndex = (int)(Math.Abs((long)hash) % palette.Length);
             string baseColor = palette[paletteIndex];
             
             // Добавляем небольшую вариацию для различимости
