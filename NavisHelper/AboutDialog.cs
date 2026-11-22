@@ -1,5 +1,6 @@
 using Autodesk.Navisworks.Api.Plugins;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
@@ -139,9 +140,29 @@ namespace NavisHelper
     /// </summary>
     public class AboutForm : Form
     {
+        private readonly List<Font> _ownedFonts = new List<Font>();
+
         public AboutForm()
         {
             InitializeComponents();
+        }
+
+        private Font CreateOwnedFont(string family, float size, FontStyle style = FontStyle.Regular)
+        {
+            var font = new Font(family, size, style);
+            _ownedFonts.Add(font);
+            return font;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                foreach (var font in _ownedFonts)
+                    font.Dispose();
+                _ownedFonts.Clear();
+            }
+            base.Dispose(disposing);
         }
 
         private void InitializeComponents()
@@ -157,13 +178,15 @@ namespace NavisHelper
             this.MinimizeBox = false;
             this.BackColor = Color.White;
 
+            var smallFont = CreateOwnedFont("Segoe UI", 9);
+
             // Заголовок
             var titleLabel = new Label
             {
                 Text = AppVersion.ProductName,
                 Location = new Point(20, 20),
                 Size = new Size(400, 40),
-                Font = new Font("Segoe UI", 20, FontStyle.Bold),
+                Font = CreateOwnedFont("Segoe UI", 20, FontStyle.Bold),
                 ForeColor = Color.FromArgb(51, 51, 51)
             };
             this.Controls.Add(titleLabel);
@@ -174,7 +197,7 @@ namespace NavisHelper
                 Text = localization.Format("AboutVersionFormat", AppVersion.VersionString),
                 Location = new Point(20, 65),
                 Size = new Size(400, 25),
-                Font = new Font("Segoe UI", 12),
+                Font = CreateOwnedFont("Segoe UI", 12),
                 ForeColor = Color.FromArgb(100, 100, 100)
             };
             this.Controls.Add(versionLabel);
@@ -194,7 +217,7 @@ namespace NavisHelper
                 Text = localization.GetString("AboutDescription"),
                 Location = new Point(20, 115),
                 Size = new Size(395, 25),
-                Font = new Font("Segoe UI", 10),
+                Font = CreateOwnedFont("Segoe UI", 10),
                 ForeColor = Color.FromArgb(80, 80, 80)
             };
             this.Controls.Add(descLabel);
@@ -205,7 +228,7 @@ namespace NavisHelper
                 Text = localization.GetString("AboutFeatures"),
                 Location = new Point(20, 145),
                 Size = new Size(395, 100),
-                Font = new Font("Segoe UI", 9),
+                Font = smallFont,
                 ForeColor = Color.FromArgb(60, 60, 60)
             };
             this.Controls.Add(featuresLabel);
@@ -216,7 +239,7 @@ namespace NavisHelper
                 Text = AppVersion.Copyright,
                 Location = new Point(20, 250),
                 Size = new Size(200, 20),
-                Font = new Font("Segoe UI", 9),
+                Font = smallFont,
                 ForeColor = Color.FromArgb(120, 120, 120)
             };
             this.Controls.Add(copyrightLabel);
@@ -227,7 +250,7 @@ namespace NavisHelper
                 Text = AppVersion.Company,
                 Location = new Point(20, 270),
                 Size = new Size(200, 20),
-                Font = new Font("Segoe UI", 9),
+                Font = smallFont,
                 ForeColor = Color.FromArgb(120, 120, 120)
             };
             this.Controls.Add(companyLabel);
