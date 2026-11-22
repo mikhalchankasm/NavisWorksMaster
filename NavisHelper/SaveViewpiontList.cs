@@ -22,15 +22,13 @@ namespace NavisHelper
 
                 if (doc == null)
                 {
-                    Logger.Error("Документ не загружен. Пожалуйста, откройте документ Navisworks.", "SaveViewpiontListPlugin");
-                    Logger.Info("Документ не загружен. Пожалуйста, откройте документ Navisworks.", "SaveViewpiontListPlugin");
+                    ShowError("Документ не загружен. Пожалуйста, откройте документ Navisworks.");
                     return -1;
                 }
 
                 if (string.IsNullOrEmpty(doc.FileName))
                 {
-                    Logger.Error("Документ не сохранен. Пожалуйста, сохраните документ перед выполнением операции.", "SaveViewpiontListPlugin");
-                    Logger.Info("Документ не сохранен. Пожалуйста, сохраните документ перед выполнением операции.", "SaveViewpiontListPlugin");
+                    ShowError("Документ не сохранен. Пожалуйста, сохраните документ перед выполнением операции.");
                     return -1;
                 }
 
@@ -39,8 +37,7 @@ namespace NavisHelper
 
                 if (viewpoints.Count == 0)
                 {
-                    Logger.Info("В документе не найдены точки обзора.", "SaveViewpiontListPlugin");
-                    Logger.Info("В документе не найдены точки обзора.", "SaveViewpiontListPlugin");
+                    ShowWarning("В документе не найдены точки обзора.");
                     return 0;
                 }
 
@@ -52,8 +49,7 @@ namespace NavisHelper
             }
             catch (Exception ex)
             {
-                Logger.Error($"Произошла непредвиденная ошибка: {ex.Message}", "SaveViewpiontListPlugin");
-                Logger.Info($"Ошибка: {ex.Message}", "SaveViewpiontListPlugin");
+                ShowError($"Произошла непредвиденная ошибка: {ex.Message}");
                 return -1;
             }
         }
@@ -61,26 +57,31 @@ namespace NavisHelper
         private List<string> GetViewpoints(Document doc)
         {
             var list = new List<string>();
-            var document = doc.ActiveView.Document;
+            var document = doc?.ActiveView?.Document ?? doc;
 
             if (document?.SavedViewpoints?.Value == null)
                 return list;
 
-            foreach (var savedItem in document.SavedViewpoints.Value)
+            CollectViewpointNames(document.SavedViewpoints.Value, list);
+            return list;
+        }
+
+        private static void CollectViewpointNames(SavedItemCollection items, List<string> list)
+        {
+            if (items == null)
+                return;
+
+            foreach (var savedItem in items)
             {
-                if (savedItem is FolderItem folderItem)
+                if (savedItem is GroupItem groupItem)
                 {
-                    foreach (var svp in folderItem.Children)
-                    {
-                        if (!string.IsNullOrEmpty(svp.DisplayName))
-                        {
-                            list.Add(svp.DisplayName);
-                        }
-                    }
+                    CollectViewpointNames(groupItem.Children, list);
+                }
+                else if (savedItem != null && !string.IsNullOrEmpty(savedItem.DisplayName))
+                {
+                    list.Add(savedItem.DisplayName);
                 }
             }
-
-            return list;
         }
 
         private string SaveViewpointsToFile(string nwdFilePath, List<string> viewpoints)
@@ -115,18 +116,15 @@ namespace NavisHelper
         private void ShowError(string message)
         {
             Logger.Error(message, "SaveViewpiontListPlugin");
-            Logger.Info(message, "SaveViewpiontListPlugin");
         }
 
         private void ShowWarning(string message)
         {
-            Logger.Info(message, "SaveViewpiontListPlugin");
-            Logger.Info(message, "SaveViewpiontListPlugin");
+            Logger.Warn(message, "SaveViewpiontListPlugin");
         }
 
         private void ShowSuccess(string message)
         {
-            Logger.Info(message, "SaveViewpiontListPlugin");
             Logger.Info(message, "SaveViewpiontListPlugin");
         }
     }
