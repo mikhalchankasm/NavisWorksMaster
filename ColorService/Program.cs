@@ -292,6 +292,18 @@ namespace ColorService
                         case 't': sb.Append('\t'); break;
                         case 'b': sb.Append('\b'); break;
                         case 'f': sb.Append('\f'); break;
+                        case 'u':
+                            if (i + 4 < value.Length &&
+                                ushort.TryParse(value.Substring(i + 1, 4), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out ushort codeUnit))
+                            {
+                                sb.Append((char)codeUnit);
+                                i += 4;
+                            }
+                            else
+                            {
+                                sb.Append("\\u");
+                            }
+                            break;
                         default: sb.Append('\\').Append(next); break;
                     }
                 }

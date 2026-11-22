@@ -104,7 +104,10 @@ namespace NavisHelper
                     {
                         var elementName = (string)element.Attribute("Name");
                         if (string.IsNullOrEmpty(elementName))
+                        {
+                            Logger.Warn($"Пропущен элемент <{element.Name.LocalName}> без атрибута Name в pspool '{(string)el.Attribute("Name") ?? string.Empty}'.", "ImportPslists");
                             continue;
+                        }
                         var find = FindModelItem(elementName);
                         if (find != null)
                             col.Add(find);

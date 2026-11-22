@@ -23,7 +23,7 @@ public sealed class LegacyPluginHardeningTests
         Assert.DoesNotContain("DisplayName = \"Override PDMS colors\"", hideItems, StringComparison.Ordinal);
 
         var colorsByName = ReadRepoFile("NavisHelper/ColorsByName.cs");
-        Assert.Contains("var doc = Application.ActiveDocument;", colorsByName, StringComparison.Ordinal);
+        Assert.Contains("var doc = Application.ActiveDocument;\r\n            if (doc == null)", colorsByName.Replace("\r\n", "\n").Replace("\n", "\r\n"), StringComparison.Ordinal);
 
         var about = ReadRepoFile("NavisHelper/AboutDialog.cs");
         Assert.Contains("protected override void Dispose(bool disposing)", about, StringComparison.Ordinal);
