@@ -12,6 +12,8 @@ namespace NavisHelper
     {
         private static Form _panelForm;
         private static UiLocalizationBindingRegistry _localizationBindings;
+        private static Font _panelFont;
+        private static Font _groupHeaderFont;
 
         public override int Execute(params string[] parameters)
         {
@@ -21,6 +23,8 @@ namespace NavisHelper
                 return 0;
             }
 
+            _panelFont = new Font("Segoe UI", 9f);
+            _groupHeaderFont = new Font("Segoe UI", 10f, FontStyle.Bold);
             _panelForm = new Form
             {
                 Text = "NavisHelper",
@@ -30,7 +34,7 @@ namespace NavisHelper
                 FormBorderStyle = FormBorderStyle.SizableToolWindow,
                 TopMost = true,
                 ShowInTaskbar = false,
-                Font = new Font("Segoe UI", 9f)
+                Font = _panelFont
             };
             _localizationBindings = new UiLocalizationBindingRegistry();
             _panelForm.FormClosed += OnPanelFormClosed;
@@ -120,7 +124,7 @@ namespace NavisHelper
         {
             var label = new Label
             {
-                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Font = _groupHeaderFont,
                 ForeColor = Color.FromArgb(0x33, 0x33, 0x33),
                 AutoSize = true,
                 Margin = new Padding(0, 6, 0, 4)
@@ -173,6 +177,10 @@ namespace NavisHelper
             _localizationBindings?.Dispose();
             _localizationBindings = null;
             _panelForm = null;
+            _panelFont?.Dispose();
+            _panelFont = null;
+            _groupHeaderFont?.Dispose();
+            _groupHeaderFont = null;
         }
 
         private static void BindControlText(Control control, string resourceKey)

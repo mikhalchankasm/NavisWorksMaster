@@ -15,7 +15,7 @@ namespace NavisHelper
         "CBC", //Developer ID or GUID
                //ToolTip = "Add Custom Properties to Model Item",
                //The tooltip for the item in the ribbon
-        DisplayName = "Override PDMS colors")]
+        DisplayName = "Hide Items")]
     [AddInPlugin(AddInLocation.None)]
     public class HideItems : AddInPlugin
     {
@@ -23,7 +23,10 @@ namespace NavisHelper
         {
             try
             {
-                if (parameters.Count() < 1)
+                if (parameters == null || parameters.Length < 1)
+                    return -1;
+                var doc = Application.ActiveDocument;
+                if (doc == null)
                     return -1;
                 var filename = parameters[0];
                 if (!File.Exists(filename))
@@ -35,20 +38,22 @@ namespace NavisHelper
 
                 foreach (var name in names)
                 {
+                    if (string.IsNullOrWhiteSpace(name))
+                        continue;
                     oS.Clear();
                     oS.SearchConditions.Add(SearchCondition.HasPropertyByDisplayName("Item", "Name").EqualValue(VariantData.FromDisplayString(name)));
                     oS.Selection.SelectAll();
-                    var findItems = oS.FindAll(Application.ActiveDocument, false);
+                    var findItems = oS.FindAll(doc, false);
                     if (findItems.Count > 0)
                     {
-                        Application.ActiveDocument.Models.SetHidden(findItems, true);
+                        doc.Models.SetHidden(findItems, true);
                     }
                 }
             }
             catch (Exception ex)
             {
                 Logger.Error($"Ошибка: {ex.Message}\n{ex.StackTrace}", "HideItems");
-                return 0;
+                return -1;
             }
 
             return 0;

@@ -13,15 +13,20 @@ namespace NavisHelper
     {
         public static ModelItemCollection GetSelection()
         {
-            return new ModelItemCollection(
-                Autodesk.Navisworks.Api.Application.ActiveDocument.CurrentSelection.SelectedItems);
+            var selected = Autodesk.Navisworks.Api.Application.ActiveDocument?.CurrentSelection?.SelectedItems;
+            return selected == null
+                ? new ModelItemCollection()
+                : new ModelItemCollection(selected);
         }
 
         public static void SetSelection(IEnumerable<ModelItem> items)
         {
+            if (items == null) return;
             var list = items as List<ModelItem> ?? items.ToList();
             if (list.Count == 0) return;
-            Autodesk.Navisworks.Api.Application.ActiveDocument.CurrentSelection.CopyFrom(list);
+            var selection = Autodesk.Navisworks.Api.Application.ActiveDocument?.CurrentSelection;
+            if (selection == null) return;
+            selection.CopyFrom(list);
         }
 
         public static void SelectParents()

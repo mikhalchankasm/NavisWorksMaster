@@ -276,15 +276,16 @@ namespace NavisHelper.Dev
 
         private static string RequestInputFilePath()
         {
-            var dialog = new OpenFileDialog
+            using (var dialog = new OpenFileDialog
             {
                 Filter = "Текстовые файлы (*.txt)|*.txt|Все файлы (*.*)|*.*",
                 Title = "Выберите файл со списком имён для clash-матрицы"
-            };
-
-            return dialog.ShowDialog() == DialogResult.OK
-                ? dialog.FileName
-                : null;
+            })
+            {
+                return dialog.ShowDialog() == DialogResult.OK
+                    ? dialog.FileName
+                    : null;
+            }
         }
 
         private static List<string> ReadRequestedNames(string filePath)

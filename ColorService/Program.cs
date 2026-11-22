@@ -64,6 +64,11 @@ namespace ColorService
             }
         }
 
+        static readonly HttpClient SharedHttpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(60)
+        };
+
         // Маппинг коротких имён → полные ID моделей OpenRouter
         static readonly Dictionary<string, string> ModelMap = new Dictionary<string, string>
         {
@@ -97,17 +102,11 @@ namespace ColorService
 
             try
             {
-                using (var client = new HttpClient())
-                {
-                    client.Timeout = TimeSpan.FromSeconds(60);
-                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
-                    client.DefaultRequestHeaders.Add("User-Agent", "NavisHelper-ColorService/2.0");
+                var fullModelId = GetFullModelId(modelName);
+                var useThinking = enableThinking && ThinkingModels.Contains(modelName);
 
-                    var fullModelId = GetFullModelId(modelName);
-                    var useThinking = enableThinking && ThinkingModels.Contains(modelName);
-
-                    var namesList = string.Join("\n", objectNames);
-                    var prompt = $@"Ты — эксперт по цветовому оформлению 3D BIM-моделей (Navisworks).
+                var namesList = string.Join("\n", objectNames);
+                var prompt = $@"Ты — эксперт по цветовому оформлению 3D BIM-моделей (Navisworks).
 
 ЗАДАЧА: подобрать RGB-цвета для списка объектов строительной модели.
 
@@ -172,45 +171,50 @@ namespace ColorService
 
 Где R, G, B — целые числа от 0 до 255. Верни цвет для КАЖДОГО объекта из списка выше.";
 
-                    var escapedPrompt = EscapeJsonString(prompt);
+                var escapedPrompt = EscapeJsonString(prompt);
 
-                    string requestBody;
-                    if (useThinking)
+                string requestBody;
+                if (useThinking)
+                {
+                    requestBody = $"{{\"model\":\"{fullModelId}\",\"messages\":[{{\"role\":\"user\",\"content\":\"{escapedPrompt}\"}}],\"max_tokens\":14000,\"thinking\":{{\"type\":\"enabled\",\"budget_tokens\":10240}}}}";
+                    Console.WriteLine($"📡 Отправляем запрос к OpenRouter (thinking ON)...");
+                }
+                else
+                {
+                    requestBody = $"{{\"model\":\"{fullModelId}\",\"messages\":[{{\"role\":\"user\",\"content\":\"{escapedPrompt}\"}}],\"temperature\":0.3,\"max_tokens\":2000}}";
+                    Console.WriteLine($"📡 Отправляем запрос к OpenRouter...");
+                }
+
+                Console.WriteLine($"🤖 Модель: {fullModelId}");
+                using (var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://openrouter.ai/api/v1/chat/completions"))
+                {
+                    httpRequest.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
+                    httpRequest.Headers.TryAddWithoutValidation("User-Agent", "NavisHelper-ColorService/2.0");
+                    httpRequest.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
+
+                    using (var response = await SharedHttpClient.SendAsync(httpRequest))
                     {
-                        requestBody = $"{{\"model\":\"{fullModelId}\",\"messages\":[{{\"role\":\"user\",\"content\":\"{escapedPrompt}\"}}],\"max_tokens\":14000,\"thinking\":{{\"type\":\"enabled\",\"budget_tokens\":10240}}}}";
-                        Console.WriteLine($"📡 Отправляем запрос к OpenRouter (thinking ON)...");
-                    }
-                    else
-                    {
-                        requestBody = $"{{\"model\":\"{fullModelId}\",\"messages\":[{{\"role\":\"user\",\"content\":\"{escapedPrompt}\"}}],\"temperature\":0.3,\"max_tokens\":2000}}";
-                        Console.WriteLine($"📡 Отправляем запрос к OpenRouter...");
-                    }
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            var errorContent = await response.Content.ReadAsStringAsync();
+                            Console.WriteLine($"❌ API ошибка: {response.StatusCode} - {errorContent}");
+                            return (GetLocalColors(objectNames), $"API Error: {response.StatusCode}\n{errorContent}");
+                        }
 
-                    var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
+                        var responseContent = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine($"📥 Получен ответ: {responseContent.Length} символов");
 
-                    Console.WriteLine($"🤖 Модель: {fullModelId}");
-                    var response = await client.PostAsync("https://openrouter.ai/api/v1/chat/completions", content);
+                        var colors = ParseAIResponse(responseContent);
 
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        Console.WriteLine($"❌ API ошибка: {response.StatusCode} - {errorContent}");
-                        return (GetLocalColors(objectNames), $"API Error: {response.StatusCode}\n{errorContent}");
-                    }
-
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"📥 Получен ответ: {responseContent.Length} символов");
-
-                    var colors = ParseAIResponse(responseContent);
-
-                    if (colors.Count > 0)
-                    {
-                        return (colors, responseContent);
-                    }
-                    else
-                    {
-                        Console.WriteLine("⚠️ Цвета не найдены в ответе, используем локальные");
-                        return (GetLocalColors(objectNames), responseContent);
+                        if (colors.Count > 0)
+                        {
+                            return (colors, responseContent);
+                        }
+                        else
+                        {
+                            Console.WriteLine("⚠️ Цвета не найдены в ответе, используем локальные");
+                            return (GetLocalColors(objectNames), responseContent);
+                        }
                     }
                 }
             }
@@ -232,10 +236,7 @@ namespace ColorService
 
             if (contentMatch.Success)
             {
-                extractedContent = contentMatch.Groups[1].Value
-                    .Replace("\\n", "\n")
-                    .Replace("\\\"", "\"")
-                    .Replace("\\\\", "\\");
+                extractedContent = UnescapeJsonString(contentMatch.Groups[1].Value);
             }
 
             // Паттерн 2: content может быть объектом (thinking models)
@@ -270,6 +271,36 @@ namespace ColorService
             }
 
             return colors;
+        }
+
+        static string UnescapeJsonString(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            var sb = new StringBuilder(value.Length);
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (value[i] == '\\' && i + 1 < value.Length)
+                {
+                    char next = value[++i];
+                    switch (next)
+                    {
+                        case '\\': sb.Append('\\'); break;
+                        case '"': sb.Append('"'); break;
+                        case '/': sb.Append('/'); break;
+                        case 'n': sb.Append('\n'); break;
+                        case 'r': sb.Append('\r'); break;
+                        case 't': sb.Append('\t'); break;
+                        case 'b': sb.Append('\b'); break;
+                        case 'f': sb.Append('\f'); break;
+                        default: sb.Append('\\').Append(next); break;
+                    }
+                }
+                else
+                {
+                    sb.Append(value[i]);
+                }
+            }
+            return sb.ToString();
         }
 
         static string EscapeJsonString(string value)

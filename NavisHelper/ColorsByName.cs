@@ -258,23 +258,27 @@ namespace NavisHelper
         /// </summary>
         private void HideClashSite()
         {
+            var doc = Application.ActiveDocument;
+            if (doc == null)
+                return;
+
             var oS = new Search();
             oS.SearchConditions.Add(SearchCondition.HasPropertyByDisplayName("Item", "Name").EqualValue(VariantData.FromDisplayString("/CLASH-SITE")));
             oS.Selection.SelectAll();
-            var findItems = oS.FindAll(Application.ActiveDocument, false);
+            var findItems = oS.FindAll(doc, false);
             if (findItems.Count > 0)
             {
-                Application.ActiveDocument.Models.SetHidden(findItems, true);
+                doc.Models.SetHidden(findItems, true);
             }
 
             oS.Clear();
             oS.SearchConditions.Add(SearchCondition.HasPropertyByDisplayName("Item", "Name").EqualValue(VariantData.FromDisplayString("/40/103_1/HAZARDOUS_AREA")));
             oS.Selection.SelectAll();
-            findItems = oS.FindAll(Application.ActiveDocument, false);
+            findItems = oS.FindAll(doc, false);
             if (findItems.Count > 0)
             {
-                Application.ActiveDocument.Models.OverridePermanentTransparency(findItems, 0.9);
-                Application.ActiveDocument.Models.SetHidden(findItems, true);
+                doc.Models.OverridePermanentTransparency(findItems, 0.9);
+                doc.Models.SetHidden(findItems, true);
             }
         }
     }
